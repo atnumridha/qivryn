@@ -1,11 +1,12 @@
 import {
   ArrowPathIcon,
   ArrowTopRightOnSquareIcon,
+  CheckIcon,
   ClipboardIcon,
   Cog6ToothIcon,
   KeyIcon,
 } from "@heroicons/react/24/outline";
-import { useContext, useMemo } from "react";
+import { useContext, useMemo, useState } from "react";
 
 import { GhostButton } from "../../components";
 import { useEditModel } from "../../components/mainInput/Lump/useEditBlock";
@@ -47,9 +48,29 @@ const StreamErrorDialog = ({ error }: StreamErrorProps) => {
     dispatch(setDialogMessage(undefined));
   };
 
+  const [copiedLine, setCopiedLine] = useState<string | null>(null);
+
   const copyErrorToClipboard = () => {
     void navigator.clipboard.writeText(parsedError);
   };
+
+  const copyLine = (text: string) => {
+    void navigator.clipboard.writeText(text);
+    setCopiedLine(text);
+    setTimeout(() => setCopiedLine(null), 2000);
+  };
+
+  // Extract labelled lines (URL:, Model:, Status:) from parsedError for inline copy
+  const errorLines: { label: string; value: string }[] = useMemo(() => {
+    if (!parsedError) return [];
+    return parsedError
+      .split("\n")
+      .map((line) => {
+        const match = line.match(/^(URL|Model|Status):\s*(.+)$/);
+        return match ? { label: match[1], value: match[2].trim() } : null;
+      })
+      .filter(Boolean) as { label: string; value: string }[];
+  }, [parsedError]);
 
   const history = useAppSelector((store) => store.session.history);
 
@@ -266,6 +287,34 @@ const StreamErrorDialog = ({ error }: StreamErrorProps) => {
             defaultOpen
           >
             <div className="flex flex-col gap-0 rounded-sm">
+              {/* Clickable copy rows for URL / Model / Status */}
+              {errorLines.length > 0 && (
+                <div className="border-border border-b px-3 pb-2 pt-2">
+                  {errorLines.map(({ label, value }) => (
+                    <div
+                      key={label}
+                      className="hover:bg-vsc-input-background group flex cursor-pointer items-center justify-between rounded px-1 py-0.5"
+                      title={`Click to copy ${label}`}
+                      onClick={() => copyLine(value)}
+                    >
+                      <span className="font-mono text-xs">
+                        <span className="text-description opacity-70">
+                          {label}:{" "}
+                        </span>
+                        <span className="text-editor-foreground">{value}</span>
+                      </span>
+                      <span className="ml-2 flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100">
+                        {copiedLine === value ? (
+                          <CheckIcon className="h-3 w-3 text-green-400" />
+                        ) : (
+                          <ClipboardIcon className="h-3 w-3" />
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <code className="text-editor-foreground block max-h-48 overflow-y-auto p-3 font-mono text-xs">
                 {parsedError}
               </code>
@@ -276,7 +325,7 @@ const StreamErrorDialog = ({ error }: StreamErrorProps) => {
                   className="flex items-center"
                 >
                   <ClipboardIcon className="mr-1.5 h-3.5 w-3.5" />
-                  <span>Copy output</span>
+                  <span>Copy all</span>
                 </GhostButton>
 
                 <GhostButton

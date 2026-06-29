@@ -12,11 +12,21 @@ export interface ErrorAnalysis {
 }
 
 function parseErrorMessage(fullErrMsg: string): string {
+  if (!fullErrMsg || typeof fullErrMsg !== "string") {
+    return fullErrMsg;
+  }
+
+  // Multi-section errors (URL + Response block) — keep everything as-is
+  // so the full diagnostic context is shown in the error panel.
   if (
-    !fullErrMsg ||
-    typeof fullErrMsg !== "string" ||
-    !fullErrMsg.includes("\n\n")
+    fullErrMsg.includes("\nURL:") ||
+    fullErrMsg.includes("\nModel:") ||
+    fullErrMsg.includes("\nResponse:\n")
   ) {
+    return fullErrMsg;
+  }
+
+  if (!fullErrMsg.includes("\n\n")) {
     return fullErrMsg;
   }
 
@@ -24,7 +34,7 @@ function parseErrorMessage(fullErrMsg: string): string {
   try {
     const parsed = JSON.parse(msg);
     if (parsed.error !== undefined && parsed.error !== null) {
-      return JSON.stringify(parsed.error);
+      return JSON.stringify(parsed.error, null, 2);
     }
     if (parsed.message !== undefined && parsed.message !== null) {
       return JSON.stringify(parsed.message);

@@ -45,6 +45,47 @@ import {
   toResponsesInput,
 } from "./openaiResponses.js";
 
+// ── Structured API error ────────────────────────────────────────────────────
+export interface ApiErrorDetails {
+  status: number;
+  url: string;
+  model: string;
+  body: string;
+}
+
+/** Rich error that carries the full HTTP response so the UI can display and copy it. */
+export class CodexApiError extends Error {
+  readonly details: ApiErrorDetails;
+
+  constructor(message: string, details: ApiErrorDetails) {
+    // Format the full diagnostic block as the error message so it shows up
+    // verbatim in Continue's error panel and can be copied with one click.
+    const parsed = (() => {
+      try {
+        return JSON.stringify(JSON.parse(details.body), null, 2);
+      } catch {
+        return details.body;
+      }
+    })();
+    const fullMessage =
+      `${message}
+
+` +
+      `URL: ${details.url}
+` +
+      `Model: ${details.model}
+` +
+      `Status: ${details.status}
+
+` +
+      `Response:
+${parsed}`;
+    super(fullMessage);
+    this.name = "CodexApiError";
+    this.details = details;
+  }
+}
+
 // ── Auth ─────────────────────────────────────────────────────────────────────
 const AUTH_FILE = path.join(os.homedir(), ".codex", "auth.json");
 const INSTALL_ID_FILE = path.join(os.homedir(), ".codex", "installation_id");
@@ -379,7 +420,15 @@ export class ChatGPTCodexApi implements BaseLlmApi {
 
     if (!res.ok) {
       const text = await res.text().catch(() => "");
-      throw new Error(`ChatGPT Codex API error ${res.status}: ${text}`);
+      throw new CodexApiError(
+        `ChatGPT Codex: ${res.status} ${res.statusText}`,
+        {
+          status: res.status,
+          url: `${CODEX_BASE}/responses`,
+          model: body.model,
+          body: text,
+        },
+      );
     }
 
     const state = createResponsesStreamState({ model: body.model });
@@ -395,17 +444,31 @@ export class ChatGPTCodexApi implements BaseLlmApi {
   }
 
   // ── chatCompletionNonStream ───────────────────────────────────────────────
+  // The ChatGPT Codex backend requires stream=true on every request.
+  // We implement non-streaming by collecting all stream chunks.
 
   async chatCompletionNonStream(
     body: ChatCompletionCreateParamsNonStreaming,
     signal: AbortSignal,
   ): Promise<ChatCompletion> {
+    let fullText = "";
+    let responseId = "codex-response";
+    let model = body.model;
+
+    // Stream and buffer
+    const streamBody = {
+      ...body,
+      stream: true,
+    } as any;
+
+    const state = createResponsesStreamState({ model });
+
     const headers = await this.authHeaders();
     const codexBody = chatMessagesToCodexBody(
       body.model,
       body.messages as any[],
       {
-        stream: false,
+        stream: true,
         ...(body.temperature !== undefined
           ? { temperature: body.temperature }
           : {}),
@@ -435,34 +498,30 @@ export class ChatGPTCodexApi implements BaseLlmApi {
       throw new Error(`ChatGPT Codex API error ${res.status}: ${text}`);
     }
 
-    const data = (await res.json()) as any;
-
-    // Convert Responses API output to ChatCompletion shape
-    const text = (data.output ?? [])
-      .filter((item: any) => item.type === "message")
-      .flatMap((item: any) => item.content ?? [])
-      .filter((c: any) => c.type === "output_text")
-      .map((c: any) => c.text ?? "")
-      .join("");
+    for await (const event of streamSse(res as any)) {
+      if (!event || event.obfuscation) continue;
+      if (event.type === "response.created")
+        responseId = event.response?.id ?? responseId;
+      const chunk = fromResponsesChunk(state, event as any);
+      if (chunk?.choices?.[0]?.delta?.content) {
+        fullText += chunk.choices[0].delta.content;
+      }
+    }
 
     return {
-      id: data.id ?? "codex-response",
+      id: responseId,
       object: "chat.completion",
-      created: data.created_at ?? Math.floor(Date.now() / 1000),
-      model: data.model ?? body.model,
+      created: Math.floor(Date.now() / 1000),
+      model,
       choices: [
         {
           index: 0,
-          message: { role: "assistant", content: text, refusal: null },
+          message: { role: "assistant", content: fullText, refusal: null },
           finish_reason: "stop",
           logprobs: null,
         },
       ],
-      usage: data.usage ?? {
-        prompt_tokens: 0,
-        completion_tokens: 0,
-        total_tokens: 0,
-      },
+      usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
     };
   }
 
