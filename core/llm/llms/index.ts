@@ -51,7 +51,7 @@ import Ollama from "./Ollama";
 import OpenAI from "./OpenAI";
 import OpenRouter from "./OpenRouter";
 import ClawRouter from "./ClawRouter";
-import CopilotProxy from "./CopilotProxy";
+import GitHubCopilot from "./GitHubCopilot";
 import OracleCodeAssist from "./OracleCodeAssist";
 import OVHcloud from "./OVHcloud";
 import { Relace } from "./Relace";
@@ -113,7 +113,7 @@ export const LLMClasses = [
   WatsonX,
   OpenRouter,
   ClawRouter,
-  CopilotProxy,
+  GitHubCopilot,
   OracleCodeAssist,
   Nvidia,
   Vllm,

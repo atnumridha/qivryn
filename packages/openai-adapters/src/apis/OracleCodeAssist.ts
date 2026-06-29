@@ -7,32 +7,27 @@ import { OpenAIConfig } from "../types.js";
 const OCA_SECRETS_FILE = path.join(os.homedir(), ".codex", "oca-secrets.json");
 const OCA_BASE_URL =
   "https://code-internal.aiservice.us-chicago-1.oci.oraclecloud.com/20250206/app/litellm";
-
-export interface OracleCodeAssistConfig extends OpenAIConfig {}
+const CLIENT_VERSION = "0.137.0";
 
 function readOcaToken(): string {
   try {
     if (fs.existsSync(OCA_SECRETS_FILE)) {
-      const secrets = JSON.parse(fs.readFileSync(OCA_SECRETS_FILE, "utf8"));
-      return secrets?.ocaApiKey ?? "";
+      const secrets = JSON.parse(fs.readFileSync(OCA_SECRETS_FILE, "utf8")) as Record<string, unknown>;
+      const t = secrets?.ocaApiKey;
+      if (typeof t === "string" && t.trim()) return t.trim();
     }
-  } catch {
-    // ignore
-  }
-  return process.env.OCA_API_KEY ?? "";
+  } catch { /* fall through */ }
+  return process.env.OCA_API_KEY?.trim() ?? "";
 }
 
+export interface OracleCodeAssistConfig extends OpenAIConfig {}
+
 /**
- * OracleCodeAssist API adapter for Continue.
+ * OracleCodeAssist API adapter for Continue's openai-adapters package.
  *
- * Connects to Oracle Code Assist's LiteLLM endpoint using an OAuth access
- * token managed by codex-oca-tool.
- *
- * Auth setup:
- *   bash ~/Documents/codex-oca-tool/codex-oca-temp.sh login
- *   # Writes ~/.codex/oca-secrets.json  →  { "ocaApiKey": "<JWT>" }
- *
- * @see /Users/atanumridha/Documents/codex-oca-tool/docs/macos.md#oca-flow
+ * Talks directly to Oracle Code Assist's LiteLLM HTTPS endpoint — no proxy.
+ * Reads the JWT token from ~/.codex/oca-secrets.json (written by
+ * codex-oca-temp.sh login) or the OCA_API_KEY environment variable.
  */
 export class OracleCodeAssistApi extends OpenAIApi {
   constructor(config: OracleCodeAssistConfig) {
@@ -44,13 +39,12 @@ export class OracleCodeAssistApi extends OpenAIApi {
   }
 
   protected override getHeaders(): Record<string, string> {
-    const version = "0.137.0";
     return {
       ...super.getHeaders(),
       client: "Continue",
-      "client-version": version,
+      "client-version": CLIENT_VERSION,
       "client-ide": "vscode",
-      "client-ide-version": version,
+      "client-ide-version": CLIENT_VERSION,
     };
   }
 }

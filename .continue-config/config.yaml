@@ -1,54 +1,60 @@
 # ~/.continue/config.yaml
-# Continue dev assistant — wired to GitHub Copilot (via local proxy) and
-# Oracle Code Assist (OCA) paid models.
+# Continue — GitHub Copilot and Oracle Code Assist (OCA) paid models.
+#
+# Both providers talk directly to their APIs — no local proxy, no daemon.
 #
 # ═══════════════════════════════════════════════════════════════════════════
-#  PREREQUISITES (one-time setup)
+#  ONE-TIME SETUP
 # ═══════════════════════════════════════════════════════════════════════════
 #
-#  ── Copilot ────────────────────────────────────────────────────────────────
-#  1. Install the codex-oca-bridge VS Code extension:
+#  ── GitHub Copilot ─────────────────────────────────────────────────────────
+#  1. Install the VS Code extension (once):
 #       cd ~/Documents/codex-oca-tool && bash install.sh --copilot-setup
-#  2. Accept the export prompt in VS Code, or run from the Command Palette:
+#  2. Run from the VS Code Command Palette (once):
 #       Codex Copilot: Export Token and Enable
-#     This writes ~/.codex/copilot-auth.json (GitHub OAuth + Copilot token).
-#  3. Start the local proxy (keeps running in the background):
-#       bash ~/.codex/bin/codex-copilot enable
-#     The proxy listens at http://127.0.0.1:8787/v1
+#     This writes ~/.codex/copilot-auth.json.
+#     Continue reads and auto-refreshes this file at runtime — no proxy needed.
 #
-#  ── OCA ────────────────────────────────────────────────────────────────────
-#  4. Log in to Oracle Code Assist:
+#  ── Oracle Code Assist ─────────────────────────────────────────────────────
+#  3. Log in to OCA (once):
 #       bash ~/Documents/codex-oca-tool/codex-oca-temp.sh login
-#     This writes ~/.codex/oca-secrets.json (JWT access token).
-#  5. Tokens auto-refresh on use via the OCA provider class.
+#     This writes ~/.codex/oca-secrets.json.
+#     Continue reads the JWT token from this file at runtime.
+#
+#  ── Install this config ────────────────────────────────────────────────────
+#  4. Run:
+#       bash ~/Documents/continue/scripts/setup-continue-providers.sh
 #
 # ═══════════════════════════════════════════════════════════════════════════
-#  INSTALL THIS FILE
+#  TOKEN REFRESH
 # ═══════════════════════════════════════════════════════════════════════════
 #
-#   bash ~/Documents/continue/scripts/setup-continue-providers.sh
-#
+#  Copilot: automatic — Continue refreshes the bearer token itself.
+#  OCA (when expired):
+#    bash ~/Documents/codex-oca-tool/codex-oca-temp.sh refresh
+#    # Then reload VS Code: Developer → Reload Window
 # ═══════════════════════════════════════════════════════════════════════════
 
-name: Continue with Copilot and OCA
+name: Continue with GitHub Copilot and OCA
 version: 1.0.0
 schema: v1
 
-# ─── GitHub Copilot models (via local proxy at 127.0.0.1:8787) ─────────────
-# The proxy transparently refreshes the Copilot bearer token from
-# ~/.codex/copilot-auth.json. Pass any non-empty string as apiKey;
-# the proxy replaces it with a live Copilot token before forwarding.
+# ─── GitHub Copilot models ──────────────────────────────────────────────────
+# provider: github-copilot
+#   Talks directly to api.githubcopilot.com using the bearer token from
+#   ~/.codex/copilot-auth.json.  No apiKey needed — the provider reads and
+#   auto-refreshes it from the auth file.
 #
-# Model IDs: run `curl -s http://127.0.0.1:8787/v1/models | jq` for the live
-# list after the proxy is started.
+# apiBase: the Copilot CAPI endpoint — resolved dynamically from the auth file
+#   after the first token refresh.  The static default below works for most
+#   accounts; it will be overridden by the endpoints.api field in the auth file.
 models:
 
-  # ── Copilot: gpt-5.3-codex (default) ──────────────────────────────────────
+  # ── gpt-5.3-codex (default — best for agent & code tasks) ─────────────────
   - name: "Copilot: gpt-5.3-codex"
-    provider: copilot-proxy
+    provider: github-copilot
     model: gpt-5.3-codex
-    apiBase: http://127.0.0.1:8787/v1/
-    apiKey: local-copilot-proxy
+    apiBase: https://api.githubcopilot.com/
     roles:
       - chat
       - edit
@@ -56,17 +62,12 @@ models:
     capabilities:
       - tool_use
       - image_input
-    requestOptions:
-      headers:
-        Copilot-Integration-Id: vscode-chat
-        Editor-Plugin-Version: continue/copilot-proxy
 
-  # ── Copilot: gpt-4.1 (strong reasoning + tool use) ────────────────────────
+  # ── gpt-4.1 (strong reasoning + long context) ─────────────────────────────
   - name: "Copilot: gpt-4.1"
-    provider: copilot-proxy
+    provider: github-copilot
     model: gpt-4.1
-    apiBase: http://127.0.0.1:8787/v1/
-    apiKey: local-copilot-proxy
+    apiBase: https://api.githubcopilot.com/
     roles:
       - chat
       - edit
@@ -75,17 +76,12 @@ models:
     capabilities:
       - tool_use
       - image_input
-    requestOptions:
-      headers:
-        Copilot-Integration-Id: vscode-chat
-        Editor-Plugin-Version: continue/copilot-proxy
 
-  # ── Copilot: gpt-4o ───────────────────────────────────────────────────────
+  # ── gpt-4o ────────────────────────────────────────────────────────────────
   - name: "Copilot: gpt-4o"
-    provider: copilot-proxy
+    provider: github-copilot
     model: gpt-4o
-    apiBase: http://127.0.0.1:8787/v1/
-    apiKey: local-copilot-proxy
+    apiBase: https://api.githubcopilot.com/
     roles:
       - chat
       - edit
@@ -94,17 +90,12 @@ models:
     capabilities:
       - tool_use
       - image_input
-    requestOptions:
-      headers:
-        Copilot-Integration-Id: vscode-chat
-        Editor-Plugin-Version: continue/copilot-proxy
 
-  # ── Copilot: gpt-4o-mini (fast, cheap) ────────────────────────────────────
+  # ── gpt-4o-mini (fast, low-cost) ─────────────────────────────────────────
   - name: "Copilot: gpt-4o-mini"
-    provider: copilot-proxy
+    provider: github-copilot
     model: gpt-4o-mini
-    apiBase: http://127.0.0.1:8787/v1/
-    apiKey: local-copilot-proxy
+    apiBase: https://api.githubcopilot.com/
     roles:
       - chat
       - edit
@@ -113,66 +104,46 @@ models:
     capabilities:
       - tool_use
       - image_input
-    requestOptions:
-      headers:
-        Copilot-Integration-Id: vscode-chat
-        Editor-Plugin-Version: continue/copilot-proxy
 
-  # ── Copilot: o3 (extended reasoning) ─────────────────────────────────────
+  # ── o3 (extended reasoning) ───────────────────────────────────────────────
   - name: "Copilot: o3"
-    provider: copilot-proxy
+    provider: github-copilot
     model: o3
-    apiBase: http://127.0.0.1:8787/v1/
-    apiKey: local-copilot-proxy
+    apiBase: https://api.githubcopilot.com/
     roles:
       - chat
     capabilities:
       - tool_use
-    requestOptions:
-      headers:
-        Copilot-Integration-Id: vscode-chat
-        Editor-Plugin-Version: continue/copilot-proxy
 
-  # ── Copilot: claude-sonnet-4.5 (chat-only; proxy translates) ──────────────
+  # ── claude-sonnet-4.5 ────────────────────────────────────────────────────
   - name: "Copilot: claude-sonnet-4.5"
-    provider: copilot-proxy
+    provider: github-copilot
     model: claude-sonnet-4.5
-    apiBase: http://127.0.0.1:8787/v1/
-    apiKey: local-copilot-proxy
+    apiBase: https://api.githubcopilot.com/
     roles:
       - chat
       - edit
       - apply
     capabilities:
       - tool_use
-    requestOptions:
-      headers:
-        Copilot-Integration-Id: vscode-chat
-        Editor-Plugin-Version: continue/copilot-proxy
 
-  # ── Copilot: claude-sonnet-4.6 ────────────────────────────────────────────
+  # ── claude-sonnet-4.6 ────────────────────────────────────────────────────
   - name: "Copilot: claude-sonnet-4.6"
-    provider: copilot-proxy
+    provider: github-copilot
     model: claude-sonnet-4.6
-    apiBase: http://127.0.0.1:8787/v1/
-    apiKey: local-copilot-proxy
+    apiBase: https://api.githubcopilot.com/
     roles:
       - chat
       - edit
       - apply
     capabilities:
       - tool_use
-    requestOptions:
-      headers:
-        Copilot-Integration-Id: vscode-chat
-        Editor-Plugin-Version: continue/copilot-proxy
 
-  # ── Copilot: gemini-2.5-pro ───────────────────────────────────────────────
+  # ── gemini-2.5-pro ───────────────────────────────────────────────────────
   - name: "Copilot: gemini-2.5-pro"
-    provider: copilot-proxy
+    provider: github-copilot
     model: gemini-2.5-pro
-    apiBase: http://127.0.0.1:8787/v1/
-    apiKey: local-copilot-proxy
+    apiBase: https://api.githubcopilot.com/
     roles:
       - chat
       - edit
@@ -180,55 +151,38 @@ models:
     capabilities:
       - tool_use
       - image_input
-    requestOptions:
-      headers:
-        Copilot-Integration-Id: vscode-chat
-        Editor-Plugin-Version: continue/copilot-proxy
 
-  # ── Copilot autocomplete (low-latency inline completions) ─────────────────
+  # ── Autocomplete (inline completions) ────────────────────────────────────
   - name: "Copilot Autocomplete"
-    provider: copilot-proxy
+    provider: github-copilot
     model: gpt-4o-mini
-    apiBase: http://127.0.0.1:8787/v1/
-    apiKey: local-copilot-proxy
+    apiBase: https://api.githubcopilot.com/
     roles:
       - autocomplete
-    requestOptions:
-      headers:
-        Copilot-Integration-Id: vscode-chat
-        Editor-Plugin-Version: continue/copilot-proxy
 
-  # ─── Oracle Code Assist (OCA) ───────────────────────────────────────────
-  # Token is read automatically from ~/.codex/oca-secrets.json at runtime
-  # by the OracleCodeAssist provider class.  The ${{ env.OCA_API_KEY }}
-  # interpolation is a fallback so you can also export it as an env var or
-  # add OCA_API_KEY=... to ~/.continue/.env (loaded by Continue at startup).
+  # ─── Oracle Code Assist (OCA) ─────────────────────────────────────────────
+  # provider: oca
+  #   Talks directly to Oracle's LiteLLM HTTPS endpoint.
+  #   Token is read from ~/.codex/oca-secrets.json at runtime.
+  #   No apiKey field needed in the config — the provider resolves it itself.
 
-  # ── OCA: gpt-5.3-codex ────────────────────────────────────────────────────
+  # ── OCA: gpt-5.3-codex ───────────────────────────────────────────────────
   - name: "OCA: gpt-5.3-codex"
     provider: oca
     model: oca/gpt-5.3-codex
     apiBase: https://code-internal.aiservice.us-chicago-1.oci.oraclecloud.com/20250206/app/litellm/v1/
-    apiKey: ${{ env.OCA_API_KEY }}
     roles:
       - chat
       - edit
       - apply
     capabilities:
       - tool_use
-    requestOptions:
-      headers:
-        client: Continue
-        client-version: "0.137.0"
-        client-ide: vscode
-        client-ide-version: "0.137.0"
 
   # ── OCA: gpt-4.1 ─────────────────────────────────────────────────────────
   - name: "OCA: gpt-4.1"
     provider: oca
     model: oca/gpt-4.1
     apiBase: https://code-internal.aiservice.us-chicago-1.oci.oraclecloud.com/20250206/app/litellm/v1/
-    apiKey: ${{ env.OCA_API_KEY }}
     roles:
       - chat
       - edit
@@ -236,46 +190,26 @@ models:
       - summarize
     capabilities:
       - tool_use
-    requestOptions:
-      headers:
-        client: Continue
-        client-version: "0.137.0"
-        client-ide: vscode
-        client-ide-version: "0.137.0"
 
   # ── OCA: gpt-4o ──────────────────────────────────────────────────────────
   - name: "OCA: gpt-4o"
     provider: oca
     model: oca/gpt-4o
     apiBase: https://code-internal.aiservice.us-chicago-1.oci.oraclecloud.com/20250206/app/litellm/v1/
-    apiKey: ${{ env.OCA_API_KEY }}
     roles:
       - chat
       - edit
       - apply
     capabilities:
       - tool_use
-    requestOptions:
-      headers:
-        client: Continue
-        client-version: "0.137.0"
-        client-ide: vscode
-        client-ide-version: "0.137.0"
 
-  # ── OCA autocomplete ──────────────────────────────────────────────────────
+  # ── OCA Autocomplete ──────────────────────────────────────────────────────
   - name: "OCA Autocomplete"
     provider: oca
     model: oca/gpt-4o-mini
     apiBase: https://code-internal.aiservice.us-chicago-1.oci.oraclecloud.com/20250206/app/litellm/v1/
-    apiKey: ${{ env.OCA_API_KEY }}
     roles:
       - autocomplete
-    requestOptions:
-      headers:
-        client: Continue
-        client-version: "0.137.0"
-        client-ide: vscode
-        client-ide-version: "0.137.0"
 
 # ─── Context providers ────────────────────────────────────────────────────
 context:
@@ -287,14 +221,15 @@ context:
   - provider: folder
   - provider: codebase
 
-# ─── Rules (system message prefixes) ─────────────────────────────────────
+# ─── Rules ────────────────────────────────────────────────────────────────
 rules:
   - You are a precise software engineering assistant. Think carefully before making changes.
   - Prefer minimal, targeted edits. Always explain your reasoning concisely.
   - When using tools, be explicit about which file and line you are editing.
 
 # ─── Env var injection ────────────────────────────────────────────────────
-# Continue reads ~/.continue/.env and injects named vars into the config.
-# OCA_API_KEY can be set there instead of hard-coding it here.
+# OCA_API_KEY is loaded from ~/.continue/.env if the oca-secrets.json file
+# is absent.  After logging in with codex-oca-temp.sh this env var is not
+# needed — the provider reads the secrets file directly.
 env:
   - OCA_API_KEY
