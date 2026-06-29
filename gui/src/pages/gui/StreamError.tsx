@@ -72,6 +72,18 @@ const StreamErrorDialog = ({ error }: StreamErrorProps) => {
       .filter(Boolean) as { label: string; value: string }[];
   }, [parsedError]);
 
+  // Remove the labelled lines from the code block since they're already
+  // shown as clickable rows above — no duplication.
+  const codeBlockError = useMemo(() => {
+    if (!errorLines.length) return parsedError;
+    return parsedError
+      .split("\n")
+      .filter((line) => !/^(URL|Model|Status):\s*/.test(line))
+      .join("\n")
+      .replace(/^\n+/, "") // trim leading blank lines
+      .trimEnd();
+  }, [parsedError, errorLines]);
+
   const history = useAppSelector((store) => store.session.history);
 
   const checkKeysButton = apiKeyUrl ? (
@@ -316,7 +328,7 @@ const StreamErrorDialog = ({ error }: StreamErrorProps) => {
               )}
 
               <code className="text-editor-foreground block max-h-48 overflow-y-auto p-3 font-mono text-xs">
-                {parsedError}
+                {codeBlockError}
               </code>
 
               <div className="flex flex-row items-center justify-end gap-2 p-2">
