@@ -287,6 +287,32 @@ function buildContentParts(content: any, role: string): any[] {
   return [{ type: "input_text", text: String(content ?? "") }];
 }
 
+// ── Tool format conversion ───────────────────────────────────────────────────
+// The Codex backend expects the Responses API tool shape:
+//   { type: "function", name: "...", description: "...", parameters: {...} }
+// Continue sends the chat completions tool shape:
+//   { type: "function", function: { name: "...", description: "...", parameters: {...} } }
+function convertTools(tools: any[] | undefined): any[] | undefined {
+  if (!tools?.length) return undefined;
+  return tools
+    .map((tool) => {
+      if (tool.type === "function" && tool.function) {
+        // Chat completions → Responses API shape
+        return {
+          type: "function" as const,
+          name: tool.function.name ?? "",
+          description: tool.function.description ?? null,
+          parameters: tool.function.parameters ?? null,
+          strict:
+            tool.function.strict !== undefined ? tool.function.strict : null,
+        };
+      }
+      // Already in Responses API shape or unknown — pass through
+      return tool;
+    })
+    .filter((t) => t.name); // drop any entry without a name (would cause 400)
+}
+
 // ── API class ─────────────────────────────────────────────────────────────────
 
 export interface ChatGPTCodexConfig {
@@ -331,7 +357,7 @@ export class ChatGPTCodexApi implements BaseLlmApi {
           ? { temperature: body.temperature }
           : {}),
         ...(body.max_tokens ? { max_output_tokens: body.max_tokens } : {}),
-        ...(body.tools ? { tools: body.tools } : {}),
+        ...(body.tools ? { tools: convertTools(body.tools as any[]) } : {}),
         ...((body as any).reasoning_effort
           ? { reasoning: { effort: (body as any).reasoning_effort } }
           : {}),
@@ -378,7 +404,7 @@ export class ChatGPTCodexApi implements BaseLlmApi {
           ? { temperature: body.temperature }
           : {}),
         ...(body.max_tokens ? { max_output_tokens: body.max_tokens } : {}),
-        ...(body.tools ? { tools: body.tools } : {}),
+        ...(body.tools ? { tools: convertTools(body.tools as any[]) } : {}),
         ...((body as any).reasoning_effort
           ? { reasoning: { effort: (body as any).reasoning_effort } }
           : {}),
