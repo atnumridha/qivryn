@@ -68,15 +68,26 @@ else
   ok "Directory exists: $CONTINUE_DIR"
 fi
 
-# ── Step 2: install config.yaml ──────────────────────────────────────────────
+# ── Step 2: sync models from live backends then write config.yaml ─────────────
 if [ "$ENV_ONLY" = "0" ]; then
-  info "Installing config.yaml"
-  [ -f "$CONFIG_SRC" ] || { printf '\033[1;31m✗  Source not found: %s\033[0m\n' "$CONFIG_SRC" >&2; exit 1; }
-  if [ "$DRY_RUN" = "1" ]; then
-    log "would copy $CONFIG_SRC → $CONFIG_DST"
+  info "Syncing models from live backends"
+  SYNC_SCRIPT="$REPO_DIR/scripts/sync-models.mjs"
+  if [ -f "$SYNC_SCRIPT" ] && command -v node >/dev/null 2>&1; then
+    if [ "$DRY_RUN" = "1" ]; then
+      log "would run: node $SYNC_SCRIPT"
+    else
+      node "$SYNC_SCRIPT" 2>&1 | while IFS= read -r line; do log "$line"; done
+      ok "Model sync complete: $CONFIG_DST"
+    fi
   else
-    cp -p "$CONFIG_SRC" "$CONFIG_DST"
-    ok "Installed: $CONFIG_DST"
+    # Fallback: copy static config
+    [ -f "$CONFIG_SRC" ] || { printf '\033[1;31m✗  Source not found: %s\033[0m\n' "$CONFIG_SRC" >&2; exit 1; }
+    if [ "$DRY_RUN" = "1" ]; then
+      log "would copy $CONFIG_SRC → $CONFIG_DST"
+    else
+      cp -p "$CONFIG_SRC" "$CONFIG_DST"
+      ok "Installed (static): $CONFIG_DST"
+    fi
   fi
 fi
 

@@ -332,6 +332,9 @@ export class ChatGPTCodexApi implements BaseLlmApi {
           : {}),
         ...(body.max_tokens ? { max_output_tokens: body.max_tokens } : {}),
         ...(body.tools ? { tools: body.tools } : {}),
+        ...((body as any).reasoning_effort
+          ? { reasoning: { effort: (body as any).reasoning_effort } }
+          : {}),
       },
     );
 
@@ -376,6 +379,9 @@ export class ChatGPTCodexApi implements BaseLlmApi {
           : {}),
         ...(body.max_tokens ? { max_output_tokens: body.max_tokens } : {}),
         ...(body.tools ? { tools: body.tools } : {}),
+        ...((body as any).reasoning_effort
+          ? { reasoning: { effort: (body as any).reasoning_effort } }
+          : {}),
       },
     );
 

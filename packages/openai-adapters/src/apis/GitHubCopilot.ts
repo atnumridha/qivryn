@@ -270,6 +270,19 @@ export class GitHubCopilotApi extends OpenAIApi {
   protected override shouldUseResponsesEndpoint(_model: string): boolean {
     return false;
   }
+
+  override modifyChatBody<
+    T extends import("openai/resources/index").ChatCompletionCreateParams,
+  >(body: T): T {
+    const modified = super.modifyChatBody(body);
+    // Inject reasoning_effort if present (set via requestOptions.extraBodyProperties in config)
+    const reasoningEffort = (modified as any).reasoning_effort;
+    if (reasoningEffort) {
+      (modified as any).reasoning = { effort: reasoningEffort };
+      delete (modified as any).reasoning_effort;
+    }
+    return modified;
+  }
 }
 
 export default GitHubCopilotApi;
