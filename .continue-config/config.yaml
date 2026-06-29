@@ -1,241 +1,709 @@
-name: "Continue with ChatGPT Codex, Copilot and OCA"
+name: "Continue — ChatGPT Codex, Copilot, OCA (auto-synced)"
 version: "1.0.0"
 schema: "v1"
 models:
+  - name: "Codex: GPT-5.6-Sol (low)"
+    provider: "chatgpt-codex"
+    model: "gpt-5.6-sol"
+    apiBase: "https://chatgpt.com/backend-api/codex/"
+    roles: &a1
+      - "chat"
+      - "edit"
+      - "apply"
+      - "summarize"
+    capabilities: &a2
+      - "tool_use"
+      - "image_input"
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "low"
   - name: "Codex: GPT-5.6-Sol"
     provider: "chatgpt-codex"
     model: "gpt-5.6-sol"
     apiBase: "https://chatgpt.com/backend-api/codex/"
-    roles:
+    roles: *a1
+    capabilities: *a2
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "medium"
+  - name: "Codex: GPT-5.6-Sol (high)"
+    provider: "chatgpt-codex"
+    model: "gpt-5.6-sol"
+    apiBase: "https://chatgpt.com/backend-api/codex/"
+    roles: *a1
+    capabilities: *a2
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "high"
+  - name: "Codex: GPT-5.6-Sol (xhigh)"
+    provider: "chatgpt-codex"
+    model: "gpt-5.6-sol"
+    apiBase: "https://chatgpt.com/backend-api/codex/"
+    roles: *a1
+    capabilities: *a2
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "xhigh"
+  - name: "Codex: GPT-5.6-Sol (max)"
+    provider: "chatgpt-codex"
+    model: "gpt-5.6-sol"
+    apiBase: "https://chatgpt.com/backend-api/codex/"
+    roles: *a1
+    capabilities: *a2
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "max"
+  - name: "Codex: GPT-5.6-Sol (ultra)"
+    provider: "chatgpt-codex"
+    model: "gpt-5.6-sol"
+    apiBase: "https://chatgpt.com/backend-api/codex/"
+    roles: *a1
+    capabilities: *a2
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "ultra"
+  - name: "Codex: GPT-5.6-Terra (low)"
+    provider: "chatgpt-codex"
+    model: "gpt-5.6-terra"
+    apiBase: "https://chatgpt.com/backend-api/codex/"
+    roles: &a3
       - "chat"
       - "edit"
       - "apply"
       - "summarize"
-    capabilities:
+    capabilities: &a4
       - "tool_use"
       - "image_input"
-    defaultCompletionOptions:
-      reasoning: true
     requestOptions:
       extraBodyProperties:
-        reasoning_effort: "medium"
+        reasoning_effort: "low"
   - name: "Codex: GPT-5.6-Terra"
     provider: "chatgpt-codex"
     model: "gpt-5.6-terra"
     apiBase: "https://chatgpt.com/backend-api/codex/"
-    roles:
-      - "chat"
-      - "edit"
-      - "apply"
-      - "summarize"
-    capabilities:
-      - "tool_use"
-      - "image_input"
-    defaultCompletionOptions:
-      reasoning: true
+    roles: *a3
+    capabilities: *a4
     requestOptions:
       extraBodyProperties:
         reasoning_effort: "medium"
+  - name: "Codex: GPT-5.6-Terra (high)"
+    provider: "chatgpt-codex"
+    model: "gpt-5.6-terra"
+    apiBase: "https://chatgpt.com/backend-api/codex/"
+    roles: *a3
+    capabilities: *a4
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "high"
+  - name: "Codex: GPT-5.6-Terra (xhigh)"
+    provider: "chatgpt-codex"
+    model: "gpt-5.6-terra"
+    apiBase: "https://chatgpt.com/backend-api/codex/"
+    roles: *a3
+    capabilities: *a4
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "xhigh"
+  - name: "Codex: GPT-5.6-Terra (max)"
+    provider: "chatgpt-codex"
+    model: "gpt-5.6-terra"
+    apiBase: "https://chatgpt.com/backend-api/codex/"
+    roles: *a3
+    capabilities: *a4
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "max"
+  - name: "Codex: GPT-5.6-Terra (ultra)"
+    provider: "chatgpt-codex"
+    model: "gpt-5.6-terra"
+    apiBase: "https://chatgpt.com/backend-api/codex/"
+    roles: *a3
+    capabilities: *a4
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "ultra"
+  - name: "Codex: GPT-5.6-Luna (low)"
+    provider: "chatgpt-codex"
+    model: "gpt-5.6-luna"
+    apiBase: "https://chatgpt.com/backend-api/codex/"
+    roles: &a5
+      - "chat"
+      - "edit"
+      - "apply"
+      - "subagent"
+    capabilities: &a6
+      - "tool_use"
+      - "image_input"
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "low"
   - name: "Codex: GPT-5.6-Luna"
     provider: "chatgpt-codex"
     model: "gpt-5.6-luna"
     apiBase: "https://chatgpt.com/backend-api/codex/"
-    roles:
-      - "chat"
-      - "edit"
-      - "apply"
-      - "subagent"
-    capabilities:
-      - "tool_use"
-      - "image_input"
-    defaultCompletionOptions:
-      reasoning: true
+    roles: *a5
+    capabilities: *a6
     requestOptions:
       extraBodyProperties:
         reasoning_effort: "medium"
+  - name: "Codex: GPT-5.6-Luna (high)"
+    provider: "chatgpt-codex"
+    model: "gpt-5.6-luna"
+    apiBase: "https://chatgpt.com/backend-api/codex/"
+    roles: *a5
+    capabilities: *a6
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "high"
+  - name: "Codex: GPT-5.6-Luna (xhigh)"
+    provider: "chatgpt-codex"
+    model: "gpt-5.6-luna"
+    apiBase: "https://chatgpt.com/backend-api/codex/"
+    roles: *a5
+    capabilities: *a6
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "xhigh"
+  - name: "Codex: GPT-5.6-Luna (max)"
+    provider: "chatgpt-codex"
+    model: "gpt-5.6-luna"
+    apiBase: "https://chatgpt.com/backend-api/codex/"
+    roles: *a5
+    capabilities: *a6
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "max"
+  - name: "Codex: GPT-5.5 (low)"
+    provider: "chatgpt-codex"
+    model: "gpt-5.5"
+    apiBase: "https://chatgpt.com/backend-api/codex/"
+    roles: &a7
+      - "chat"
+      - "edit"
+      - "apply"
+      - "summarize"
+    capabilities: &a8
+      - "tool_use"
+      - "image_input"
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "low"
   - name: "Codex: GPT-5.5"
     provider: "chatgpt-codex"
     model: "gpt-5.5"
     apiBase: "https://chatgpt.com/backend-api/codex/"
-    roles:
+    roles: *a7
+    capabilities: *a8
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "medium"
+  - name: "Codex: GPT-5.5 (high)"
+    provider: "chatgpt-codex"
+    model: "gpt-5.5"
+    apiBase: "https://chatgpt.com/backend-api/codex/"
+    roles: *a7
+    capabilities: *a8
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "high"
+  - name: "Codex: GPT-5.5 (xhigh)"
+    provider: "chatgpt-codex"
+    model: "gpt-5.5"
+    apiBase: "https://chatgpt.com/backend-api/codex/"
+    roles: *a7
+    capabilities: *a8
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "xhigh"
+  - name: "Codex: GPT-5.4 (low)"
+    provider: "chatgpt-codex"
+    model: "gpt-5.4"
+    apiBase: "https://chatgpt.com/backend-api/codex/"
+    roles: &a9
       - "chat"
       - "edit"
       - "apply"
       - "summarize"
-    capabilities:
+    capabilities: &a10
       - "tool_use"
       - "image_input"
-    defaultCompletionOptions:
-      reasoning: true
     requestOptions:
       extraBodyProperties:
-        reasoning_effort: "xhigh"
+        reasoning_effort: "low"
   - name: "Codex: GPT-5.4"
     provider: "chatgpt-codex"
     model: "gpt-5.4"
     apiBase: "https://chatgpt.com/backend-api/codex/"
-    roles:
-      - "chat"
-      - "edit"
-      - "apply"
-      - "summarize"
-    capabilities:
-      - "tool_use"
-      - "image_input"
-    defaultCompletionOptions:
-      reasoning: true
+    roles: *a9
+    capabilities: *a10
     requestOptions:
       extraBodyProperties:
         reasoning_effort: "medium"
-  - name: "Codex: GPT-5.4-Mini"
+  - name: "Codex: GPT-5.4 (high)"
+    provider: "chatgpt-codex"
+    model: "gpt-5.4"
+    apiBase: "https://chatgpt.com/backend-api/codex/"
+    roles: *a9
+    capabilities: *a10
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "high"
+  - name: "Codex: GPT-5.4 (xhigh)"
+    provider: "chatgpt-codex"
+    model: "gpt-5.4"
+    apiBase: "https://chatgpt.com/backend-api/codex/"
+    roles: *a9
+    capabilities: *a10
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "xhigh"
+  - name: "Codex: GPT-5.4-Mini (low)"
     provider: "chatgpt-codex"
     model: "gpt-5.4-mini"
     apiBase: "https://chatgpt.com/backend-api/codex/"
-    roles:
+    roles: &a11
       - "chat"
       - "edit"
       - "apply"
       - "subagent"
-    capabilities:
+    capabilities: &a12
       - "tool_use"
       - "image_input"
-    defaultCompletionOptions:
-      reasoning: true
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "low"
+  - name: "Codex: GPT-5.4-Mini"
+    provider: "chatgpt-codex"
+    model: "gpt-5.4-mini"
+    apiBase: "https://chatgpt.com/backend-api/codex/"
+    roles: *a11
+    capabilities: *a12
     requestOptions:
       extraBodyProperties:
         reasoning_effort: "medium"
+  - name: "Codex: GPT-5.4-Mini (high)"
+    provider: "chatgpt-codex"
+    model: "gpt-5.4-mini"
+    apiBase: "https://chatgpt.com/backend-api/codex/"
+    roles: *a11
+    capabilities: *a12
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "high"
+  - name: "Codex: GPT-5.4-Mini (xhigh)"
+    provider: "chatgpt-codex"
+    model: "gpt-5.4-mini"
+    apiBase: "https://chatgpt.com/backend-api/codex/"
+    roles: *a11
+    capabilities: *a12
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "xhigh"
   - name: "Codex Autocomplete"
     provider: "chatgpt-codex"
     model: "gpt-5.4-mini"
     apiBase: "https://chatgpt.com/backend-api/codex/"
     roles:
       - "autocomplete"
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "medium"
+  - name: "Copilot: Claude Opus 4.6 (low)"
+    provider: "github-copilot"
+    model: "claude-opus-4.6"
+    apiBase: "https://api.githubcopilot.com/"
+    roles: &a13
+      - "chat"
+      - "edit"
+      - "apply"
+      - "summarize"
+    capabilities: &a14
+      - "tool_use"
+      - "image_input"
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "low"
   - name: "Copilot: Claude Opus 4.6"
     provider: "github-copilot"
     model: "claude-opus-4.6"
     apiBase: "https://api.githubcopilot.com/"
-    roles:
+    roles: *a13
+    capabilities: *a14
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "medium"
+  - name: "Copilot: Claude Opus 4.6 (high)"
+    provider: "github-copilot"
+    model: "claude-opus-4.6"
+    apiBase: "https://api.githubcopilot.com/"
+    roles: *a13
+    capabilities: *a14
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "high"
+  - name: "Copilot: Claude Opus 4.6 (max)"
+    provider: "github-copilot"
+    model: "claude-opus-4.6"
+    apiBase: "https://api.githubcopilot.com/"
+    roles: *a13
+    capabilities: *a14
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "max"
+  - name: "Copilot: Claude Opus 4.7 (low)"
+    provider: "github-copilot"
+    model: "claude-opus-4.7"
+    apiBase: "https://api.githubcopilot.com/"
+    roles: &a15
       - "chat"
       - "edit"
       - "apply"
       - "summarize"
-    capabilities:
+    capabilities: &a16
       - "tool_use"
       - "image_input"
-    defaultCompletionOptions:
-      reasoning: true
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "low"
   - name: "Copilot: Claude Opus 4.7"
     provider: "github-copilot"
     model: "claude-opus-4.7"
     apiBase: "https://api.githubcopilot.com/"
-    roles:
+    roles: *a15
+    capabilities: *a16
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "medium"
+  - name: "Copilot: Claude Opus 4.7 (high)"
+    provider: "github-copilot"
+    model: "claude-opus-4.7"
+    apiBase: "https://api.githubcopilot.com/"
+    roles: *a15
+    capabilities: *a16
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "high"
+  - name: "Copilot: Claude Opus 4.7 (xhigh)"
+    provider: "github-copilot"
+    model: "claude-opus-4.7"
+    apiBase: "https://api.githubcopilot.com/"
+    roles: *a15
+    capabilities: *a16
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "xhigh"
+  - name: "Copilot: Claude Opus 4.7 (max)"
+    provider: "github-copilot"
+    model: "claude-opus-4.7"
+    apiBase: "https://api.githubcopilot.com/"
+    roles: *a15
+    capabilities: *a16
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "max"
+  - name: "Copilot: Claude Sonnet 4.6 (low)"
+    provider: "github-copilot"
+    model: "claude-sonnet-4.6"
+    apiBase: "https://api.githubcopilot.com/"
+    roles: &a17
       - "chat"
       - "edit"
       - "apply"
       - "summarize"
-    capabilities:
+    capabilities: &a18
       - "tool_use"
       - "image_input"
-    defaultCompletionOptions:
-      reasoning: true
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "low"
   - name: "Copilot: Claude Sonnet 4.6"
     provider: "github-copilot"
     model: "claude-sonnet-4.6"
     apiBase: "https://api.githubcopilot.com/"
-    roles:
+    roles: *a17
+    capabilities: *a18
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "medium"
+  - name: "Copilot: Claude Sonnet 4.6 (high)"
+    provider: "github-copilot"
+    model: "claude-sonnet-4.6"
+    apiBase: "https://api.githubcopilot.com/"
+    roles: *a17
+    capabilities: *a18
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "high"
+  - name: "Copilot: Claude Sonnet 4.6 (max)"
+    provider: "github-copilot"
+    model: "claude-sonnet-4.6"
+    apiBase: "https://api.githubcopilot.com/"
+    roles: *a17
+    capabilities: *a18
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "max"
+  - name: "Copilot: Gemini 3.1 Pro (low)"
+    provider: "github-copilot"
+    model: "gemini-3.1-pro-preview"
+    apiBase: "https://api.githubcopilot.com/"
+    roles: &a19
       - "chat"
       - "edit"
       - "apply"
-      - "summarize"
-    capabilities:
+      - "subagent"
+    capabilities: &a20
       - "tool_use"
       - "image_input"
-    defaultCompletionOptions:
-      reasoning: true
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "low"
   - name: "Copilot: Gemini 3.1 Pro"
     provider: "github-copilot"
     model: "gemini-3.1-pro-preview"
     apiBase: "https://api.githubcopilot.com/"
-    roles:
+    roles: *a19
+    capabilities: *a20
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "medium"
+  - name: "Copilot: Gemini 3.1 Pro (high)"
+    provider: "github-copilot"
+    model: "gemini-3.1-pro-preview"
+    apiBase: "https://api.githubcopilot.com/"
+    roles: *a19
+    capabilities: *a20
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "high"
+  - name: "Copilot: GPT-5.3-Codex (low)"
+    provider: "github-copilot"
+    model: "gpt-5.3-codex"
+    apiBase: "https://api.githubcopilot.com/"
+    roles: &a21
       - "chat"
       - "edit"
       - "apply"
-      - "subagent"
-    capabilities:
+      - "summarize"
+    capabilities: &a22
       - "tool_use"
       - "image_input"
-    defaultCompletionOptions:
-      reasoning: true
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "low"
   - name: "Copilot: GPT-5.3-Codex"
     provider: "github-copilot"
     model: "gpt-5.3-codex"
     apiBase: "https://api.githubcopilot.com/"
-    roles:
+    roles: *a21
+    capabilities: *a22
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "medium"
+  - name: "Copilot: GPT-5.3-Codex (high)"
+    provider: "github-copilot"
+    model: "gpt-5.3-codex"
+    apiBase: "https://api.githubcopilot.com/"
+    roles: *a21
+    capabilities: *a22
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "high"
+  - name: "Copilot: GPT-5.3-Codex (xhigh)"
+    provider: "github-copilot"
+    model: "gpt-5.3-codex"
+    apiBase: "https://api.githubcopilot.com/"
+    roles: *a21
+    capabilities: *a22
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "xhigh"
+  - name: "Copilot: GPT-5.4 mini (off)"
+    provider: "github-copilot"
+    model: "gpt-5.4-mini"
+    apiBase: "https://api.githubcopilot.com/"
+    roles: &a23
       - "chat"
       - "edit"
       - "apply"
-      - "summarize"
-    capabilities:
+      - "subagent"
+    capabilities: &a24
       - "tool_use"
       - "image_input"
-    defaultCompletionOptions:
-      reasoning: true
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "none"
+  - name: "Copilot: GPT-5.4 mini (low)"
+    provider: "github-copilot"
+    model: "gpt-5.4-mini"
+    apiBase: "https://api.githubcopilot.com/"
+    roles: *a23
+    capabilities: *a24
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "low"
   - name: "Copilot: GPT-5.4 mini"
     provider: "github-copilot"
     model: "gpt-5.4-mini"
     apiBase: "https://api.githubcopilot.com/"
-    roles:
+    roles: *a23
+    capabilities: *a24
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "medium"
+  - name: "Copilot: GPT-5.4 mini (high)"
+    provider: "github-copilot"
+    model: "gpt-5.4-mini"
+    apiBase: "https://api.githubcopilot.com/"
+    roles: *a23
+    capabilities: *a24
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "high"
+  - name: "Copilot: GPT-5.4 mini (xhigh)"
+    provider: "github-copilot"
+    model: "gpt-5.4-mini"
+    apiBase: "https://api.githubcopilot.com/"
+    roles: *a23
+    capabilities: *a24
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "xhigh"
+  - name: "Copilot: GPT-5.4 (off)"
+    provider: "github-copilot"
+    model: "gpt-5.4"
+    apiBase: "https://api.githubcopilot.com/"
+    roles: &a25
       - "chat"
       - "edit"
       - "apply"
-      - "subagent"
-    capabilities:
+      - "summarize"
+    capabilities: &a26
       - "tool_use"
       - "image_input"
-    defaultCompletionOptions:
-      reasoning: true
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "none"
+  - name: "Copilot: GPT-5.4 (low)"
+    provider: "github-copilot"
+    model: "gpt-5.4"
+    apiBase: "https://api.githubcopilot.com/"
+    roles: *a25
+    capabilities: *a26
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "low"
   - name: "Copilot: GPT-5.4"
     provider: "github-copilot"
     model: "gpt-5.4"
     apiBase: "https://api.githubcopilot.com/"
-    roles:
+    roles: *a25
+    capabilities: *a26
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "medium"
+  - name: "Copilot: GPT-5.4 (high)"
+    provider: "github-copilot"
+    model: "gpt-5.4"
+    apiBase: "https://api.githubcopilot.com/"
+    roles: *a25
+    capabilities: *a26
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "high"
+  - name: "Copilot: GPT-5.4 (xhigh)"
+    provider: "github-copilot"
+    model: "gpt-5.4"
+    apiBase: "https://api.githubcopilot.com/"
+    roles: *a25
+    capabilities: *a26
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "xhigh"
+  - name: "Copilot: GPT-5.5 (off)"
+    provider: "github-copilot"
+    model: "gpt-5.5"
+    apiBase: "https://api.githubcopilot.com/"
+    roles: &a27
       - "chat"
       - "edit"
       - "apply"
       - "summarize"
-    capabilities:
+    capabilities: &a28
       - "tool_use"
       - "image_input"
-    defaultCompletionOptions:
-      reasoning: true
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "none"
+  - name: "Copilot: GPT-5.5 (low)"
+    provider: "github-copilot"
+    model: "gpt-5.5"
+    apiBase: "https://api.githubcopilot.com/"
+    roles: *a27
+    capabilities: *a28
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "low"
   - name: "Copilot: GPT-5.5"
     provider: "github-copilot"
     model: "gpt-5.5"
     apiBase: "https://api.githubcopilot.com/"
-    roles:
-      - "chat"
-      - "edit"
-      - "apply"
-      - "summarize"
-    capabilities:
-      - "tool_use"
-      - "image_input"
-    defaultCompletionOptions:
-      reasoning: true
-  - name: "Copilot: GPT-5 mini"
+    roles: *a27
+    capabilities: *a28
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "medium"
+  - name: "Copilot: GPT-5.5 (high)"
+    provider: "github-copilot"
+    model: "gpt-5.5"
+    apiBase: "https://api.githubcopilot.com/"
+    roles: *a27
+    capabilities: *a28
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "high"
+  - name: "Copilot: GPT-5.5 (xhigh)"
+    provider: "github-copilot"
+    model: "gpt-5.5"
+    apiBase: "https://api.githubcopilot.com/"
+    roles: *a27
+    capabilities: *a28
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "xhigh"
+  - name: "Copilot: GPT-5 mini (low)"
     provider: "github-copilot"
     model: "gpt-5-mini"
     apiBase: "https://api.githubcopilot.com/"
-    roles:
+    roles: &a29
       - "chat"
       - "edit"
       - "apply"
       - "subagent"
-    capabilities:
+    capabilities: &a30
       - "tool_use"
       - "image_input"
-    defaultCompletionOptions:
-      reasoning: true
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "low"
+  - name: "Copilot: GPT-5 mini"
+    provider: "github-copilot"
+    model: "gpt-5-mini"
+    apiBase: "https://api.githubcopilot.com/"
+    roles: *a29
+    capabilities: *a30
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "medium"
+  - name: "Copilot: GPT-5 mini (high)"
+    provider: "github-copilot"
+    model: "gpt-5-mini"
+    apiBase: "https://api.githubcopilot.com/"
+    roles: *a29
+    capabilities: *a30
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "high"
   - name: "Copilot: Claude Sonnet 4.5"
     provider: "github-copilot"
     model: "claude-sonnet-4.5"
@@ -272,20 +740,39 @@ models:
     capabilities:
       - "tool_use"
       - "image_input"
-  - name: "Copilot: Gemini 3 Flash (Preview)"
+  - name: "Copilot: Gemini 3 Flash (Preview) (low)"
     provider: "github-copilot"
     model: "gemini-3-flash-preview"
     apiBase: "https://api.githubcopilot.com/"
-    roles:
+    roles: &a31
       - "chat"
       - "edit"
       - "apply"
       - "subagent"
-    capabilities:
+    capabilities: &a32
       - "tool_use"
       - "image_input"
-    defaultCompletionOptions:
-      reasoning: true
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "low"
+  - name: "Copilot: Gemini 3 Flash (Preview)"
+    provider: "github-copilot"
+    model: "gemini-3-flash-preview"
+    apiBase: "https://api.githubcopilot.com/"
+    roles: *a31
+    capabilities: *a32
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "medium"
+  - name: "Copilot: Gemini 3 Flash (Preview) (high)"
+    provider: "github-copilot"
+    model: "gemini-3-flash-preview"
+    apiBase: "https://api.githubcopilot.com/"
+    roles: *a31
+    capabilities: *a32
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "high"
   - name: "Copilot: Gemini 2.5 Pro"
     provider: "github-copilot"
     model: "gemini-2.5-pro"

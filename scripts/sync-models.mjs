@@ -2,16 +2,14 @@
 /**
  * sync-models.mjs
  *
- * Fetches the live model list from both backends and rewrites the
- * ~/.continue/config.yaml models block so Continue always shows the
- * latest available models with correct reasoning levels.
+ * Fetches live models from both backends and writes ~/.continue/config.yaml.
  *
- * Run automatically:  called by setup-continue-providers.sh
- * Run manually:       node ~/Documents/continue/scripts/sync-models.mjs
+ * For models that support reasoning levels, ONE ENTRY PER REASONING LEVEL is
+ * generated so the user can switch reasoning directly from Continue's model
+ * picker (e.g. "Codex: GPT-5.6-Sol (high)" vs "Codex: GPT-5.6-Sol (max)").
  *
- * Backends queried:
- *   1. GitHub Copilot CAPI  — ~/.codex/copilot-auth.json
- *   2. ChatGPT Codex backend — ~/.codex/auth.json
+ * Run:  node ~/Documents/continue/scripts/sync-models.mjs
+ * Auto: called by setup-continue-providers.sh on every invocation
  */
 
 import fs from "fs";
@@ -22,17 +20,34 @@ import * as YAML from "yaml";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const CODEX_DIR = path.join(os.homedir(), ".codex");
-const CONTINUE_DIR = path.join(os.homedir(), ".continue");
-const COPILOT_AUTH_FILE = path.join(CODEX_DIR, "copilot-auth.json");
-const CHATGPT_AUTH_FILE = path.join(CODEX_DIR, "auth.json");
-const INSTALL_ID_FILE = path.join(CODEX_DIR, "installation_id");
-const MODELS_CACHE_FILE = path.join(CODEX_DIR, "models_cache.json");
-const CONFIG_SRC = path.join(__dirname, "..", ".continue-config", "config.yaml");
-const CONFIG_DST = path.join(CONTINUE_DIR, "config.yaml");
-const GLOBAL_CONTEXT_FILE = path.join(CONTINUE_DIR, "index", "globalContext.json");
+const CODEX_DIR          = path.join(os.homedir(), ".codex");
+const CONTINUE_DIR       = path.join(os.homedir(), ".continue");
+const COPILOT_AUTH_FILE  = path.join(CODEX_DIR, "copilot-auth.json");
+const CHATGPT_AUTH_FILE  = path.join(CODEX_DIR, "auth.json");
+const INSTALL_ID_FILE    = path.join(CODEX_DIR, "installation_id");
+const MODELS_CACHE_FILE  = path.join(CODEX_DIR, "models_cache.json");
+const CONFIG_SRC         = path.join(__dirname, "..", ".continue-config", "config.yaml");
+const CONFIG_DST         = path.join(CONTINUE_DIR, "config.yaml");
+const GLOBAL_CTX_FILE    = path.join(CONTINUE_DIR, "index", "globalContext.json");
 
-// ── helpers ──────────────────────────────────────────────────────────────────
+// Reasoning level labels shown in the model picker
+const REASONING_LABELS = {
+  none:   "off",
+  low:    "low",
+  medium: "medium",
+  high:   "high",
+  xhigh:  "xhigh",
+  max:    "max",
+  ultra:  "ultra",
+};
+
+// For Codex backend: which level is the default (shown without a suffix)
+const CODEX_DEFAULT_EFFORT = "medium";
+
+// For Copilot: which level is the default
+const COPILOT_DEFAULT_EFFORT = "medium";
+
+// ── helpers ───────────────────────────────────────────────────────────────────
 function readJson(file) {
   try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch { return null; }
 }
@@ -43,13 +58,13 @@ function writePrivate(file, data) {
 }
 function log(msg) { process.stderr.write(`  ${msg}\n`); }
 
-// ── GitHub Copilot token refresh ─────────────────────────────────────────────
+// ── Copilot bearer token refresh ──────────────────────────────────────────────
 async function freshCopilotToken(auth) {
   const ghToken = auth.github_token || auth.githubAccessToken || "";
-  if (!ghToken) return auth.token || auth.copilot_token || "";
   const exp = Number(auth.expires_at || auth.expiresAt || 0);
   const now = Math.floor(Date.now() / 1000);
   if (auth.token && exp && exp - now > 300) return auth.token;
+  if (!ghToken) return auth.token || auth.copilot_token || "";
   try {
     const res = await fetch("https://api.github.com/copilot_internal/v2/token", {
       headers: { Authorization: `token ${ghToken}`, Accept: "application/json", "X-GitHub-Api-Version": "2025-04-01" },
@@ -57,9 +72,12 @@ async function freshCopilotToken(auth) {
     if (!res.ok) return auth.token || "";
     const envelope = await res.json();
     if (envelope.token) {
-      const next = { ...auth, token: envelope.token,
+      const next = {
+        ...auth, token: envelope.token,
         expires_at: Number(envelope.expires_at) || undefined,
         capi_base: envelope.endpoints?.api || auth.capi_base || "https://api.githubcopilot.com",
+        capiBase: envelope.endpoints?.api || auth.capiBase || "https://api.githubcopilot.com",
+        endpoints: envelope.endpoints || auth.endpoints || {},
       };
       writePrivate(COPILOT_AUTH_FILE, next);
       return envelope.token;
@@ -71,7 +89,7 @@ async function freshCopilotToken(auth) {
 // ── Fetch Copilot models ──────────────────────────────────────────────────────
 async function fetchCopilotModels() {
   const auth = readJson(COPILOT_AUTH_FILE);
-  if (!auth) { log("Copilot auth not found — skipping Copilot models"); return []; }
+  if (!auth) { log("Copilot auth not found — skipping"); return []; }
   const token = await freshCopilotToken(auth);
   if (!token) { log("No Copilot token — skipping"); return []; }
   const base = (auth.capiBase || auth.capi_base || auth.endpoints?.api || "https://api.githubcopilot.com").replace(/\/+$/, "");
@@ -80,58 +98,72 @@ async function fetchCopilotModels() {
   try {
     const res = await fetch(`${base}/models`, {
       headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
+        Authorization: `Bearer ${token}`, Accept: "application/json",
         "Copilot-Integration-Id": "vscode-chat",
         "Editor-Version": editorVersion,
         "Editor-Plugin-Version": pluginVersion,
         "X-GitHub-Api-Version": "2026-06-01",
-        "OpenAI-Intent": "model-access",
-        "X-Interaction-Type": "model-access",
+        "OpenAI-Intent": "model-access", "X-Interaction-Type": "model-access",
       },
     });
-    if (!res.ok) { log(`Copilot /models returned ${res.status}`); return []; }
+    if (!res.ok) { log(`Copilot /models → ${res.status}`); return []; }
     const data = await res.json();
     const all = Array.isArray(data) ? data : (data.data || []);
-    // Only picker-enabled models, not embeddings/trajectory-compaction
-    return all.filter(m => m.model_picker_enabled && !m.id?.startsWith("text-embedding") && m.id !== "trajectory-compaction");
-  } catch (e) { log(`Copilot fetch error: ${e.message}`); return []; }
+    return all.filter(m =>
+      m.model_picker_enabled &&
+      !m.id?.startsWith("text-embedding") &&
+      m.id !== "trajectory-compaction"
+    );
+  } catch (e) { log(`Copilot fetch: ${e.message}`); return []; }
 }
 
 // ── Fetch ChatGPT Codex models ────────────────────────────────────────────────
 async function fetchCodexModels() {
   const auth = readJson(CHATGPT_AUTH_FILE);
-  if (!auth || auth.auth_mode !== "chatgpt") { log("ChatGPT auth not found — skipping Codex models"); return []; }
+  if (!auth || auth.auth_mode !== "chatgpt") { log("ChatGPT auth not found — skipping"); return []; }
   const token = auth.tokens?.access_token || "";
-  if (!token) { log("No ChatGPT token"); return []; }
+  if (!token) { log("No ChatGPT access token"); return []; }
   const installId = fs.existsSync(INSTALL_ID_FILE) ? fs.readFileSync(INSTALL_ID_FILE, "utf8").trim() : "";
   const clientVersion = readJson(MODELS_CACHE_FILE)?.client_version || "0.140.0";
   try {
-    const res = await fetch(`https://chatgpt.com/backend-api/codex/models?client_version=${encodeURIComponent(clientVersion)}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-        ...(installId ? { "x-codex-installation-id": installId } : {}),
+    const res = await fetch(
+      `https://chatgpt.com/backend-api/codex/models?client_version=${encodeURIComponent(clientVersion)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`, Accept: "application/json",
+          ...(installId ? { "x-codex-installation-id": installId } : {}),
+        },
       },
-    });
-    if (!res.ok) { log(`Codex /models returned ${res.status}`); return []; }
+    );
+    if (!res.ok) { log(`Codex /models → ${res.status}`); return []; }
     const data = await res.json();
-    return (data.models || []).filter(m => m.slug && !["codex-auto-review", "trajectory-compaction"].includes(m.slug));
-  } catch (e) { log(`Codex fetch error: ${e.message}`); return []; }
+    return (data.models || []).filter(m =>
+      m.slug && !["codex-auto-review", "trajectory-compaction"].includes(m.slug)
+    );
+  } catch (e) { log(`Codex fetch: ${e.message}`); return []; }
 }
 
-// ── Convert to config.yaml model entries ─────────────────────────────────────
-function copilotModelEntry(m) {
+// ── Model entry builders ──────────────────────────────────────────────────────
+
+/** One config.yaml model entry, optionally locked to a specific reasoning level */
+function makeEntry({ name, provider, model, apiBase, roles, capabilities, reasoningEffort }) {
+  const entry = { name, provider, model, apiBase, roles };
+  if (capabilities?.length) entry.capabilities = capabilities;
+  if (reasoningEffort) {
+    entry.requestOptions = {
+      extraBodyProperties: { reasoning_effort: reasoningEffort },
+    };
+  }
+  return entry;
+}
+
+function copilotEntries(m) {
   const slug = m.id;
   const name = m.name || slug;
-  const endpoints = m.supported_endpoints || [];
   const caps = m.capabilities?.supports || {};
-  const reasoningLevels = caps.reasoning_effort || [];
+  const reasoningLevels = caps.reasoning_effort || [];   // e.g. ["low","medium","high","max"]
   const hasTools = caps.tool_calls !== false;
   const hasVision = !!caps.vision;
-
-  // Routing: Claude/Gemini use chat/completions; GPT with /responses use responses
-  const useChat = endpoints.some(e => e === "/chat/completions" || e === "/v1/messages") && !endpoints.includes("/responses");
 
   const roles = ["chat", "edit", "apply"];
   if (slug.includes("mini") || slug.includes("haiku") || slug.includes("flash")) roles.push("subagent");
@@ -141,101 +173,92 @@ function copilotModelEntry(m) {
   if (hasTools) capabilities.push("tool_use");
   if (hasVision) capabilities.push("image_input");
 
-  const entry = {
-    name: `Copilot: ${name}`,
-    provider: "github-copilot",
-    model: slug,
-    apiBase: "https://api.githubcopilot.com/",
-    roles,
-    capabilities: capabilities.length ? capabilities : undefined,
-  };
+  const base = { provider: "github-copilot", model: slug, apiBase: "https://api.githubcopilot.com/", roles, capabilities };
 
-  if (reasoningLevels.length) {
-    entry.defaultCompletionOptions = { reasoning: true };
-    entry._reasoningLevels = reasoningLevels; // metadata only, stripped before write
+  if (reasoningLevels.length === 0) {
+    // No reasoning — single entry
+    return [makeEntry({ ...base, name: `Copilot: ${name}` })];
   }
 
-  return entry;
+  // One entry per reasoning level; default level gets no suffix label
+  return reasoningLevels.map(effort => {
+    const label = REASONING_LABELS[effort] || effort;
+    const isDefault = effort === COPILOT_DEFAULT_EFFORT || (!reasoningLevels.includes(COPILOT_DEFAULT_EFFORT) && effort === reasoningLevels[0]);
+    const entryName = isDefault ? `Copilot: ${name}` : `Copilot: ${name} (${label})`;
+    return makeEntry({ ...base, name: entryName, reasoningEffort: effort });
+  });
 }
 
-function codexModelEntry(m) {
+function codexEntries(m) {
   const slug = m.slug;
   const name = m.display_name || slug;
-  const reasoningLevels = (m.supported_reasoning_levels || []).map(r => r.effort || r);
-  const defaultReasoning = m.default_reasoning_level || (reasoningLevels.includes("medium") ? "medium" : reasoningLevels[0] || null);
+  const reasoningLevels = (m.supported_reasoning_levels || []).map(r => (typeof r === "object" ? r.effort : r)).filter(Boolean);
 
   const roles = ["chat", "edit", "apply"];
   if (slug.includes("mini") || slug.includes("luna")) roles.push("subagent");
   else roles.push("summarize");
 
-  const entry = {
-    name: `Codex: ${name}`,
-    provider: "chatgpt-codex",
-    model: slug,
-    apiBase: "https://chatgpt.com/backend-api/codex/",
-    roles,
-    capabilities: ["tool_use", "image_input"],
-  };
+  const base = { provider: "chatgpt-codex", model: slug, apiBase: "https://chatgpt.com/backend-api/codex/", roles, capabilities: ["tool_use", "image_input"] };
 
-  if (reasoningLevels.length && defaultReasoning) {
-    entry.defaultCompletionOptions = {
-      reasoning: true,
-      // store the default as a requestOptions extra body property
-    };
-    entry.requestOptions = {
-      extraBodyProperties: { reasoning_effort: defaultReasoning },
-    };
+  if (reasoningLevels.length === 0) {
+    return [makeEntry({ ...base, name: `Codex: ${name}` })];
   }
 
-  return entry;
+  // One entry per reasoning level
+  return reasoningLevels.map(effort => {
+    const label = REASONING_LABELS[effort] || effort;
+    const isDefault = effort === CODEX_DEFAULT_EFFORT || (!reasoningLevels.includes(CODEX_DEFAULT_EFFORT) && effort === reasoningLevels[0]);
+    const entryName = isDefault ? `Codex: ${name}` : `Codex: ${name} (${label})`;
+    return makeEntry({ ...base, name: entryName, reasoningEffort: effort });
+  });
 }
 
-// ── Build the full model list ─────────────────────────────────────────────────
+// ── Build full model list ─────────────────────────────────────────────────────
 async function buildModelList(copilotModels, codexModels) {
   const models = [];
 
-  // Codex models first (newest frontier models)
+  // ChatGPT Codex models (newest frontier first)
   for (const m of codexModels) {
-    models.push(codexModelEntry(m));
+    models.push(...codexEntries(m));
   }
 
-  // Codex autocomplete
-  const autocompleteCodex = codexModels.find(m => m.slug?.includes("mini")) || codexModels[0];
-  if (autocompleteCodex) {
-    models.push({
+  // Codex autocomplete — use the default (medium) entry of the smallest model
+  const codexAutoBase = codexModels.find(m => m.slug?.includes("mini")) || codexModels.find(m => m.slug?.includes("luna")) || codexModels[0];
+  if (codexAutoBase) {
+    models.push(makeEntry({
       name: "Codex Autocomplete",
       provider: "chatgpt-codex",
-      model: autocompleteCodex.slug,
+      model: codexAutoBase.slug,
       apiBase: "https://chatgpt.com/backend-api/codex/",
       roles: ["autocomplete"],
-    });
+      reasoningEffort: CODEX_DEFAULT_EFFORT,
+    }));
   }
 
-  // Copilot models
+  // GitHub Copilot models
   for (const m of copilotModels) {
-    const entry = copilotModelEntry(m);
-    delete entry._reasoningLevels;
-    models.push(entry);
+    models.push(...copilotEntries(m));
   }
 
-  // Copilot autocomplete (prefer gpt-5.4-mini or gpt-5-mini)
-  const copilotAutoModel = copilotModels.find(m => m.id === "gpt-5.4-mini") || copilotModels.find(m => m.id?.includes("mini")) || copilotModels[0];
-  if (copilotAutoModel) {
-    models.push({
+  // Copilot autocomplete
+  const copilotAutoBase = copilotModels.find(m => m.id === "gpt-5.4-mini") || copilotModels.find(m => m.id?.includes("mini")) || copilotModels[0];
+  if (copilotAutoBase) {
+    models.push(makeEntry({
       name: "Copilot Autocomplete",
       provider: "github-copilot",
-      model: copilotAutoModel.id,
+      model: copilotAutoBase.id,
       apiBase: "https://api.githubcopilot.com/",
       roles: ["autocomplete"],
-    });
+    }));
   }
 
-  // OCA models (static — no live endpoint available without VPN)
+  // OCA models (static)
+  const ocaBase = "https://code-internal.aiservice.us-chicago-1.oci.oraclecloud.com/20250206/app/litellm/v1/";
   models.push(
-    { name: "OCA: gpt-5.3-codex", provider: "oca", model: "oca/gpt-5.3-codex", apiBase: "https://code-internal.aiservice.us-chicago-1.oci.oraclecloud.com/20250206/app/litellm/v1/", roles: ["chat", "edit", "apply"], capabilities: ["tool_use"] },
-    { name: "OCA: gpt-4.1", provider: "oca", model: "oca/gpt-4.1", apiBase: "https://code-internal.aiservice.us-chicago-1.oci.oraclecloud.com/20250206/app/litellm/v1/", roles: ["chat", "edit", "apply", "summarize"], capabilities: ["tool_use"] },
-    { name: "OCA: gpt-4o", provider: "oca", model: "oca/gpt-4o", apiBase: "https://code-internal.aiservice.us-chicago-1.oci.oraclecloud.com/20250206/app/litellm/v1/", roles: ["chat", "edit", "apply"], capabilities: ["tool_use"] },
-    { name: "OCA Autocomplete", provider: "oca", model: "oca/gpt-4o-mini", apiBase: "https://code-internal.aiservice.us-chicago-1.oci.oraclecloud.com/20250206/app/litellm/v1/", roles: ["autocomplete"] },
+    makeEntry({ name: "OCA: gpt-5.3-codex", provider: "oca", model: "oca/gpt-5.3-codex", apiBase: ocaBase, roles: ["chat","edit","apply"], capabilities: ["tool_use"] }),
+    makeEntry({ name: "OCA: gpt-4.1",       provider: "oca", model: "oca/gpt-4.1",       apiBase: ocaBase, roles: ["chat","edit","apply","summarize"], capabilities: ["tool_use"] }),
+    makeEntry({ name: "OCA: gpt-4o",        provider: "oca", model: "oca/gpt-4o",        apiBase: ocaBase, roles: ["chat","edit","apply"], capabilities: ["tool_use"] }),
+    makeEntry({ name: "OCA Autocomplete",   provider: "oca", model: "oca/gpt-4o-mini",   apiBase: ocaBase, roles: ["autocomplete"] }),
   );
 
   return models;
@@ -243,37 +266,36 @@ async function buildModelList(copilotModels, codexModels) {
 
 // ── Write config.yaml ─────────────────────────────────────────────────────────
 function writeConfig(models) {
-  // Read existing config to preserve non-model sections
   let base;
   try { base = YAML.parse(fs.readFileSync(CONFIG_DST, "utf8")); } catch { base = {}; }
 
-  // Merge: replace models block, keep context/rules/env
-  base.name = "Continue with ChatGPT Codex, Copilot and OCA";
+  base.name    = "Continue — ChatGPT Codex, Copilot, OCA (auto-synced)";
   base.version = "1.0.0";
-  base.schema = "v1";
-  base.models = models.map(m => {
-    // Strip undefined values for clean YAML
-    return Object.fromEntries(Object.entries(m).filter(([, v]) => v !== undefined));
-  });
+  base.schema  = "v1";
+  base.models  = models.map(m => Object.fromEntries(Object.entries(m).filter(([, v]) => v !== undefined)));
+  if (!base.context) base.context = [
+    { provider: "code" }, { provider: "docs" }, { provider: "diff" },
+    { provider: "terminal" }, { provider: "problems" }, { provider: "folder" }, { provider: "codebase" },
+  ];
+  if (!base.rules) base.rules = [
+    "You are a precise software engineering assistant. Think carefully before making changes.",
+    "Prefer minimal, targeted edits. Always explain your reasoning concisely.",
+  ];
+  if (!base.env) base.env = ["OCA_API_KEY"];
 
-  const yaml = YAML.stringify(base, { lineWidth: 120, defaultKeyType: "PLAIN", defaultStringType: "QUOTE_DOUBLE" });
-
-  // Write to both locations
+  const yaml = YAML.stringify(base, { lineWidth: 140, defaultKeyType: "PLAIN", defaultStringType: "QUOTE_DOUBLE" });
   fs.mkdirSync(CONTINUE_DIR, { recursive: true });
   fs.writeFileSync(CONFIG_DST, yaml);
-  // Also keep source in sync
   try { fs.mkdirSync(path.dirname(CONFIG_SRC), { recursive: true }); fs.writeFileSync(CONFIG_SRC, yaml); } catch { /* ok */ }
 }
 
-// ── Clear stale model selections so extension picks fresh ones ────────────────
+// ── Clear stale selections ────────────────────────────────────────────────────
 function clearStaleSelections() {
   try {
-    if (!fs.existsSync(GLOBAL_CONTEXT_FILE)) return;
-    const ctx = JSON.parse(fs.readFileSync(GLOBAL_CONTEXT_FILE, "utf8"));
-    if (ctx.selectedModelsByProfileId) {
-      ctx.selectedModelsByProfileId = {};
-    }
-    fs.writeFileSync(GLOBAL_CONTEXT_FILE, JSON.stringify(ctx, null, 2));
+    if (!fs.existsSync(GLOBAL_CTX_FILE)) return;
+    const ctx = JSON.parse(fs.readFileSync(GLOBAL_CTX_FILE, "utf8"));
+    ctx.selectedModelsByProfileId = {};
+    fs.writeFileSync(GLOBAL_CTX_FILE, JSON.stringify(ctx, null, 2));
   } catch { /* ignore */ }
 }
 
@@ -286,22 +308,21 @@ async function main() {
     fetchCodexModels(),
   ]);
 
-  log(`Copilot: ${copilotModels.length} models`);
+  log(`Copilot: ${copilotModels.length} picker models`);
   log(`ChatGPT Codex: ${codexModels.length} models`);
 
   if (copilotModels.length === 0 && codexModels.length === 0) {
-    log("No models fetched from either backend — keeping existing config");
+    log("No models fetched — keeping existing config unchanged");
     process.exit(0);
   }
 
   const models = await buildModelList(copilotModels, codexModels);
-  log(`Total models built: ${models.length}`);
+  log(`Expanded to ${models.length} entries (including per-reasoning variants)`);
 
   writeConfig(models);
   clearStaleSelections();
-
-  log(`Config written: ${CONFIG_DST}`);
-  log("Model selections cleared — reload VS Code to apply");
+  log(`Written: ${CONFIG_DST}`);
+  log("Reload VS Code (Developer: Reload Window) to apply");
 }
 
-main().catch(e => { process.stderr.write(`Error: ${e.message}\n`); process.exit(1); });
+main().catch(e => { process.stderr.write(`sync-models error: ${e.message}\n`); process.exit(1); });
