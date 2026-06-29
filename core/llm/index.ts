@@ -1193,6 +1193,12 @@ export abstract class BaseLLM implements ILLM {
             includeReasoningContentField: this.supportsReasoningContentField,
           });
           body = this.modifyChatBody(body);
+          // Carry reasoningEffort through to the adapter (ChatGPTCodex / GitHubCopilot pick this up)
+          if ((completionOptions as any).reasoningEffort) {
+            (body as any).reasoningEffort = (
+              completionOptions as any
+            ).reasoningEffort;
+          }
 
           if (logEnabled) {
             interaction?.logItem({
