@@ -13,13 +13,12 @@
 #  2. Run from the VS Code Command Palette (once):
 #       Codex Copilot: Export Token and Enable
 #     This writes ~/.codex/copilot-auth.json.
-#     Continue reads and auto-refreshes this file at runtime — no proxy needed.
+#     Continue reads and auto-refreshes the bearer token at runtime.
 #
 #  ── Oracle Code Assist ─────────────────────────────────────────────────────
 #  3. Log in to OCA (once):
 #       bash ~/Documents/codex-oca-tool/codex-oca-temp.sh login
 #     This writes ~/.codex/oca-secrets.json.
-#     Continue reads the JWT token from this file at runtime.
 #
 #  ── Install this config ────────────────────────────────────────────────────
 #  4. Run:
@@ -29,189 +28,190 @@
 #  TOKEN REFRESH
 # ═══════════════════════════════════════════════════════════════════════════
 #
-#  Copilot: automatic — Continue refreshes the bearer token itself.
+#  Copilot: automatic — Continue refreshes the bearer via GitHub OAuth token.
 #  OCA (when expired):
 #    bash ~/Documents/codex-oca-tool/codex-oca-temp.sh refresh
-#    # Then reload VS Code: Developer → Reload Window
+#    bash ~/Documents/continue/scripts/setup-continue-providers.sh --env-only
+#    VS Code → Developer: Reload Window
+#
+# ═══════════════════════════════════════════════════════════════════════════
+#  ROUTING NOTES (from docs/copilot-direct-api.md)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+#  GPT models → /chat/completions (all work here; /responses for some)
+#  Claude models → /chat/completions ONLY (do not support /responses)
+#  Gemini models → /chat/completions ONLY
 # ═══════════════════════════════════════════════════════════════════════════
 
 name: Continue with GitHub Copilot and OCA
 version: 1.0.0
 schema: v1
 
-# ─── GitHub Copilot models ──────────────────────────────────────────────────
-# provider: github-copilot
-#   Talks directly to api.githubcopilot.com using the bearer token from
-#   ~/.codex/copilot-auth.json.  No apiKey needed — the provider reads and
-#   auto-refreshes it from the auth file.
-#
-# apiBase: the Copilot CAPI endpoint — resolved dynamically from the auth file
-#   after the first token refresh.  The static default below works for most
-#   accounts; it will be overridden by the endpoints.api field in the auth file.
 models:
 
-  # ── gpt-5.3-codex (default — best for agent & code tasks) ─────────────────
+  # ════════════════════════════════════════════════════════════════════════
+  # GitHub Copilot models  (provider: github-copilot)
+  # Token: auto-refreshed from ~/.codex/copilot-auth.json at runtime.
+  # No apiKey needed in config.
+  # ════════════════════════════════════════════════════════════════════════
+
+  # ── GPT-5 series ──────────────────────────────────────────────────────────
+
   - name: "Copilot: gpt-5.3-codex"
     provider: github-copilot
     model: gpt-5.3-codex
     apiBase: https://api.githubcopilot.com/
-    roles:
-      - chat
-      - edit
-      - apply
-    capabilities:
-      - tool_use
-      - image_input
+    roles: [chat, edit, apply]
+    capabilities: [tool_use, image_input]
 
-  # ── gpt-4.1 (strong reasoning + long context) ─────────────────────────────
+  - name: "Copilot: gpt-5.5"
+    provider: github-copilot
+    model: gpt-5.5
+    apiBase: https://api.githubcopilot.com/
+    roles: [chat, edit, apply]
+    capabilities: [tool_use, image_input]
+
+  - name: "Copilot: gpt-5.4"
+    provider: github-copilot
+    model: gpt-5.4
+    apiBase: https://api.githubcopilot.com/
+    roles: [chat, edit, apply, summarize]
+    capabilities: [tool_use, image_input]
+
+  - name: "Copilot: gpt-5.4-mini"
+    provider: github-copilot
+    model: gpt-5.4-mini
+    apiBase: https://api.githubcopilot.com/
+    roles: [chat, edit, apply, subagent]
+    capabilities: [tool_use, image_input]
+
+  - name: "Copilot: gpt-5-mini"
+    provider: github-copilot
+    model: gpt-5-mini
+    apiBase: https://api.githubcopilot.com/
+    roles: [chat, edit, apply, subagent]
+    capabilities: [tool_use, image_input]
+
+  # ── GPT-4 series ──────────────────────────────────────────────────────────
+
   - name: "Copilot: gpt-4.1"
     provider: github-copilot
     model: gpt-4.1
     apiBase: https://api.githubcopilot.com/
-    roles:
-      - chat
-      - edit
-      - apply
-      - summarize
-    capabilities:
-      - tool_use
-      - image_input
+    roles: [chat, edit, apply, summarize]
+    capabilities: [tool_use, image_input]
 
-  # ── gpt-4o ────────────────────────────────────────────────────────────────
   - name: "Copilot: gpt-4o"
     provider: github-copilot
     model: gpt-4o
     apiBase: https://api.githubcopilot.com/
-    roles:
-      - chat
-      - edit
-      - apply
-      - summarize
-    capabilities:
-      - tool_use
-      - image_input
+    roles: [chat, edit, apply, summarize]
+    capabilities: [tool_use, image_input]
 
-  # ── gpt-4o-mini (fast, low-cost) ─────────────────────────────────────────
   - name: "Copilot: gpt-4o-mini"
     provider: github-copilot
     model: gpt-4o-mini
     apiBase: https://api.githubcopilot.com/
-    roles:
-      - chat
-      - edit
-      - apply
-      - subagent
-    capabilities:
-      - tool_use
-      - image_input
+    roles: [chat, edit, apply, subagent]
+    capabilities: [tool_use, image_input]
 
-  # ── o3 (extended reasoning) ───────────────────────────────────────────────
+  # ── Reasoning ─────────────────────────────────────────────────────────────
+
   - name: "Copilot: o3"
     provider: github-copilot
     model: o3
     apiBase: https://api.githubcopilot.com/
-    roles:
-      - chat
-    capabilities:
-      - tool_use
+    roles: [chat]
+    capabilities: [tool_use]
 
-  # ── claude-sonnet-4.5 ────────────────────────────────────────────────────
-  - name: "Copilot: claude-sonnet-4.5"
-    provider: github-copilot
-    model: claude-sonnet-4.5
-    apiBase: https://api.githubcopilot.com/
-    roles:
-      - chat
-      - edit
-      - apply
-    capabilities:
-      - tool_use
+  # ── Claude series (chat/completions only per copilot-direct-api.md) ───────
 
-  # ── claude-sonnet-4.6 ────────────────────────────────────────────────────
   - name: "Copilot: claude-sonnet-4.6"
     provider: github-copilot
     model: claude-sonnet-4.6
     apiBase: https://api.githubcopilot.com/
-    roles:
-      - chat
-      - edit
-      - apply
-    capabilities:
-      - tool_use
+    roles: [chat, edit, apply]
+    capabilities: [tool_use]
 
-  # ── gemini-2.5-pro ───────────────────────────────────────────────────────
+  - name: "Copilot: claude-sonnet-4.5"
+    provider: github-copilot
+    model: claude-sonnet-4.5
+    apiBase: https://api.githubcopilot.com/
+    roles: [chat, edit, apply]
+    capabilities: [tool_use]
+
+  - name: "Copilot: claude-opus-4.6"
+    provider: github-copilot
+    model: claude-opus-4.6
+    apiBase: https://api.githubcopilot.com/
+    roles: [chat, edit, apply]
+    capabilities: [tool_use]
+
+  - name: "Copilot: claude-opus-4.5"
+    provider: github-copilot
+    model: claude-opus-4.5
+    apiBase: https://api.githubcopilot.com/
+    roles: [chat, edit, apply]
+    capabilities: [tool_use]
+
+  - name: "Copilot: claude-haiku-4.5"
+    provider: github-copilot
+    model: claude-haiku-4.5
+    apiBase: https://api.githubcopilot.com/
+    roles: [chat, edit, apply, subagent]
+    capabilities: [tool_use]
+
+  # ── Gemini ─────────────────────────────────────────────────────────────────
+
   - name: "Copilot: gemini-2.5-pro"
     provider: github-copilot
     model: gemini-2.5-pro
     apiBase: https://api.githubcopilot.com/
-    roles:
-      - chat
-      - edit
-      - apply
-    capabilities:
-      - tool_use
-      - image_input
+    roles: [chat, edit, apply]
+    capabilities: [tool_use, image_input]
 
-  # ── Autocomplete (inline completions) ────────────────────────────────────
+  # ── Autocomplete (low-latency inline completions) ──────────────────────────
+
   - name: "Copilot Autocomplete"
     provider: github-copilot
     model: gpt-4o-mini
     apiBase: https://api.githubcopilot.com/
-    roles:
-      - autocomplete
+    roles: [autocomplete]
 
-  # ─── Oracle Code Assist (OCA) ─────────────────────────────────────────────
-  # provider: oca
-  #   Talks directly to Oracle's LiteLLM HTTPS endpoint.
-  #   Token is read from ~/.codex/oca-secrets.json at runtime.
-  #   No apiKey field needed in the config — the provider resolves it itself.
+  # ════════════════════════════════════════════════════════════════════════
+  # Oracle Code Assist (OCA) models  (provider: oca)
+  # Token: auto-read from ~/.codex/oca-secrets.json at runtime.
+  # No apiKey needed in config.
+  # ════════════════════════════════════════════════════════════════════════
 
-  # ── OCA: gpt-5.3-codex ───────────────────────────────────────────────────
   - name: "OCA: gpt-5.3-codex"
     provider: oca
     model: oca/gpt-5.3-codex
     apiBase: https://code-internal.aiservice.us-chicago-1.oci.oraclecloud.com/20250206/app/litellm/v1/
-    roles:
-      - chat
-      - edit
-      - apply
-    capabilities:
-      - tool_use
+    roles: [chat, edit, apply]
+    capabilities: [tool_use]
 
-  # ── OCA: gpt-4.1 ─────────────────────────────────────────────────────────
   - name: "OCA: gpt-4.1"
     provider: oca
     model: oca/gpt-4.1
     apiBase: https://code-internal.aiservice.us-chicago-1.oci.oraclecloud.com/20250206/app/litellm/v1/
-    roles:
-      - chat
-      - edit
-      - apply
-      - summarize
-    capabilities:
-      - tool_use
+    roles: [chat, edit, apply, summarize]
+    capabilities: [tool_use]
 
-  # ── OCA: gpt-4o ──────────────────────────────────────────────────────────
   - name: "OCA: gpt-4o"
     provider: oca
     model: oca/gpt-4o
     apiBase: https://code-internal.aiservice.us-chicago-1.oci.oraclecloud.com/20250206/app/litellm/v1/
-    roles:
-      - chat
-      - edit
-      - apply
-    capabilities:
-      - tool_use
+    roles: [chat, edit, apply]
+    capabilities: [tool_use]
 
-  # ── OCA Autocomplete ──────────────────────────────────────────────────────
   - name: "OCA Autocomplete"
     provider: oca
     model: oca/gpt-4o-mini
     apiBase: https://code-internal.aiservice.us-chicago-1.oci.oraclecloud.com/20250206/app/litellm/v1/
-    roles:
-      - autocomplete
+    roles: [autocomplete]
 
-# ─── Context providers ────────────────────────────────────────────────────
+# ─── Context providers ────────────────────────────────────────────────────────
 context:
   - provider: code
   - provider: docs
@@ -221,15 +221,12 @@ context:
   - provider: folder
   - provider: codebase
 
-# ─── Rules ────────────────────────────────────────────────────────────────
+# ─── Rules ────────────────────────────────────────────────────────────────────
 rules:
   - You are a precise software engineering assistant. Think carefully before making changes.
   - Prefer minimal, targeted edits. Always explain your reasoning concisely.
   - When using tools, be explicit about which file and line you are editing.
 
-# ─── Env var injection ────────────────────────────────────────────────────
-# OCA_API_KEY is loaded from ~/.continue/.env if the oca-secrets.json file
-# is absent.  After logging in with codex-oca-temp.sh this env var is not
-# needed — the provider reads the secrets file directly.
+# ─── Env var injection ────────────────────────────────────────────────────────
 env:
   - OCA_API_KEY

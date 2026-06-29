@@ -51,9 +51,7 @@ function readAuthFile(): CopilotAuth {
 }
 
 function githubToken(auth: CopilotAuth): string {
-  return (
-    auth.github_token ?? auth.githubAccessToken ?? ""
-  );
+  return auth.github_token ?? auth.githubAccessToken ?? "";
 }
 
 function copilotBearer(auth: CopilotAuth): string {
@@ -86,9 +84,17 @@ function writeAuthFile(auth: CopilotAuth): void {
   fs.mkdirSync(dir, { recursive: true });
   const tmp = `${AUTH_FILE}.${process.pid}.${Date.now()}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(auth, null, 2) + "\n", { mode: 0o600 });
-  try { fs.chmodSync(tmp, 0o600); } catch { /* ignore */ }
+  try {
+    fs.chmodSync(tmp, 0o600);
+  } catch {
+    /* ignore */
+  }
   fs.renameSync(tmp, AUTH_FILE);
-  try { fs.chmodSync(AUTH_FILE, 0o600); } catch { /* ignore */ }
+  try {
+    fs.chmodSync(AUTH_FILE, 0o600);
+  } catch {
+    /* ignore */
+  }
 }
 
 // Module-level in-flight promise so concurrent requests share one refresh.
@@ -207,10 +213,7 @@ class GitHubCopilot extends OpenAI {
   }
 
   /** Override fetch so auth is always fresh before each request. */
-  async fetch(
-    url: RequestInfo | URL,
-    init?: RequestInit,
-  ): Promise<Response> {
+  async fetch(url: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     await this._getAuth();
     // Inject the fresh headers into the outgoing request.
     const merged: RequestInit = {
@@ -226,7 +229,7 @@ class GitHubCopilot extends OpenAI {
   private _copilotHeaders(): Record<string, string> {
     const bearer = this._cachedAuth
       ? copilotBearer(this._cachedAuth)
-      : this.apiKey ?? "";
+      : (this.apiKey ?? "");
 
     const editorVersion =
       this._cachedAuth?.editor_version ??
@@ -244,13 +247,15 @@ class GitHubCopilot extends OpenAI {
       "Editor-Version": editorVersion,
       "Editor-Plugin-Version": pluginVersion,
       "OpenAI-Intent": "conversation",
+      "X-Interaction-Type": "conversation",
       "X-GitHub-Api-Version": "2026-06-01",
     };
   }
 
-  protected override _getHeaders(): Record<string, string> {
+  protected override _getHeaders() {
     return {
       "Content-Type": "application/json",
+      "api-key": "", // not used by Copilot; present to satisfy base class signature
       ...this._copilotHeaders(),
     };
   }

@@ -8,9 +8,7 @@ import OpenAI from "./OpenAI.js";
 // ─── Auth file ───────────────────────────────────────────────────────────────
 // Written by: bash ~/Documents/codex-oca-tool/codex-oca-temp.sh login
 // Structure:  { "ocaApiKey": "<JWT access token>", ... }
-const OCA_SECRETS_FILE = path.join(
-  os.homedir(), ".codex", "oca-secrets.json",
-);
+const OCA_SECRETS_FILE = path.join(os.homedir(), ".codex", "oca-secrets.json");
 
 // OCA LiteLLM endpoint (Oracle internal)
 const OCA_BASE_URL =
@@ -86,7 +84,7 @@ class OracleCodeAssist extends OpenAI {
     super(options);
   }
 
-  protected override _getHeaders(): Record<string, string> {
+  protected override _getHeaders() {
     return {
       ...super._getHeaders(),
       // Required Oracle Cloud Infrastructure headers
