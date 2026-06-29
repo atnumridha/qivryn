@@ -178,6 +178,57 @@ models:
     apiBase: https://api.githubcopilot.com/
     roles: [autocomplete]
 
+
+  # ════════════════════════════════════════════════════════════════════════
+  # ChatGPT Codex models  (provider: chatgpt-codex)
+  # Auth: auto-read from ~/.codex/auth.json at runtime.
+  # Same backend used by Codex Desktop and Codex CLI.
+  # No apiKey needed — token is managed automatically.
+  # Models verified 2026-06-29 from ~/.codex/models_cache.json.
+  # ════════════════════════════════════════════════════════════════════════
+
+  - name: "Codex: gpt-5.5"
+    provider: chatgpt-codex
+    model: gpt-5.5
+    apiBase: https://chatgpt.com/backend-api/codex/
+    roles: [chat, edit, apply]
+    capabilities: [tool_use, image_input]
+
+  - name: "Codex: gpt-5.4"
+    provider: chatgpt-codex
+    model: gpt-5.4
+    apiBase: https://chatgpt.com/backend-api/codex/
+    roles: [chat, edit, apply, summarize]
+    capabilities: [tool_use, image_input]
+
+  - name: "Codex: gpt-5.4-mini"
+    provider: chatgpt-codex
+    model: gpt-5.4-mini
+    apiBase: https://chatgpt.com/backend-api/codex/
+    roles: [chat, edit, apply, subagent]
+    capabilities: [tool_use, image_input]
+
+  - name: "Codex: gpt-5.3-codex"
+    provider: chatgpt-codex
+    model: gpt-5.3-codex
+    apiBase: https://chatgpt.com/backend-api/codex/
+    roles: [chat, edit, apply]
+    capabilities: [tool_use, image_input]
+
+  - name: "Codex: gpt-5-mini"
+    provider: chatgpt-codex
+    model: gpt-5-mini
+    apiBase: https://chatgpt.com/backend-api/codex/
+    roles: [chat, edit, apply, subagent]
+    capabilities: [tool_use, image_input]
+
+  - name: "Codex Autocomplete"
+    provider: chatgpt-codex
+    model: gpt-5.4-mini
+    apiBase: https://chatgpt.com/backend-api/codex/
+    roles: [autocomplete]
+
+
   # ════════════════════════════════════════════════════════════════════════
   # Oracle Code Assist (OCA) models  (provider: oca)
   # Token: auto-read from ~/.codex/oca-secrets.json at runtime.
@@ -228,5 +279,9 @@ rules:
   - When using tools, be explicit about which file and line you are editing.
 
 # ─── Env var injection ────────────────────────────────────────────────────────
+# env must be a key:value map. OCA_API_KEY is read from ~/.continue/.env by
+# setup-continue-providers.sh and injected here so the oca provider picks it up.
+# The OracleCodeAssist provider also reads ~/.codex/oca-secrets.json directly,
+# so this is only a fallback and can be left as an empty placeholder.
 env:
-  - OCA_API_KEY
+  OCA_API_KEY: ""

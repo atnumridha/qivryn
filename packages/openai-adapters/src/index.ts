@@ -21,6 +21,7 @@ import { OpenRouterApi } from "./apis/OpenRouter.js";
 import { ClawRouterApi } from "./apis/ClawRouter.js";
 import { GitHubCopilotApi } from "./apis/GitHubCopilot.js";
 import { OracleCodeAssistApi } from "./apis/OracleCodeAssist.js";
+import { ChatGPTCodexApi } from "./apis/ChatGPTCodex.js";
 import { RelaceApi } from "./apis/Relace.js";
 import { VertexAIApi } from "./apis/VertexAI.js";
 import { WatsonXApi } from "./apis/WatsonX.js";
@@ -186,6 +187,8 @@ export function constructLlmApi(config: LLMConfig): BaseLlmApi | undefined {
       return new GitHubCopilotApi(config);
     case "oca":
       return new OracleCodeAssistApi(config);
+    case "chatgpt-codex":
+      return new ChatGPTCodexApi(config as any);
     case "llama.cpp":
     case "llamafile":
       return openAICompatible("http://localhost:8000/", config);

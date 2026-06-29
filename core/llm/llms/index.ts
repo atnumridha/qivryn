@@ -51,6 +51,7 @@ import Ollama from "./Ollama";
 import OpenAI from "./OpenAI";
 import OpenRouter from "./OpenRouter";
 import ClawRouter from "./ClawRouter";
+import ChatGPTCodex from "./ChatGPTCodex";
 import GitHubCopilot from "./GitHubCopilot";
 import OracleCodeAssist from "./OracleCodeAssist";
 import OVHcloud from "./OVHcloud";
@@ -113,6 +114,7 @@ export const LLMClasses = [
   WatsonX,
   OpenRouter,
   ClawRouter,
+  ChatGPTCodex,
   GitHubCopilot,
   OracleCodeAssist,
   Nvidia,

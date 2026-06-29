@@ -55,6 +55,7 @@ export const OpenAIConfigSchema = BasePlusConfig.extend({
     z.literal("clawrouter"),
     z.literal("github-copilot"),
     z.literal("oca"),
+    z.literal("chatgpt-codex"),
     z.literal("sambanova"),
     z.literal("text-gen-webui"),
     z.literal("vllm"),
