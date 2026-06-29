@@ -20,6 +20,7 @@ import { exitEdit } from "../../redux/thunks/edit";
 import { getMetaKeyLabel, isMetaEquivalentKeyPressed } from "../../util";
 import { ToolTip } from "../gui/Tooltip";
 import ModelSelect from "../modelSelection/ModelSelect";
+import { ReasoningEffortSelect } from "../modelSelection/ReasoningEffortSelect";
 import { ModeSelect } from "../ModeSelect";
 import { Button } from "../ui";
 import { useFontSize } from "../ui/font";
@@ -135,36 +136,7 @@ function InputToolbar(props: InputToolbarProps) {
                 </HoverItem>
               </ToolTip>
             )}
-            {supportsReasoning && (
-              <HoverItem
-                onClick={() => {
-                  dispatch(setHasReasoningEnabled(!hasReasoningEnabled));
-                  if (defaultModel?.title) {
-                    dispatch(
-                      setReasoningSetting({
-                        modelTitle: defaultModel.title,
-                        enabled: !hasReasoningEnabled,
-                      }),
-                    );
-                  }
-                }}
-              >
-                <ToolTip
-                  place="top"
-                  content={
-                    hasReasoningEnabled
-                      ? "Disable model reasoning"
-                      : "Enable model reasoning"
-                  }
-                >
-                  {hasReasoningEnabled ? (
-                    <LightBulbIconSolid className="h-3 w-3 brightness-200 hover:brightness-150" />
-                  ) : (
-                    <LightBulbIconOutline className="h-3 w-3 hover:brightness-150" />
-                  )}
-                </ToolTip>
-              </HoverItem>
-            )}
+            <ReasoningEffortSelect />
           </div>
         </div>
 

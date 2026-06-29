@@ -16,6 +16,8 @@ export type ToolPolicies = { [toolName: string]: ToolPolicy };
 export type RulePolicies = { [ruleName: string]: RulePolicy };
 export type ToolGroupPolicies = { [toolGroupName: string]: ToolGroupPolicy };
 export type ReasoningSettings = { [modelTitle: string]: boolean };
+/** Maps model title → selected reasoning effort level (e.g. "low" | "medium" | "high" | "xhigh" | "max" | "ultra") */
+export type ReasoningEffortSettings = { [modelTitle: string]: string };
 
 type UIState = {
   showDialog: boolean;
@@ -28,6 +30,7 @@ type UIState = {
   toolGroupSettings: ToolGroupPolicies;
   ruleSettings: RulePolicies;
   reasoningSettings: ReasoningSettings;
+  reasoningEffortSettings: ReasoningEffortSettings;
   ttsActive: boolean;
 };
 
@@ -49,6 +52,7 @@ export const DEFAULT_UI_SLICE: UIState = {
   },
   ruleSettings: {},
   reasoningSettings: {},
+  reasoningEffortSettings: {},
 };
 
 export const uiSlice = createSlice({
@@ -149,6 +153,13 @@ export const uiSlice = createSlice({
       state.reasoningSettings[action.payload.modelTitle] =
         action.payload.enabled;
     },
+    setReasoningEffort: (
+      state,
+      action: PayloadAction<{ modelTitle: string; effort: string }>,
+    ) => {
+      state.reasoningEffortSettings[action.payload.modelTitle] =
+        action.payload.effort;
+    },
   },
 });
 
@@ -166,6 +177,7 @@ export const {
   toggleRuleSetting,
   setTTSActive,
   setReasoningSetting,
+  setReasoningEffort,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;

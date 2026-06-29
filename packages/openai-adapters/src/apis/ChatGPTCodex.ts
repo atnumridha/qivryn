@@ -358,8 +358,14 @@ export class ChatGPTCodexApi implements BaseLlmApi {
           : {}),
         ...(body.max_tokens ? { max_output_tokens: body.max_tokens } : {}),
         ...(body.tools ? { tools: convertTools(body.tools as any[]) } : {}),
-        ...((body as any).reasoning_effort
-          ? { reasoning: { effort: (body as any).reasoning_effort } }
+        ...((body as any).reasoning_effort || (body as any).reasoningEffort
+          ? {
+              reasoning: {
+                effort:
+                  (body as any).reasoning_effort ||
+                  (body as any).reasoningEffort,
+              },
+            }
           : {}),
       },
     );
@@ -405,8 +411,14 @@ export class ChatGPTCodexApi implements BaseLlmApi {
           : {}),
         ...(body.max_tokens ? { max_output_tokens: body.max_tokens } : {}),
         ...(body.tools ? { tools: convertTools(body.tools as any[]) } : {}),
-        ...((body as any).reasoning_effort
-          ? { reasoning: { effort: (body as any).reasoning_effort } }
+        ...((body as any).reasoning_effort || (body as any).reasoningEffort
+          ? {
+              reasoning: {
+                effort:
+                  (body as any).reasoning_effort ||
+                  (body as any).reasoningEffort,
+              },
+            }
           : {}),
       },
     );

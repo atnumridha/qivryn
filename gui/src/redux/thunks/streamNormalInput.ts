@@ -132,6 +132,16 @@ export const streamNormalInput = createAsyncThunk<
       selectedChatModel,
     );
 
+    // Inject reasoningEffort from UI selection (overrides the model's config default)
+    const selectedReasoningEffort =
+      state.ui.reasoningEffortSettings?.[selectedChatModel.title ?? ""];
+    if (selectedReasoningEffort) {
+      completionOptions = {
+        ...completionOptions,
+        reasoningEffort: selectedReasoningEffort,
+      };
+    }
+
     // Construct messages (excluding system message)
     const baseSystemMessage = getBaseSystemMessage(
       state.session.mode,

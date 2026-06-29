@@ -276,10 +276,12 @@ export class GitHubCopilotApi extends OpenAIApi {
   >(body: T): T {
     const modified = super.modifyChatBody(body);
     // Inject reasoning_effort if present (set via requestOptions.extraBodyProperties in config)
-    const reasoningEffort = (modified as any).reasoning_effort;
+    const reasoningEffort =
+      (modified as any).reasoning_effort || (modified as any).reasoningEffort;
     if (reasoningEffort) {
       (modified as any).reasoning = { effort: reasoningEffort };
       delete (modified as any).reasoning_effort;
+      delete (modified as any).reasoningEffort;
     }
     return modified;
   }

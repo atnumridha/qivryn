@@ -161,7 +161,7 @@ function copilotEntries(m) {
   const slug = m.id;
   const name = m.name || slug;
   const caps = m.capabilities?.supports || {};
-  const reasoningLevels = caps.reasoning_effort || [];   // e.g. ["low","medium","high","max"]
+  const reasoningLevels = caps.reasoning_effort || [];
   const hasTools = caps.tool_calls !== false;
   const hasVision = !!caps.vision;
 
@@ -173,20 +173,33 @@ function copilotEntries(m) {
   if (hasTools) capabilities.push("tool_use");
   if (hasVision) capabilities.push("image_input");
 
-  const base = { provider: "github-copilot", model: slug, apiBase: "https://api.githubcopilot.com/", roles, capabilities };
+  const defaultEffort = reasoningLevels.includes(COPILOT_DEFAULT_EFFORT)
+    ? COPILOT_DEFAULT_EFFORT
+    : reasoningLevels[0] || null;
 
-  if (reasoningLevels.length === 0) {
-    // No reasoning — single entry
-    return [makeEntry({ ...base, name: `Copilot: ${name}` })];
+  const entry = makeEntry({
+    name: `Copilot: ${name}`,
+    provider: "github-copilot",
+    model: slug,
+    apiBase: "https://api.githubcopilot.com/",
+    roles,
+    capabilities,
+    reasoningEffort: defaultEffort,
+  });
+
+  // Store available levels as metadata for the UI reasoning picker
+  if (reasoningLevels.length > 0) {
+    entry.requestOptions = {
+      ...(entry.requestOptions || {}),
+      extraBodyProperties: {
+        ...(entry.requestOptions?.extraBodyProperties || {}),
+        reasoning_effort: defaultEffort,
+        _reasoningLevels: reasoningLevels,
+      },
+    };
   }
 
-  // One entry per reasoning level; default level gets no suffix label
-  return reasoningLevels.map(effort => {
-    const label = REASONING_LABELS[effort] || effort;
-    const isDefault = effort === COPILOT_DEFAULT_EFFORT || (!reasoningLevels.includes(COPILOT_DEFAULT_EFFORT) && effort === reasoningLevels[0]);
-    const entryName = isDefault ? `Copilot: ${name}` : `Copilot: ${name} (${label})`;
-    return makeEntry({ ...base, name: entryName, reasoningEffort: effort });
-  });
+  return [entry];
 }
 
 function codexEntries(m) {
@@ -198,19 +211,33 @@ function codexEntries(m) {
   if (slug.includes("mini") || slug.includes("luna")) roles.push("subagent");
   else roles.push("summarize");
 
-  const base = { provider: "chatgpt-codex", model: slug, apiBase: "https://chatgpt.com/backend-api/codex/", roles, capabilities: ["tool_use", "image_input"] };
+  const defaultEffort = reasoningLevels.includes(CODEX_DEFAULT_EFFORT)
+    ? CODEX_DEFAULT_EFFORT
+    : reasoningLevels[0] || null;
 
-  if (reasoningLevels.length === 0) {
-    return [makeEntry({ ...base, name: `Codex: ${name}` })];
+  const entry = makeEntry({
+    name: `Codex: ${name}`,
+    provider: "chatgpt-codex",
+    model: slug,
+    apiBase: "https://chatgpt.com/backend-api/codex/",
+    roles,
+    capabilities: ["tool_use", "image_input"],
+    reasoningEffort: defaultEffort,
+  });
+
+  // Store available levels as metadata for the UI reasoning picker
+  if (reasoningLevels.length > 0) {
+    entry.requestOptions = {
+      ...(entry.requestOptions || {}),
+      extraBodyProperties: {
+        ...(entry.requestOptions?.extraBodyProperties || {}),
+        reasoning_effort: defaultEffort,
+        _reasoningLevels: reasoningLevels,
+      },
+    };
   }
 
-  // One entry per reasoning level
-  return reasoningLevels.map(effort => {
-    const label = REASONING_LABELS[effort] || effort;
-    const isDefault = effort === CODEX_DEFAULT_EFFORT || (!reasoningLevels.includes(CODEX_DEFAULT_EFFORT) && effort === reasoningLevels[0]);
-    const entryName = isDefault ? `Codex: ${name}` : `Codex: ${name} (${label})`;
-    return makeEntry({ ...base, name: entryName, reasoningEffort: effort });
-  });
+  return [entry];
 }
 
 // ── Build full model list ─────────────────────────────────────────────────────
