@@ -78,7 +78,13 @@ function InputToolbar(props: InputToolbarProps) {
   return (
     <>
       <div
-        onClick={props.onClick}
+        onClick={(e) => {
+          // Don't steal focus from child dropdowns (e.g. ReasoningEffortSelect)
+          const target = e.target as HTMLElement;
+          if (target.closest("[data-headlessui-state]") || target.closest("ul"))
+            return;
+          props.onClick?.();
+        }}
         className={`find-widget-skip bg-vsc-input-background flex select-none flex-row items-center justify-between gap-1 pt-1 ${props.hidden ? "pointer-events-none h-0 cursor-default opacity-0" : "pointer-events-auto mt-2 cursor-text opacity-100"}`}
         style={{
           fontSize: smallFont,
@@ -136,7 +142,12 @@ function InputToolbar(props: InputToolbarProps) {
                 </HoverItem>
               </ToolTip>
             )}
-            <ReasoningEffortSelect />
+            <div
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ReasoningEffortSelect />
+            </div>
           </div>
         </div>
 

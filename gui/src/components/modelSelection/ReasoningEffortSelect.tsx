@@ -1,22 +1,28 @@
 /**
  * ReasoningEffortSelect
  *
- * A compact dropdown that lets the user choose a reasoning effort level
- * (low / medium / high / xhigh / max / ultra) for the current model.
+ * A stable dropdown (using Continue's own Listbox component) that lets the
+ * user choose a reasoning effort level for the current model.
  *
- * The available levels are read from:
- *   model.requestOptions.extraBodyProperties._reasoningLevels   (array of strings)
- *   e.g. ["low", "medium", "high", "xhigh", "max", "ultra"]
+ * Available levels come from:
+ *   model.requestOptions.extraBodyProperties._reasoningLevels  (string[])
  *
- * The selected level is persisted to Redux reasoningEffortSettings keyed by
- * model title, and injected into every request as `reasoningEffort` on
- * CompletionOptions → ChatGPTCodexApi / GitHubCopilotApi pick it up there.
+ * Selected level is persisted in Redux uiSlice.reasoningEffortSettings keyed
+ * by model title and injected into every request via streamNormalInput →
+ * completionOptions.reasoningEffort.
  *
- * If the model has no _reasoningLevels it renders nothing.
+ * Renders nothing when the model has no reasoning levels.
  */
+import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import { useAppDispatch, useAppSelector } from "../../redux/hooks";
 import { selectSelectedChatModel } from "../../redux/slices/configSlice";
 import { setReasoningEffort } from "../../redux/slices/uiSlice";
+import {
+  Listbox,
+  ListboxButton,
+  ListboxOption,
+  ListboxOptions,
+} from "../ui/Listbox";
 
 const EFFORT_LABELS: Record<string, string> = {
   none: "off",
@@ -37,49 +43,71 @@ export function ReasoningEffortSelect() {
 
   if (!model) return null;
 
-  // Read available levels from model metadata
-  const levels: string[] =
-    (model.requestOptions?.extraBodyProperties as any)?._reasoningLevels ?? [];
+  const extra = model.requestOptions?.extraBodyProperties as
+    | Record<string, any>
+    | undefined;
 
+  const levels: string[] = extra?._reasoningLevels ?? [];
   if (levels.length === 0) return null;
 
-  // Determine current selection: UI override > config default > first level
-  const configDefault =
-    (model.requestOptions?.extraBodyProperties?.reasoning_effort as string) ??
-    levels.find((l) => l === "medium") ??
-    levels[0];
+  const configDefault: string =
+    (extra?.reasoning_effort as string | undefined) ??
+    (levels.includes("medium") ? "medium" : (levels[0] ?? "medium"));
 
-  const selected = effortSettings[model.title ?? ""] ?? configDefault;
+  const selected: string = effortSettings[model.title ?? ""] ?? configDefault;
+
+  const label = EFFORT_LABELS[selected] ?? selected;
 
   return (
     <div className="flex items-center gap-0.5">
-      <span className="text-description" style={{ fontSize: "0.65rem" }}>
+      <span
+        className="text-description pointer-events-none select-none"
+        style={{ fontSize: "0.65rem" }}
+      >
         think:
       </span>
-      <select
-        className="text-vsc-foreground hover:bg-vsc-input-background cursor-pointer rounded border-0 bg-transparent py-0 pl-0.5 pr-4 text-xs outline-none focus:outline-none"
-        style={{
-          fontSize: "0.65rem",
-          appearance: "none",
-          WebkitAppearance: "none",
-        }}
+
+      <Listbox
         value={selected}
-        title="Reasoning effort level"
-        onChange={(e) => {
+        onChange={(value: string) => {
           dispatch(
             setReasoningEffort({
               modelTitle: model.title ?? "",
-              effort: e.target.value,
+              effort: value,
             }),
           );
         }}
       >
-        {levels.map((level) => (
-          <option key={level} value={level}>
-            {EFFORT_LABELS[level] ?? level}
-          </option>
-        ))}
-      </select>
+        <ListboxButton
+          fontSizeModifier={-4}
+          className="flex items-center gap-0.5 border-0 bg-transparent px-0.5 py-0"
+        >
+          <span>{label}</span>
+          <ChevronDownIcon className="h-2 w-2 opacity-70" />
+        </ListboxButton>
+
+        <ListboxOptions fontSizeModifier={-3} className="min-w-[5rem]">
+          {levels.map((level) => (
+            <ListboxOption
+              key={level}
+              value={level}
+              fontSizeModifier={-3}
+              className={
+                level === selected
+                  ? "bg-list-active text-list-active-foreground"
+                  : ""
+              }
+            >
+              <span className="flex items-center gap-1.5 py-0.5">
+                <span className="w-4 text-center text-[10px] opacity-60">
+                  {level === selected ? "✓" : ""}
+                </span>
+                <span>{EFFORT_LABELS[level] ?? level}</span>
+              </span>
+            </ListboxOption>
+          ))}
+        </ListboxOptions>
+      </Listbox>
     </div>
   );
 }
