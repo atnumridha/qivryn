@@ -436,7 +436,8 @@ export class ChatGPTCodexApi implements BaseLlmApi {
     for await (const event of streamSse(res as any)) {
       // The Codex backend SSE events match the OpenAI Responses API stream format.
       // `obfuscation` fields are transport metadata — skip them.
-      if (!event || event.obfuscation) continue;
+      // obfuscation is a transport field on delta events — only skip events with no type
+      if (!event || !event.type) continue;
 
       const chunk = fromResponsesChunk(state, event as any);
       if (chunk) yield chunk;
@@ -499,7 +500,8 @@ export class ChatGPTCodexApi implements BaseLlmApi {
     }
 
     for await (const event of streamSse(res as any)) {
-      if (!event || event.obfuscation) continue;
+      // obfuscation is a transport field on delta events — only skip events with no type
+      if (!event || !event.type) continue;
       if (event.type === "response.created")
         responseId = event.response?.id ?? responseId;
       const chunk = fromResponsesChunk(state, event as any);
