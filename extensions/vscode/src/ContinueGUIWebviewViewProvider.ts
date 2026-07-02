@@ -132,7 +132,7 @@ export class ContinueGUIWebviewViewProvider
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <script>const vscode = acquireVsCodeApi();</script>
+        <script>const vscode = acquireVsCodeApi(); window.vscode = vscode;</script>
         <link href="${styleMainUri}" rel="stylesheet">
 
         <title>Continue</title>

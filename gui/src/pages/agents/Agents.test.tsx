@@ -1,6 +1,7 @@
 import type { AgentControlRequest, AgentRun } from "@continuedev/agent-runtime";
 import { act, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { Route, Routes } from "react-router-dom";
 import { MockIdeMessenger } from "../../context/MockIdeMessenger";
 import { renderWithProviders } from "../../util/test/render";
 import {
@@ -37,6 +38,35 @@ function run(overrides: Partial<AgentRun>): AgentRun {
 }
 
 describe("Agents workspace", () => {
+  it("closes the standalone Agents window when returning to chat", async () => {
+    (window as any).isFullScreen = true;
+    const messenger = new MockIdeMessenger();
+    const post = vi.spyOn(messenger, "post");
+    const { user } = await renderWithProviders(<Agents />, {
+      mockIdeMessenger: messenger,
+    });
+
+    await user.click(
+      await screen.findByRole("button", { name: "Back to chat" }),
+    );
+    expect(post).toHaveBeenCalledWith("closeAgentWindow", undefined);
+  });
+
+  it("returns to the chat route from the workspace header", async () => {
+    const { user } = await renderWithProviders(
+      <Routes>
+        <Route path="/agents" element={<Agents />} />
+        <Route path="/" element={<div>Chat screen</div>} />
+      </Routes>,
+      { routerProps: { initialEntries: ["/agents"] } },
+    );
+
+    await user.click(
+      await screen.findByRole("button", { name: "Back to chat" }),
+    );
+    expect(await screen.findByText("Chat screen")).toBeVisible();
+  });
+
   it("provides an in-webview reload control in the standalone window", async () => {
     (window as any).isFullScreen = true;
     const messenger = new MockIdeMessenger();

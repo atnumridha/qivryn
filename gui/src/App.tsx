@@ -15,7 +15,7 @@ import TerminalAssistant from "./pages/terminal";
 import BrowserWorkspace from "./pages/browser";
 import SlackConnector from "./pages/slack";
 import ThemePage from "./styles/ThemePage";
-import { ROUTES } from "./util/navigation";
+import { persistWebviewRoute, ROUTES } from "./util/navigation";
 
 const routes = [
   {
@@ -79,6 +79,10 @@ const initialRoute =
   ROUTES.HOME;
 const router = createMemoryRouter(routes, {
   initialEntries: [initialRoute],
+});
+
+router.subscribe(({ location }) => {
+  persistWebviewRoute(`${location.pathname}${location.search}${location.hash}`);
 });
 
 /*

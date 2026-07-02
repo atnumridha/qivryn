@@ -691,6 +691,9 @@ const getCommandsMap: (
       );
       fullScreenPanel.reveal();
     },
+    "continue.closeAgentsWindow": () => {
+      fullScreenPanel?.dispose();
+    },
     "continue.openAgentReview": () => {
       return vscode.commands.executeCommand(
         "continue.navigateTo",
@@ -971,12 +974,16 @@ const getCommandsMap: (
     },
     "continue.openSessionFromAgents": async (sessionId: string) => {
       fullScreenRecoverySessionId = sessionId;
+      if (fullScreenPanel) {
+        fullScreenPanel.dispose();
+        return;
+      }
+      await vscode.commands.executeCommand("continue.continueGUIView.focus");
       await vscode.commands.executeCommand("continue.navigateTo", "/", false);
       await vscode.commands.executeCommand(
         "continue.focusContinueSessionId",
         sessionId,
       );
-      fullScreenPanel?.reveal();
     },
     "continue.openInNewWindow": async (initialPath?: string) => {
       focusGUI();
@@ -1171,8 +1178,36 @@ export function registerAllCommands(
         );
         panel.onDidDispose(
           () => {
+            const recoverySessionId = fullScreenRecoverySessionId;
+            fullScreenRecoverySessionId = undefined;
             if (fullScreenPanel === panel) fullScreenPanel = undefined;
             sidebar.resetWebviewProtocolWebview();
+            void recoverClosedAgentWindow({
+              cancelApply: async () => {
+                await core.invoke("cancelApply", undefined);
+              },
+              getCurrentFile: () => ide.getCurrentFile(),
+              getStreamId: (filepath) =>
+                verticalDiffManager.getStreamIdForFile(filepath),
+              clearDiff: (filepath) =>
+                verticalDiffManager.clearForfileUri(filepath, false),
+              restoreSession: async () => {
+                await vscode.commands.executeCommand(
+                  "continue.continueGUIView.focus",
+                );
+                await vscode.commands.executeCommand(
+                  "continue.navigateTo",
+                  "/",
+                  false,
+                );
+                if (recoverySessionId) {
+                  await vscode.commands.executeCommand(
+                    "continue.focusContinueSessionId",
+                    recoverySessionId,
+                  );
+                }
+              },
+            });
           },
           null,
           context.subscriptions,

@@ -108,6 +108,9 @@ export class VsCodeMessenger {
     this.onWebview("reloadAgentWindow", () => {
       vscode.commands.executeCommand("continue.reloadAgentsWindow");
     });
+    this.onWebview("closeAgentWindow", () => {
+      vscode.commands.executeCommand("continue.closeAgentsWindow");
+    });
     this.onWebview("onboarding/importVsCode", () => {
       vscode.commands.executeCommand(
         "workbench.profiles.actions.importProfile",

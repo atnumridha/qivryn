@@ -21,6 +21,7 @@ export type ToIdeFromWebviewProtocol = ToIdeFromWebviewOrCoreProtocol & {
   toggleDevTools: [undefined, void];
   reloadWindow: [undefined, void];
   reloadAgentWindow: [undefined, void];
+  closeAgentWindow: [undefined, void];
   "onboarding/importVsCode": [undefined, void];
   focusEditor: [undefined, void];
   toggleFullScreen: [{ newWindow?: boolean; path?: string } | undefined, void];

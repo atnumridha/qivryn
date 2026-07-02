@@ -36,6 +36,7 @@ export function HistoryTableRow({
 
   const [hovered, setHovered] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [opening, setOpening] = useState(false);
   const [sessionTitleEditValue, setSessionTitleEditValue] = useState(
     sessionMetadata.title,
   );
@@ -77,26 +78,46 @@ export function HistoryTableRow({
     }
   };
 
+  const openSession = async () => {
+    if (opening || editing) return;
+    setOpening(true);
+
+    if ((window as any).isFullScreen) {
+      ideMessenger.post("session/openInMain", {
+        sessionId: sessionMetadata.sessionId,
+      });
+      return;
+    }
+
+    // Route immediately so a slow session read cannot make the row appear
+    // unresponsive. The requested session replaces the chat as soon as it is
+    // available.
+    navigate("/", { replace: true });
+    try {
+      await dispatch(exitEdit({})).unwrap();
+      if (sessionMetadata.sessionId !== currentSessionId) {
+        await dispatch(
+          loadSession({
+            sessionId: sessionMetadata.sessionId,
+            saveCurrentSession: true,
+          }),
+        ).unwrap();
+      }
+    } catch (error) {
+      console.error("Failed to open chat session", error);
+    } finally {
+      setOpening(false);
+    }
+  };
+
   return (
     <tr
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       data-testid={`history-row-${index}`}
-      className="hover:bg-input relative mb-2 box-border flex w-full cursor-pointer overflow-hidden rounded-lg p-3"
-      onClick={async () => {
-        await dispatch(exitEdit({}));
-        if (sessionMetadata.sessionId !== currentSessionId) {
-          await dispatch(
-            loadSession({
-              sessionId: sessionMetadata.sessionId,
-              saveCurrentSession: true,
-            }),
-          );
-        }
-        navigate("/");
-      }}
+      className="hover:bg-input relative mb-2 box-border flex w-full overflow-hidden rounded-lg p-3"
     >
-      <td className="flex-1 cursor-pointer space-y-1">
+      <td className="flex-1 space-y-1">
         {editing ? (
           <div>
             <Input
@@ -110,7 +131,13 @@ export function HistoryTableRow({
             />
           </div>
         ) : (
-          <div className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-label={`Open chat ${sessionMetadata.title}`}
+            disabled={opening}
+            onClick={() => void openSession()}
+            className="flex w-full min-w-0 cursor-pointer items-center gap-2 border-none bg-transparent p-0 text-left disabled:cursor-wait disabled:opacity-70"
+          >
             <span className="line-clamp-1 break-all text-sm font-semibold">
               {sessionMetadata.title}
             </span>
@@ -126,7 +153,7 @@ export function HistoryTableRow({
                 </span>
               </ToolTip>
             )}
-          </div>
+          </button>
         )}
 
         <div className="text-description-muted flex">

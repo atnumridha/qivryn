@@ -16,6 +16,15 @@ import { ThunkApiType } from "../store";
 import { updateSelectedModelByRole } from "../thunks/updateSelectedModelByRole";
 
 const MAX_TITLE_LENGTH = 100;
+const LEGACY_NEW_SESSION_TITLES = new Set([
+  NEW_SESSION_TITLE.toLowerCase(),
+  "untitled session",
+]);
+
+export function isPlaceholderSessionTitle(title: string): boolean {
+  const normalized = title.trim().toLowerCase();
+  return normalized.length === 0 || LEGACY_NEW_SESSION_TITLES.has(normalized);
+}
 
 // Async session functions live in thunks (because of IDE messaging mostly)
 // see sessionSlice for sync redux session functions
@@ -204,7 +213,7 @@ export const saveCurrentSession = createAsyncThunk<
     // New session has already been dispatched
     // Now save previous session and update chat title if relevant
     let title = session.title;
-    if (title === NEW_SESSION_TITLE) {
+    if (isPlaceholderSessionTitle(title)) {
       if (
         !getState().config.config?.disableSessionTitles &&
         selectedChatModel
@@ -230,7 +239,7 @@ export const saveCurrentSession = createAsyncThunk<
         }
       }
       // Fallbacks if above doesn't work out or session titles disabled
-      if (title === NEW_SESSION_TITLE) {
+      if (isPlaceholderSessionTitle(title)) {
         title = getChatTitleFromMessage(session.history[0].message);
       }
     }

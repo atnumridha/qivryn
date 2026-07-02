@@ -49,7 +49,7 @@ import { IdeMessengerContext } from "../../context/IdeMessenger";
 import { useAppDispatch, useAppSelector } from "../../redux/hooks";
 import { selectSelectedChatModel } from "../../redux/slices/configSlice";
 import { exitEdit } from "../../redux/thunks/edit";
-import { loadSession } from "../../redux/thunks/session";
+import { loadSession, saveCurrentSession } from "../../redux/thunks/session";
 import { ROUTES } from "../../util/navigation";
 import ModelSelect from "../../components/modelSelection/ModelSelect";
 import { ReasoningEffortSelect } from "../../components/modelSelection/ReasoningEffortSelect";
@@ -3323,7 +3323,19 @@ export default function Agents() {
         <button
           type="button"
           aria-label="Back to chat"
-          onClick={() => navigate(ROUTES.HOME)}
+          onClick={() => {
+            if ((window as any).isFullScreen) {
+              ideMessenger.post("closeAgentWindow", undefined);
+              return;
+            }
+            navigate(ROUTES.HOME, { replace: true });
+            void dispatch(
+              saveCurrentSession({
+                openNewSession: false,
+                generateTitle: true,
+              }),
+            );
+          }}
           className="hover:bg-list-hover focus-visible:ring-border-focus flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border-none bg-transparent outline-none focus-visible:ring-1"
         >
           <ArrowLeftIcon className="h-3.5 w-3.5" />

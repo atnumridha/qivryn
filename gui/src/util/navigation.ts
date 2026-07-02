@@ -40,3 +40,19 @@ export const CONFIG_ROUTES = {
   HELP: buildConfigRoute("help"),
   EXTENSIONS: buildConfigRoute("extensions"),
 } as const;
+
+type WebviewStateApi = {
+  getState?: () => Record<string, unknown> | undefined;
+  setState: (state: Record<string, unknown>) => void;
+};
+
+export function persistWebviewRoute(
+  route: string,
+  api: WebviewStateApi | undefined = (window as any).vscode,
+): void {
+  (window as any).initialRoute = route;
+  if (!api) return;
+
+  const previousState = api.getState?.() ?? {};
+  api.setState({ ...previousState, page: route });
+}
