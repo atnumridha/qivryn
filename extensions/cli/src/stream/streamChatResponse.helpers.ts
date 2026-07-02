@@ -3,7 +3,7 @@
 
 import type { ToolStatus, Usage } from "core/index.js";
 import { calculateRequestCost } from "core/llm/utils/calculateRequestCost.js";
-import { ContinueError, ContinueErrorReason } from "core/util/errors.js";
+import { QivrynError, QivrynErrorReason } from "core/util/errors.js";
 import { ChatCompletionToolMessageParam } from "openai/resources/chat/completions.mjs";
 
 import { ToolPermissionServiceState } from "src/services/ToolPermissionService.js";
@@ -424,9 +424,7 @@ export async function preprocessStreamedToolCalls(
       callbacks?.onToolStart?.(toolCall.name, toolCall.arguments);
 
       const errorReason =
-        error instanceof ContinueError
-          ? error.reason
-          : ContinueErrorReason.Unknown;
+        error instanceof QivrynError ? error.reason : QivrynErrorReason.Unknown;
 
       const errorMessage =
         error instanceof Error ? error.message : String(error);

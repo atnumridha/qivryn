@@ -18,14 +18,14 @@ export function activate(context: vscode.ExtensionContext) {
     console.log("Error activating extension: ", e);
     vscode.window
       .showWarningMessage(
-        "Error activating the Continue extension.",
+        "Error activating the Qivryn extension.",
         "View Logs",
         "Retry Extension Host",
         "Reload Window",
       )
       .then((selection) => {
         if (selection === "View Logs") {
-          vscode.commands.executeCommand("continue.viewLogs");
+          vscode.commands.executeCommand("qivryn.viewLogs");
         } else if (selection === "Retry Extension Host") {
           vscode.commands.executeCommand(
             "workbench.action.restartExtensionHost",

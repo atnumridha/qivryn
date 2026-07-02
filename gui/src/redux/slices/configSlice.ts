@@ -1,15 +1,15 @@
-import { ConfigResult, ConfigValidationError } from "@continuedev/config-yaml";
+import { ConfigResult, ConfigValidationError } from "@qivryn/config-yaml";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { BrowserSerializedContinueConfig } from "core";
+import { BrowserSerializedQivrynConfig } from "core";
 import { DEFAULT_CONTEXT_LENGTH } from "core/llm/constants";
 
 export type ConfigState = {
   configError: ConfigValidationError[] | undefined;
-  config: BrowserSerializedContinueConfig;
+  config: BrowserSerializedQivrynConfig;
   loading: boolean;
 };
 
-export const EMPTY_CONFIG: BrowserSerializedContinueConfig = {
+export const EMPTY_CONFIG: BrowserSerializedQivrynConfig = {
   slashCommands: [],
   contextProviders: [],
   tools: [],
@@ -51,7 +51,7 @@ export const configSlice = createSlice({
       state,
       {
         payload: result,
-      }: PayloadAction<ConfigResult<BrowserSerializedContinueConfig>>,
+      }: PayloadAction<ConfigResult<BrowserSerializedQivrynConfig>>,
     ) => {
       const { config, errors } = result;
       if (!errors || errors.length === 0) {
@@ -73,7 +73,7 @@ export const configSlice = createSlice({
     },
     updateConfig: (
       state,
-      { payload: config }: PayloadAction<BrowserSerializedContinueConfig>,
+      { payload: config }: PayloadAction<BrowserSerializedQivrynConfig>,
     ) => {
       state.config = config;
     },

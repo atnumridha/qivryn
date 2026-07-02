@@ -1,5 +1,5 @@
 import path from "node:path";
-import type { AgentRun } from "@continuedev/agent-runtime";
+import type { AgentRun } from "@qivryn/agent-runtime";
 
 export function activeAgentWorktrees(runs: AgentRun[]): string[] {
   return [

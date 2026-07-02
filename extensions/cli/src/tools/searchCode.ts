@@ -2,7 +2,7 @@ import * as child_process from "child_process";
 import * as fs from "fs";
 import * as util from "util";
 
-import { ContinueError, ContinueErrorReason } from "core/util/errors.js";
+import { QivrynError, QivrynErrorReason } from "core/util/errors.js";
 import { findUp } from "find-up";
 
 import { parseEnvNumber } from "../util/truncateOutput.js";
@@ -88,14 +88,14 @@ const DEFAULT_SEARCH_MAX_RESULT_CHARS = 1000; // Max chars per result line
 
 function getSearchMaxResults(): number {
   return parseEnvNumber(
-    process.env.CONTINUE_CLI_SEARCH_CODE_MAX_RESULTS,
+    process.env.QIVRYN_CLI_SEARCH_CODE_MAX_RESULTS,
     DEFAULT_SEARCH_MAX_RESULTS,
   );
 }
 
 function getSearchMaxResultChars(): number {
   return parseEnvNumber(
-    process.env.CONTINUE_CLI_SEARCH_CODE_MAX_RESULT_CHARS,
+    process.env.QIVRYN_CLI_SEARCH_CODE_MAX_RESULT_CHARS,
     DEFAULT_SEARCH_MAX_RESULT_CHARS,
   );
 }
@@ -146,8 +146,8 @@ export const searchCodeTool: Tool = {
   }): Promise<string> => {
     const searchPath = args.path || process.cwd();
     if (!fs.existsSync(searchPath)) {
-      throw new ContinueError(
-        ContinueErrorReason.Unspecified,
+      throw new QivrynError(
+        QivrynErrorReason.Unspecified,
         `Path does not exist: ${searchPath}`,
       );
     }
@@ -206,7 +206,7 @@ export const searchCodeTool: Tool = {
         args.file_pattern ? ` in files matching "${args.file_pattern}"` : ""
       }:\n\n${resultText}${truncationMessage}`;
     } catch (error: any) {
-      if (error instanceof ContinueError) {
+      if (error instanceof QivrynError) {
         throw error;
       }
       if (error.code === 1) {

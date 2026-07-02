@@ -150,7 +150,7 @@ describe("clipboard utilities", () => {
       vi.mocked(os.default.platform).mockReturnValue("darwin");
       vi.mocked(os.default.tmpdir).mockReturnValue("/tmp");
       vi.mocked(path.default.join).mockReturnValue(
-        "/tmp/continue-clipboard-123.png",
+        "/tmp/qivryn-clipboard-123.png",
       );
       mockExecAsync.mockResolvedValue({ stdout: "", stderr: "" });
       vi.mocked(fs.readFile).mockResolvedValue(mockImageBuffer);
@@ -169,7 +169,7 @@ describe("clipboard utilities", () => {
       vi.mocked(os.default.platform).mockReturnValue("win32");
       vi.mocked(os.default.tmpdir).mockReturnValue("C:\\temp");
       vi.mocked(path.default.join).mockReturnValue(
-        "C:\\temp\\continue-clipboard-123.png",
+        "C:\\temp\\qivryn-clipboard-123.png",
       );
       mockExecAsync.mockResolvedValue({ stdout: "", stderr: "" });
       vi.mocked(fs.readFile).mockResolvedValue(mockImageBuffer);
@@ -188,7 +188,7 @@ describe("clipboard utilities", () => {
       vi.mocked(os.default.platform).mockReturnValue("linux");
       vi.mocked(os.default.tmpdir).mockReturnValue("/tmp");
       vi.mocked(path.default.join).mockReturnValue(
-        "/tmp/continue-clipboard-123.png",
+        "/tmp/qivryn-clipboard-123.png",
       );
       mockExecAsync.mockResolvedValue({ stdout: "", stderr: "" });
       vi.mocked(fs.readFile).mockResolvedValue(mockImageBuffer);
@@ -215,7 +215,7 @@ describe("clipboard utilities", () => {
       vi.mocked(os.default.platform).mockReturnValue("darwin");
       vi.mocked(os.default.tmpdir).mockReturnValue("/tmp");
       vi.mocked(path.default.join).mockReturnValue(
-        "/tmp/continue-clipboard-123.png",
+        "/tmp/qivryn-clipboard-123.png",
       );
       mockExecAsync.mockResolvedValue({ stdout: "", stderr: "" });
       vi.mocked(fs.readFile).mockResolvedValue(mockImageBuffer);

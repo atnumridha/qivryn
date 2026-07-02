@@ -19,7 +19,7 @@ export type AgentStreamRecordWriter = (record: AgentStreamRecord) => void;
 export function isAgentEventStreamEnabled(
   environment: NodeJS.ProcessEnv = process.env,
 ): boolean {
-  return environment.CONTINUE_AGENT_EVENT_STREAM === "1";
+  return environment.QIVRYN_AGENT_EVENT_STREAM === "1";
 }
 
 function defaultWriter(record: AgentStreamRecord): void {

@@ -14,9 +14,9 @@ const useTutorialListener = (onTutorialClosed: () => void) => {
     const isTutorial = uris.some((uri) => {
       const lowercaseUri = uri.toLowerCase();
       return (
-        lowercaseUri.endsWith("continue_tutorial.py") ||
-        lowercaseUri.endsWith("continue_tutorial.java") ||
-        lowercaseUri.endsWith("continue_tutorial.ts")
+        lowercaseUri.endsWith("qivryn_tutorial.py") ||
+        lowercaseUri.endsWith("qivryn_tutorial.java") ||
+        lowercaseUri.endsWith("qivryn_tutorial.ts")
       );
     });
 

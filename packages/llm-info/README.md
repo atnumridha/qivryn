@@ -1,8 +1,8 @@
-# @continuedev/llm-info
+# @qivryn/llm-info
 
 A lightweight package providing information about various Large Language Models (LLMs), including embedding, reranking, and other models.
 
-Whereas @continuedev/openai-adapters is responsible for translation between API types, @continuedev/llm-info is concerned with
+Whereas @qivryn/openai-adapters is responsible for translation between API types, @qivryn/llm-info is concerned with
 
 - Templates
 - Capabilities (e.g. tools, images, streaming, predicted outputs, etc.)
@@ -12,7 +12,7 @@ and openai-adapters might depend on llm-info for some of these things.
 
 ### Goal
 
-We know we are done when the steps required to add support for a new model in Continue are exactly
+We know we are done when the steps required to add support for a new model in Qivryn are exactly
 
 1. editing a single LlmInfo object, and
 2. adding it to the supporting ModelProviders.

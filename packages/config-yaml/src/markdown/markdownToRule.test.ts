@@ -1,5 +1,9 @@
 import { PackageIdentifier } from "../browser.js";
-import { getRuleName, markdownToRule } from "./markdownToRule.js";
+import {
+  getRuleName,
+  markdownToRule,
+  parseMarkdownRule,
+} from "./markdownToRule.js";
 
 describe("markdownToRule", () => {
   // Use a mock PackageIdentifier for testing
@@ -139,7 +143,7 @@ This is a test rule.`;
       ]);
     });
 
-    it("should not prepend when inside .continue", () => {
+    it("should not prepend when inside .qivryn", () => {
       const content = `---
 globs: ".git"
 name: glob pattern testing
@@ -153,9 +157,9 @@ name: glob pattern testing
         content,
         {
           uriType: "file",
-          fileUri: "file:///Documents/myproject/.continue/rules/rule1.md",
+          fileUri: "file:///Documents/myproject/.qivryn/rules/rule1.md",
         },
-        "/Documents/myproject/.continue/",
+        "/Documents/myproject/.qivryn/",
       );
       expect(result.globs).toBe(".git");
     });
@@ -208,6 +212,23 @@ This is a test rule.`;
     expect(result.globs).toBe("/path/to/**/*");
     expect(result.rule).toBe(content);
     expect(result.name).toBe("to/file"); // Should use last two path segments
+  });
+
+  it("does not treat horizontal rules inside ordinary Markdown as frontmatter", () => {
+    const markdown = `# Package documentation
+
+Install the package, then continue with configuration.
+
+---
+
+## API reference
+
+**Type:** Counter`;
+
+    expect(parseMarkdownRule(markdown)).toEqual({
+      frontmatter: {},
+      markdown,
+    });
   });
 
   it("should use packageIdentifierToDisplayName if no heading or frontmatter name", () => {

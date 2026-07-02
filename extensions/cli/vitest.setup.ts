@@ -3,8 +3,8 @@ import { vi } from "vitest";
 import { resetConsoleOverrides } from "./src/init.js";
 
 // Disable telemetry for tests
-process.env.CONTINUE_CLI_ENABLE_TELEMETRY = "0";
-process.env.CONTINUE_ALLOW_ANONYMOUS_TELEMETRY = "0";
+process.env.QIVRYN_CLI_ENABLE_TELEMETRY = "0";
+process.env.QIVRYN_ALLOW_ANONYMOUS_TELEMETRY = "0";
 
 // Mock fetch to prevent actual API calls in tests
 const originalFetch = global.fetch;
@@ -14,7 +14,7 @@ global.fetch = vi
     const urlString = url.toString();
 
     // Mock the default config API call
-    if (urlString.includes("get-assistant/continuedev/default-cli-config")) {
+    if (urlString.includes("get-assistant/qivryn/default-cli-config")) {
       return {
         ok: true,
         status: 200,
@@ -53,12 +53,12 @@ vi.mock("./src/systemMessage.js", () => ({
   constructSystemMessage: vi
     .fn()
     .mockResolvedValue(
-      "You are an agent in the Continue CLI. Given the user's prompt, you should use the tools available to you to answer the user's question.",
+      "You are an agent in the Qivryn CLI. Given the user's prompt, you should use the tools available to you to answer the user's question.",
     ),
   loadMarkdownRulesWithMetadata: vi.fn().mockReturnValue([]),
 }));
 
-// NOTE: CONTINUE_GLOBAL_DIR is set to a unique per-worker temp dir in
+// NOTE: QIVRYN_GLOBAL_DIR is set to a unique per-worker temp dir in
 // ./vitest.global-dir-setup.ts (which runs first) to isolate the shared
 // GlobalContext store across parallel test files. Do not override it here.
 

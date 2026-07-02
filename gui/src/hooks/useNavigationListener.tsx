@@ -5,8 +5,8 @@ import { useWebviewListener } from "./useWebviewListener";
 
 const openGUITypes: (keyof ToWebviewProtocol)[] = [
   "highlightedCode",
-  "focusContinueInput",
-  "focusContinueInputWithoutClear",
+  "focusQivrynInput",
+  "focusQivrynInputWithoutClear",
   "newSession",
 ];
 

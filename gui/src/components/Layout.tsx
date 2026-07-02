@@ -70,7 +70,7 @@ const Layout = () => {
   );
 
   useWebviewListener(
-    "isContinueInputFocused",
+    "isQivrynInputFocused",
     async () => {
       return false;
     },
@@ -79,7 +79,7 @@ const Layout = () => {
   );
 
   useWebviewListener(
-    "focusContinueInputWithNewSession",
+    "focusQivrynInputWithNewSession",
     async () => {
       navigate(ROUTES.HOME);
       if (isInEdit) {

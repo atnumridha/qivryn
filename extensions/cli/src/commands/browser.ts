@@ -8,7 +8,7 @@ import {
   FileBrowserPermissionPolicy,
   type BrowserPermissionGrant,
   type BrowserActionRequest,
-} from "@continuedev/browser-runtime";
+} from "@qivryn/browser-runtime";
 
 export interface BrowserCommandOptions {
   url?: string;
@@ -25,7 +25,7 @@ export interface BrowserCommandOptions {
 
 async function createBrowserService(): Promise<BrowserSessionService> {
   const globalDirectory =
-    process.env.CONTINUE_GLOBAL_DIR ?? path.join(os.homedir(), ".continue");
+    process.env.QIVRYN_GLOBAL_DIR ?? path.join(os.homedir(), ".qivryn");
   const service = new BrowserSessionService(
     new FileBrowserStore(path.join(globalDirectory, "browser")),
     new PuppeteerBrowserAdapter(),

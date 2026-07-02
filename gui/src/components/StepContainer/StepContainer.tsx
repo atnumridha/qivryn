@@ -63,12 +63,12 @@ export default function StepContainer(props: StepContainerProps) {
     dispatch(deleteMessage(props.index));
   }
 
-  function onContinueGeneration() {
+  function onQivrynGeneration() {
     window.postMessage(
       {
         messageType: "userInput",
         data: {
-          input: "Continue your response exactly where you left off:",
+          input: "Qivryn your response exactly where you left off:",
         },
       },
       "*",
@@ -112,7 +112,7 @@ export default function StepContainer(props: StepContainerProps) {
           <ResponseActions
             isTruncated={isTruncated}
             onDelete={onDelete}
-            onContinueGeneration={onContinueGeneration}
+            onQivrynGeneration={onQivrynGeneration}
             index={props.index}
             item={props.item}
             isLast={props.isLast}

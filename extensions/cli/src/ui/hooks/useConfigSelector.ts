@@ -23,7 +23,7 @@ interface UseConfigSelectorProps {
   handleClear: () => void;
 }
 
-const CONFIG_PATH = path.join(env.continueHome, "config.yaml");
+const CONFIG_PATH = path.join(env.qivrynHome, "config.yaml");
 
 export function useConfigSelector({
   onMessage,
@@ -36,7 +36,7 @@ export function useConfigSelector({
 
     if (config.type === "create") {
       // Open the web browser to create new assistant
-      const url = new URL("https://continue.dev/new");
+      const url = new URL("https://qivryn.ai/new");
       url.searchParams.set("type", "assistant");
 
       try {

@@ -6,12 +6,12 @@ describe("Local Config Switching Investigation", () => {
 
     const configTypes = {
       localFilePaths: [
-        "~/.continue/config.yaml",
+        "~/.qivryn/config.yaml",
         "./config.yaml",
         "/absolute/path/to/config.yaml",
       ],
       remoteAssistantSlugs: [
-        "continuedev/default-cli-config",
+        "qivryn/default-cli-config",
         "myorg/custom-assistant",
         "user/my-assistant",
       ],
@@ -43,28 +43,28 @@ describe("Local Config Switching Investigation", () => {
     const problemScenarios = [
       {
         name: "Remote to Remote switching",
-        from: "continuedev/default-cli-config",
+        from: "qivryn/default-cli-config",
         to: "myorg/custom-assistant",
         works: true,
         reason: "Both are assistant slugs, normal flow works",
       },
       {
         name: "Remote to Local switching",
-        from: "continuedev/default-cli-config",
-        to: "~/.continue/config.yaml",
+        from: "qivryn/default-cli-config",
+        to: "~/.qivryn/config.yaml",
         works: false, // This is the reported issue
         reason: "UNKNOWN - this is what we need to debug",
       },
       {
         name: "Local to Remote switching",
-        from: "~/.continue/config.yaml",
-        to: "continuedev/default-cli-config",
+        from: "~/.qivryn/config.yaml",
+        to: "qivryn/default-cli-config",
         works: false, // Likely also broken
         reason: "UNKNOWN - probably same root cause",
       },
       {
         name: "Local to Local switching",
-        from: "~/.continue/config.yaml",
+        from: "~/.qivryn/config.yaml",
         to: "./other-config.yaml",
         works: false, // Likely also broken
         reason: "UNKNOWN - probably same root cause",

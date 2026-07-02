@@ -1,7 +1,4 @@
-import type {
-  ReviewActionRequest,
-  ReviewReport,
-} from "@continuedev/review-engine";
+import type { ReviewActionRequest, ReviewReport } from "@qivryn/review-engine";
 import { screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { MockIdeMessenger } from "../../context/MockIdeMessenger";

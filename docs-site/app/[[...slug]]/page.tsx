@@ -53,8 +53,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return {
     title: doc.frontmatter.title
-      ? `${doc.frontmatter.title} | Continue Docs`
-      : "Continue Docs",
+      ? `${doc.frontmatter.title} | Qivryn Docs`
+      : "Qivryn Docs",
     description: doc.frontmatter.description || "",
   };
 }

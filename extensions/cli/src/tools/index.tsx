@@ -1,5 +1,5 @@
 // @ts-ignore
-import { ContinueError, ContinueErrorReason } from "core/util/errors.js";
+import { QivrynError, QivrynErrorReason } from "core/util/errors.js";
 import { ChatCompletionTool } from "openai/resources.mjs";
 
 import { isModelCapable } from "src/utils/modelCapability.js";
@@ -137,7 +137,7 @@ export async function getAllAvailableTools(
   const mcpState = await serviceContainer.get<MCPServiceState>(
     SERVICE_NAMES.MCP,
   );
-  tools.push(...mcpState.tools.map(convertMcpToolToContinueTool));
+  tools.push(...mcpState.tools.map(convertMcpToolToQivrynTool));
 
   return tools;
 }
@@ -189,7 +189,7 @@ export function convertToolToChatCompletionTool(
   };
 }
 
-export function convertMcpToolToContinueTool(mcpTool: MCPTool): Tool {
+export function convertMcpToolToQivrynTool(mcpTool: MCPTool): Tool {
   return {
     name: mcpTool.name,
     displayName: mcpTool.name,
@@ -259,9 +259,7 @@ export async function executeToolCall(
     const duration = Date.now() - startTime;
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorReason =
-      error instanceof ContinueError
-        ? error.reason
-        : ContinueErrorReason.Unknown;
+      error instanceof QivrynError ? error.reason : QivrynErrorReason.Unknown;
 
     telemetryService.logToolResult({
       toolName: toolCall.name,

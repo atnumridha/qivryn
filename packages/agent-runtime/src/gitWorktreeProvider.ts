@@ -31,9 +31,8 @@ export class GitWorktreeWorkspaceProvider implements AgentWorkspaceProvider {
     private readonly options: GitWorktreeWorkspaceProviderOptions = {},
   ) {
     this.rootDirectory =
-      options.rootDirectory ??
-      path.join(os.tmpdir(), "continue-agent-worktrees");
-    this.branchPrefix = options.branchPrefix ?? "continue/agent-";
+      options.rootDirectory ?? path.join(os.tmpdir(), "qivryn-agent-worktrees");
+    this.branchPrefix = options.branchPrefix ?? "qivryn/agent-";
   }
 
   async prepare(run: AgentRun): Promise<AgentWorkspace> {
@@ -126,14 +125,14 @@ export class GitWorktreeWorkspaceProvider implements AgentWorkspaceProvider {
     await this.git(
       worktreePath,
       "-c",
-      "user.name=Continue Agent",
+      "user.name=Qivryn Agent",
       "-c",
-      "user.email=agent@continue.local",
+      "user.email=agent@qivryn.local",
       "commit",
       "--allow-empty",
       "--no-verify",
       "-m",
-      `continue checkpoint: ${checkpoint.label ?? checkpoint.id}`,
+      `Qivryn checkpoint: ${checkpoint.label ?? checkpoint.id}`,
     );
     return { baseRevision: await this.git(worktreePath, "rev-parse", "HEAD") };
   }
@@ -219,13 +218,13 @@ export class GitWorktreeWorkspaceProvider implements AgentWorkspaceProvider {
       await this.git(
         worktreePath,
         "-c",
-        "user.name=Continue Agent",
+        "user.name=Qivryn Agent",
         "-c",
-        "user.email=agent@continue.local",
+        "user.email=agent@qivryn.local",
         "commit",
         "--no-verify",
         "-m",
-        `Continue agent: ${run.title}`,
+        `Qivryn agent: ${run.title}`,
       );
     }
     const repositoryStatus = await this.gitRaw(
@@ -248,9 +247,9 @@ export class GitWorktreeWorkspaceProvider implements AgentWorkspaceProvider {
       this.git(
         run.workspace.repositoryPath,
         "-c",
-        "user.name=Continue Agent",
+        "user.name=Qivryn Agent",
         "-c",
-        "user.email=agent@continue.local",
+        "user.email=agent@qivryn.local",
         "merge",
         "--no-ff",
         "--no-edit",

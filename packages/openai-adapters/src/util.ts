@@ -1,5 +1,5 @@
-import { RequestOptions } from "@continuedev/config-types";
-import { fetchwithRequestOptions, patchedFetch } from "@continuedev/fetch";
+import { RequestOptions } from "@qivryn/config-types";
+import { fetchwithRequestOptions, patchedFetch } from "@qivryn/fetch";
 import {
   ChatCompletionChunk,
   CompletionUsage,

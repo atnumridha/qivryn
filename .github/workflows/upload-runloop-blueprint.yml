@@ -16,15 +16,15 @@ jobs:
   upload-blueprints:
     name: Upload Blueprints to Runloop
     runs-on: ubuntu-latest
-    # Only run this workflow on the main repository (continuedev/continue)
-    if: github.repository == 'continuedev/continue'
+    # Only run this workflow on the main repository (atnumridha/qivryn)
+    if: github.repository == 'qivryn/qivryn'
     strategy:
       matrix:
         include:
           - template: runloop-blueprint-template.json
-            name: cn
+            name: qivryn
           - template: runloop-blueprint-staging-template.json
-            name: cn-staging
+            name: qivryn-staging
     steps:
       - name: Checkout
         uses: actions/checkout@v6

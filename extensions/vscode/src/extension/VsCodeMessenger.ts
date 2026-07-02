@@ -99,17 +99,17 @@ export class VsCodeMessenger {
     });
 
     this.onWebview("toggleDevTools", (msg) => {
-      vscode.commands.executeCommand("continue.viewLogs");
+      vscode.commands.executeCommand("qivryn.viewLogs");
     });
 
     this.onWebview("reloadWindow", (msg) => {
       vscode.commands.executeCommand("workbench.action.reloadWindow");
     });
     this.onWebview("reloadAgentWindow", () => {
-      vscode.commands.executeCommand("continue.reloadAgentsWindow");
+      vscode.commands.executeCommand("qivryn.reloadAgentsWindow");
     });
     this.onWebview("closeAgentWindow", () => {
-      vscode.commands.executeCommand("continue.closeAgentsWindow");
+      vscode.commands.executeCommand("qivryn.closeAgentsWindow");
     });
     this.onWebview("onboarding/importVsCode", () => {
       vscode.commands.executeCommand(
@@ -120,14 +120,11 @@ export class VsCodeMessenger {
       vscode.commands.executeCommand("workbench.action.focusActiveEditorGroup");
     });
     this.onWebview("toggleFullScreen", (msg) => {
-      vscode.commands.executeCommand(
-        "continue.openInNewWindow",
-        msg.data?.path,
-      );
+      vscode.commands.executeCommand("qivryn.openInNewWindow", msg.data?.path);
     });
     this.onWebview("session/openInMain", async (msg) => {
       await vscode.commands.executeCommand(
-        "continue.openSessionFromAgents",
+        "qivryn.openSessionFromAgents",
         msg.data.sessionId,
       );
       return true;
@@ -145,7 +142,7 @@ export class VsCodeMessenger {
 
     this.onWebview("acceptDiff", async ({ data: { filepath, streamId } }) => {
       await vscode.commands.executeCommand(
-        "continue.acceptDiff",
+        "qivryn.acceptDiff",
         filepath,
         streamId,
       );
@@ -153,7 +150,7 @@ export class VsCodeMessenger {
 
     this.onWebview("rejectDiff", async ({ data: { filepath, streamId } }) => {
       await vscode.commands.executeCommand(
-        "continue.rejectDiff",
+        "qivryn.rejectDiff",
         filepath,
         streamId,
       );
@@ -284,7 +281,7 @@ export class VsCodeMessenger {
 
     this.onWebview("session/share", async (msg) => {
       await vscode.commands.executeCommand(
-        "continue.shareSession",
+        "qivryn.shareSession",
         msg.data.sessionId,
       );
     });

@@ -4,11 +4,11 @@ import * as path from "path";
 import * as URI from "uri-js";
 import * as YAML from "yaml";
 
-import { ConfigYaml, DevEventName } from "@continuedev/config-yaml";
+import { ConfigYaml, DevEventName } from "@qivryn/config-yaml";
 import * as JSONC from "comment-json";
 import dotenv from "dotenv";
 
-import { IdeType, SerializedContinueConfig } from "../";
+import { IdeType, SerializedQivrynConfig } from "../";
 import { defaultConfig } from "../config/default";
 import Types from "../config/types";
 
@@ -24,16 +24,50 @@ export function setConfigFilePermissions(filePath: string): void {
   }
 }
 
-const CONTINUE_GLOBAL_DIR = (() => {
-  const configPath = process.env.CONTINUE_GLOBAL_DIR;
+type QivrynPathEnvironment = Record<string, string | undefined> & {
+  QIVRYN_GLOBAL_DIR?: string;
+  /** @deprecated Migrated to QIVRYN_GLOBAL_DIR during the Qivryn rebrand. */
+  CONTINUE_GLOBAL_DIR?: string;
+};
+
+export function resolveQivrynGlobalDir(
+  environment: QivrynPathEnvironment = process.env,
+  homeDirectory = os.homedir(),
+  cwd = process.cwd(),
+): string {
+  const configPath =
+    environment.QIVRYN_GLOBAL_DIR ?? environment.CONTINUE_GLOBAL_DIR;
   if (configPath) {
     // Convert relative path to absolute paths based on current working directory
     return path.isAbsolute(configPath)
       ? configPath
-      : path.resolve(process.cwd(), configPath);
+      : path.resolve(cwd, configPath);
   }
-  return path.join(os.homedir(), ".continue");
-})();
+  return path.join(homeDirectory, ".qivryn");
+}
+
+const QIVRYN_GLOBAL_DIR = resolveQivrynGlobalDir();
+const SHOULD_MIGRATE_LEGACY_GLOBAL_DIR =
+  !process.env.QIVRYN_GLOBAL_DIR && !process.env.CONTINUE_GLOBAL_DIR;
+
+function migrateLegacyGlobalDir(qivrynPath: string): void {
+  if (!SHOULD_MIGRATE_LEGACY_GLOBAL_DIR || fs.existsSync(qivrynPath)) return;
+
+  const legacyPath = path.join(os.homedir(), ".continue");
+  if (!fs.existsSync(legacyPath)) return;
+
+  try {
+    fs.cpSync(legacyPath, qivrynPath, {
+      recursive: true,
+      errorOnExist: false,
+    });
+  } catch (error) {
+    console.warn(
+      `Unable to migrate legacy configuration into ${qivrynPath}:`,
+      error,
+    );
+  }
+}
 
 // export const DEFAULT_CONFIG_TS_CONTENTS = `import { Config } from "./types"\n\nexport function modifyConfig(config: Config): Config {
 //   return config;
@@ -44,39 +78,37 @@ export const DEFAULT_CONFIG_TS_CONTENTS = `export function modifyConfig(config: 
 }`;
 
 export function getChromiumPath(): string {
-  return path.join(getContinueUtilsPath(), ".chromium-browser-snapshots");
+  return path.join(getQivrynUtilsPath(), ".chromium-browser-snapshots");
 }
 
-export function getContinueUtilsPath(): string {
-  const utilsPath = path.join(getContinueGlobalPath(), ".utils");
+export function getQivrynUtilsPath(): string {
+  const utilsPath = path.join(getQivrynGlobalPath(), ".utils");
   if (!fs.existsSync(utilsPath)) {
     fs.mkdirSync(utilsPath);
   }
   return utilsPath;
 }
 
-export function getGlobalContinueIgnorePath(): string {
-  const continueIgnorePath = path.join(
-    getContinueGlobalPath(),
-    ".continueignore",
-  );
-  if (!fs.existsSync(continueIgnorePath)) {
-    fs.writeFileSync(continueIgnorePath, "");
+export function getGlobalQivrynIgnorePath(): string {
+  const qivrynIgnorePath = path.join(getQivrynGlobalPath(), ".qivrynignore");
+  if (!fs.existsSync(qivrynIgnorePath)) {
+    fs.writeFileSync(qivrynIgnorePath, "");
   }
-  return continueIgnorePath;
+  return qivrynIgnorePath;
 }
 
-export function getContinueGlobalPath(): string {
-  // This is ~/.continue on mac/linux
-  const continuePath = CONTINUE_GLOBAL_DIR;
-  if (!fs.existsSync(continuePath)) {
-    fs.mkdirSync(continuePath);
+export function getQivrynGlobalPath(): string {
+  // This is ~/.qivryn on mac/linux
+  const qivrynPath = QIVRYN_GLOBAL_DIR;
+  migrateLegacyGlobalDir(qivrynPath);
+  if (!fs.existsSync(qivrynPath)) {
+    fs.mkdirSync(qivrynPath, { recursive: true });
   }
-  return continuePath;
+  return qivrynPath;
 }
 
 export function getSessionsFolderPath(): string {
-  const sessionsPath = path.join(getContinueGlobalPath(), "sessions");
+  const sessionsPath = path.join(getQivrynGlobalPath(), "sessions");
   if (!fs.existsSync(sessionsPath)) {
     fs.mkdirSync(sessionsPath);
   }
@@ -84,7 +116,7 @@ export function getSessionsFolderPath(): string {
 }
 
 export function getIndexFolderPath(): string {
-  const indexPath = path.join(getContinueGlobalPath(), "index");
+  const indexPath = path.join(getQivrynGlobalPath(), "index");
   if (!fs.existsSync(indexPath)) {
     fs.mkdirSync(indexPath);
   }
@@ -96,7 +128,7 @@ export function getGlobalContextFilePath(): string {
 }
 
 export function getSharedConfigFilePath(): string {
-  return path.join(getContinueGlobalPath(), "sharedConfig.json");
+  return path.join(getQivrynGlobalPath(), "sharedConfig.json");
 }
 
 export function getSessionFilePath(sessionId: string): string {
@@ -112,12 +144,12 @@ export function getSessionsListPath(): string {
 }
 
 export function getConfigJsonPath(): string {
-  const p = path.join(getContinueGlobalPath(), "config.json");
+  const p = path.join(getQivrynGlobalPath(), "config.json");
   return p;
 }
 
 export function getConfigYamlPath(ideType?: IdeType): string {
-  const p = path.join(getContinueGlobalPath(), "config.yaml");
+  const p = path.join(getQivrynGlobalPath(), "config.yaml");
   const exists = fs.existsSync(p);
   const isEmpty = exists && fs.readFileSync(p, "utf8").trim() === "";
   const needsCreation = !exists && !fs.existsSync(getConfigJsonPath());
@@ -138,12 +170,12 @@ export function getPrimaryConfigFilePath(): string {
 }
 
 export function getConfigTsPath(): string {
-  const p = path.join(getContinueGlobalPath(), "config.ts");
+  const p = path.join(getQivrynGlobalPath(), "config.ts");
   if (!fs.existsSync(p)) {
     fs.writeFileSync(p, DEFAULT_CONFIG_TS_CONTENTS);
   }
 
-  const typesPath = path.join(getContinueGlobalPath(), "types");
+  const typesPath = path.join(getQivrynGlobalPath(), "types");
   if (!fs.existsSync(typesPath)) {
     fs.mkdirSync(typesPath);
   }
@@ -151,14 +183,14 @@ export function getConfigTsPath(): string {
   if (!fs.existsSync(corePath)) {
     fs.mkdirSync(corePath);
   }
-  const packageJsonPath = path.join(getContinueGlobalPath(), "package.json");
+  const packageJsonPath = path.join(getQivrynGlobalPath(), "package.json");
   if (!fs.existsSync(packageJsonPath)) {
     fs.writeFileSync(
       packageJsonPath,
       JSON.stringify({
-        name: "continue-config",
+        name: "qivryn-config",
         version: "1.0.0",
-        description: "My Continue Configuration",
+        description: "My Qivryn Configuration",
         main: "config.js",
       }),
     );
@@ -170,11 +202,11 @@ export function getConfigTsPath(): string {
 
 export function getConfigJsPath(): string {
   // Do not create automatically
-  return path.join(getContinueGlobalPath(), "out", "config.js");
+  return path.join(getQivrynGlobalPath(), "out", "config.js");
 }
 
 export function getTsConfigPath(): string {
-  const tsConfigPath = path.join(getContinueGlobalPath(), "tsconfig.json");
+  const tsConfigPath = path.join(getQivrynGlobalPath(), "tsconfig.json");
   if (!fs.existsSync(tsConfigPath)) {
     fs.writeFileSync(
       tsConfigPath,
@@ -207,9 +239,9 @@ export function getTsConfigPath(): string {
   return tsConfigPath;
 }
 
-export function getContinueRcPath(): string {
+export function getQivrynRcPath(): string {
   // Disable indexing of the config folder to prevent infinite loops
-  const continuercPath = path.join(getContinueGlobalPath(), ".continuerc.json");
+  const continuercPath = path.join(getQivrynGlobalPath(), ".qivrynrc.json");
   if (!fs.existsSync(continuercPath)) {
     fs.writeFileSync(
       continuercPath,
@@ -226,7 +258,7 @@ export function getContinueRcPath(): string {
 }
 
 function getDevDataPath(): string {
-  const sPath = path.join(getContinueGlobalPath(), "dev_data");
+  const sPath = path.join(getQivrynGlobalPath(), "dev_data");
   if (!fs.existsSync(sPath)) {
     fs.mkdirSync(sPath);
   }
@@ -249,7 +281,7 @@ export function getDevDataFilePath(
 }
 
 function editConfigJson(
-  callback: (config: SerializedContinueConfig) => SerializedContinueConfig,
+  callback: (config: SerializedQivrynConfig) => SerializedQivrynConfig,
 ): void {
   const config = fs.readFileSync(getConfigJsonPath(), "utf8");
   let configJson = JSONC.parse(config);
@@ -278,8 +310,8 @@ function editConfigYaml(callback: (config: ConfigYaml) => ConfigYaml): void {
 
 export function editConfigFile(
   configJsonCallback: (
-    config: SerializedContinueConfig,
-  ) => SerializedContinueConfig,
+    config: SerializedQivrynConfig,
+  ) => SerializedQivrynConfig,
   configYamlCallback: (config: ConfigYaml) => ConfigYaml,
 ): void {
   if (fs.existsSync(getConfigYamlPath())) {
@@ -290,7 +322,7 @@ export function editConfigFile(
 }
 
 function getMigrationsFolderPath(): string {
-  const migrationsPath = path.join(getContinueGlobalPath(), ".migrations");
+  const migrationsPath = path.join(getQivrynGlobalPath(), ".migrations");
   if (!fs.existsSync(migrationsPath)) {
     fs.mkdirSync(migrationsPath);
   }
@@ -340,7 +372,7 @@ export function getDocsSqlitePath(): string {
 }
 
 export function getRemoteConfigsFolderPath(): string {
-  const dir = path.join(getContinueGlobalPath(), ".configs");
+  const dir = path.join(getQivrynGlobalPath(), ".configs");
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir);
   }
@@ -374,8 +406,8 @@ export function getConfigJsPathForRemote(
   return path.join(getPathToRemoteConfig(remoteConfigServerUrl), "config.js");
 }
 
-export function getContinueDotEnv(): { [key: string]: string } {
-  const filepath = path.join(getContinueGlobalPath(), ".env");
+export function getQivrynDotEnv(): { [key: string]: string } {
+  const filepath = path.join(getQivrynGlobalPath(), ".env");
   if (fs.existsSync(filepath)) {
     return dotenv.parse(fs.readFileSync(filepath));
   }
@@ -383,7 +415,7 @@ export function getContinueDotEnv(): { [key: string]: string } {
 }
 
 export function getLogsDirPath(): string {
-  const logsPath = path.join(getContinueGlobalPath(), "logs");
+  const logsPath = path.join(getQivrynGlobalPath(), "logs");
   if (!fs.existsSync(logsPath)) {
     fs.mkdirSync(logsPath);
   }
@@ -399,7 +431,7 @@ export function getPromptLogsPath(): string {
 }
 
 export function getGlobalFolderWithName(name: string): string {
-  return path.join(getContinueGlobalPath(), name);
+  return path.join(getQivrynGlobalPath(), name);
 }
 
 export function getGlobalPromptsPath(): string {
@@ -431,11 +463,11 @@ export function readAllGlobalPromptFiles(
 }
 
 export function getRepoMapFilePath(): string {
-  return path.join(getContinueUtilsPath(), "repo_map.txt");
+  return path.join(getQivrynUtilsPath(), "repo_map.txt");
 }
 
 export function getEsbuildBinaryPath(): string {
-  return path.join(getContinueUtilsPath(), "esbuild");
+  return path.join(getQivrynUtilsPath(), "esbuild");
 }
 
 export function migrateV1DevDataFiles() {
@@ -460,15 +492,15 @@ export function migrateV1DevDataFiles() {
 }
 
 export function getLocalEnvironmentDotFilePath(): string {
-  return path.join(getContinueGlobalPath(), ".local");
+  return path.join(getQivrynGlobalPath(), ".local");
 }
 
 export function getStagingEnvironmentDotFilePath(): string {
-  return path.join(getContinueGlobalPath(), ".staging");
+  return path.join(getQivrynGlobalPath(), ".staging");
 }
 
 export function getDiffsDirectoryPath(): string {
-  const diffsPath = path.join(getContinueGlobalPath(), ".diffs"); // .replace(/^C:/, "c:"); ??
+  const diffsPath = path.join(getQivrynGlobalPath(), ".diffs"); // .replace(/^C:/, "c:"); ??
   if (!fs.existsSync(diffsPath)) {
     fs.mkdirSync(diffsPath, {
       recursive: true,

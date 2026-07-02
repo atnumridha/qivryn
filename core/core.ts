@@ -1,4 +1,4 @@
-import { fetchwithRequestOptions } from "@continuedev/fetch";
+import { fetchwithRequestOptions } from "@qivryn/fetch";
 import {
   AgentControlService,
   connectAgentDaemon,
@@ -8,7 +8,7 @@ import {
   AgentHookRunner,
   FileAgentHookRegistry,
   runAgentAutomation,
-} from "@continuedev/agent-runtime";
+} from "@qivryn/agent-runtime";
 import {
   DiffSafetyAnalyzer,
   SemanticDiffAnalyzer,
@@ -16,22 +16,22 @@ import {
   GitReviewTargetResolver,
   GitPatchReviewFixer,
   ReviewEngine,
-} from "@continuedev/review-engine";
+} from "@qivryn/review-engine";
 import {
   classifyTerminalCommand,
   TerminalJobService,
-} from "@continuedev/terminal-security";
+} from "@qivryn/terminal-security";
 import {
   BrowserSessionService,
   FileBrowserStore,
   PuppeteerBrowserAdapter,
   FileBrowserPermissionPolicy,
-} from "@continuedev/browser-runtime";
+} from "@qivryn/browser-runtime";
 import {
   FileSlackCredentialStore,
   SlackConnectorService,
   SlackWebApiClient,
-} from "@continuedev/slack-connector";
+} from "@qivryn/slack-connector";
 import path from "node:path";
 import {
   invalidateMarkdownSkillsCache,
@@ -73,7 +73,7 @@ import { GlobalContext } from "./util/GlobalContext";
 import historyManager from "./util/history";
 import {
   editConfigFile,
-  getContinueGlobalPath,
+  getQivrynGlobalPath,
   migrateV1DevDataFiles,
 } from "./util/paths";
 
@@ -104,14 +104,14 @@ import {
   type IDE,
 } from ".";
 
-import { ConfigYaml } from "@continuedev/config-yaml";
+import { ConfigYaml } from "@qivryn/config-yaml";
 import { getDiffFn, GitDiffCache } from "./autocomplete/snippets/gitDiffCache";
 import { stringifyMcpPrompt } from "./commands/slash/mcpSlashCommand";
 import { createNewAssistantFile } from "./config/createNewAssistantFile";
 import {
   isColocatedRulesFile,
-  isContinueAgentConfigFile,
-  isContinueConfigRelatedUri,
+  isQivrynAgentConfigFile,
+  isQivrynConfigRelatedUri,
 } from "./config/loadLocalAssistants";
 import { CodebaseRulesCache } from "./config/markdown/loadCodebaseRules";
 import {
@@ -139,7 +139,7 @@ import { NextEditProvider } from "./nextEdit/NextEditProvider";
 import type { FromCoreProtocol, ToCoreProtocol } from "./protocol";
 import { OnboardingModes } from "./protocol/core";
 import type { IMessenger, Message } from "./protocol/messenger";
-import { ContinueError, ContinueErrorReason } from "./util/errors";
+import { QivrynError, QivrynErrorReason } from "./util/errors";
 import { shareSession } from "./util/historyUtils";
 import { Logger } from "./util/Logger.js";
 
@@ -187,7 +187,7 @@ export class Core {
     private readonly ide: IDE,
   ) {
     try {
-      // Ensure .continue directory is created
+      // Ensure .qivryn directory is created
       migrateV1DevDataFiles();
 
       const ideInfoPromise = messenger.request("getIdeInfo", undefined);
@@ -332,15 +332,15 @@ export class Core {
   private registerMessageHandlers(ideSettingsPromise: Promise<IdeSettings>) {
     const on = this.messenger.on.bind(this.messenger);
     const agentStore = new FileAgentStore(
-      path.join(getContinueGlobalPath(), "agents"),
+      path.join(getQivrynGlobalPath(), "agents"),
     );
     const agentStoreReady = agentStore.initialize();
     const agentAutomationStore = new FileAgentAutomationStore(
-      path.join(getContinueGlobalPath(), "agents"),
+      path.join(getQivrynGlobalPath(), "agents"),
     );
     const agentAutomationStoreReady = agentAutomationStore.initialize();
     const reviewEngine = new ReviewEngine(
-      new FileReviewStore(path.join(getContinueGlobalPath(), "reviews")),
+      new FileReviewStore(path.join(getQivrynGlobalPath(), "reviews")),
       new GitReviewTargetResolver(),
       [
         new DiffSafetyAnalyzer(),
@@ -361,32 +361,32 @@ export class Core {
       new GitPatchReviewFixer(),
       new AgentHookRunner(() =>
         new FileAgentHookRegistry(
-          path.join(getContinueGlobalPath(), "hooks.json"),
+          path.join(getQivrynGlobalPath(), "hooks.json"),
         ).list(),
       ),
     );
     const reviewEngineReady = reviewEngine.initialize();
     const browserService = new BrowserSessionService(
-      new FileBrowserStore(path.join(getContinueGlobalPath(), "browser")),
+      new FileBrowserStore(path.join(getQivrynGlobalPath(), "browser")),
       new PuppeteerBrowserAdapter(),
       new FileBrowserPermissionPolicy(
-        path.join(getContinueGlobalPath(), "browser", "grants.json"),
+        path.join(getQivrynGlobalPath(), "browser", "grants.json"),
       ),
     );
     const browserServiceReady = browserService.initialize();
     const terminalJobs = new TerminalJobService(
-      path.join(getContinueGlobalPath(), "terminal-jobs"),
+      path.join(getQivrynGlobalPath(), "terminal-jobs"),
     );
     const terminalJobsReady = terminalJobs.initialize();
     const slackService = new SlackConnectorService(
       new FileSlackCredentialStore(
-        path.join(getContinueGlobalPath(), "connectors", "slack"),
+        path.join(getQivrynGlobalPath(), "connectors", "slack"),
       ),
       new SlackWebApiClient(),
     );
     const slackServiceReady = slackService.initialize();
     const agentDaemonPath = path.join(
-      getContinueGlobalPath(),
+      getQivrynGlobalPath(),
       "agents",
       "daemon.json",
     );
@@ -400,9 +400,9 @@ export class Core {
     let agentDaemonLastError: string | undefined;
     let agentDaemonStarting = false;
     const agentDaemonSource =
-      process.env.CONTINUE_CLI_SOURCE === "bundled"
+      process.env.QIVRYN_CLI_SOURCE === "bundled"
         ? ("bundled" as const)
-        : process.env.CONTINUE_CLI_PATH
+        : process.env.QIVRYN_CLI_PATH
           ? ("external" as const)
           : ("path" as const);
     const getAgentDaemon = async () => {
@@ -422,8 +422,8 @@ export class Core {
         const start = (async () => {
           agentDaemonStarting = true;
           const token = randomBytes(32).toString("hex");
-          const cliPath = process.env.CONTINUE_CLI_PATH?.trim();
-          const command = cliPath ? process.execPath : "cn";
+          const cliPath = process.env.QIVRYN_CLI_PATH?.trim();
+          const command = cliPath ? process.execPath : "qivryn";
           const args = cliPath
             ? [cliPath, "agents", "daemon"]
             : ["agents", "daemon"];
@@ -433,8 +433,8 @@ export class Core {
             env: {
               ...process.env,
               ...(cliPath ? { ELECTRON_RUN_AS_NODE: "1" } : {}),
-              CONTINUE_AGENT_DAEMON_TOKEN: token,
-              CONTINUE_GLOBAL_DIR: getContinueGlobalPath(),
+              QIVRYN_AGENT_DAEMON_TOKEN: token,
+              QIVRYN_GLOBAL_DIR: getQivrynGlobalPath(),
             },
           });
           child.unref();
@@ -448,7 +448,7 @@ export class Core {
             await new Promise((resolve) => setTimeout(resolve, 50));
           }
           throw new Error(
-            "Timed out while starting the local agent runtime. Open Continue logs for details.",
+            "Timed out while starting the local agent runtime. Open Qivryn logs for details.",
           );
         })()
           .catch((error) => {
@@ -608,7 +608,7 @@ export class Core {
         message: daemon
           ? undefined
           : (agentDaemonLastError ??
-            "The local agent runtime is unavailable. Install the Continue CLI or rebuild the extension with its bundled runtime."),
+            "The local agent runtime is unavailable. Install the Qivryn CLI or rebuild the extension with its bundled runtime."),
       };
     });
 
@@ -692,7 +692,7 @@ export class Core {
         case "run.create":
           if (!daemon)
             throw new Error(
-              "Local agent runtime is not running. Start it with `cn agents daemon`.",
+              "Local agent runtime is not running. Start it with `qivryn agents daemon`.",
             );
           return daemon.createRun(data.request);
         case "run.cancel":
@@ -704,13 +704,13 @@ export class Core {
         case "run.resume":
           if (!daemon)
             throw new Error(
-              "Local agent runtime is not running. Start it with `cn agents daemon`.",
+              "Local agent runtime is not running. Start it with `qivryn agents daemon`.",
             );
           return daemon.resumeRun(data.runId);
         case "run.duplicate":
           if (!daemon)
             throw new Error(
-              "Local agent runtime is not running. Start it with `cn agents daemon`.",
+              "Local agent runtime is not running. Start it with `qivryn agents daemon`.",
             );
           return daemon.duplicateRun(
             data.runId,
@@ -1087,7 +1087,7 @@ export class Core {
         const filepath = msg.data.filepath;
         if (
           !isColocatedRulesFile(filepath) &&
-          !isContinueConfigRelatedUri(filepath)
+          !isQivrynConfigRelatedUri(filepath)
         ) {
           throw new Error("Only rule files can be deleted");
         }
@@ -1575,11 +1575,11 @@ export class Core {
       }
 
       // If it's a local config being created, we want to reload all configs so it shows up in the list
-      if (nonColocatedRuleUris.some(isContinueAgentConfigFile)) {
+      if (nonColocatedRuleUris.some(isQivrynAgentConfigFile)) {
         await this.configHandler.refreshAll("Local config file created");
-      } else if (nonColocatedRuleUris.some(isContinueConfigRelatedUri)) {
+      } else if (nonColocatedRuleUris.some(isQivrynConfigRelatedUri)) {
         await this.configHandler.reloadConfig(
-          ".continue config-related file created",
+          ".qivryn config-related file created",
         );
       }
     });
@@ -1607,11 +1607,11 @@ export class Core {
       }
 
       // If it's a local config being deleted, we want to reload all configs so it disappears from the list
-      if (nonColocatedRuleUris.some(isContinueAgentConfigFile)) {
+      if (nonColocatedRuleUris.some(isQivrynAgentConfigFile)) {
         await this.configHandler.refreshAll("Local config file deleted");
-      } else if (nonColocatedRuleUris.some(isContinueConfigRelatedUri)) {
+      } else if (nonColocatedRuleUris.some(isQivrynConfigRelatedUri)) {
         await this.configHandler.reloadConfig(
-          ".continue config-related file deleted",
+          ".qivryn config-related file deleted",
         );
       }
     });
@@ -1811,7 +1811,7 @@ export class Core {
         };
       } catch (e) {
         let errorReason =
-          e instanceof ContinueError ? e.reason : ContinueErrorReason.Unknown;
+          e instanceof QivrynError ? e.reason : QivrynErrorReason.Unknown;
         let errorMessage =
           e instanceof Error
             ? e.message
@@ -1991,12 +1991,12 @@ export class Core {
           } catch (e) {
             Logger.error(`Failed to update codebase rule: ${e}`);
           }
-        } else if (isContinueConfigRelatedUri(uri)) {
+        } else if (isQivrynConfigRelatedUri(uri)) {
           await this.configHandler.reloadConfig(
             "Local config-related file updated",
           );
         } else if (
-          uri.endsWith(".continueignore") ||
+          uri.endsWith(".qivrynignore") ||
           uri.endsWith(".gitignore")
         ) {
           // Reindex the workspaces
@@ -2154,7 +2154,7 @@ export class Core {
         //     .then((userSelection) => {
         //       if (userSelection === toastOption) {
         //         void this.ide.openUrl(
-        //           "https://docs.continue.dev/customize/model-roles/embeddings",
+        //           "https://docs.qivryn.ai/customize/model-roles/embeddings",
         //         );
         //       }
         //     });

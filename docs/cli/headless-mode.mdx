@@ -2,27 +2,27 @@
 title: "Headless Mode"
 ---
 
-Run `cn -p "your prompt"` to execute a single task without an interactive session. The agent runs to completion and prints its response to stdout.
+Run `qivryn -p "your prompt"` to execute a single task without an interactive session. The agent runs to completion and prints its response to stdout.
 
 ```bash
-cn -p "Generate a conventional commit message for the staged changes"
+qivryn -p "Generate a conventional commit message for the staged changes"
 ```
 
 ## Piping
 
-Pipe data into `cn` to include it as context:
+Pipe data into `qivryn` to include it as context:
 
 ```bash
-git diff --staged | cn -p "Write a commit message for this diff"
-cat error.log | cn -p "Explain what went wrong"
-curl -s https://api.example.com/health | cn -p "Is this healthy?"
+git diff --staged | qivryn -p "Write a commit message for this diff"
+cat error.log | qivryn -p "Explain what went wrong"
+curl -s https://api.example.com/health | qivryn -p "Is this healthy?"
 ```
 
 Pipe the output into other tools:
 
 ```bash
-cn -p "Generate a commit message" | git commit -F -
-cn -p "List all TODO comments in src/" --silent > todos.txt
+qivryn -p "Generate a commit message" | git commit -F -
+qivryn -p "List all TODO comments in src/" --silent > todos.txt
 ```
 
 ## Output options
@@ -40,10 +40,10 @@ In headless mode, tools that would normally prompt for approval (`ask` permissio
 
 ```bash
 # Allow the agent to write files
-cn -p "Fix the type errors in src/" --allow Write --allow Edit
+qivryn -p "Fix the type errors in src/" --allow Write --allow Edit
 
 # Allow everything
-cn -p "Set up the project" --allow "*"
+qivryn -p "Set up the project" --allow "*"
 ```
 
 See [tool permissions](/cli/tool-permissions) for the full policy system.
@@ -53,7 +53,7 @@ See [tool permissions](/cli/tool-permissions) for the full policy system.
 Resume a previous session without interactive input:
 
 ```bash
-cn -p --resume
+qivryn -p --resume
 ```
 
 This replays the previous session's history, which can be useful for inspecting past results in automation.
@@ -62,14 +62,14 @@ This replays the previous session's history, which can be useful for inspecting 
 
 ```bash
 # Git hooks
-cn -p "Review staged changes for obvious bugs" --silent
+qivryn -p "Review staged changes for obvious bugs" --silent
 
 # CI pipeline — allow file writes for auto-fix
-cn -p "Fix all ESLint errors in src/" --allow Write --allow Edit --allow Bash
+qivryn -p "Fix all ESLint errors in src/" --allow Write --allow Edit --allow Bash
 
 # Generate docs from code
-cn -p "@src/api/ Generate OpenAPI documentation for these endpoints" --silent > api-docs.yaml
+qivryn -p "@src/api/ Generate OpenAPI documentation for these endpoints" --silent > api-docs.yaml
 
 # Use a specific assistant
-cn -p "Triage this error log" --config my-org/error-triage-assistant
+qivryn -p "Triage this error log" --config my-org/error-triage-assistant
 ```

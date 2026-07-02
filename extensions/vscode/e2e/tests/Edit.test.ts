@@ -21,7 +21,7 @@ describe("Edit Test", () => {
 
   before(async function () {
     this.timeout(DEFAULT_TIMEOUT.XL);
-    await GUIActions.moveContinueToSidebar(VSBrowser.instance.driver);
+    await GUIActions.moveQivrynToSidebar(VSBrowser.instance.driver);
     await GlobalActions.openTestWorkspace();
     ({ editor } = await GlobalActions.createAndOpenNewTextFile());
     await GlobalActions.disableNextEdit();

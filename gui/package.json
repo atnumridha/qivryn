@@ -2,7 +2,7 @@
   "name": "gui",
   "private": true,
   "type": "module",
-  "author": "Continue Dev, Inc",
+  "author": "Qivryn AI",
   "license": "Apache-2.0",
   "scripts": {
     "dev": "vite",
@@ -16,12 +16,12 @@
     "lint": "eslint --ext ts"
   },
   "dependencies": {
-    "@continuedev/agent-runtime": "file:../packages/agent-runtime",
-    "@continuedev/browser-runtime": "file:../packages/browser-runtime",
-    "@continuedev/slack-connector": "file:../packages/slack-connector",
-    "@continuedev/review-engine": "file:../packages/review-engine",
-    "@continuedev/config-yaml": "file:../packages/config-yaml",
-    "@continuedev/terminal-security": "file:../packages/terminal-security",
+    "@qivryn/agent-runtime": "file:../packages/agent-runtime",
+    "@qivryn/browser-runtime": "file:../packages/browser-runtime",
+    "@qivryn/slack-connector": "file:../packages/slack-connector",
+    "@qivryn/review-engine": "file:../packages/review-engine",
+    "@qivryn/config-yaml": "file:../packages/config-yaml",
+    "@qivryn/terminal-security": "file:../packages/terminal-security",
     "@headlessui/react": "^2.2.0",
     "@heroicons/react": "^2.0.18",
     "@modelcontextprotocol/ext-apps": "^1.0.1",

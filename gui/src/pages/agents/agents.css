@@ -1,75 +1,75 @@
-.continue-agents-cursor {
-  --cursor-text-primary: var(--vscode-editor-foreground, #e4e4e4);
-  --cursor-text-secondary: color-mix(
+.qivryn-agents-cursor {
+  --qivryn-text-primary: var(--vscode-editor-foreground, #e4e4e4);
+  --qivryn-text-secondary: color-mix(
     in srgb,
     var(--vscode-editor-foreground, #e4e4e4) 74%,
     transparent
   );
-  --cursor-text-tertiary: color-mix(
+  --qivryn-text-tertiary: color-mix(
     in srgb,
     var(--vscode-editor-foreground, #e4e4e4) 60%,
     transparent
   );
-  --cursor-text-quaternary: color-mix(
+  --qivryn-text-quaternary: color-mix(
     in srgb,
     var(--vscode-editor-foreground, #e4e4e4) 36%,
     transparent
   );
-  --cursor-icon-secondary: color-mix(
+  --qivryn-icon-secondary: color-mix(
     in srgb,
     var(--vscode-editor-foreground, #e4e4e4) 66%,
     transparent
   );
-  --cursor-icon-tertiary: color-mix(
+  --qivryn-icon-tertiary: color-mix(
     in srgb,
     var(--vscode-editor-foreground, #e4e4e4) 52%,
     transparent
   );
-  --cursor-bg-primary: color-mix(
+  --qivryn-bg-primary: color-mix(
     in srgb,
     var(--vscode-editor-foreground, #e4e4e4) 20%,
     transparent
   );
-  --cursor-bg-secondary: color-mix(
+  --qivryn-bg-secondary: color-mix(
     in srgb,
     var(--vscode-editor-foreground, #e4e4e4) 14%,
     transparent
   );
-  --cursor-bg-tertiary: color-mix(
+  --qivryn-bg-tertiary: color-mix(
     in srgb,
     var(--vscode-editor-foreground, #e4e4e4) 8%,
     transparent
   );
-  --cursor-bg-quaternary: color-mix(
+  --qivryn-bg-quaternary: color-mix(
     in srgb,
     var(--vscode-editor-foreground, #e4e4e4) 6%,
     transparent
   );
-  --cursor-bg-quinary: color-mix(
+  --qivryn-bg-quinary: color-mix(
     in srgb,
     var(--vscode-editor-foreground, #e4e4e4) 4%,
     transparent
   );
-  --cursor-bg-elevated: var(
+  --qivryn-bg-elevated: var(
     --vscode-dropdown-background,
     var(--vscode-quickInput-background, #242424)
   );
-  --cursor-stroke-primary: color-mix(
+  --qivryn-stroke-primary: color-mix(
     in srgb,
     var(--vscode-editor-foreground, #e4e4e4) 20%,
     transparent
   );
-  --cursor-stroke-secondary: color-mix(
+  --qivryn-stroke-secondary: color-mix(
     in srgb,
     var(--vscode-editor-foreground, #e4e4e4) 12%,
     transparent
   );
-  --cursor-stroke-tertiary: color-mix(
+  --qivryn-stroke-tertiary: color-mix(
     in srgb,
     var(--vscode-editor-foreground, #e4e4e4) 8%,
     transparent
   );
-  --cursor-shadow-workbench: 0 0 8px 2px
+  --qivryn-shadow-workbench: 0 0 8px 2px
     color-mix(in srgb, var(--vscode-widget-shadow, #000) 40%, transparent);
   --conversation-font-size: 13px;
   --conversation-surface-border-radius: 8px;
@@ -79,15 +79,15 @@
   );
   --agents-editor: var(--vscode-editor-background, #181818);
   --agents-input: var(--vscode-input-background, #202020);
-  --agents-raised: var(--cursor-bg-elevated);
-  --agents-stroke-primary: var(--cursor-stroke-primary);
-  --agents-stroke-secondary: var(--cursor-stroke-secondary);
-  --agents-text-primary: var(--cursor-text-primary);
-  --agents-text-secondary: var(--cursor-text-tertiary);
-  --agents-hover: var(--cursor-bg-quaternary);
-  --agents-selected: var(--cursor-bg-tertiary);
+  --agents-raised: var(--qivryn-bg-elevated);
+  --agents-stroke-primary: var(--qivryn-stroke-primary);
+  --agents-stroke-secondary: var(--qivryn-stroke-secondary);
+  --agents-text-primary: var(--qivryn-text-primary);
+  --agents-text-secondary: var(--qivryn-text-tertiary);
+  --agents-hover: var(--qivryn-bg-quaternary);
+  --agents-selected: var(--qivryn-bg-tertiary);
   --agents-radius-xl: var(--conversation-surface-border-radius);
-  color: var(--cursor-text-primary);
+  color: var(--qivryn-text-primary);
   background: var(--agents-editor);
   font-family: var(
     --vscode-font-family,
@@ -100,46 +100,46 @@
   line-height: 1.45;
 }
 
-.continue-agents-cursor .cursor-agents-toolbar {
+.qivryn-agents-cursor .cursor-agents-toolbar {
   height: 40px;
-  color: var(--cursor-text-primary);
+  color: var(--qivryn-text-primary);
   background: var(--agents-editor);
-  border-color: var(--cursor-stroke-tertiary);
+  border-color: var(--qivryn-stroke-tertiary);
 }
 
-.continue-agents-cursor .cursor-agent-shell-grid {
+.qivryn-agents-cursor .cursor-agent-shell-grid {
   grid-template-columns: minmax(248px, 300px) minmax(0, 1fr);
 }
 
-.continue-agents-cursor .cursor-agents-sidebar {
+.qivryn-agents-cursor .cursor-agents-sidebar {
   width: 100%;
   height: 100%;
-  color: var(--cursor-text-primary);
+  color: var(--qivryn-text-primary);
   background: var(--agents-chrome);
-  border-color: var(--cursor-stroke-secondary);
+  border-color: var(--qivryn-stroke-secondary);
   outline: none;
 }
 
-.continue-agents-cursor .cursor-agent-sidebar-search {
+.qivryn-agents-cursor .cursor-agent-sidebar-search {
   margin: 8px 12px 4px;
 }
 
-.continue-agents-cursor .cursor-agent-sidebar-search input {
+.qivryn-agents-cursor .cursor-agent-sidebar-search input {
   height: 28px;
   padding-top: 6px;
   padding-bottom: 6px;
-  color: var(--cursor-text-primary);
+  color: var(--qivryn-text-primary);
   background-blend-mode: screen;
-  background-color: var(--cursor-bg-quaternary);
-  border-color: var(--cursor-stroke-tertiary);
+  background-color: var(--qivryn-bg-quaternary);
+  border-color: var(--qivryn-stroke-tertiary);
   border-radius: 6px;
 }
 
-.continue-agents-cursor .cursor-agent-sidebar-search input:is(:hover, :focus) {
-  border-color: var(--cursor-stroke-secondary);
+.qivryn-agents-cursor .cursor-agent-sidebar-search input:is(:hover, :focus) {
+  border-color: var(--qivryn-stroke-secondary);
 }
 
-.continue-agents-cursor .cursor-agent-sidebar-sections {
+.qivryn-agents-cursor .cursor-agent-sidebar-sections {
   padding: 4px 8px 16px;
   -webkit-mask-image: linear-gradient(
     180deg,
@@ -157,40 +157,40 @@
   );
 }
 
-.continue-agents-cursor .cursor-agent-sidebar-section {
+.qivryn-agents-cursor .cursor-agent-sidebar-section {
   margin-bottom: 1px;
 }
 
-.continue-agents-cursor .cursor-agent-sidebar-section-title {
+.qivryn-agents-cursor .cursor-agent-sidebar-section-title {
   box-sizing: border-box;
   height: 24px;
   padding: 5px 6px;
-  color: var(--cursor-text-tertiary);
+  color: var(--qivryn-text-tertiary);
   font-size: 11px;
   font-weight: 400;
   line-height: 14px;
   letter-spacing: 0;
 }
 
-.continue-agents-cursor .cursor-agent-row {
+.qivryn-agents-cursor .cursor-agent-row {
   min-height: 38px;
   gap: 6px;
   padding: 6px 8px;
-  color: var(--cursor-text-primary);
+  color: var(--qivryn-text-primary);
   border-color: transparent;
   border-radius: 6px;
 }
 
-.continue-agents-cursor .cursor-agent-row:hover {
-  background: var(--cursor-bg-quaternary);
+.qivryn-agents-cursor .cursor-agent-row:hover {
+  background: var(--qivryn-bg-quaternary);
 }
 
-.continue-agents-cursor .cursor-agent-row[data-selected="true"] {
-  background: var(--cursor-bg-tertiary);
+.qivryn-agents-cursor .cursor-agent-row[data-selected="true"] {
+  background: var(--qivryn-bg-tertiary);
   border-color: transparent;
 }
 
-.continue-agents-cursor .cursor-agent-row > span:last-child {
+.qivryn-agents-cursor .cursor-agent-row > span:last-child {
   gap: 2px;
   overflow: hidden;
   -webkit-mask-image: linear-gradient(
@@ -201,49 +201,49 @@
   mask-image: linear-gradient(90deg, #000 calc(100% - 16px), transparent);
 }
 
-.continue-agents-cursor .cursor-agent-row .text-xs {
-  color: var(--cursor-text-secondary);
+.qivryn-agents-cursor .cursor-agent-row .text-xs {
+  color: var(--qivryn-text-secondary);
   font-size: 12px;
   line-height: 16px;
 }
 
-.continue-agents-cursor .cursor-agent-row[data-selected="true"] .text-xs {
-  color: var(--cursor-text-primary);
+.qivryn-agents-cursor .cursor-agent-row[data-selected="true"] .text-xs {
+  color: var(--qivryn-text-primary);
 }
 
-.continue-agents-cursor .cursor-agent-row .text-2xs {
-  color: var(--cursor-text-tertiary);
+.qivryn-agents-cursor .cursor-agent-row .text-2xs {
+  color: var(--qivryn-text-tertiary);
   font-size: 11px;
   line-height: 14px;
 }
 
-.continue-agents-cursor .cursor-agents-main,
-.continue-agents-cursor .cursor-agent-detail {
+.qivryn-agents-cursor .cursor-agents-main,
+.qivryn-agents-cursor .cursor-agent-detail {
   background: var(--agents-editor);
 }
 
-.continue-agents-cursor .cursor-agent-detail-shell {
+.qivryn-agents-cursor .cursor-agent-detail-shell {
   max-width: none;
   padding: 18px 24px 14px;
 }
 
-.continue-agents-cursor .cursor-agent-detail-header {
+.qivryn-agents-cursor .cursor-agent-detail-header {
   width: 100%;
   max-width: 840px;
   margin-right: auto;
   margin-left: auto;
 }
 
-.continue-agents-cursor .cursor-agent-status-pill,
-.continue-agents-cursor .cursor-agent-meta-pill,
-.continue-agents-cursor .cursor-agent-live-pill {
+.qivryn-agents-cursor .cursor-agent-status-pill,
+.qivryn-agents-cursor .cursor-agent-meta-pill,
+.qivryn-agents-cursor .cursor-agent-live-pill {
   display: inline-flex;
   min-height: 16px;
   align-items: center;
   gap: 4px;
   box-sizing: border-box;
   padding: 0;
-  color: var(--cursor-text-tertiary);
+  color: var(--qivryn-text-tertiary);
   font-size: 11px;
   line-height: 14px;
   background: transparent;
@@ -251,31 +251,31 @@
   border-radius: 0;
 }
 
-.continue-agents-cursor .cursor-agent-status-pill,
-.continue-agents-cursor .cursor-agent-meta-pill {
+.qivryn-agents-cursor .cursor-agent-status-pill,
+.qivryn-agents-cursor .cursor-agent-meta-pill {
   text-transform: capitalize;
 }
 
-.continue-agents-cursor .cursor-agent-meta-pill::before {
+.qivryn-agents-cursor .cursor-agent-meta-pill::before {
   margin-right: 2px;
-  color: var(--cursor-text-quaternary);
+  color: var(--qivryn-text-quaternary);
   content: "·";
 }
 
-.continue-agents-cursor .cursor-agent-status-dot {
+.qivryn-agents-cursor .cursor-agent-status-dot {
   width: 5px;
   height: 5px;
   border-radius: 50%;
 }
 
-.continue-agents-cursor .cursor-agent-live-pill {
+.qivryn-agents-cursor .cursor-agent-live-pill {
   color: var(--vscode-testing-iconPassed, #73c991);
 }
 
-.continue-agents-cursor .cursor-agent-run-meta,
-.continue-agents-cursor .cursor-agent-progress,
-.continue-agents-cursor .cursor-agent-detail-shell > details,
-.continue-agents-cursor
+.qivryn-agents-cursor .cursor-agent-run-meta,
+.qivryn-agents-cursor .cursor-agent-progress,
+.qivryn-agents-cursor .cursor-agent-detail-shell > details,
+.qivryn-agents-cursor
   .cursor-agent-detail-shell
   > form:not(.cursor-agent-composer) {
   width: 100%;
@@ -284,25 +284,25 @@
   margin-left: auto;
 }
 
-.continue-agents-cursor .cursor-agent-run-meta {
+.qivryn-agents-cursor .cursor-agent-run-meta {
   padding: 2px 0;
-  color: var(--cursor-text-tertiary);
+  color: var(--qivryn-text-tertiary);
   background: transparent;
   border: 0;
   border-radius: 0;
 }
 
-.continue-agents-cursor .cursor-agent-progress-track {
+.qivryn-agents-cursor .cursor-agent-progress-track {
   position: relative;
   width: 64px;
   height: 2px;
   flex: 0 0 auto;
   overflow: hidden;
-  background: var(--cursor-bg-secondary);
+  background: var(--qivryn-bg-secondary);
   border-radius: 999px;
 }
 
-.continue-agents-cursor .cursor-agent-progress-value {
+.qivryn-agents-cursor .cursor-agent-progress-value {
   position: absolute;
   width: 45%;
   height: 100%;
@@ -320,45 +320,45 @@
   }
 }
 
-.continue-agents-cursor .cursor-agent-transcript {
+.qivryn-agents-cursor .cursor-agent-transcript {
   box-sizing: border-box;
   padding: 0 10px 20px;
   scrollbar-width: thin;
-  scrollbar-color: var(--cursor-bg-secondary) transparent;
+  scrollbar-color: var(--qivryn-bg-secondary) transparent;
 }
 
-.continue-agents-cursor .cursor-human-message {
+.qivryn-agents-cursor .cursor-human-message {
   box-sizing: border-box;
   width: fit-content;
   max-width: min(92%, 760px);
   min-width: 150px;
   margin-left: auto;
   padding: 8px 10px;
-  color: var(--cursor-text-primary);
+  color: var(--qivryn-text-primary);
   font-size: var(--conversation-font-size);
   line-height: 1.5;
   background: var(--vscode-input-background, var(--agents-input));
-  border: 1px solid var(--cursor-stroke-secondary);
+  border: 1px solid var(--qivryn-stroke-secondary);
   border-radius: var(--conversation-surface-border-radius);
   transition:
     background-color 100ms ease,
     border-color 100ms ease;
 }
 
-.continue-agents-cursor .cursor-human-message:hover {
+.qivryn-agents-cursor .cursor-human-message:hover {
   background: color-mix(
     in srgb,
     var(--vscode-input-background, var(--agents-input)) 96%,
     var(--vscode-editor-background, var(--agents-editor))
   );
-  border-color: var(--cursor-stroke-primary);
+  border-color: var(--qivryn-stroke-primary);
 }
 
-.continue-agents-cursor .cursor-conversation-timeline {
+.qivryn-agents-cursor .cursor-conversation-timeline {
   padding: 0;
 }
 
-.continue-agents-cursor .cursor-tool-activity {
+.qivryn-agents-cursor .cursor-tool-activity {
   box-sizing: border-box;
   width: 100%;
   overflow: hidden;
@@ -370,18 +370,17 @@
   contain: paint;
 }
 
-.continue-agents-cursor .cursor-tool-activity:hover:not([open]) {
-  background: var(--cursor-bg-quinary);
+.qivryn-agents-cursor .cursor-tool-activity:hover:not([open]) {
+  background: var(--qivryn-bg-quinary);
 }
 
-.continue-agents-cursor .cursor-tool-activity[open] {
+.qivryn-agents-cursor .cursor-tool-activity[open] {
   margin: 4px 0;
   background: var(--vscode-editor-background, var(--agents-editor));
-  border-color: var(--cursor-stroke-secondary);
+  border-color: var(--qivryn-stroke-secondary);
 }
 
-.continue-agents-cursor
-  .cursor-tool-activity[data-status="failed"]:not([open]) {
+.qivryn-agents-cursor .cursor-tool-activity[data-status="failed"]:not([open]) {
   background: color-mix(
     in srgb,
     var(--vscode-testing-iconFailed, #f14c4c) 5%,
@@ -389,98 +388,96 @@
   );
 }
 
-.continue-agents-cursor .cursor-tool-summary::-webkit-details-marker,
-.continue-agents-cursor
-  .cursor-reasoning-card
-  > summary::-webkit-details-marker {
+.qivryn-agents-cursor .cursor-tool-summary::-webkit-details-marker,
+.qivryn-agents-cursor .cursor-reasoning-card > summary::-webkit-details-marker {
   display: none;
 }
 
-.continue-agents-cursor .cursor-tool-summary {
+.qivryn-agents-cursor .cursor-tool-summary {
   min-height: 28px;
   gap: 6px;
   padding: 4px 8px;
-  color: var(--cursor-text-primary);
+  color: var(--qivryn-text-primary);
   user-select: none;
 }
 
-.continue-agents-cursor .cursor-tool-activity[open] .cursor-tool-summary {
-  border-bottom: 1px solid var(--cursor-stroke-secondary);
+.qivryn-agents-cursor .cursor-tool-activity[open] .cursor-tool-summary {
+  border-bottom: 1px solid var(--qivryn-stroke-secondary);
 }
 
-.continue-agents-cursor .cursor-tool-icon {
+.qivryn-agents-cursor .cursor-tool-icon {
   width: 16px;
   height: 16px;
-  color: var(--cursor-icon-tertiary);
+  color: var(--qivryn-icon-tertiary);
   background: transparent;
   border: 0;
 }
 
-.continue-agents-cursor
+.qivryn-agents-cursor
   .cursor-tool-activity[data-status="completed"]
   .cursor-tool-icon {
   color: var(--vscode-testing-iconPassed, #73c991);
 }
 
-.continue-agents-cursor
+.qivryn-agents-cursor
   .cursor-tool-activity[data-status="failed"]
   .cursor-tool-icon {
   color: var(--vscode-testing-iconFailed, #f14c4c);
 }
 
-.continue-agents-cursor .cursor-tool-main {
+.qivryn-agents-cursor .cursor-tool-main {
   display: flex;
   align-items: center;
   gap: 6px;
   overflow: hidden;
 }
 
-.continue-agents-cursor .cursor-tool-title-row {
+.qivryn-agents-cursor .cursor-tool-title-row {
   min-width: 0;
   flex: 0 1 auto;
   gap: 5px;
   overflow: hidden;
 }
 
-.continue-agents-cursor .cursor-tool-action {
-  color: var(--cursor-text-secondary);
+.qivryn-agents-cursor .cursor-tool-action {
+  color: var(--qivryn-text-secondary);
   font-weight: 400;
   white-space: nowrap;
 }
 
-.continue-agents-cursor .cursor-tool-detail,
-.continue-agents-cursor .cursor-tool-preview,
-.continue-agents-cursor .cursor-tool-meta {
-  color: var(--cursor-text-tertiary);
+.qivryn-agents-cursor .cursor-tool-detail,
+.qivryn-agents-cursor .cursor-tool-preview,
+.qivryn-agents-cursor .cursor-tool-meta {
+  color: var(--qivryn-text-tertiary);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
 
-.continue-agents-cursor .cursor-tool-detail {
+.qivryn-agents-cursor .cursor-tool-detail {
   font-family: var(--vscode-editor-font-family, monospace);
 }
 
-.continue-agents-cursor .cursor-tool-preview {
+.qivryn-agents-cursor .cursor-tool-preview {
   min-width: 0;
   flex: 1;
 }
 
-.continue-agents-cursor .cursor-tool-meta {
+.qivryn-agents-cursor .cursor-tool-meta {
   gap: 7px;
   opacity: 0.65;
 }
 
-.continue-agents-cursor .cursor-tool-chevron {
+.qivryn-agents-cursor .cursor-tool-chevron {
   width: 12px;
   height: 12px;
   transition: transform 100ms ease;
 }
 
-.continue-agents-cursor .cursor-tool-activity[open] .cursor-tool-chevron {
+.qivryn-agents-cursor .cursor-tool-activity[open] .cursor-tool-chevron {
   transform: rotate(90deg);
 }
 
-.continue-agents-cursor .cursor-tool-output {
+.qivryn-agents-cursor .cursor-tool-output {
   margin: 0;
   background: color-mix(
     in srgb,
@@ -491,125 +488,125 @@
   border-radius: 0;
 }
 
-.continue-agents-cursor .cursor-tool-output pre {
-  color: var(--cursor-text-secondary);
+.qivryn-agents-cursor .cursor-tool-output pre {
+  color: var(--qivryn-text-secondary);
   font-family: var(--vscode-editor-font-family, monospace);
 }
 
-.continue-agents-cursor .cursor-tool-output pre:first-child {
-  border-color: var(--cursor-stroke-secondary);
+.qivryn-agents-cursor .cursor-tool-output pre:first-child {
+  border-color: var(--qivryn-stroke-secondary);
 }
 
-.continue-agents-cursor .cursor-assistant-message {
+.qivryn-agents-cursor .cursor-assistant-message {
   position: relative;
   padding: 8px 9px;
-  color: var(--cursor-text-primary);
+  color: var(--qivryn-text-primary);
   font-size: var(--conversation-font-size);
   line-height: 1.5;
 }
 
-.continue-agents-cursor .cursor-assistant-message :is(h1, h2) {
+.qivryn-agents-cursor .cursor-assistant-message :is(h1, h2) {
   font-size: 1.214em;
 }
 
-.continue-agents-cursor .cursor-reasoning-card {
+.qivryn-agents-cursor .cursor-reasoning-card {
   padding: 4px 9px;
-  color: var(--cursor-text-tertiary);
+  color: var(--qivryn-text-tertiary);
   background: transparent;
   border: 0;
   border-radius: 0;
 }
 
-.continue-agents-cursor .cursor-reasoning-card:hover {
-  background: var(--cursor-bg-quinary);
+.qivryn-agents-cursor .cursor-reasoning-card:hover {
+  background: var(--qivryn-bg-quinary);
 }
 
-.continue-agents-cursor .cursor-runtime-notice {
+.qivryn-agents-cursor .cursor-runtime-notice {
   min-height: 26px;
   padding: 3px 9px;
-  color: var(--cursor-text-tertiary);
+  color: var(--qivryn-text-tertiary);
 }
 
-.continue-agents-cursor .cursor-event-card {
+.qivryn-agents-cursor .cursor-event-card {
   margin: 2px 0;
-  color: var(--cursor-text-secondary);
+  color: var(--qivryn-text-secondary);
   background: transparent;
   border-color: transparent;
 }
 
-.continue-agents-cursor .cursor-event-user {
+.qivryn-agents-cursor .cursor-event-user {
   max-width: min(92%, 760px);
   margin-left: auto;
-  color: var(--cursor-text-primary);
+  color: var(--qivryn-text-primary);
   background: var(--vscode-input-background, var(--agents-input));
-  border-color: var(--cursor-stroke-secondary);
+  border-color: var(--qivryn-stroke-secondary);
   border-radius: var(--conversation-surface-border-radius);
 }
 
-.continue-agents-cursor .cursor-agent-composer {
+.qivryn-agents-cursor .cursor-agent-composer {
   box-sizing: border-box;
   width: calc(100% - 20px);
   max-width: 840px;
   padding: 8px 10px 6px;
   background: var(--vscode-input-background, var(--agents-input));
-  border: 1px solid var(--cursor-stroke-secondary);
+  border: 1px solid var(--qivryn-stroke-secondary);
   border-radius: var(--conversation-surface-border-radius);
-  box-shadow: var(--cursor-shadow-workbench);
+  box-shadow: var(--qivryn-shadow-workbench);
   isolation: isolate;
   transition: border-color 100ms ease;
 }
 
-.continue-agents-cursor .cursor-agent-context-menu {
+.qivryn-agents-cursor .cursor-agent-context-menu {
   max-height: min(380px, calc(100vh - 150px));
-  color: var(--cursor-text-primary);
-  background: var(--cursor-bg-elevated);
-  border-color: var(--cursor-stroke-primary);
-  box-shadow: var(--cursor-shadow-workbench);
+  color: var(--qivryn-text-primary);
+  background: var(--qivryn-bg-elevated);
+  border-color: var(--qivryn-stroke-primary);
+  box-shadow: var(--qivryn-shadow-workbench);
 }
 
-.continue-agents-cursor .cursor-checkpoint-popover {
-  color: var(--cursor-text-primary);
-  background: var(--cursor-bg-elevated);
-  border-color: var(--cursor-stroke-primary);
-  box-shadow: var(--cursor-shadow-workbench);
+.qivryn-agents-cursor .cursor-checkpoint-popover {
+  color: var(--qivryn-text-primary);
+  background: var(--qivryn-bg-elevated);
+  border-color: var(--qivryn-stroke-primary);
+  box-shadow: var(--qivryn-shadow-workbench);
 }
 
-.continue-agents-cursor .cursor-agent-composer:focus-within {
-  border-color: var(--cursor-stroke-primary);
+.qivryn-agents-cursor .cursor-agent-composer:focus-within {
+  border-color: var(--qivryn-stroke-primary);
 }
 
-.continue-agents-cursor .cursor-agent-composer-input {
+.qivryn-agents-cursor .cursor-agent-composer-input {
   min-height: 42px;
-  color: var(--cursor-text-primary);
+  color: var(--qivryn-text-primary);
   line-height: 1.5;
   background: transparent !important;
 }
 
-.continue-agents-cursor .cursor-agent-composer-toolbar {
+.qivryn-agents-cursor .cursor-agent-composer-toolbar {
   min-height: 24px;
   margin-top: 6px;
 }
 
-.continue-agents-cursor .cursor-agent-composer .find-widget-skip {
+.qivryn-agents-cursor .cursor-agent-composer .find-widget-skip {
   min-width: 0;
   flex-wrap: wrap;
   row-gap: 4px;
   background: transparent;
 }
 
-.continue-agents-cursor .cursor-agent-composer .find-widget-skip > div {
+.qivryn-agents-cursor .cursor-agent-composer .find-widget-skip > div {
   min-width: 0;
 }
 
-.continue-agents-cursor
+.qivryn-agents-cursor
   .cursor-agent-composer
   .find-widget-skip
   > div:first-child {
   flex-wrap: wrap;
 }
 
-.continue-agents-cursor .cursor-resubmit-banner {
-  color: var(--cursor-text-secondary);
+.qivryn-agents-cursor .cursor-resubmit-banner {
+  color: var(--qivryn-text-secondary);
   background: color-mix(
     in srgb,
     var(--vscode-focusBorder, #007acc) 10%,
@@ -619,108 +616,108 @@
     color-mix(in srgb, var(--vscode-focusBorder, #007acc) 24%, transparent);
 }
 
-.continue-agents-cursor .cursor-agent-launch-overlay {
+.qivryn-agents-cursor .cursor-agent-launch-overlay {
   top: 40px;
   left: 300px;
   padding: 24px 32px;
   background: var(--vscode-editor-background, var(--agents-editor));
-  border-color: var(--cursor-stroke-secondary);
+  border-color: var(--qivryn-stroke-secondary);
 }
 
-.continue-agents-cursor .cursor-agent-launch-card {
+.qivryn-agents-cursor .cursor-agent-launch-card {
   max-width: 720px;
 }
 
-.continue-agents-cursor .cursor-agent-launch-card h2 {
-  color: var(--cursor-text-primary);
+.qivryn-agents-cursor .cursor-agent-launch-card h2 {
+  color: var(--qivryn-text-primary);
   font-size: 15px;
   line-height: 20px;
 }
 
-.continue-agents-cursor .cursor-agent-launch-card p {
+.qivryn-agents-cursor .cursor-agent-launch-card p {
   max-width: 620px;
-  color: var(--cursor-text-tertiary);
+  color: var(--qivryn-text-tertiary);
   line-height: 1.45;
 }
 
-.continue-agents-cursor .cursor-agent-launch-textarea {
+.qivryn-agents-cursor .cursor-agent-launch-textarea {
   min-height: 138px;
   padding: 12px;
-  color: var(--cursor-text-primary);
+  color: var(--qivryn-text-primary);
   font-size: 13px;
   line-height: 1.5;
   background: var(--vscode-input-background, var(--agents-input));
-  border-color: var(--cursor-stroke-secondary);
+  border-color: var(--qivryn-stroke-secondary);
   border-radius: var(--conversation-surface-border-radius);
 }
 
-.continue-agents-cursor .cursor-agent-launch-card :is(input, select) {
+.qivryn-agents-cursor .cursor-agent-launch-card :is(input, select) {
   min-height: 30px;
-  color: var(--cursor-text-primary);
+  color: var(--qivryn-text-primary);
   background-color: var(--vscode-input-background, var(--agents-input));
-  border-color: var(--cursor-stroke-secondary);
+  border-color: var(--qivryn-stroke-secondary);
   border-radius: 6px;
 }
 
-.continue-agents-cursor
+.qivryn-agents-cursor
   .cursor-agent-launch-card
   :is(input, select, textarea):is(:hover, :focus) {
-  border-color: var(--cursor-stroke-primary);
+  border-color: var(--qivryn-stroke-primary);
 }
 
-.continue-agents-cursor .cursor-agent-menu {
-  color: var(--cursor-text-primary);
-  background: var(--cursor-bg-elevated);
-  border: 1px solid var(--cursor-stroke-primary);
+.qivryn-agents-cursor .cursor-agent-menu {
+  color: var(--qivryn-text-primary);
+  background: var(--qivryn-bg-elevated);
+  border: 1px solid var(--qivryn-stroke-primary);
   border-radius: 8px;
-  box-shadow: var(--cursor-shadow-workbench);
+  box-shadow: var(--qivryn-shadow-workbench);
 }
 
-.continue-agents-cursor .cursor-agent-menu button {
+.qivryn-agents-cursor .cursor-agent-menu button {
   box-sizing: border-box;
   width: 100%;
   padding: 6px 8px;
-  color: var(--cursor-text-primary);
+  color: var(--qivryn-text-primary);
   text-align: left;
   border-radius: 4px;
 }
 
-.continue-agents-cursor .cursor-agent-menu button:hover {
-  background: var(--cursor-bg-quaternary);
+.qivryn-agents-cursor .cursor-agent-menu button:hover {
+  background: var(--qivryn-bg-quaternary);
 }
 
-.continue-agents-cursor .bg-background,
-.continue-agents-cursor .bg-editor {
+.qivryn-agents-cursor .bg-background,
+.qivryn-agents-cursor .bg-editor {
   background-color: var(--agents-editor);
 }
 
-.continue-agents-cursor .bg-input,
-.continue-agents-cursor .bg-vsc-input-background {
+.qivryn-agents-cursor .bg-input,
+.qivryn-agents-cursor .bg-vsc-input-background {
   background-color: var(--agents-input);
 }
 
-.continue-agents-cursor input,
-.continue-agents-cursor textarea,
-.continue-agents-cursor select,
-.continue-agents-cursor button {
+.qivryn-agents-cursor input,
+.qivryn-agents-cursor textarea,
+.qivryn-agents-cursor select,
+.qivryn-agents-cursor button {
   font: inherit;
 }
 
-.continue-agents-cursor ::placeholder {
-  color: var(--cursor-text-quaternary);
+.qivryn-agents-cursor ::placeholder {
+  color: var(--qivryn-text-quaternary);
 }
 
-.continue-agents-cursor .text-description,
-.continue-agents-cursor .text-description-muted {
-  color: var(--cursor-text-tertiary);
+.qivryn-agents-cursor .text-description,
+.qivryn-agents-cursor .text-description-muted {
+  color: var(--qivryn-text-tertiary);
 }
 
-.continue-agents-cursor .text-xs {
+.qivryn-agents-cursor .text-xs {
   font-size: 13px;
   line-height: 18px;
 }
 
-.continue-agents-cursor .text-2xs {
+.qivryn-agents-cursor .text-2xs {
   font-size: 11px;
   line-height: 14px;
 }
@@ -753,8 +750,8 @@
   width: 12px;
   height: 12px;
   flex: 0 0 auto;
-  border: 1.5px solid var(--cursor-stroke-primary);
-  border-top-color: var(--cursor-icon-secondary);
+  border: 1.5px solid var(--qivryn-stroke-primary);
+  border-top-color: var(--qivryn-icon-secondary);
   border-radius: 999px;
   animation: cursor-agent-spin 0.8s linear infinite;
 }
@@ -766,24 +763,24 @@
 }
 
 @media (max-width: 719px) {
-  .continue-agents-cursor .cursor-agent-shell-grid {
+  .qivryn-agents-cursor .cursor-agent-shell-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .continue-agents-cursor .cursor-agent-launch-overlay {
+  .qivryn-agents-cursor .cursor-agent-launch-overlay {
     left: 0;
     padding: 18px 16px;
   }
 
-  .continue-agents-cursor .cursor-agent-detail-shell {
+  .qivryn-agents-cursor .cursor-agent-detail-shell {
     padding: 12px 10px;
   }
 
-  .continue-agents-cursor .cursor-agent-detail > section {
+  .qivryn-agents-cursor .cursor-agent-detail > section {
     margin-top: 12px;
   }
 
-  .continue-agents-cursor .cursor-agent-composer {
+  .qivryn-agents-cursor .cursor-agent-composer {
     width: 100%;
     padding: 8px;
   }

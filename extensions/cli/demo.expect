@@ -1,5 +1,5 @@
 #!/usr/bin/expect -f
-# Automated demo script for Continue TUI
+# Automated demo script for Qivryn TUI
 
 set timeout 30
 log_user 1
@@ -7,7 +7,7 @@ log_user 1
 # Set terminal environment for better TUI rendering
 set env(TERM) "xterm-256color"
 
-# Spawn cn directly inside an asciinema recording session
+# Spawn qivryn directly inside an asciinema recording session
 spawn bash -c "asciinema rec --overwrite demo.cast -c 'npm run start'"
 
 # Wait for TUI to load

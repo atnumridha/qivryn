@@ -1,6 +1,6 @@
 import { URL } from "node:url";
 
-import { getHeaders } from "../../../continueServer/stubs/headers";
+import { getHeaders } from "../../../qivrynServer/stubs/headers";
 const TRIAL_PROXY_URL = "https://proxy-server-blue-l6vsfbzhba-uw.a.run.app";
 import { PageData } from "./DocsCrawler";
 

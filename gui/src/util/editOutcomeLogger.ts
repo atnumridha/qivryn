@@ -1,8 +1,4 @@
-import {
-  ApplyState,
-  BrowserSerializedContinueConfig,
-  ToolCallState,
-} from "core";
+import { ApplyState, BrowserSerializedQivrynConfig, ToolCallState } from "core";
 import { IIdeMessenger } from "../context/IdeMessenger";
 import { ChatHistoryItemWithMessageId } from "../redux/slices/sessionSlice";
 
@@ -11,7 +7,7 @@ import { ChatHistoryItemWithMessageId } from "../redux/slices/sessionSlice";
  */
 function extractModelInfo(
   history: ChatHistoryItemWithMessageId[],
-  config: BrowserSerializedContinueConfig,
+  config: BrowserSerializedQivrynConfig,
   toolCallState: ToolCallState,
 ): {
   modelProvider: string;
@@ -150,7 +146,7 @@ function extractCodeChanges(applyState: ApplyState): {
  */
 export function assembleEditOutcomeData(
   history: ChatHistoryItemWithMessageId[],
-  config: BrowserSerializedContinueConfig,
+  config: BrowserSerializedQivrynConfig,
   toolCallState: ToolCallState,
   applyState: ApplyState,
   accepted: boolean,
@@ -185,7 +181,7 @@ export function assembleEditOutcomeData(
  */
 export async function logAgentModeEditOutcome(
   history: ChatHistoryItemWithMessageId[],
-  config: BrowserSerializedContinueConfig,
+  config: BrowserSerializedQivrynConfig,
   toolCallState: ToolCallState,
   applyState: ApplyState,
   accepted: boolean,

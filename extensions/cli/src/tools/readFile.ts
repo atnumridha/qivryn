@@ -1,7 +1,7 @@
 import * as fs from "fs";
 
 import { throwIfFileIsSecurityConcern } from "core/indexing/ignore.js";
-import { ContinueError, ContinueErrorReason } from "core/util/errors.js";
+import { QivrynError, QivrynErrorReason } from "core/util/errors.js";
 
 import { parseEnvNumber } from "../util/truncateOutput.js";
 
@@ -14,14 +14,14 @@ const DEFAULT_READ_FILE_MAX_LINES = 5000;
 
 function getReadFileMaxChars(): number {
   return parseEnvNumber(
-    process.env.CONTINUE_CLI_READ_FILE_MAX_OUTPUT_CHARS,
+    process.env.QIVRYN_CLI_READ_FILE_MAX_OUTPUT_CHARS,
     DEFAULT_READ_FILE_MAX_CHARS,
   );
 }
 
 function getReadFileMaxLines(): number {
   return parseEnvNumber(
-    process.env.CONTINUE_CLI_READ_FILE_MAX_OUTPUT_LINES,
+    process.env.QIVRYN_CLI_READ_FILE_MAX_OUTPUT_LINES,
     DEFAULT_READ_FILE_MAX_LINES,
   );
 }
@@ -75,8 +75,8 @@ export const readFileTool: Tool = {
       }
 
       if (!fs.existsSync(filepath)) {
-        throw new ContinueError(
-          ContinueErrorReason.Unspecified,
+        throw new QivrynError(
+          QivrynErrorReason.Unspecified,
           `File does not exist: ${filepath}`,
         );
       }
@@ -99,8 +99,8 @@ export const readFileTool: Tool = {
             ? ` (Note: limit reduced due to ${parallelCount} parallel tool calls. Single-tool limit: ${baseMaxChars.toLocaleString()} characters or ${baseMaxLines.toLocaleString()} lines.)`
             : "";
 
-        throw new ContinueError(
-          ContinueErrorReason.FileTooLarge,
+        throw new QivrynError(
+          QivrynErrorReason.FileTooLarge,
           `File is too large to read: ${filepath} (${charCount.toLocaleString()} characters, ${lineCount.toLocaleString()} lines). ` +
             `Maximum allowed: ${maxChars.toLocaleString()} characters or ${maxLines.toLocaleString()} lines.${parallelNote} ` +
             `Consider using terminal commands like 'head', 'tail', 'sed', or 'grep' to read targeted parts of the file.`,
@@ -112,7 +112,7 @@ export const readFileTool: Tool = {
 
       return `Content of ${filepath}:\n${content}`;
     } catch (error) {
-      if (error instanceof ContinueError) {
+      if (error instanceof QivrynError) {
         throw error;
       }
       throw new Error(

@@ -79,7 +79,7 @@ export const AUTONOMOUS_MODE_POLICIES: ToolPermissionPolicy[] = [
   { tool: "*", permission: "allow" },
 ];
 
-// Auto mode is explicit full access: allow everything without Continue prompts.
+// Auto mode is explicit full access: allow everything without Qivryn prompts.
 export const AUTO_MODE_POLICIES: ToolPermissionPolicy[] = [
   { tool: "*", permission: "allow" },
 ];

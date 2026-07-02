@@ -18,7 +18,7 @@ import {
   startAgentAutomationScheduler,
   type AgentDaemonDescriptor,
   type AgentWorkspaceProvider,
-} from "@continuedev/agent-runtime";
+} from "@qivryn/agent-runtime";
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { mkdir, rename, rm, writeFile } from "node:fs/promises";
@@ -30,7 +30,7 @@ import {
   imagePathsForAgentRun,
 } from "./agentProcessArgs.js";
 
-const agentRoot = path.join(env.continueHome, "agents");
+const agentRoot = path.join(env.qivrynHome, "agents");
 const descriptorPath = path.join(agentRoot, "daemon.json");
 
 export async function readAgentDaemonDescriptor(): Promise<
@@ -76,7 +76,7 @@ export async function ensureAgentDaemon(): Promise<HttpAgentRuntimeClient> {
   const child = spawn(process.execPath, [process.argv[1], "agents", "daemon"], {
     detached: true,
     stdio: "ignore",
-    env: { ...process.env, CONTINUE_AGENT_DAEMON_TOKEN: token },
+    env: { ...process.env, QIVRYN_AGENT_DAEMON_TOKEN: token },
   });
   child.unref();
   for (let attempt = 0; attempt < 100; attempt++) {
@@ -94,11 +94,11 @@ export async function ensureAgentDaemon(): Promise<HttpAgentRuntimeClient> {
 }
 
 export async function runAgentDaemon(): Promise<void> {
-  const token = process.env.CONTINUE_AGENT_DAEMON_TOKEN;
+  const token = process.env.QIVRYN_AGENT_DAEMON_TOKEN;
   if (!token) throw new Error("Agent daemon token is missing");
   const store = new FileAgentStore(agentRoot);
   const attributionStore = new FileAttributionStore(
-    path.join(env.continueHome, "attributions"),
+    path.join(env.qivrynHome, "attributions"),
   );
   await attributionStore.initialize();
   const worktrees = new GitWorktreeWorkspaceProvider({
@@ -125,19 +125,19 @@ export async function runAgentDaemon(): Promise<void> {
     },
   };
   const hookRegistry = new FileAgentHookRegistry(
-    path.join(env.continueHome, "hooks.json"),
+    path.join(env.qivrynHome, "hooks.json"),
   );
   const hooks = new AgentHookRunner(() => hookRegistry.list());
   const executor = new ProcessAgentExecutor({
     hooks,
     stdoutEventKind: "message.assistant",
-    stdoutProtocol: "continue-agent-events",
+    stdoutProtocol: "qivryn-agent-events",
     resolveProcess: (run) => {
       const localImagePaths = imagePathsForAgentRun(run);
       const imageNames = executionImageNamesForAgentRun(run);
       if (run.runtimeId === "docker") {
         const containerImagePaths = imageNames.map(
-          (name) => `/continue-attachments/${name}`,
+          (name) => `/qivryn-attachments/${name}`,
         );
         const chatArgs = buildAgentChatArgs(run, containerImagePaths);
         const container = (run.metadata?.container ?? {}) as {
@@ -148,8 +148,8 @@ export async function runAgentDaemon(): Promise<void> {
         return buildDockerRunSpec(
           run,
           {
-            image: container.image ?? "continue-agent:latest",
-            command: "cn",
+            image: container.image ?? "qivryn-agent:latest",
+            command: "qivryn",
             args: chatArgs,
             mounts: localImagePaths.map((source, index) => ({
               source,
@@ -158,7 +158,7 @@ export async function runAgentDaemon(): Promise<void> {
             })),
             network: container.network,
             privileged: container.privileged,
-            env: { CONTINUE_AGENT_EVENT_STREAM: "1" },
+            env: { QIVRYN_AGENT_EVENT_STREAM: "1" },
           },
           { allowPrivileged: container.privileged === true },
         );
@@ -173,7 +173,7 @@ export async function runAgentDaemon(): Promise<void> {
         if (!ssh.host || !ssh.remotePath) {
           throw new Error("SSH runs require a host and remote path");
         }
-        const attachmentDirectory = `/tmp/continue-agent-${run.id.replace(
+        const attachmentDirectory = `/tmp/qivryn-agent-${run.id.replace(
           /[^a-zA-Z0-9_.-]/g,
           "-",
         )}-attachments`;
@@ -186,7 +186,7 @@ export async function runAgentDaemon(): Promise<void> {
           port: ssh.port,
           identityFile: ssh.identityFile,
           args: buildAgentChatArgs(run, remoteImagePaths),
-          env: { CONTINUE_AGENT_EVENT_STREAM: "1" },
+          env: { QIVRYN_AGENT_EVENT_STREAM: "1" },
         };
         const spec = buildSshRunSpec(run, options);
         return addSshAttachmentTransfers(
@@ -205,8 +205,8 @@ export async function runAgentDaemon(): Promise<void> {
         args: [process.argv[1], ...chatArgs],
         env: {
           ...process.env,
-          CONTINUE_AGENT_CHILD: "1",
-          CONTINUE_AGENT_EVENT_STREAM: "1",
+          QIVRYN_AGENT_CHILD: "1",
+          QIVRYN_AGENT_EVENT_STREAM: "1",
         },
         ...(run.permissionMode === "readOnly"
           ? {

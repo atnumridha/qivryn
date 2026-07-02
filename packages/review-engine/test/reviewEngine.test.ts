@@ -20,11 +20,11 @@ async function git(root: string, ...args: string[]): Promise<string> {
 }
 
 async function fixture(): Promise<string> {
-  const root = await mkdtemp(path.join(os.tmpdir(), "continue-review-"));
+  const root = await mkdtemp(path.join(os.tmpdir(), "qivryn-review-"));
   roots.push(root);
   await git(root, "init", "-b", "main");
-  await git(root, "config", "user.email", "review@continue.dev");
-  await git(root, "config", "user.name", "Continue Review");
+  await git(root, "config", "user.email", "review@qivryn.ai");
+  await git(root, "config", "user.name", "Qivryn Review");
   await writeFile(path.join(root, "app.ts"), "export const safe = true;\n");
   await writeFile(path.join(root, "other.ts"), "export const other = true;\n");
   await git(root, "add", ".");
@@ -33,7 +33,7 @@ async function fixture(): Promise<string> {
 }
 
 async function reviewState(): Promise<string> {
-  const root = await mkdtemp(path.join(os.tmpdir(), "continue-review-state-"));
+  const root = await mkdtemp(path.join(os.tmpdir(), "qivryn-review-state-"));
   roots.push(root);
   return root;
 }

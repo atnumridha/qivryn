@@ -2,7 +2,7 @@ import * as fs from "fs";
 import fsPromises from "fs/promises";
 import * as path from "path";
 
-import { parseMarkdownRule } from "@continuedev/config-yaml";
+import { parseMarkdownRule } from "@qivryn/config-yaml";
 import { WalkerSync } from "ignore-walk";
 import { z } from "zod";
 
@@ -77,9 +77,9 @@ async function getSkillFilesFromDir(dirPath: string): Promise<string[]> {
 }
 
 export function getGlobalCrossAgentSkillPaths(
-  continueHome = env.continueHome,
+  qivrynHome = env.qivrynHome,
 ): string[] {
-  const homeDir = path.dirname(continueHome);
+  const homeDir = path.dirname(qivrynHome);
   return [
     path.join(homeDir, ".cursor", SKILLS_DIR),
     path.join(homeDir, ".cursor", "plugins"),
@@ -100,13 +100,13 @@ export async function loadMarkdownSkills(): Promise<LoadSkillsResult> {
 
   try {
     const skillsDirs = [
-      path.join(cwd, ".continue", SKILLS_DIR),
+      path.join(cwd, ".qivryn", SKILLS_DIR),
       path.join(cwd, ".claude", SKILLS_DIR),
       path.join(cwd, ".codex", SKILLS_DIR),
       path.join(cwd, ".github", SKILLS_DIR),
       path.join(cwd, ".copilot", SKILLS_DIR),
       path.join(cwd, ".agents", SKILLS_DIR),
-      path.join(env.continueHome, SKILLS_DIR),
+      path.join(env.qivrynHome, SKILLS_DIR),
       ...getGlobalCrossAgentSkillPaths(),
     ];
 

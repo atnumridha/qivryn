@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 
-import { ContinueError, ContinueErrorReason } from "core/util/errors.js";
+import { QivrynError, QivrynErrorReason } from "core/util/errors.js";
 
 import { logger } from "../util/logger.js";
 
@@ -45,8 +45,8 @@ export const uploadArtifactTool: Tool = {
 
       const trimmedPath = args.filePath?.trim();
       if (!trimmedPath) {
-        throw new ContinueError(
-          ContinueErrorReason.Unspecified,
+        throw new QivrynError(
+          QivrynErrorReason.Unspecified,
           "filePath is required to upload an artifact.",
         );
       }
@@ -54,25 +54,25 @@ export const uploadArtifactTool: Tool = {
       // Get agent session ID
       const agentId = getAgentIdFromArgs();
       if (!agentId) {
-        throw new ContinueError(
-          ContinueErrorReason.Unspecified,
-          "Agent ID is required. This tool only works with 'cn serve --id <agentId>'.",
+        throw new QivrynError(
+          QivrynErrorReason.Unspecified,
+          "Agent ID is required. This tool only works with 'qivryn serve --id <agentId>'.",
         );
       }
 
       // Auth has been removed - artifact upload requires auth
       const accessToken: string | null = null;
       if (!accessToken) {
-        throw new ContinueError(
-          ContinueErrorReason.Unspecified,
+        throw new QivrynError(
+          QivrynErrorReason.Unspecified,
           "Artifact upload requires authentication, which has been removed.",
         );
       }
 
       // Validate file exists
       if (!fs.existsSync(trimmedPath)) {
-        throw new ContinueError(
-          ContinueErrorReason.Unspecified,
+        throw new QivrynError(
+          QivrynErrorReason.Unspecified,
           `File not found: ${trimmedPath}`,
         );
       }
@@ -99,40 +99,40 @@ export const uploadArtifactTool: Tool = {
         const errorMsg = result.error || "Unknown error";
 
         if (errorMsg.includes("File size exceeds")) {
-          throw new ContinueError(
-            ContinueErrorReason.Unspecified,
+          throw new QivrynError(
+            QivrynErrorReason.Unspecified,
             `File is too large (${fileSizeMB} MB). Maximum allowed size is 50MB. Consider compressing the file or splitting it into smaller parts.`,
           );
         } else if (errorMsg.includes("Storage limit exceeded")) {
-          throw new ContinueError(
-            ContinueErrorReason.Unspecified,
+          throw new QivrynError(
+            QivrynErrorReason.Unspecified,
             "Session storage limit exceeded (500MB total). The user may need to delete old artifacts or you may need to reduce the number of uploads.",
           );
         } else if (
           errorMsg.includes("not allowed") ||
           errorMsg.includes("extension")
         ) {
-          throw new ContinueError(
-            ContinueErrorReason.Unspecified,
+          throw new QivrynError(
+            QivrynErrorReason.Unspecified,
             `File type not supported. Only images (png, jpg, jpeg, gif, webp), videos (mp4, mov, avi, webm), and text files (log, txt, json, xml, csv, html) are allowed.`,
           );
         } else {
-          throw new ContinueError(
-            ContinueErrorReason.Unspecified,
+          throw new QivrynError(
+            QivrynErrorReason.Unspecified,
             `Failed to upload artifact: ${errorMsg}`,
           );
         }
       }
     } catch (error) {
-      if (error instanceof ContinueError) {
+      if (error instanceof QivrynError) {
         throw error;
       }
 
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       logger.error(`Error uploading artifact: ${errorMessage}`);
-      throw new ContinueError(
-        ContinueErrorReason.Unspecified,
+      throw new QivrynError(
+        QivrynErrorReason.Unspecified,
         `Error uploading artifact: ${errorMessage}`,
       );
     }

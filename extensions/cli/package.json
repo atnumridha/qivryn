@@ -1,12 +1,12 @@
 {
-  "name": "@continuedev/cli",
+  "name": "@qivryn/cli",
   "version": "0.0.0-dev",
-  "description": "Continue CLI",
+  "description": "Qivryn CLI",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
   "bin": {
-    "cn": "dist/cn.js"
+    "qivryn": "dist/qivryn.js"
   },
   "scripts": {
     "test": "vitest run",
@@ -20,30 +20,30 @@
     "build:validate": "node validate-aliases.mjs",
     "build:bundle": "node build.mjs",
     "build": "npm run build:validate && npm run build:bundle",
-    "start": "node dist/cn.js",
+    "start": "node dist/qivryn.js",
     "dev": "tsx src/index.ts",
-    "repomix:sdk": "npx repomix node_modules/@continuedev/sdk --ignore **/api,cli-repomix.xml -o sdk-repomix.xml",
+    "repomix:sdk": "npx repomix node_modules/@qivryn/sdk --ignore **/api,cli-repomix.xml -o sdk-repomix.xml",
     "repomix:cli": "npx repomix --ignore sdk-repomix.xml -o cli-repomix.xml",
     "lint": "tsc --noEmit && eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
-    "watch:logs": "touch ~/.continue/logs/cn.log && tail -f ~/.continue/logs/cn.log",
+    "watch:logs": "touch ~/.qivryn/logs/qivryn.log && tail -f ~/.qivryn/logs/qivryn.log",
     "prepare": "npm run build",
     "semantic-release": "semantic-release",
     "semantic-release:dry-run": "semantic-release --dry-run"
   },
-  "author": "Continue Dev, Inc.",
+  "author": "Qivryn AI",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/continuedev/continue.git"
+    "url": "https://github.com/atnumridha/qivryn.git"
   },
   "bugs": {
-    "url": "https://github.com/continuedev/continue/issues"
+    "url": "https://github.com/atnumridha/qivryn/issues"
   },
-  "homepage": "https://continue.dev",
+  "homepage": "https://qivryn.ai",
   "dependencies": {
     "fdir": "^6.4.2",
     "find-up": "^8.0.0",
@@ -51,14 +51,14 @@
     "js-yaml": "^4.1.1"
   },
   "devDependencies": {
-    "@continuedev/config-yaml": "file:../../packages/config-yaml",
-    "@continuedev/openai-adapters": "file:../../packages/openai-adapters",
-    "@continuedev/sdk": "^0.0.13",
-    "@continuedev/terminal-security": "file:../../packages/terminal-security",
-    "@continuedev/agent-runtime": "file:../../packages/agent-runtime",
-    "@continuedev/browser-runtime": "file:../../packages/browser-runtime",
-    "@continuedev/review-engine": "file:../../packages/review-engine",
-    "@continuedev/slack-connector": "file:../../packages/slack-connector",
+    "@qivryn/config-yaml": "file:../../packages/config-yaml",
+    "@qivryn/openai-adapters": "file:../../packages/openai-adapters",
+    "@qivryn/sdk": "file:../../packages/qivryn-sdk/typescript",
+    "@qivryn/terminal-security": "file:../../packages/terminal-security",
+    "@qivryn/agent-runtime": "file:../../packages/agent-runtime",
+    "@qivryn/browser-runtime": "file:../../packages/browser-runtime",
+    "@qivryn/review-engine": "file:../../packages/review-engine",
+    "@qivryn/slack-connector": "file:../../packages/slack-connector",
     "@modelcontextprotocol/sdk": "^1.24.0",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/exporter-metrics-otlp-grpc": "^0.203.0",
@@ -122,6 +122,7 @@
     "node-fetch": "^3.3.2",
     "node-machine-id": "^1.1.12",
     "open": "^10.1.0",
+    "openai": "^4.104.0",
     "prettier": "^3.6.2",
     "prettier-plugin-tailwindcss": "^0.6.14",
     "react": "^19.1.0",

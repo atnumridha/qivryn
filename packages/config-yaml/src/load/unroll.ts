@@ -118,7 +118,7 @@ export function fillTemplateVariables(
 export interface TemplateData {
   inputs: Record<string, string> | undefined;
   secrets: Record<string, string> | undefined;
-  continue: {};
+  qivryn: {};
 }
 
 function flattenTemplateData(
@@ -262,7 +262,7 @@ function renderTemplateData(
   const fullTemplateData: TemplateData = {
     inputs: {},
     secrets: {},
-    continue: {},
+    qivryn: {},
     ...templateData,
   };
   const templatedYaml = fillTemplateVariables(

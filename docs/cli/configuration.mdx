@@ -2,18 +2,18 @@
 title: "Configuration"
 ---
 
-`cn` resolves its configuration (models, MCP servers, rules, etc.) from several sources, in this order:
+`qivryn` resolves its configuration (models, MCP servers, rules, etc.) from several sources, in this order:
 
 1. **`--config` flag** — a file path passed at launch
 2. **Saved config** — the last-used configuration, persisted across sessions
-3. **Default** — `~/.continue/config.yaml`
+3. **Default** — `~/.qivryn/config.yaml`
 
 ## `--config` flag
 
-Point `cn` at a local YAML file:
+Point `qivryn` at a local YAML file:
 
 ```bash
-cn --config ./my-config.yaml
+qivryn --config ./my-config.yaml
 ```
 
 This overrides any saved preference for the current session.
@@ -30,7 +30,7 @@ This shows your available local configs. The selection is saved for next time.
 
 ## `config.yaml`
 
-`cn` looks for `~/.continue/config.yaml`. This file uses the same format as the IDE extensions — see [config.yaml reference](/customize/deep-dives/configuration) for the full schema.
+`qivryn` looks for `~/.qivryn/config.yaml`. This file uses the same format as the IDE extensions — see [config.yaml reference](/customize/deep-dives/configuration) for the full schema.
 
 ## CLI-specific flags
 
@@ -38,11 +38,11 @@ Several flags inject configuration at launch without editing a file:
 
 ```bash
 # Add rules (file path or inline string)
-cn --rule ./rules/style.md
-cn --rule "Always use TypeScript strict mode"
+qivryn --rule ./rules/style.md
+qivryn --rule "Always use TypeScript strict mode"
 
 # Load an agent file
-cn --agent my-org/pr-reviewer
+qivryn --agent my-org/pr-reviewer
 ```
 
 All of these are repeatable — pass them multiple times to add multiple items.

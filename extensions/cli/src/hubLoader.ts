@@ -5,11 +5,7 @@
  * processing and string detection remain.
  */
 
-import {
-  AgentFile,
-  ModelConfig,
-  parseAgentFile,
-} from "@continuedev/config-yaml";
+import { AgentFile, ModelConfig, parseAgentFile } from "@qivryn/config-yaml";
 
 import { logger } from "./util/logger.js";
 

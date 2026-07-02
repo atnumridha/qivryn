@@ -7,8 +7,8 @@ import path from "node:path";
  */
 export function resolveAgentCliPath(extensionPath: string): string | undefined {
   const candidates = [
-    path.join(extensionPath, "out", "cli", "cn.js"),
-    path.resolve(extensionPath, "..", "cli", "dist", "cn.js"),
+    path.join(extensionPath, "out", "cli", "qivryn.js"),
+    path.resolve(extensionPath, "..", "cli", "dist", "qivryn.js"),
   ];
   return candidates.find((candidate) => fs.existsSync(candidate));
 }

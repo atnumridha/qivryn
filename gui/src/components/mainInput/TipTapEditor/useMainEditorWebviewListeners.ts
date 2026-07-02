@@ -38,7 +38,7 @@ export function useMainEditorWebviewListeners({
   const isInEdit = useAppSelector((state) => state.session.isInEdit);
 
   useWebviewListener(
-    "isContinueInputFocused",
+    "isQivrynInputFocused",
     async () => {
       return !!editorFocusedRef.current;
     },
@@ -60,7 +60,7 @@ export function useMainEditorWebviewListeners({
   });
 
   useWebviewListener(
-    "focusContinueInput",
+    "focusQivrynInput",
     async () => {
       dispatch(clearCodeToEdit());
 
@@ -82,7 +82,7 @@ export function useMainEditorWebviewListeners({
   );
 
   useWebviewListener(
-    "focusContinueInputWithoutClear",
+    "focusQivrynInputWithoutClear",
     async () => {
       setTimeout(() => {
         editor?.commands.focus("end");
@@ -92,7 +92,7 @@ export function useMainEditorWebviewListeners({
   );
 
   useWebviewListener(
-    "focusContinueInputWithNewSession",
+    "focusQivrynInputWithNewSession",
     async () => {
       await dispatch(
         saveCurrentSession({
@@ -167,7 +167,7 @@ export function useMainEditorWebviewListeners({
   );
 
   useWebviewListener(
-    "isContinueInputFocused",
+    "isQivrynInputFocused",
     async () => {
       return !!editorFocusedRef.current;
     },
@@ -175,7 +175,7 @@ export function useMainEditorWebviewListeners({
   );
 
   useWebviewListener(
-    "focusContinueSessionId",
+    "focusQivrynSessionId",
     async (data) => {
       if (!data.sessionId) return;
 

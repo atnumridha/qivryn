@@ -16,7 +16,7 @@ afterEach(async () => {
 describe("agent automations", () => {
   it("persists an interval schedule and starts the same shared runtime", async () => {
     const root = await fs.mkdtemp(
-      path.join(os.tmpdir(), "continue-automations-"),
+      path.join(os.tmpdir(), "qivryn-automations-"),
     );
     roots.push(root);
     const store = new FileAgentAutomationStore(root);

@@ -71,9 +71,9 @@ const DEFAULT_MOCK_CORE_RESPONSES: MockResponses = {
   "extensions/skillSave": {
     name: "Example skill",
     description: "Example skill",
-    path: ".continue/skills/example-skill/SKILL.md",
-    sourceFile: "file:///workspace/.continue/skills/example-skill/SKILL.md",
-    provenance: "Continue",
+    path: ".qivryn/skills/example-skill/SKILL.md",
+    sourceFile: "file:///workspace/.qivryn/skills/example-skill/SKILL.md",
+    provenance: "Qivryn",
     readOnly: false,
     scope: "workspace",
     content: "Example instructions",

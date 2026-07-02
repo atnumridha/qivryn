@@ -39,7 +39,7 @@ export function buildSshRunSpec(
   ) {
     throw new Error("SSH port must be between 1 and 65535");
   }
-  const command = options.command ?? "cn";
+  const command = options.command ?? "qivryn";
   if (!/^[A-Za-z0-9._/-]+$/.test(command))
     throw new Error("Unsafe SSH agent command");
   const remoteEnvironment = Object.entries(options.env ?? {}).map(

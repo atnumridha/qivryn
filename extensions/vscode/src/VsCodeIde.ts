@@ -244,11 +244,11 @@ class VsCodeIde implements IDE {
 
   async isTelemetryEnabled(): Promise<boolean> {
     const globalEnabled = vscode.env.isTelemetryEnabled;
-    const continueEnabled: boolean =
+    const qivrynEnabled: boolean =
       (await vscode.workspace
         .getConfiguration(EXTENSION_NAME)
         .get("telemetryEnabled")) ?? true;
-    return globalEnabled && continueEnabled;
+    return globalEnabled && qivrynEnabled;
   }
 
   isWorkspaceRemote(): Promise<boolean> {
@@ -486,7 +486,7 @@ class VsCodeIde implements IDE {
 
       // IMPORTANT: findFiles automatically accounts for .gitignore
       const ignoreFiles = await vscode.workspace.findFiles(
-        "**/.continueignore",
+        "**/.qivrynignore",
         null,
       );
 
@@ -563,7 +563,7 @@ class VsCodeIde implements IDE {
           "--iglob",
           pattern,
           "--ignore-file",
-          ".continueignore",
+          ".qivrynignore",
           "--ignore-file",
           ".gitignore",
           "--glob",
@@ -629,7 +629,7 @@ class VsCodeIde implements IDE {
         ...(options.fixedStrings ? ["-F"] : []),
         ...(options.multiline ? ["-U", "--multiline-dotall"] : []),
         "--ignore-file",
-        ".continueignore",
+        ".qivrynignore",
         "--ignore-file",
         ".gitignore",
         ...(outputMode === "content" ? [...contextArgs, "--heading"] : []),
@@ -741,7 +741,7 @@ class VsCodeIde implements IDE {
         60,
       ),
       userToken: settings.get<string>("userToken", ""),
-      continueTestEnvironment: "production",
+      qivrynTestEnvironment: "production",
       pauseCodebaseIndexOnStart: settings.get<boolean>(
         "pauseCodebaseIndexOnStart",
         false,

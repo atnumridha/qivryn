@@ -177,7 +177,7 @@ declare global {
   export type FetchFunction = (url: string | URL, init?: any) => Promise<any>;
   
   export interface ContextProviderExtras {
-    config: ContinueConfig;
+    config: QivrynConfig;
     fullInput: string;
     embeddingsProvider: ILLM;
     reranker: ILLM | undefined;
@@ -188,7 +188,7 @@ declare global {
   }
   
   export interface LoadSubmenuItemsArgs {
-    config: ContinueConfig;
+    config: QivrynConfig;
     ide: IDE;
     fetch: FetchFunction;
   }
@@ -766,7 +766,7 @@ declare global {
   
   // Slash Commands
   
-  export interface ContinueSDK {
+  export interface QivrynSDK {
     ide: IDE;
     llm: ILLM;
     addContextItem: (item: ContextItemWithId) => void;
@@ -775,7 +775,7 @@ declare global {
     params?: { [key: string]: any } | undefined;
     contextItems: ContextItemWithId[];
     selectedCode: RangeInFile[];
-    config: ContinueConfig;
+    config: QivrynConfig;
     fetch: FetchFunction;
   }
   
@@ -783,7 +783,7 @@ declare global {
     name: string;
     description: string;
     params?: { [key: string]: any };
-    run: (sdk: ContinueSDK) => AsyncGenerator<string | undefined>;
+    run: (sdk: QivrynSDK) => AsyncGenerator<string | undefined>;
   }
   
   // Config
@@ -1037,7 +1037,7 @@ declare global {
     transport: TransportOptions;
   }
   
-  export interface ContinueUIConfig {
+  export interface QivrynUIConfig {
     codeBlockToolbarPosition?: "top" | "bottom";
     fontSize?: number;
     displayRawMarkdown?: boolean;
@@ -1149,7 +1149,7 @@ declare global {
   }
   
   // config.json
-  export interface SerializedContinueConfig {
+  export interface SerializedQivrynConfig {
     env?: string[];
     allowAnonymousTelemetry?: boolean;
     models: ModelDescription[];
@@ -1165,7 +1165,7 @@ declare global {
     embeddingsProvider?: EmbeddingsProviderDescription;
     tabAutocompleteModel?: ModelDescription | ModelDescription[];
     tabAutocompleteOptions?: Partial<TabAutocompleteOptions>;
-    ui?: ContinueUIConfig;
+    ui?: QivrynUIConfig;
     reranker?: RerankerDescription;
     experimental?: ExperimentalConfig;
     analytics?: AnalyticsConfig;
@@ -1174,17 +1174,17 @@ declare global {
   
   export type ConfigMergeType = "merge" | "overwrite";
   
-  export type ContinueRcJson = Partial<SerializedContinueConfig> & {
+  export type QivrynRcJson = Partial<SerializedQivrynConfig> & {
     mergeBehavior: ConfigMergeType;
   };
   
   // config.ts - give users simplified interfaces
   export interface Config {
-    /** If set to true, Continue will collect anonymous usage data to improve the product. If set to false, we will collect nothing. Read here to learn more: https://docs.continue.dev/telemetry */
+    /** If set to true, Qivryn will collect anonymous usage data to improve the product. If set to false, we will collect nothing. Read here to learn more: https://docs.qivryn.ai/telemetry */
     allowAnonymousTelemetry?: boolean;
     /** Each entry in this array will originally be a ModelDescription, the same object from your config.json, but you may add CustomLLMs.
      * A CustomLLM requires you only to define an AsyncGenerator that calls the LLM and yields string updates. You can choose to define either \`streamCompletion\` or \`streamChat\` (or both).
-     * Continue will do the rest of the work to construct prompt templates, handle context items, prune context, etc.
+     * Qivryn will do the rest of the work to construct prompt templates, handle context items, prune context, etc.
      */
     models: (CustomLLM | ModelDescription)[];
     /** A system message to be followed by all of your models */
@@ -1196,18 +1196,18 @@ declare global {
     /** The list of slash commands that will be available in the sidebar */
     slashCommands?: SlashCommand[];
     /** Each entry in this array will originally be a ContextProviderWithParams, the same object from your config.json, but you may add CustomContextProviders.
-     * A CustomContextProvider requires you only to define a title and getContextItems function. When you type '@title <query>', Continue will call \`getContextItems(query)\`.
+     * A CustomContextProvider requires you only to define a title and getContextItems function. When you type '@title <query>', Qivryn will call \`getContextItems(query)\`.
      */
     contextProviders?: (CustomContextProvider | ContextProviderWithParams)[];
-    /** If set to true, Continue will not index your codebase for retrieval */
+    /** If set to true, Qivryn will not index your codebase for retrieval */
     disableIndexing?: boolean;
-    /** If set to true, Continue will not make extra requests to the LLM to generate a summary title of each session. */
+    /** If set to true, Qivryn will not make extra requests to the LLM to generate a summary title of each session. */
     disableSessionTitles?: boolean;
-    /** An optional token to identify a user. Not used by Continue unless you write custom coniguration that requires such a token */
+    /** An optional token to identify a user. Not used by Qivryn unless you write custom coniguration that requires such a token */
     userToken?: string;
-    /** The provider used to calculate embeddings. If left empty, Continue will use transformers.js to calculate the embeddings with all-MiniLM-L6-v2 */
+    /** The provider used to calculate embeddings. If left empty, Qivryn will use transformers.js to calculate the embeddings with all-MiniLM-L6-v2 */
     embeddingsProvider?: EmbeddingsProviderDescription | ILLM;
-    /** The model that Continue will use for tab autocompletions. */
+    /** The model that Qivryn will use for tab autocompletions. */
     tabAutocompleteModel?:
       | CustomLLM
       | ModelDescription
@@ -1215,7 +1215,7 @@ declare global {
     /** Options for tab autocomplete */
     tabAutocompleteOptions?: Partial<TabAutocompleteOptions>;
     /** UI styles customization */
-    ui?: ContinueUIConfig;
+    ui?: QivrynUIConfig;
     /** Options for the reranker */
     reranker?: RerankerDescription | ILLM;
     /** Experimental configuration */
@@ -1224,8 +1224,8 @@ declare global {
     analytics?: AnalyticsConfig;
   }
   
-  // in the actual Continue source code
-  export interface ContinueConfig {
+  // in the actual Qivryn source code
+  export interface QivrynConfig {
     allowAnonymousTelemetry?: boolean;
     models: ILLM[];
     systemMessage?: string;
@@ -1239,7 +1239,7 @@ declare global {
     embeddingsProvider: ILLM;
     tabAutocompleteModels?: ILLM[];
     tabAutocompleteOptions?: Partial<TabAutocompleteOptions>;
-    ui?: ContinueUIConfig;
+    ui?: QivrynUIConfig;
     reranker?: ILLM;
     experimental?: ExperimentalConfig;
     analytics?: AnalyticsConfig;
@@ -1247,7 +1247,7 @@ declare global {
     tools: Tool[];
   }
   
-  export interface BrowserSerializedContinueConfig {
+  export interface BrowserSerializedQivrynConfig {
     allowAnonymousTelemetry?: boolean;
     models: ModelDescription[];
     systemMessage?: string;
@@ -1259,7 +1259,7 @@ declare global {
     disableSessionTitles?: boolean;
     userToken?: string;
     embeddingsProvider?: string;
-    ui?: ContinueUIConfig;
+    ui?: QivrynUIConfig;
     reranker?: RerankerDescription;
     experimental?: ExperimentalConfig;
     analytics?: AnalyticsConfig;

@@ -1,5 +1,5 @@
 {
-  "name": "continue-binary",
+  "name": "qivryn-binary",
   "version": "1.0.0",
   "description": "",
   "bin": "../../out/index.js",

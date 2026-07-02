@@ -125,11 +125,7 @@ export class VerticalDiffHandler implements vscode.Disposable {
   }
 
   async clear(accept: boolean) {
-    vscode.commands.executeCommand(
-      "setContext",
-      "continue.streamingDiff",
-      false,
-    );
+    vscode.commands.executeCommand("setContext", "qivryn.streamingDiff", false);
 
     const removedRanges = this.removedLineDecorations.ranges;
     if (accept) {

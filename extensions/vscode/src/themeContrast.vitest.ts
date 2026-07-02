@@ -17,12 +17,12 @@ function contrast(a: string, b: string): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-describe("Continue themes", () => {
+describe("Qivryn themes", () => {
   for (const name of [
-    "continue-dark",
-    "continue-midnight",
-    "continue-light",
-    "continue-high-contrast",
+    "qivryn-dark",
+    "qivryn-midnight",
+    "qivryn-light",
+    "qivryn-high-contrast",
   ]) {
     it(`${name} meets text contrast gates`, () => {
       const theme = JSON.parse(

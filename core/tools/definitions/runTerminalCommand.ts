@@ -4,7 +4,7 @@ import { BUILT_IN_GROUP_NAME, BuiltInToolNames } from "../builtIn";
 import {
   evaluateTerminalCommandSecurity,
   ToolPolicy,
-} from "@continuedev/terminal-security";
+} from "@qivryn/terminal-security";
 
 /**
  * Get the preferred shell for the current platform

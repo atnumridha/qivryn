@@ -1,13 +1,13 @@
-export type ContinueDeepLink =
+export type QivrynDeepLink =
   | { type: "agent"; runId: string }
   | { type: "checkpoint"; runId: string; checkpointId: string }
   | { type: "review"; reviewId: string }
   | { type: "file"; path: string; line?: number }
   | { type: "settings"; section?: string };
 
-export function formatContinueDeepLink(
-  link: ContinueDeepLink,
-  base = "vscode://Continue.continue",
+export function formatQivrynDeepLink(
+  link: QivrynDeepLink,
+  base = "vscode://Qivryn.qivryn",
 ): string {
   const url = new URL(base);
   switch (link.type) {
@@ -34,9 +34,7 @@ export function formatContinueDeepLink(
   return url.toString();
 }
 
-export function parseContinueDeepLink(
-  value: string,
-): ContinueDeepLink | undefined {
+export function parseQivrynDeepLink(value: string): QivrynDeepLink | undefined {
   let url: URL;
   try {
     url = new URL(value);

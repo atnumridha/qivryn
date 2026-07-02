@@ -13,31 +13,31 @@ import type {
   AgentWorkspace,
   ListAgentRunsOptions,
   ReadAgentEventsOptions,
-} from "@continuedev/agent-runtime";
+} from "@qivryn/agent-runtime";
 import type {
   CreateReviewRequest,
   ReviewActionRequest,
   ReviewActionResult,
   ReviewFindingComment,
   ReviewReport,
-} from "@continuedev/review-engine";
+} from "@qivryn/review-engine";
 import type {
   TerminalCommandClassification,
   TerminalJob,
   ToolPolicy,
-} from "@continuedev/terminal-security";
+} from "@qivryn/terminal-security";
 import type {
   BrowserActionRequest,
   BrowserActionResult,
   BrowserPermissionGrant,
   CreateBrowserSessionRequest,
-} from "@continuedev/browser-runtime";
-import type { BrowserEvent, BrowserSession } from "@continuedev/agent-runtime";
+} from "@qivryn/browser-runtime";
+import type { BrowserEvent, BrowserSession } from "@qivryn/agent-runtime";
 import type {
   SlackAuthorization,
   SlackChannel,
   SlackMessage,
-} from "@continuedev/slack-connector";
+} from "@qivryn/slack-connector";
 import { ToCoreFromIdeOrWebviewProtocol } from "./core.js";
 import { ToWebviewFromIdeOrCoreProtocol } from "./webview.js";
 

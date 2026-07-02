@@ -1,4 +1,4 @@
-import { ModelDescription, SerializedContinueConfig } from "core";
+import { ModelDescription, SerializedQivrynConfig } from "core";
 import { IDE } from "core/index.js";
 import { FromIdeProtocol, ToIdeProtocol } from "core/protocol/index.js";
 import { IMessenger } from "core/protocol/messenger";
@@ -158,11 +158,11 @@ function autodetectPlatformAndArch() {
   return [platform, arch];
 }
 
-const CONTINUE_GLOBAL_DIR = path.join(__dirname, "..", ".continue");
-if (fs.existsSync(CONTINUE_GLOBAL_DIR)) {
-  fs.rmSync(CONTINUE_GLOBAL_DIR, { recursive: true, force: true });
+const QIVRYN_GLOBAL_DIR = path.join(__dirname, "..", ".qivryn");
+if (fs.existsSync(QIVRYN_GLOBAL_DIR)) {
+  fs.rmSync(QIVRYN_GLOBAL_DIR, { recursive: true, force: true });
 }
-fs.mkdirSync(CONTINUE_GLOBAL_DIR);
+fs.mkdirSync(QIVRYN_GLOBAL_DIR);
 
 describe("Test Suite", () => {
   let messenger: IMessenger<ToIdeProtocol, FromIdeProtocol>;
@@ -172,9 +172,9 @@ describe("Test Suite", () => {
     const [platform, arch] = autodetectPlatformAndArch();
     const binaryDir = path.join(__dirname, "..", "bin", `${platform}-${arch}`);
     const exe = platform === "win32" ? ".exe" : "";
-    const binaryPath = path.join(binaryDir, `continue-binary${exe}`);
+    const binaryPath = path.join(binaryDir, `qivryn-binary${exe}`);
     const expectedItems = [
-      `continue-binary${exe}`,
+      `qivryn-binary${exe}`,
       `rg${exe}`,
       "index.node",
       "package.json",
@@ -223,7 +223,7 @@ describe("Test Suite", () => {
     } else {
       try {
         subprocess = spawn(binaryPath, {
-          env: { ...process.env, CONTINUE_GLOBAL_DIR },
+          env: { ...process.env, QIVRYN_GLOBAL_DIR },
         });
         console.log("Successfully spawned subprocess");
       } catch (error) {
@@ -278,8 +278,8 @@ describe("Test Suite", () => {
     expect(resp).toBe("pong");
   });
 
-  it("should create .continue directory at the specified location with expected files", async () => {
-    expect(fs.existsSync(CONTINUE_GLOBAL_DIR)).toBe(true);
+  it("should create .qivryn directory at the specified location with expected files", async () => {
+    expect(fs.existsSync(QIVRYN_GLOBAL_DIR)).toBe(true);
 
     // Many of the files are only created when trying to load the config
     await request("config/getSerializedProfileInfo", undefined);
@@ -287,7 +287,7 @@ describe("Test Suite", () => {
     const expectedFiles = ["logs/core.log", "index/autocompleteCache.sqlite"];
 
     const missingFiles = expectedFiles.filter((file) => {
-      const filePath = path.join(CONTINUE_GLOBAL_DIR, file);
+      const filePath = path.join(QIVRYN_GLOBAL_DIR, file);
       return !fs.existsSync(filePath);
     });
 
@@ -332,7 +332,7 @@ describe("Test Suite", () => {
   });
 
   it("should add and delete a model from config.json", async () => {
-    const model: SerializedContinueConfig["models"][number] = {
+    const model: SerializedQivrynConfig["models"][number] = {
       title: "Test Model",
       provider: "openai",
       model: "gpt-3.5-turbo",
@@ -361,7 +361,7 @@ describe("Test Suite", () => {
   });
 
   it("should make an LLM completion", async () => {
-    const model: SerializedContinueConfig["models"][number] = {
+    const model: SerializedQivrynConfig["models"][number] = {
       title: "Test Model",
       provider: "mock",
       model: "gpt-3.5-turbo",

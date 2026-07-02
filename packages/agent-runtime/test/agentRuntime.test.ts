@@ -14,13 +14,13 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   AgentDaemonServer,
   FileAgentStore,
-  formatContinueDeepLink,
+  formatQivrynDeepLink,
   GitWorktreeWorkspaceProvider,
   handoffAgentRun,
   HttpAgentRuntimeClient,
   LocalAgentRuntime,
   MemoryAgentStore,
-  parseContinueDeepLink,
+  parseQivrynDeepLink,
   ProcessAgentExecutor,
   recoverInterruptedAgentRuns,
   transitionAgentRun,
@@ -34,7 +34,7 @@ const execFileAsync = promisify(execFile);
 
 const temporaryDirectories: string[] = [];
 
-describe("Continue deep links", () => {
+describe("Qivryn deep links", () => {
   it("round-trips agents, checkpoints, reviews, files, and settings", () => {
     const links = [
       { type: "agent", runId: "run / 1" },
@@ -44,9 +44,9 @@ describe("Continue deep links", () => {
       { type: "settings", section: "permissions" },
     ] as const;
     for (const link of links) {
-      expect(parseContinueDeepLink(formatContinueDeepLink(link))).toEqual(link);
+      expect(parseQivrynDeepLink(formatQivrynDeepLink(link))).toEqual(link);
     }
-    expect(parseContinueDeepLink("not a url")).toBeUndefined();
+    expect(parseQivrynDeepLink("not a url")).toBeUndefined();
   });
 });
 
@@ -113,7 +113,7 @@ describe("agent stores", () => {
   });
 
   it("persists runs and events across file store instances", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "continue-agents-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "qivryn-agents-"));
     temporaryDirectories.push(directory);
     const firstStore = new FileAgentStore(directory);
     await firstStore.createRun(createRun());
@@ -139,7 +139,7 @@ describe("agent stores", () => {
   });
 
   it("persists queues and checkpoints across file store instances", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "continue-agents-"));
+    const directory = await mkdtemp(path.join(os.tmpdir(), "qivryn-agents-"));
     temporaryDirectories.push(directory);
     const store = new FileAgentStore(directory);
     await store.createRun(createRun());
@@ -570,7 +570,7 @@ describe("local agent runtime", () => {
 
 describe("git worktree workspace provider", () => {
   it("runs local agents directly when the selected folder is not a Git repository", async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "continue-nongit-test-"));
+    const root = await mkdtemp(path.join(os.tmpdir(), "qivryn-nongit-test-"));
     temporaryDirectories.push(root);
     const workspace = path.join(root, "workspace");
     await mkdir(workspace, { recursive: true });
@@ -607,7 +607,7 @@ describe("git worktree workspace provider", () => {
   });
 
   it("renames, exports, retains, and merges completed worktrees", async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "continue-manage-test-"));
+    const root = await mkdtemp(path.join(os.tmpdir(), "qivryn-manage-test-"));
     temporaryDirectories.push(root);
     const repository = path.join(root, "repo");
     await execFileAsync("git", ["init", repository]);
@@ -655,9 +655,9 @@ describe("git worktree workspace provider", () => {
     await runtime.waitForIdle();
     const renamed = await runtime.renameWorktree(
       created.id,
-      "continue/test-feature",
+      "qivryn/test-feature",
     );
-    expect(renamed.run.workspace.branch).toBe("continue/test-feature");
+    expect(renamed.run.workspace.branch).toBe("qivryn/test-feature");
     const exported = await runtime.exportWorktreePatch(created.id);
     expect(exported.patch).toContain("feature.txt");
     const retained = await runtime.retainWorktree(created.id, true);
@@ -670,9 +670,7 @@ describe("git worktree workspace provider", () => {
   });
 
   it("copies dirty state and restores checkpoint commits", async () => {
-    const root = await mkdtemp(
-      path.join(os.tmpdir(), "continue-worktree-test-"),
-    );
+    const root = await mkdtemp(path.join(os.tmpdir(), "qivryn-worktree-test-"));
     temporaryDirectories.push(root);
     const repository = path.join(root, "repo");
     const worktrees = path.join(root, "worktrees");
@@ -743,9 +741,7 @@ describe("git worktree workspace provider", () => {
   });
 
   it("prepares four concurrent runs in isolated worktrees", async () => {
-    const root = await mkdtemp(
-      path.join(os.tmpdir(), "continue-parallel-test-"),
-    );
+    const root = await mkdtemp(path.join(os.tmpdir(), "qivryn-parallel-test-"));
     temporaryDirectories.push(root);
     const repository = path.join(root, "repo");
     await execFileAsync("git", ["init", repository]);
@@ -818,7 +814,7 @@ describe("git worktree workspace provider", () => {
 describe("process agent executor", () => {
   it("runs setup before the agent process and cleanup afterward", async () => {
     const directory = await mkdtemp(
-      path.join(os.tmpdir(), "continue-process-lifecycle-"),
+      path.join(os.tmpdir(), "qivryn-process-lifecycle-"),
     );
     temporaryDirectories.push(directory);
     const marker = path.join(directory, "order.txt");
@@ -885,7 +881,7 @@ describe("process agent executor", () => {
       new MemoryAgentStore(),
       new ProcessAgentExecutor({
         stdoutEventKind: "message.assistant",
-        stdoutProtocol: "continue-agent-events",
+        stdoutProtocol: "qivryn-agent-events",
         progressIntervalMs: 0,
         resolveProcess: () => ({
           command: process.execPath,
@@ -1160,9 +1156,7 @@ describe("agent daemon transport", () => {
   });
 
   it("recovers persisted interrupted runs after daemon restart", async () => {
-    const directory = await mkdtemp(
-      path.join(os.tmpdir(), "continue-recovery-"),
-    );
+    const directory = await mkdtemp(path.join(os.tmpdir(), "qivryn-recovery-"));
     temporaryDirectories.push(directory);
     const store = new FileAgentStore(directory);
     await store.initialize();
@@ -1218,7 +1212,7 @@ describe("runtime handoff", () => {
       workspace: { location: "local", repositoryPath: "/repo" },
     });
     await source.waitForIdle();
-    await source.enqueuePrompt(run.id, "Continue remotely");
+    await source.enqueuePrompt(run.id, "Qivryn remotely");
     await source.createPlan(run.id, "Remote plan", ["Validate"]);
     const before = await source.exportRun(run.id);
     const imported = await handoffAgentRun(source, target, run.id, {

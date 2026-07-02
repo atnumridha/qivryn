@@ -3,7 +3,7 @@ import {
   FileSlackCredentialStore,
   SlackConnectorService,
   SlackWebApiClient,
-} from "@continuedev/slack-connector";
+} from "@qivryn/slack-connector";
 import { env } from "../env.js";
 
 interface SlackCommandOptions {
@@ -20,7 +20,7 @@ interface SlackCommandOptions {
 function service(): SlackConnectorService {
   return new SlackConnectorService(
     new FileSlackCredentialStore(
-      path.join(env.continueHome, "connectors", "slack"),
+      path.join(env.qivrynHome, "connectors", "slack"),
     ),
     new SlackWebApiClient(),
   );

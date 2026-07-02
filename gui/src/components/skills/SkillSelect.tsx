@@ -3,7 +3,7 @@ import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { IdeMessengerContext } from "../../context/IdeMessenger";
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "../ui";
 
-const SKILL_CACHE_KEY = "continue.skills.catalog.v2";
+const SKILL_CACHE_KEY = "qivryn.skills.catalog.v2";
 
 export interface SkillSummary {
   name: string;

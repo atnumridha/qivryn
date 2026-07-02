@@ -1,4 +1,4 @@
-name: Release @continuedev/llm-info
+name: Release @qivryn/llm-info
 on:
   push:
     branches:
@@ -15,8 +15,8 @@ permissions:
 
 jobs:
   release:
-    # Only run this workflow on the main repository (continuedev/continue)
-    if: github.repository == 'continuedev/continue'
+    # Only run this workflow on the main repository (atnumridha/qivryn)
+    if: github.repository == 'qivryn/qivryn'
     uses: ./.github/workflows/reusable-release.yml
     with:
       package-name: "llm-info"

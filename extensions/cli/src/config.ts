@@ -1,13 +1,10 @@
-import { AssistantUnrolled, ModelConfig } from "@continuedev/config-yaml";
+import { AssistantUnrolled, ModelConfig } from "@qivryn/config-yaml";
 import {
   BaseLlmApi,
   constructLlmApi,
   LLMConfig,
-} from "@continuedev/openai-adapters";
-import {
-  Configuration,
-  DefaultApi,
-} from "@continuedev/sdk/dist/api/dist/index.js";
+} from "@qivryn/openai-adapters";
+import { Configuration, DefaultApi } from "@qivryn/sdk/dist/api/dist/index.js";
 
 import { AuthConfig } from "./auth/workos.js";
 import { env } from "./env.js";
@@ -19,7 +16,7 @@ import { getVersion } from "./version.js";
  */
 function getUserAgent(): string {
   const version = getVersion();
-  return `Continue-CLI/${version}`;
+  return `Qivryn-CLI/${version}`;
 }
 
 /**
@@ -33,7 +30,7 @@ function _mergeUserAgentIntoRequestOptions(
     headers: {
       ...requestOptions?.headers,
       "user-agent": getUserAgent(),
-      "x-continue-unique-id": getUniqueId(),
+      "x-qivryn-unique-id": getUniqueId(),
     },
   };
 }

@@ -1,7 +1,7 @@
 import {
   AssistantUnrolledNonNullable,
   validateConfigYaml,
-} from "@continuedev/config-yaml";
+} from "@qivryn/config-yaml";
 import { describe, expect, it } from "vitest";
 
 describe("MCP Server cwd configuration", () => {

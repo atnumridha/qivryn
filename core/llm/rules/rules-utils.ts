@@ -59,7 +59,7 @@ export function getRuleDisplayName(rule: RuleMetadata): string {
 
 export function getRuleSourceDisplayName(rule: RuleMetadata): string {
   switch (rule.source) {
-    case ".continuerules":
+    case ".qivrynrules":
       return "Project rules";
     case "default-chat":
       return "Default chat system message";

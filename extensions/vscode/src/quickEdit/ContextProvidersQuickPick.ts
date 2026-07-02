@@ -1,10 +1,10 @@
-import { fetchwithRequestOptions } from "@continuedev/fetch";
-import { ContinueConfig, IDE } from "core";
+import { fetchwithRequestOptions } from "@qivryn/fetch";
+import { QivrynConfig, IDE } from "core";
 import { QuickPickItem, window } from "vscode";
 
 export async function getContextProviderItems({
   contextProviders,
-}: ContinueConfig): Promise<QuickPickItem[]> {
+}: QivrynConfig): Promise<QuickPickItem[]> {
   if (!contextProviders) {
     return [];
   }
@@ -23,7 +23,7 @@ export async function getContextProviderItems({
 
 export async function getContextProvidersString(
   selectedProviders: QuickPickItem[] | undefined,
-  config: ContinueConfig,
+  config: QivrynConfig,
   ide: IDE,
 ): Promise<string> {
   const contextItems = (
@@ -58,7 +58,7 @@ export async function getContextProvidersString(
 }
 
 export async function getContextProviderQuickPickVal(
-  config: ContinueConfig,
+  config: QivrynConfig,
   ide: IDE,
 ) {
   const contextProviderItems = await getContextProviderItems(config);

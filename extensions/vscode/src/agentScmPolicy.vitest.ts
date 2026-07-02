@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AgentRun } from "@continuedev/agent-runtime";
+import type { AgentRun } from "@qivryn/agent-runtime";
 import { activeAgentWorktrees } from "./agentScmPolicy";
 
 function run(id: string, worktreePath?: string, archived = false): AgentRun {
@@ -18,7 +18,7 @@ function run(id: string, worktreePath?: string, archived = false): AgentRun {
       location: "local",
       repositoryPath: "/repo",
       worktreePath,
-      branch: `continue/agent-${id}`,
+      branch: `qivryn/agent-${id}`,
     },
   };
 }

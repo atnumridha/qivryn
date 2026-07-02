@@ -54,7 +54,7 @@ export class UpdateService extends BaseService<UpdateServiceState> {
       if (this.currentState.currentVersion === "0.0.0-dev") {
         this.setState({
           status: UpdateStatus.IDLE,
-          message: `Continue CLI`,
+          message: `Qivryn CLI`,
         });
         return; // Uncomment to test auto-update behavior in dev
       }
@@ -73,7 +73,7 @@ export class UpdateService extends BaseService<UpdateServiceState> {
       if (!latestVersion) {
         this.setState({
           status: UpdateStatus.IDLE,
-          message: "Continue CLI",
+          message: "Qivryn CLI",
           isUpdateAvailable: false,
         });
         return;
@@ -93,7 +93,7 @@ export class UpdateService extends BaseService<UpdateServiceState> {
         autoUpdate &&
         isUpdateAvailable &&
         this.currentState.status !== "updating" &&
-        !process.env.CONTINUE_CLI_AUTO_UPDATED //Already auto updated, preventing sequential auto-update
+        !process.env.QIVRYN_CLI_AUTO_UPDATED //Already auto updated, preventing sequential auto-update
       ) {
         await this.performUpdate(true);
       } else {
@@ -101,7 +101,7 @@ export class UpdateService extends BaseService<UpdateServiceState> {
           status: UpdateStatus.IDLE,
           message: isUpdateAvailable
             ? `Update available: v${latestVersion}`
-            : `Continue CLI v${this.currentState.currentVersion}`,
+            : `Qivryn CLI v${this.currentState.currentVersion}`,
           isUpdateAvailable,
           latestVersion,
         });
@@ -110,7 +110,7 @@ export class UpdateService extends BaseService<UpdateServiceState> {
       logger.error("Error checking for updates:", error);
       this.setState({
         status: UpdateStatus.ERROR,
-        message: `Continue CLI v${this.currentState.currentVersion}`,
+        message: `Qivryn CLI v${this.currentState.currentVersion}`,
         error,
       });
     }
@@ -145,7 +145,7 @@ export class UpdateService extends BaseService<UpdateServiceState> {
       });
 
       // Install the update
-      const { stdout, stderr } = await execAsync("npm i -g @continuedev/cli");
+      const { stdout, stderr } = await execAsync("npm i -g @qivryn/cli");
       logger.debug("Update output:", { stdout, stderr });
 
       if (stderr) {
@@ -202,25 +202,25 @@ export class UpdateService extends BaseService<UpdateServiceState> {
         )}`,
       );
 
-      // Halt/clean up parent cn process
+      // Halt/clean up parent qivryn process
       try {
         // Remove all input listeners
         global.clearTimeout = () => {};
         global.clearInterval = () => {};
         process.stdin.removeAllListeners();
         process.stdin.pause();
-        // console.clear(); // Don't want to clear things that were in console before cn started
+        // console.clear(); // Don't want to clear things that were in console before qivryn started
       } catch (e) {
         logger.debug("Error cleaning up terminal:", e);
       }
 
-      // Spawn a new detached cn process
+      // Spawn a new detached qivryn process
       const child = spawn(nodeExecutable, [entryPoint, ...cliArgs], {
         detached: true,
         stdio: "inherit",
         env: {
           ...process.env,
-          CONTINUE_CLI_AUTO_UPDATED: "true",
+          QIVRYN_CLI_AUTO_UPDATED: "true",
         },
       });
 

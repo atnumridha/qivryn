@@ -14,7 +14,7 @@ const SESSION_ID = crypto.randomBytes(4).toString("hex");
 
 // Get log directory
 function getLogDir(): string {
-  const logDir = path.join(env.continueHome, "logs");
+  const logDir = path.join(env.qivrynHome, "logs");
 
   // Create directory if it doesn't exist
   if (!fs.existsSync(logDir)) {
@@ -27,7 +27,7 @@ function getLogDir(): string {
 // Get current log file path
 function getLogFilePath(): string {
   const logDir = getLogDir();
-  return path.join(logDir, "cn.log");
+  return path.join(logDir, "qivryn.log");
 }
 
 // Simple replacer for JSON.stringify to handle common issues

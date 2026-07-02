@@ -159,7 +159,7 @@ export function ExtensionsSection() {
           </h2>
           <p className="text-description m-0 text-xs">
             Import a trusted local plugin directory containing
-            <code className="mx-1">.codex-plugin/plugin.json</code>. Continue
+            <code className="mx-1">.codex-plugin/plugin.json</code>. Qivryn
             copies it into managed storage; importing the same plugin again
             updates it.
           </p>

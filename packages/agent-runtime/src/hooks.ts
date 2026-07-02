@@ -96,7 +96,7 @@ export class AgentHookRunner implements AgentHookExecutor {
     return new Promise((resolve) => {
       const child = spawn(hook.command, hook.args ?? [], {
         cwd: hook.cwd,
-        env: { ...process.env, CONTINUE_HOOK_EVENT: event },
+        env: { ...process.env, QIVRYN_HOOK_EVENT: event },
         shell: false,
         stdio: ["pipe", "pipe", "pipe"],
       });

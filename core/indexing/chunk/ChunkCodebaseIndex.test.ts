@@ -5,7 +5,7 @@ import {
   mockFileContents,
   mockFilename,
   mockPathAndCacheKey,
-  testContinueServerClient,
+  testQivrynServerClient,
   updateIndexAndAwaitGenerator,
 } from "../test/indexing";
 import { addToTestDir } from "../../test/testDir";
@@ -31,7 +31,7 @@ describe("ChunkCodebaseIndex", () => {
   beforeAll(async () => {
     index = new ChunkCodebaseIndex(
       testIde.readFile.bind(testIde),
-      testContinueServerClient,
+      testQivrynServerClient,
       1000,
     );
 

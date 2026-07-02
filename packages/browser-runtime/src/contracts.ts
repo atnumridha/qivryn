@@ -1,4 +1,4 @@
-import type { BrowserEvent, BrowserSession } from "@continuedev/agent-runtime";
+import type { BrowserEvent, BrowserSession } from "@qivryn/agent-runtime";
 
 export type BrowserActor = "user" | "agent";
 export type BrowserPermissionAction =

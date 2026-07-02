@@ -16,7 +16,7 @@ describe("shared lifecycle hooks", () => {
         command: process.execPath,
         args: [
           "-e",
-          "let s='';process.stdin.on('data',c=>s+=c);process.stdin.on('end',()=>process.stdout.write(process.env.CONTINUE_HOOK_EVENT+' '+JSON.parse(s).run.id))",
+          "let s='';process.stdin.on('data',c=>s+=c);process.stdin.on('end',()=>process.stdout.write(process.env.QIVRYN_HOOK_EVENT+' '+JSON.parse(s).run.id))",
         ],
         failurePolicy: "error",
       },

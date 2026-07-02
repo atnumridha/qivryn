@@ -32,7 +32,7 @@ export interface ProcessAgentExecutorOptions {
    */
   stdoutEventKind?: "tool.output" | "message.assistant";
   /** Parse stdout as newline-delimited AgentEvent records with plain-text fallback. */
-  stdoutProtocol?: "text" | "continue-agent-events";
+  stdoutProtocol?: "text" | "qivryn-agent-events";
   /** Emits a liveness event while the child is silent. Set to 0 to disable. */
   progressIntervalMs?: number;
 }
@@ -197,7 +197,7 @@ export class ProcessAgentExecutor implements LocalAgentExecutor {
     };
     child.stdout.on("data", (chunk: Buffer) => {
       const text = chunk.toString("utf8");
-      if (this.options.stdoutProtocol !== "continue-agent-events") {
+      if (this.options.stdoutProtocol !== "qivryn-agent-events") {
         streamText("stdout", text);
         return;
       }

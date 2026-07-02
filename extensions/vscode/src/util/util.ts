@@ -114,7 +114,7 @@ export function isUnsupportedPlatform(): {
   // if (platform === "unknown" || arch === "unknown") {
   //   return {
   //     isUnsupported: true,
-  //     reason: `Unsupported platform combination: ${os.platform()}-${os.arch()}. Continue extension supports Windows x64, macOS (Intel/Apple Silicon), and Linux (x64/ARM64).`,
+  //     reason: `Unsupported platform combination: ${os.platform()}-${os.arch()}. Qivryn extension supports Windows x64, macOS (Intel/Apple Silicon), and Linux (x64/ARM64).`,
   //   };
   // }
 
@@ -156,7 +156,7 @@ export function getMetaKeyName() {
 }
 
 export function getExtensionVersion(): string {
-  const extension = vscode.extensions.getExtension("continue.continue");
+  const extension = vscode.extensions.getExtension("qivryn.qivryn");
   return extension?.packageJSON.version || "0.1.0";
 }
 

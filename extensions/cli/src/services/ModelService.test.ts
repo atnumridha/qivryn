@@ -1,4 +1,4 @@
-import { AssistantUnrolled, ModelConfig } from "@continuedev/config-yaml";
+import { AssistantUnrolled, ModelConfig } from "@qivryn/config-yaml";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 // Mock dependencies before imports
@@ -136,12 +136,12 @@ describe("ModelService", () => {
       );
     });
 
-    test("should handle continue-proxy provider specially", async () => {
+    test("should handle qivryn-proxy provider specially", async () => {
       const proxyModel = {
-        provider: "continue-proxy",
+        provider: "qivryn-proxy",
         model: "proxy-model",
         name: "Proxy Model",
-        apiBase: "https://proxy.continue.dev",
+        apiBase: "https://proxy.qivryn.ai",
         apiKeyLocation: "env.PROXY_KEY",
         roles: ["chat"],
       } as ModelConfig;

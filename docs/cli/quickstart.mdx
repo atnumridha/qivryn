@@ -7,10 +7,10 @@ import CLIInstall from '/snippets/cli-install.mdx'
 
 <OSAutoDetect />
 
-Continue CLI (`cn`) is a terminal-based coding agent. It can edit files, run commands, and work through multi-step tasks — the same agent that powers the Continue IDE extensions, running in your terminal.
+Qivryn CLI (`qivryn`) is a terminal-based coding agent. It can edit files, run commands, and work through multi-step tasks — the same agent that powers the Qivryn IDE extensions, running in your terminal.
 
 <Frame>
-  <img src="/images/cn-demo.gif" />
+  <img src="/images/qivryn-demo.gif" />
 </Frame>
 
 ## Install
@@ -20,51 +20,51 @@ Continue CLI (`cn`) is a terminal-based coding agent. It can edit files, run com
 Verify the installation:
 
 ```bash
-cn --version
+qivryn --version
 ```
 
 ### Requirements
 
 - **Node.js 20+** — needed for the npm install path. The shell installer bundles its own runtime.
-- A [Continue](https://continue.dev) account, or an Anthropic API key.
+- A [Qivryn](https://qivryn.ai) account, or an Anthropic API key.
 
 ## First run
 
 ```bash
 cd your-project
-cn
+qivryn
 ```
 
-On first launch you'll be asked to log in with [Continue](https://continue.dev) or enter an Anthropic API key. After that, you're in a session and can start typing.
+On first launch you'll be asked to log in with [Qivryn](https://qivryn.ai) or enter an Anthropic API key. After that, you're in a session and can start typing.
 
 ## Authentication
 
-### Log in with Continue
+### Log in with Qivryn
 
 ```bash
-cn login
+qivryn login
 ```
 
-This opens your browser to authenticate with [Continue](https://continue.dev). Once authenticated, `cn` can use your configured assistants, models, and MCP servers from the platform.
+This opens your browser to authenticate with [Qivryn](https://qivryn.ai). Once authenticated, `qivryn` can use your configured assistants, models, and MCP servers from the platform.
 
 ### API key (headless / CI)
 
-For automation environments where there's no browser, set the `CONTINUE_API_KEY` environment variable:
+For automation environments where there's no browser, set the `QIVRYN_API_KEY` environment variable:
 
 ```bash
-export CONTINUE_API_KEY=your-key-here
-cn -p "your prompt"
+export QIVRYN_API_KEY=your-key-here
+qivryn -p "your prompt"
 ```
 
 ### Local API key
 
-If you don't want to use Continue, you can use an Anthropic API key directly. On first launch, `cn` will prompt you to choose between logging in with Continue or entering an Anthropic API key.
+If you don't want to use Qivryn, you can use an Anthropic API key directly. On first launch, `qivryn` will prompt you to choose between logging in with Qivryn or entering an Anthropic API key.
 
 ## Two modes
 
-**[TUI mode](/cli/tui-mode)** — run `cn` to start an interactive session. You type messages, reference files with `@`, approve tool calls, and iterate with the agent. This is the default.
+**[TUI mode](/cli/tui-mode)** — run `qivryn` to start an interactive session. You type messages, reference files with `@`, approve tool calls, and iterate with the agent. This is the default.
 
-**[Headless mode](/cli/headless-mode)** — run `cn -p "your prompt"` for single-shot automation. The agent runs to completion and prints its response to stdout. Use this in scripts, CI/CD, and git hooks.
+**[Headless mode](/cli/headless-mode)** — run `qivryn -p "your prompt"` for single-shot automation. The agent runs to completion and prints its response to stdout. Use this in scripts, CI/CD, and git hooks.
 
 ## Common flags
 
@@ -83,4 +83,4 @@ If you don't want to use Continue, you can use an Anthropic API key directly. On
 | `--agent <slug>` | Load an agent file by slug |
 | `--verbose` | Enable verbose logging |
 
-Run `cn --help` for the full list.
+Run `qivryn --help` for the full list.

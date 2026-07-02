@@ -1,5 +1,5 @@
 import puppeteer, { type Browser, type Page } from "puppeteer";
-import type { BrowserSession } from "@continuedev/agent-runtime";
+import type { BrowserSession } from "@qivryn/agent-runtime";
 import type { BrowserAdapter } from "./contracts.js";
 
 interface BrowserState {

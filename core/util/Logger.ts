@@ -14,7 +14,7 @@ class LoggerClass {
           const metaStr = Object.keys(meta).length
             ? ` ${JSON.stringify(meta)}`
             : "";
-          return `[@continuedev] ${level}: ${message}${metaStr}`;
+          return `[@qivryn] ${level}: ${message}${metaStr}`;
         }),
       ),
       transports: [

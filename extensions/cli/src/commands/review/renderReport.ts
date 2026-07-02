@@ -123,16 +123,16 @@ function renderTextReport(
   if (options.checksFromHub) {
     lines.push(
       isTTY
-        ? chalk.dim("These reviews also run on your PRs via Continue CI.")
-        : "These reviews also run on your PRs via Continue CI.",
+        ? chalk.dim("These reviews also run on your PRs via Qivryn CI.")
+        : "These reviews also run on your PRs via Qivryn CI.",
     );
   } else {
     lines.push(
       isTTY
         ? chalk.dim(
-            "Tip: Run these automatically on every PR → https://continue.dev",
+            "Tip: Run these automatically on every PR → https://qivryn.ai",
           )
-        : "Tip: Run these automatically on every PR → https://continue.dev",
+        : "Tip: Run these automatically on every PR → https://qivryn.ai",
     );
   }
 

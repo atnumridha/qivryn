@@ -1,0 +1,15 @@
+<svg width="720" height="192" viewBox="0 0 720 192" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="qivryn-gradient" x1="24" y1="24" x2="168" y2="168" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7C5CFF"/>
+      <stop offset="1" stop-color="#2DE2E6"/>
+    </linearGradient>
+  </defs>
+  <circle cx="88" cy="88" r="62" stroke="url(#qivryn-gradient)" stroke-width="18"/>
+  <path d="M127 127L164 164" stroke="url(#qivryn-gradient)" stroke-width="18" stroke-linecap="round"/>
+  <path d="M74 69L55 88L74 107M102 69L121 88L102 107" stroke="url(#qivryn-gradient)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M88 75V106" stroke="#10131A" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="88" cy="110" r="9" fill="#10131A"/>
+  <path d="M88 42L93 55L106 60L93 65L88 78L83 65L70 60L83 55L88 42Z" fill="#2DE2E6"/>
+  <text x="210" y="123" fill="#F4F2FF" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="94" font-weight="650" letter-spacing="-3">Qivryn</text>
+</svg>

@@ -11,7 +11,7 @@ export async function registerConfigYamlSchema(
     return false;
   }
 
-  const yamlMatcher = ".continue/**/*.yaml";
+  const yamlMatcher = ".qivryn/**/*.yaml";
   const yamlConfig = vscode.workspace.getConfiguration("yaml");
   const yamlSchemas = yamlConfig.get<object>("schemas", {});
   const schemaUri = vscode.Uri.joinPath(
@@ -31,8 +31,8 @@ export async function registerConfigYamlSchema(
     return true;
   } catch (error) {
     // Schema completion is an optional enhancement and must never make
-    // Continue activation look or behave like a failure.
-    console.warn("Continue config.yaml schema registration was skipped", error);
+    // Qivryn activation look or behave like a failure.
+    console.warn("Qivryn config.yaml schema registration was skipped", error);
     return false;
   }
 }

@@ -125,7 +125,7 @@ tasks {
 
     test {
         useJUnitPlatform()
-        environment("CONTINUE_GLOBAL_DIR", "${rootProject.projectDir}/src/test/kotlin/com/github/continuedev/continueintellijextension/test-continue")
+        environment("QIVRYN_GLOBAL_DIR", "${rootProject.projectDir}/src/test/kotlin/com/github/qivryn/qivrynintellijextension/test-qivryn")
         jvmArgumentProviders += CommandLineArgumentProvider { listOf("-Dide.browser.jcef.sandbox.enable=false") }
     }
 }
@@ -134,8 +134,8 @@ val testIntegration = task<Test>("testIntegration") {
     val integrationTestSourceSet = sourceSets.getByName("testIntegration")
     testClassesDirs = integrationTestSourceSet.output.classesDirs
     classpath = integrationTestSourceSet.runtimeClasspath
-    systemProperty("CONTINUE_PLUGIN_DIR", tasks.prepareSandbox.get().pluginDirectory.get().asFile)
-    environment("CONTINUE_GLOBAL_DIR", "${rootProject.projectDir}/src/testIntegration/kotlin/com/github/continuedev/continueintellijextension/test-continue")
+    systemProperty("QIVRYN_PLUGIN_DIR", tasks.prepareSandbox.get().pluginDirectory.get().asFile)
+    environment("QIVRYN_GLOBAL_DIR", "${rootProject.projectDir}/src/testIntegration/kotlin/com/github/qivryn/qivrynintellijextension/test-qivryn")
     useJUnitPlatform()
     dependsOn(tasks.prepareSandbox)
 }

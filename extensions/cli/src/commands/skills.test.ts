@@ -18,7 +18,7 @@ describe("skillsCommand", () => {
 
   it("creates a workspace skill that is discoverable by the CLI", async () => {
     const directory = fs.mkdtempSync(
-      path.join(os.tmpdir(), "continue-skill-command-"),
+      path.join(os.tmpdir(), "qivryn-skill-command-"),
     );
     temporaryDirectories.push(directory);
     process.chdir(directory);
@@ -33,7 +33,7 @@ describe("skillsCommand", () => {
 
     const skillFile = path.join(
       directory,
-      ".continue",
+      ".qivryn",
       "skills",
       "release-review",
       "SKILL.md",

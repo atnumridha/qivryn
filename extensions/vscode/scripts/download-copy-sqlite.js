@@ -1,4 +1,4 @@
-const { fork } = require("child_process");
+const { execFileSync, fork } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
@@ -43,13 +43,18 @@ async function downloadFile(url, outputPath) {
  * @param {string} targetDir the directory to download into
  */
 async function downloadSqlite(target, targetDir) {
-  const downloadUrl =
-    // node-sqlite3 doesn't have a pre-built binary for win32-arm64
-    target === "win32-arm64"
-      ? "https://continue-server-binaries.s3.us-west-1.amazonaws.com/win32-arm64/node_sqlite3.tar.gz"
-      : `https://github.com/TryGhost/node-sqlite3/releases/download/v5.1.7/sqlite3-v5.1.7-napi-v6-${
-          target
-        }.tar.gz`;
+  let downloadUrl;
+  if (target === "win32-arm64") {
+    const binaryCdnUrl = process.env.QIVRYN_BINARY_CDN_URL?.replace(/\/$/, "");
+    if (!binaryCdnUrl) {
+      throw new Error(
+        "QIVRYN_BINARY_CDN_URL is required to package the win32-arm64 sqlite3 binary",
+      );
+    }
+    downloadUrl = `${binaryCdnUrl}/win32-arm64/node_sqlite3.tar.gz`;
+  } else {
+    downloadUrl = `https://github.com/TryGhost/node-sqlite3/releases/download/v5.1.7/sqlite3-v5.1.7-napi-v6-${target}.tar.gz`;
+  }
   await downloadFile(downloadUrl, targetDir);
 }
 
@@ -63,16 +68,20 @@ async function installAndCopySqlite(target) {
 }
 
 async function installAndCopyEsbuild(target) {
-  // Download and unzip esbuild
-  console.log("[info] Downloading pre-built esbuild binary");
+  console.log("[info] Installing the target esbuild binary from npm");
+  const esbuildVersion = require("esbuild/package.json").version;
   rimrafSync("node_modules/@esbuild");
-  fs.mkdirSync("node_modules/@esbuild", { recursive: true });
-  await downloadFile(
-    `https://continue-server-binaries.s3.us-west-1.amazonaws.com/${target}/esbuild.zip`,
-    "node_modules/@esbuild/esbuild.zip",
+  execFileSync(
+    process.platform === "win32" ? "npm.cmd" : "npm",
+    [
+      "install",
+      "--no-save",
+      "--package-lock=false",
+      "--ignore-scripts",
+      `@esbuild/${target}@${esbuildVersion}`,
+    ],
+    { stdio: "inherit" },
   );
-  execCmdSync("cd node_modules/@esbuild && unzip esbuild.zip");
-  fs.unlinkSync("node_modules/@esbuild/esbuild.zip");
 }
 
 process.on("message", (msg) => {

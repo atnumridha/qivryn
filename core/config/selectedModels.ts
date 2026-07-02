@@ -1,6 +1,6 @@
-import { ModelRole } from "@continuedev/config-yaml";
+import { ModelRole } from "@qivryn/config-yaml";
 
-import { ContinueConfig, ILLM } from "..";
+import { QivrynConfig, ILLM } from "..";
 import { LLMConfigurationStatuses } from "../llm/constants";
 import {
   GlobalContext,
@@ -8,10 +8,10 @@ import {
 } from "../util/GlobalContext";
 
 export function rectifySelectedModelsFromGlobalContext(
-  continueConfig: ContinueConfig,
+  qivrynConfig: QivrynConfig,
   profileId: string,
-): ContinueConfig {
-  const configCopy = { ...continueConfig };
+): QivrynConfig {
+  const configCopy = { ...qivrynConfig };
 
   const globalContext = new GlobalContext();
   const currentSelectedModels = globalContext.get("selectedModelsByProfileId");
@@ -35,7 +35,7 @@ export function rectifySelectedModelsFromGlobalContext(
     const currentSelection = currentForProfile[role] ?? null;
 
     if (currentSelection) {
-      const match = continueConfig.modelsByRole[role].find(
+      const match = qivrynConfig.modelsByRole[role].find(
         (m) => m.title === currentSelection,
       );
       if (match) {
@@ -43,8 +43,8 @@ export function rectifySelectedModelsFromGlobalContext(
       }
     }
 
-    if (!newModel && continueConfig.modelsByRole[role].length > 0) {
-      newModel = continueConfig.modelsByRole[role][0];
+    if (!newModel && qivrynConfig.modelsByRole[role].length > 0) {
+      newModel = qivrynConfig.modelsByRole[role][0];
     }
 
     if (!(currentSelection === (newModel?.title ?? null))) {

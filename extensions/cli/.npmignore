@@ -2,7 +2,7 @@
 test
 .vscode
 .github
-.continue
+.qivryn
 .releaserc.json
 AGENTS.md
 vitest.config.ts

@@ -1,7 +1,7 @@
 import { workspace } from "vscode";
 
-export const CONTINUE_WORKSPACE_KEY = "continue";
+export const QIVRYN_WORKSPACE_KEY = "qivryn";
 
-export function getContinueWorkspaceConfig() {
-  return workspace.getConfiguration(CONTINUE_WORKSPACE_KEY);
+export function getQivrynWorkspaceConfig() {
+  return workspace.getConfiguration(QIVRYN_WORKSPACE_KEY);
 }

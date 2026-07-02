@@ -174,18 +174,18 @@ export class LLMLogFormatter {
       this.output.write("\n");
     }
 
-    let continueAt = null;
+    let qivrynAt = null;
     if (
       wrap &&
       fragment.length - startAt > this.wrapWidth - this.openLineChars
     ) {
-      continueAt = startAt + this.wrapWidth - this.openLineChars;
+      qivrynAt = startAt + this.wrapWidth - this.openLineChars;
 
       // Look for a better line-breaking point at whitespace
-      const searchBackwardLimit = Math.max(startAt, continueAt - 20); // Don't look back too far
-      for (let i = continueAt; i > searchBackwardLimit; i--) {
+      const searchBackwardLimit = Math.max(startAt, qivrynAt - 20); // Don't look back too far
+      for (let i = qivrynAt; i > searchBackwardLimit; i--) {
         if (/\s/.test(fragment.charAt(i))) {
-          continueAt = i + 1; // Break after the whitespace
+          qivrynAt = i + 1; // Break after the whitespace
           break;
         }
       }
@@ -193,7 +193,7 @@ export class LLMLogFormatter {
       // When there's whitespace immediately after the wrap width,
       // the above will result in breaking *after* that, so we exceed
       // the wrap width. The trimEnd() avoids that.
-      fragment = fragment.substring(startAt, continueAt).trimEnd();
+      fragment = fragment.substring(startAt, qivrynAt).trimEnd();
       joinAfter = false;
     } else if (startAt > 0) {
       fragment = fragment.substring(startAt);
@@ -215,7 +215,7 @@ export class LLMLogFormatter {
       this.openLineChars += fragment.length;
     }
 
-    return continueAt;
+    return qivrynAt;
   }
 
   // Use for everything but text content; a newline is

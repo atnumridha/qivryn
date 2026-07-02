@@ -3,7 +3,7 @@ import { throwIfFileIsSecurityConcern } from "../../indexing/ignore";
 import { inferResolvedUriFromRelativePath } from "../../util/ideUtils";
 import { resolveInputPath } from "../../util/pathResolver";
 import { getCleanUriPath, getUriPathBasename } from "../../util/uri";
-import { ContinueError, ContinueErrorReason } from "../../util/errors";
+import { QivrynError, QivrynErrorReason } from "../../util/errors";
 import { getStringArg } from "../parseArgs";
 import { ToolImpl } from ".";
 
@@ -12,8 +12,8 @@ export const writeFileImpl: ToolImpl = async (args, extras) => {
   const contents = getStringArg(args, "contents", true);
   const uri = await inferResolvedUriFromRelativePath(filepath, extras.ide);
   if (!uri) {
-    throw new ContinueError(
-      ContinueErrorReason.PathResolutionFailed,
+    throw new QivrynError(
+      QivrynErrorReason.PathResolutionFailed,
       `Could not resolve ${filepath}`,
     );
   }
@@ -35,8 +35,8 @@ export const deleteFileImpl: ToolImpl = async (args, extras) => {
   const filepath = getStringArg(args, "filepath");
   const resolved = await resolveInputPath(extras.ide, filepath);
   if (!resolved) {
-    throw new ContinueError(
-      ContinueErrorReason.FileNotFound,
+    throw new QivrynError(
+      QivrynErrorReason.FileNotFound,
       `File ${filepath} does not exist`,
     );
   }

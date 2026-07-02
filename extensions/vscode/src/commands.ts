@@ -3,7 +3,7 @@ import {
   createAgentDiagnosticReport,
   FileAgentStore,
   generateCommitMessage,
-} from "@continuedev/agent-runtime";
+} from "@qivryn/agent-runtime";
 import * as fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -22,7 +22,7 @@ import { startLocalOllama } from "core/util/ollamaHelper";
 import {
   getConfigJsonPath,
   getConfigYamlPath,
-  getContinueGlobalPath,
+  getQivrynGlobalPath,
   setConfigFilePermissions,
 } from "core/util/paths";
 import * as vscode from "vscode";
@@ -48,9 +48,9 @@ import {
   setupStatusBar,
   StatusBarStatus,
 } from "./autocomplete/statusBar";
-import { ContinueConsoleWebviewViewProvider } from "./ContinueConsoleWebviewViewProvider";
-import { ContinueGUIWebviewViewProvider } from "./ContinueGUIWebviewViewProvider";
-import { ContinueLayoutManager } from "./ContinueLayoutManager";
+import { QivrynConsoleWebviewViewProvider } from "./QivrynConsoleWebviewViewProvider";
+import { QivrynGUIWebviewViewProvider } from "./QivrynGUIWebviewViewProvider";
+import { QivrynLayoutManager } from "./QivrynLayoutManager";
 import { processDiff } from "./diff/processDiff";
 import { VerticalDiffManager } from "./diff/vertical/manager";
 import { partialSuggestionCommand } from "./partialSuggestionAcceptance";
@@ -72,7 +72,7 @@ let fullScreenRecoverySessionId: string | undefined;
 function getFullScreenTab() {
   const tabs = vscode.window.tabGroups.all.flatMap((tabGroup) => tabGroup.tabs);
   return tabs.find((tab) =>
-    (tab.input as any)?.viewType?.endsWith("continue.continueGUIView"),
+    (tab.input as any)?.viewType?.endsWith("qivryn.qivrynGUIView"),
   );
 }
 
@@ -83,7 +83,7 @@ function focusGUI() {
     fullScreenPanel?.reveal();
   } else {
     // focus sidebar
-    vscode.commands.executeCommand("continue.continueGUIView.focus");
+    vscode.commands.executeCommand("qivryn.qivrynGUIView.focus");
     // vscode.commands.executeCommand("workbench.action.focusAuxiliaryBar");
   }
 }
@@ -101,7 +101,7 @@ function hideGUI() {
 }
 
 function waitForSidebarReady(
-  sidebar: ContinueGUIWebviewViewProvider,
+  sidebar: QivrynGUIWebviewViewProvider,
   timeout: number,
   interval: number,
 ): Promise<boolean> {
@@ -126,15 +126,15 @@ function waitForSidebarReady(
 const getCommandsMap: (
   ide: VsCodeIde,
   extensionContext: vscode.ExtensionContext,
-  sidebar: ContinueGUIWebviewViewProvider,
-  consoleView: ContinueConsoleWebviewViewProvider,
+  sidebar: QivrynGUIWebviewViewProvider,
+  consoleView: QivrynConsoleWebviewViewProvider,
   configHandler: ConfigHandler,
   verticalDiffManager: VerticalDiffManager,
   battery: Battery,
   quickEdit: QuickEdit,
   core: Core,
   editDecorationManager: EditDecorationManager,
-  layoutManager: ContinueLayoutManager,
+  layoutManager: QivrynLayoutManager,
   agentScmGraphManager: AgentScmGraphManager,
 ) => { [command: string]: (...args: any) => any } = (
   ide,
@@ -192,7 +192,7 @@ const getCommandsMap: (
   }
 
   return {
-    "continue.acceptDiff": async (newFileUri?: string, streamId?: string) => {
+    "qivryn.acceptDiff": async (newFileUri?: string, streamId?: string) => {
       void processDiff(
         "accept",
         sidebar,
@@ -204,7 +204,7 @@ const getCommandsMap: (
       );
     },
 
-    "continue.rejectDiff": async (newFileUri?: string, streamId?: string) => {
+    "qivryn.rejectDiff": async (newFileUri?: string, streamId?: string) => {
       void processDiff(
         "reject",
         sidebar,
@@ -215,13 +215,13 @@ const getCommandsMap: (
         streamId,
       );
     },
-    "continue.acceptVerticalDiffBlock": (fileUri?: string, index?: number) => {
+    "qivryn.acceptVerticalDiffBlock": (fileUri?: string, index?: number) => {
       verticalDiffManager.acceptRejectVerticalDiffBlock(true, fileUri, index);
     },
-    "continue.rejectVerticalDiffBlock": (fileUri?: string, index?: number) => {
+    "qivryn.rejectVerticalDiffBlock": (fileUri?: string, index?: number) => {
       verticalDiffManager.acceptRejectVerticalDiffBlock(false, fileUri, index);
     },
-    "continue.quickFix": async (
+    "qivryn.quickFix": async (
       range: vscode.Range,
       diagnosticMessage: string,
     ) => {
@@ -229,40 +229,40 @@ const getCommandsMap: (
 
       addCodeToContextFromRange(range, sidebar.webviewProtocol, prompt);
 
-      vscode.commands.executeCommand("continue.continueGUIView.focus");
+      vscode.commands.executeCommand("qivryn.qivrynGUIView.focus");
     },
-    "continue.defaultQuickAction": async (args: QuickEditShowParams) => {
-      vscode.commands.executeCommand("continue.focusEdit", args);
+    "qivryn.defaultQuickAction": async (args: QuickEditShowParams) => {
+      vscode.commands.executeCommand("qivryn.focusEdit", args);
     },
-    "continue.customQuickActionSendToChat": async (
+    "qivryn.customQuickActionSendToChat": async (
       prompt: string,
       range: vscode.Range,
     ) => {
       addCodeToContextFromRange(range, sidebar.webviewProtocol, prompt);
 
-      vscode.commands.executeCommand("continue.continueGUIView.focus");
+      vscode.commands.executeCommand("qivryn.qivrynGUIView.focus");
     },
-    "continue.customQuickActionStreamInlineEdit": async (
+    "qivryn.customQuickActionStreamInlineEdit": async (
       prompt: string,
       range: vscode.Range,
     ) => {
       streamInlineEdit("docstring", prompt, range);
     },
-    "continue.codebaseForceReIndex": async () => {
+    "qivryn.codebaseForceReIndex": async () => {
       core.invoke("index/forceReIndex", undefined);
     },
-    "continue.rebuildCodebaseIndex": async () => {
+    "qivryn.rebuildCodebaseIndex": async () => {
       core.invoke("index/forceReIndex", { shouldClearIndexes: true });
     },
-    "continue.docsIndex": async () => {
+    "qivryn.docsIndex": async () => {
       core.invoke("context/indexDocs", { reIndex: false });
     },
-    "continue.docsReIndex": async () => {
+    "qivryn.docsReIndex": async () => {
       core.invoke("context/indexDocs", { reIndex: true });
     },
-    "continue.focusContinueInput": async () => {
-      const isContinueInputFocused = await sidebar.webviewProtocol.request(
-        "isContinueInputFocused",
+    "qivryn.focusQivrynInput": async () => {
+      const isQivrynInputFocused = await sidebar.webviewProtocol.request(
+        "isQivrynInputFocused",
         undefined,
         false,
       );
@@ -284,12 +284,12 @@ const getCommandsMap: (
         false,
       );
 
-      if (isContinueInputFocused) {
+      if (isQivrynInputFocused) {
         if (historyLength === 0) {
           hideGUI();
         } else {
           void sidebar.webviewProtocol?.request(
-            "focusContinueInputWithNewSession",
+            "focusQivrynInputWithNewSession",
             undefined,
             false,
           );
@@ -297,16 +297,16 @@ const getCommandsMap: (
       } else {
         focusGUI();
         sidebar.webviewProtocol?.request(
-          "focusContinueInputWithNewSession",
+          "focusQivrynInputWithNewSession",
           undefined,
           false,
         );
         void addHighlightedCodeToContext(sidebar.webviewProtocol);
       }
     },
-    "continue.focusContinueInputWithoutClear": async () => {
-      const isContinueInputFocused = await sidebar.webviewProtocol.request(
-        "isContinueInputFocused",
+    "qivryn.focusQivrynInputWithoutClear": async () => {
+      const isQivrynInputFocused = await sidebar.webviewProtocol.request(
+        "isQivrynInputFocused",
         undefined,
         false,
       );
@@ -322,13 +322,13 @@ const getCommandsMap: (
         }
       }
 
-      if (isContinueInputFocused) {
+      if (isQivrynInputFocused) {
         hideGUI();
       } else {
         focusGUI();
 
         sidebar.webviewProtocol?.request(
-          "focusContinueInputWithoutClear",
+          "focusQivrynInputWithoutClear",
           undefined,
         );
 
@@ -337,72 +337,72 @@ const getCommandsMap: (
     },
     // QuickEditShowParams are passed from CodeLens, temp fix
     // until we update to new params specific to Edit
-    "continue.focusEdit": async (args?: QuickEditShowParams) => {
+    "qivryn.focusEdit": async (args?: QuickEditShowParams) => {
       focusGUI();
       sidebar.webviewProtocol?.request("focusEdit", undefined);
     },
-    "continue.exitEditMode": async () => {
+    "qivryn.exitEditMode": async () => {
       editDecorationManager.clear();
       void sidebar.webviewProtocol?.request("exitEditMode", undefined);
     },
-    "continue.writeCommentsForCode": async () => {
+    "qivryn.writeCommentsForCode": async () => {
       streamInlineEdit(
         "comment",
         "Write comments for this code. Do not change anything about the code itself.",
       );
     },
-    "continue.writeDocstringForCode": async () => {
+    "qivryn.writeDocstringForCode": async () => {
       void streamInlineEdit(
         "docstring",
         "Write a docstring for this code. Do not change anything about the code itself.",
       );
     },
-    "continue.fixCode": async () => {
+    "qivryn.fixCode": async () => {
       streamInlineEdit(
         "fix",
         "Fix this code. If it is already 100% correct, simply rewrite the code.",
       );
     },
-    "continue.optimizeCode": async () => {
+    "qivryn.optimizeCode": async () => {
       streamInlineEdit("optimize", "Optimize this code");
     },
-    "continue.fixGrammar": async () => {
+    "qivryn.fixGrammar": async () => {
       streamInlineEdit(
         "fixGrammar",
         "If there are any grammar or spelling mistakes in this writing, fix them. Do not make other large changes to the writing.",
       );
     },
-    "continue.clearConsole": async () => {
+    "qivryn.clearConsole": async () => {
       consoleView.clearLog();
     },
-    "continue.viewLogs": async () => {
+    "qivryn.viewLogs": async () => {
       vscode.commands.executeCommand("workbench.action.toggleDevTools");
     },
-    "continue.debugTerminal": async () => {
+    "qivryn.debugTerminal": async () => {
       const terminalContents = await ide.getTerminalContents();
 
-      vscode.commands.executeCommand("continue.continueGUIView.focus");
+      vscode.commands.executeCommand("qivryn.qivrynGUIView.focus");
 
       sidebar.webviewProtocol?.request("userInput", {
         input: `I got the following error, can you please help explain how to fix it?\n\n${terminalContents.trim()}`,
       });
     },
-    "continue.hideInlineTip": () => {
+    "qivryn.hideInlineTip": () => {
       vscode.workspace
         .getConfiguration(EXTENSION_NAME)
         .update("showInlineTip", false, vscode.ConfigurationTarget.Global);
     },
 
     // Commands without keyboard shortcuts
-    "continue.addModel": () => {
-      vscode.commands.executeCommand("continue.continueGUIView.focus");
+    "qivryn.addModel": () => {
+      vscode.commands.executeCommand("qivryn.qivrynGUIView.focus");
       sidebar.webviewProtocol?.request("addModel", undefined);
     },
-    "continue.newSession": () => {
+    "qivryn.newSession": () => {
       sidebar.webviewProtocol?.request("newSession", undefined);
     },
 
-    "continue.shareSession": async (sessionId: string | undefined) => {
+    "qivryn.shareSession": async (sessionId: string | undefined) => {
       if (!sessionId) {
         sessionId = await sidebar.webviewProtocol?.request(
           "getCurrentSessionId",
@@ -438,28 +438,26 @@ const getCommandsMap: (
         void vscode.window.showErrorMessage(errorMessage);
       }
     },
-    "continue.viewHistory": () => {
-      vscode.commands.executeCommand("continue.navigateTo", "/history", true);
+    "qivryn.viewHistory": () => {
+      vscode.commands.executeCommand("qivryn.navigateTo", "/history", true);
     },
-    "continue.focusContinueSessionId": async (
-      sessionId: string | undefined,
-    ) => {
+    "qivryn.focusQivrynSessionId": async (sessionId: string | undefined) => {
       if (!sessionId) {
         sessionId = await vscode.window.showInputBox({
           prompt: "Enter the Session ID",
         });
       }
-      void sidebar.webviewProtocol?.request("focusContinueSessionId", {
+      void sidebar.webviewProtocol?.request("focusQivrynSessionId", {
         sessionId,
       });
     },
-    "continue.applyCodeFromChat": () => {
+    "qivryn.applyCodeFromChat": () => {
       void sidebar.webviewProtocol.request("applyCodeFromChat", undefined);
     },
-    "continue.openConfigPage": () => {
-      vscode.commands.executeCommand("continue.navigateTo", "/config", false);
+    "qivryn.openConfigPage": () => {
+      vscode.commands.executeCommand("qivryn.navigateTo", "/config", false);
     },
-    "continue.selectFilesAsContext": async (
+    "qivryn.selectFilesAsContext": async (
       firstUri: vscode.Uri,
       uris: vscode.Uri[],
     ) => {
@@ -467,7 +465,7 @@ const getCommandsMap: (
         throw new Error("No files were selected");
       }
 
-      vscode.commands.executeCommand("continue.continueGUIView.focus");
+      vscode.commands.executeCommand("qivryn.qivrynGUIView.focus");
 
       for (const uri of uris) {
         // If it's a folder, add the entire folder contents recursively by using walkDir (to ignore ignored files)
@@ -476,7 +474,7 @@ const getCommandsMap: (
           ?.then((stat) => stat.type === vscode.FileType.Directory);
         if (isDirectory) {
           for await (const fileUri of walkDirAsync(uri.toString(), ide, {
-            source: "vscode continue.selectFilesAsContext command",
+            source: "vscode qivryn.selectFilesAsContext command",
           })) {
             await addEntireFileToContext(
               vscode.Uri.parse(fileUri),
@@ -493,25 +491,25 @@ const getCommandsMap: (
         }
       }
     },
-    "continue.logAutocompleteOutcome": (
+    "qivryn.logAutocompleteOutcome": (
       completionId: string,
       completionProvider: CompletionProvider,
     ) => {
       completionProvider.accept(completionId);
     },
-    "continue.logNextEditOutcomeAccept": (
+    "qivryn.logNextEditOutcomeAccept": (
       completionId: string,
       nextEditLoggingService: NextEditLoggingService,
     ) => {
       nextEditLoggingService.accept(completionId);
     },
-    "continue.logNextEditOutcomeReject": (
+    "qivryn.logNextEditOutcomeReject": (
       completionId: string,
       nextEditLoggingService: NextEditLoggingService,
     ) => {
       nextEditLoggingService.reject(completionId);
     },
-    "continue.toggleTabAutocompleteEnabled": () => {
+    "qivryn.toggleTabAutocompleteEnabled": () => {
       const config = vscode.workspace.getConfiguration(EXTENSION_NAME);
       const enabled = config.get("enableTabAutocomplete");
       const pauseOnBattery = config.get<boolean>(
@@ -545,7 +543,7 @@ const getCommandsMap: (
         }
       }
     },
-    "continue.forceAutocomplete": async () => {
+    "qivryn.forceAutocomplete": async () => {
       // 1. Explicitly hide any existing suggestion. This clears VS Code's cache for the current position.
       await vscode.commands.executeCommand("editor.action.inlineSuggest.hide");
 
@@ -555,15 +553,14 @@ const getCommandsMap: (
       );
     },
 
-    "continue.openTabAutocompleteConfigMenu": async () => {
+    "qivryn.openTabAutocompleteConfigMenu": async () => {
       const config = vscode.workspace.getConfiguration(EXTENSION_NAME);
       const quickPick = vscode.window.createQuickPick();
 
-      const { config: continueConfig } = await configHandler.loadConfig();
-      const autocompleteModels =
-        continueConfig?.modelsByRole.autocomplete ?? [];
+      const { config: qivrynConfig } = await configHandler.loadConfig();
+      const autocompleteModels = qivrynConfig?.modelsByRole.autocomplete ?? [];
       const selected =
-        continueConfig?.selectedModelByRole?.autocomplete?.title ?? undefined;
+        qivrynConfig?.selectedModelByRole?.autocomplete?.title ?? undefined;
 
       // Toggle between Disabled, Paused, and Enabled
       const pauseOnBattery =
@@ -644,28 +641,28 @@ const getCommandsMap: (
             });
           }
         } else if (selectedOption === "$(comment) Open chat") {
-          vscode.commands.executeCommand("continue.focusContinueInput");
+          vscode.commands.executeCommand("qivryn.focusQivrynInput");
         } else if (selectedOption === "$(screen-full) Open full screen chat") {
-          vscode.commands.executeCommand("continue.openInNewWindow");
+          vscode.commands.executeCommand("qivryn.openInNewWindow");
         } else if (selectedOption === "$(gear) Open settings") {
-          vscode.commands.executeCommand("continue.navigateTo", "/config");
+          vscode.commands.executeCommand("qivryn.navigateTo", "/config");
         }
 
         quickPick.dispose();
       });
       quickPick.show();
     },
-    "continue.navigateTo": (path: string, toggle: boolean) => {
+    "qivryn.navigateTo": (path: string, toggle: boolean) => {
       sidebar.webviewProtocol?.request("navigateTo", { path, toggle });
       focusGUI();
     },
-    "continue.openAgentsWindow": () => {
+    "qivryn.openAgentsWindow": () => {
       return vscode.commands.executeCommand(
-        "continue.openInNewWindow",
+        "qivryn.openInNewWindow",
         "/agents",
       );
     },
-    "continue.reloadAgentsWindow": async () => {
+    "qivryn.reloadAgentsWindow": async () => {
       if (!fullScreenPanel) {
         await vscode.commands.executeCommand("workbench.action.reloadWindow");
         return;
@@ -691,26 +688,26 @@ const getCommandsMap: (
       );
       fullScreenPanel.reveal();
     },
-    "continue.closeAgentsWindow": () => {
+    "qivryn.closeAgentsWindow": () => {
       fullScreenPanel?.dispose();
     },
-    "continue.openAgentReview": () => {
+    "qivryn.openAgentReview": () => {
       return vscode.commands.executeCommand(
-        "continue.navigateTo",
+        "qivryn.navigateTo",
         "/review",
         false,
       );
     },
-    "continue.openTerminalAssistant": () => {
+    "qivryn.openTerminalAssistant": () => {
       return vscode.commands.executeCommand(
-        "continue.navigateTo",
+        "qivryn.navigateTo",
         "/terminal",
         false,
       );
     },
-    "continue.openTerminalPromptBar": async () => {
+    "qivryn.openTerminalPromptBar": async () => {
       const command = await vscode.window.showInputBox({
-        title: "Continue Terminal Prompt",
+        title: "Qivryn Terminal Prompt",
         prompt: "Generate, inspect, or run a shell command",
         placeHolder: "Enter a shell command",
         ignoreFocusOut: true,
@@ -728,7 +725,7 @@ const getCommandsMap: (
         classification.policy === "allowedWithPermission";
       if (classification.policy === "disabled") {
         void vscode.window.showErrorMessage(
-          `Continue blocked this command: ${classification.reasons.join("; ")}`,
+          `Qivryn blocked this command: ${classification.reasons.join("; ")}`,
         );
         return;
       }
@@ -740,36 +737,34 @@ const getCommandsMap: (
           "Open Terminal Assistant",
         );
         if (decision === "Open Terminal Assistant") {
-          return vscode.commands.executeCommand(
-            "continue.openTerminalAssistant",
-          );
+          return vscode.commands.executeCommand("qivryn.openTerminalAssistant");
         }
         if (decision !== "Run") return;
       }
       const terminal =
         vscode.window.activeTerminal ??
-        vscode.window.createTerminal({ name: "Continue Agent" });
+        vscode.window.createTerminal({ name: "Qivryn Agent" });
       terminal.show();
       terminal.sendText(command, true);
     },
-    "continue.openBrowserWorkspace": () => {
+    "qivryn.openBrowserWorkspace": () => {
       return vscode.commands.executeCommand(
-        "continue.navigateTo",
+        "qivryn.navigateTo",
         "/browser",
         false,
       );
     },
-    "continue.openAgentAttribution": openAgentAttribution,
-    "continue.chooseLayout": () => layoutManager.chooseAndApply(),
-    "continue.saveLayout": () => layoutManager.saveCurrent(),
-    "continue.openAgentGraph": () => agentScmGraphManager.openGraph(),
-    "continue.acceptNextSuggestionToken": () =>
+    "qivryn.openAgentAttribution": openAgentAttribution,
+    "qivryn.chooseLayout": () => layoutManager.chooseAndApply(),
+    "qivryn.saveLayout": () => layoutManager.saveCurrent(),
+    "qivryn.openAgentGraph": () => agentScmGraphManager.openGraph(),
+    "qivryn.acceptNextSuggestionToken": () =>
       vscode.commands.executeCommand(partialSuggestionCommand("token")),
-    "continue.acceptNextSuggestionWord": () =>
+    "qivryn.acceptNextSuggestionWord": () =>
       vscode.commands.executeCommand(partialSuggestionCommand("word")),
-    "continue.acceptNextSuggestionLine": () =>
+    "qivryn.acceptNextSuggestionLine": () =>
       vscode.commands.executeCommand(partialSuggestionCommand("line")),
-    "continue.generateCommitMessage": async () => {
+    "qivryn.generateCommitMessage": async () => {
       const staged = await ide.getDiff(false);
       const changes = staged.length > 0 ? staged : await ide.getDiff(true);
       if (changes.length === 0) {
@@ -802,27 +797,27 @@ const getCommandsMap: (
       repository.inputBox.value = message;
       await vscode.commands.executeCommand("workbench.view.scm");
     },
-    "continue.openSlackConnector": () =>
+    "qivryn.openSlackConnector": () =>
       vscode.commands.executeCommand(
-        "continue.navigateTo",
+        "qivryn.navigateTo",
         "/connectors/slack",
         false,
       ),
-    "continue.exportAgentDiagnostics": async () => {
+    "qivryn.exportAgentDiagnostics": async () => {
       const store = new FileAgentStore(
-        path.join(getContinueGlobalPath(), "agents"),
+        path.join(getQivrynGlobalPath(), "agents"),
       );
       const report = await createAgentDiagnosticReport(store);
       const destination = await vscode.window.showSaveDialog({
         defaultUri: vscode.Uri.file(
           path.join(
             os.homedir(),
-            `continue-agent-diagnostics-${Date.now()}.json`,
+            `qivryn-agent-diagnostics-${Date.now()}.json`,
           ),
         ),
         filters: { JSON: ["json"] },
         saveLabel: "Export redacted diagnostics",
-        title: "Export Continue Agent Diagnostics",
+        title: "Export Qivryn Agent Diagnostics",
       });
       if (!destination) return;
       await vscode.workspace.fs.writeFile(
@@ -833,9 +828,9 @@ const getCommandsMap: (
         "Exported redacted agent diagnostics. Nothing was uploaded.",
       );
     },
-    "continue.switchAgent": async () => {
+    "qivryn.switchAgent": async () => {
       const store = new FileAgentStore(
-        path.join(getContinueGlobalPath(), "agents"),
+        path.join(getQivrynGlobalPath(), "agents"),
       );
       await store.initialize();
       const runs = await store.listRuns({ limit: 100 });
@@ -855,19 +850,19 @@ const getCommandsMap: (
       );
       if (selected) {
         await vscode.commands.executeCommand(
-          "continue.navigateTo",
+          "qivryn.navigateTo",
           `/agents?runId=${encodeURIComponent(selected.runId)}`,
           false,
         );
       }
     },
-    "continue.startLocalOllama": () => {
+    "qivryn.startLocalOllama": () => {
       startLocalOllama(ide);
     },
-    "continue.startLocalLemonade": () => {
+    "qivryn.startLocalLemonade": () => {
       startLocalLemonade(ide);
     },
-    "continue.installModel": async (
+    "qivryn.installModel": async (
       modelName: string,
       llmProvider: ILLM | undefined,
     ) => {
@@ -886,7 +881,7 @@ const getCommandsMap: (
         );
       }
     },
-    "continue.convertConfigJsonToConfigYaml": async () => {
+    "qivryn.convertConfigJsonToConfigYaml": async () => {
       const configJson = fs.readFileSync(getConfigJsonPath(), "utf-8");
       const parsed = JSON.parse(configJson);
       const configYaml = convertJsonToYamlConfig(parsed);
@@ -911,12 +906,12 @@ const getCommandsMap: (
         .then(async (selection) => {
           if (selection === "Read the docs") {
             await vscode.env.openExternal(
-              vscode.Uri.parse("https://docs.continue.dev/yaml-migration"),
+              vscode.Uri.parse("https://docs.qivryn.ai/yaml-migration"),
             );
           }
         });
     },
-    "continue.enterEnterpriseLicenseKey": async () => {
+    "qivryn.enterEnterpriseLicenseKey": async () => {
       const licenseKey = await vscode.window.showInputBox({
         prompt: "Enter your enterprise license key",
         password: true,
@@ -950,7 +945,7 @@ const getCommandsMap: (
         );
       }
     },
-    "continue.toggleNextEditEnabled": async () => {
+    "qivryn.toggleNextEditEnabled": async () => {
       const config = vscode.workspace.getConfiguration(EXTENSION_NAME);
       const tabAutocompleteEnabled = config.get<boolean>(
         "enableTabAutocomplete",
@@ -972,20 +967,20 @@ const getCommandsMap: (
         vscode.ConfigurationTarget.Global,
       );
     },
-    "continue.openSessionFromAgents": async (sessionId: string) => {
+    "qivryn.openSessionFromAgents": async (sessionId: string) => {
       fullScreenRecoverySessionId = sessionId;
       if (fullScreenPanel) {
         fullScreenPanel.dispose();
         return;
       }
-      await vscode.commands.executeCommand("continue.continueGUIView.focus");
-      await vscode.commands.executeCommand("continue.navigateTo", "/", false);
+      await vscode.commands.executeCommand("qivryn.qivrynGUIView.focus");
+      await vscode.commands.executeCommand("qivryn.navigateTo", "/", false);
       await vscode.commands.executeCommand(
-        "continue.focusContinueSessionId",
+        "qivryn.focusQivrynSessionId",
         sessionId,
       );
     },
-    "continue.openInNewWindow": async (initialPath?: string) => {
+    "qivryn.openInNewWindow": async (initialPath?: string) => {
       focusGUI();
 
       const sessionId = await sidebar.webviewProtocol.request(
@@ -1003,13 +998,13 @@ const getCommandsMap: (
       }
 
       // Clear the sidebar to prevent overwriting changes made in fullscreen
-      vscode.commands.executeCommand("continue.newSession");
+      vscode.commands.executeCommand("qivryn.newSession");
 
       // Full screen not open - open it
       // Create the full screen panel
       let panel = vscode.window.createWebviewPanel(
-        "continue.continueGUIView",
-        initialPath === "/agents" ? "Continue Agents" : "Continue",
+        "qivryn.qivrynGUIView",
+        initialPath === "/agents" ? "Qivryn Agents" : "Qivryn",
         vscode.ViewColumn.One,
         {
           retainContextWhenHidden: true,
@@ -1028,10 +1023,10 @@ const getCommandsMap: (
       );
 
       const sessionLoader = panel.onDidChangeViewState(() => {
-        vscode.commands.executeCommand("continue.newSession");
+        vscode.commands.executeCommand("qivryn.newSession");
         if (sessionId) {
           vscode.commands.executeCommand(
-            "continue.focusContinueSessionId",
+            "qivryn.focusQivrynSessionId",
             sessionId,
           );
         }
@@ -1063,16 +1058,16 @@ const getCommandsMap: (
               verticalDiffManager.clearForfileUri(filepath, false),
             restoreSession: async () => {
               await vscode.commands.executeCommand(
-                "continue.continueGUIView.focus",
+                "qivryn.qivrynGUIView.focus",
               );
               await vscode.commands.executeCommand(
-                "continue.navigateTo",
+                "qivryn.navigateTo",
                 "/",
                 false,
               );
               if (recoverySessionId) {
                 await vscode.commands.executeCommand(
-                  "continue.focusContinueSessionId",
+                  "qivryn.focusQivrynSessionId",
                   recoverySessionId,
                 );
               }
@@ -1090,7 +1085,7 @@ const getCommandsMap: (
       vscode.commands.executeCommand("workbench.action.moveEditorToNewWindow");
       vscode.commands.executeCommand("workbench.action.closeAuxiliaryBar");
     },
-    "continue.forceNextEdit": async () => {
+    "qivryn.forceNextEdit": async () => {
       // This is basically the same logic as forceAutocomplete.
       // I'm writing a new command KV pair here in case we diverge in features.
 
@@ -1146,19 +1141,19 @@ export function registerAllCommands(
   context: vscode.ExtensionContext,
   ide: VsCodeIde,
   extensionContext: vscode.ExtensionContext,
-  sidebar: ContinueGUIWebviewViewProvider,
-  consoleView: ContinueConsoleWebviewViewProvider,
+  sidebar: QivrynGUIWebviewViewProvider,
+  consoleView: QivrynConsoleWebviewViewProvider,
   configHandler: ConfigHandler,
   verticalDiffManager: VerticalDiffManager,
   battery: Battery,
   quickEdit: QuickEdit,
   core: Core,
   editDecorationManager: EditDecorationManager,
-  layoutManager: ContinueLayoutManager,
+  layoutManager: QivrynLayoutManager,
   agentScmGraphManager: AgentScmGraphManager,
 ) {
   context.subscriptions.push(
-    vscode.window.registerWebviewPanelSerializer("continue.continueGUIView", {
+    vscode.window.registerWebviewPanelSerializer("qivryn.qivrynGUIView", {
       async deserializeWebviewPanel(panel, state) {
         fullScreenPanel = panel;
         const restoredState = state as { page?: unknown } | undefined;
@@ -1168,7 +1163,7 @@ export function registerAllCommands(
             : undefined;
         const isAgentsWindow =
           restoredPath === "/agents" || panel.title.includes("Agents");
-        panel.title = isAgentsWindow ? "Continue Agents" : "Continue";
+        panel.title = isAgentsWindow ? "Qivryn Agents" : "Qivryn";
         panel.webview.html = sidebar.getSidebarContent(
           extensionContext,
           panel,
@@ -1193,16 +1188,16 @@ export function registerAllCommands(
                 verticalDiffManager.clearForfileUri(filepath, false),
               restoreSession: async () => {
                 await vscode.commands.executeCommand(
-                  "continue.continueGUIView.focus",
+                  "qivryn.qivrynGUIView.focus",
                 );
                 await vscode.commands.executeCommand(
-                  "continue.navigateTo",
+                  "qivryn.navigateTo",
                   "/",
                   false,
                 );
                 if (recoverySessionId) {
                   await vscode.commands.executeCommand(
-                    "continue.focusContinueSessionId",
+                    "qivryn.focusQivrynSessionId",
                     recoverySessionId,
                   );
                 }

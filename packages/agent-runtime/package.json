@@ -1,7 +1,7 @@
 {
-  "name": "@continuedev/agent-runtime",
+  "name": "@qivryn/agent-runtime",
   "version": "0.1.0",
-  "description": "Shared agent lifecycle, persistence, and local execution contracts for Continue",
+  "description": "Shared agent lifecycle, persistence, and local execution contracts for Qivryn",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -31,7 +31,7 @@
     "clean": "rm -rf dist",
     "test": "vitest run"
   },
-  "author": "Continue Dev, Inc",
+  "author": "Qivryn AI",
   "license": "Apache-2.0",
   "devDependencies": {
     "@types/node": "^22.15.29",

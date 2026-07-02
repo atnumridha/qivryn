@@ -12,7 +12,7 @@ export class DownloadYamlExtensionCodeLensProvider
     document: vscode.TextDocument,
     _: vscode.CancellationToken,
   ): vscode.CodeLens[] | Thenable<vscode.CodeLens[]> {
-    if (!document.uri.fsPath.includes(".continue")) {
+    if (!document.uri.fsPath.includes(".qivryn")) {
       return [];
     }
 
@@ -22,9 +22,9 @@ export class DownloadYamlExtensionCodeLensProvider
     const docCodeLens: vscode.CodeLens = {
       range: new vscode.Range(0, 0, 0, 0),
       command: {
-        title: "📖 View Continue Reference",
+        title: "📖 View Qivryn Reference",
         command: "vscode.open",
-        arguments: [vscode.Uri.parse("https://docs.continue.dev/reference")],
+        arguments: [vscode.Uri.parse("https://docs.qivryn.ai/reference")],
       },
       isResolved: true,
     };

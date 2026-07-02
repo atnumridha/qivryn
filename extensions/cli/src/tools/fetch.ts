@@ -1,6 +1,6 @@
 import { getUrlContextItems } from "core/context/providers/URLContextProvider.js";
 import type { ContextItem } from "core/index.js";
-import { ContinueError, ContinueErrorReason } from "core/util/errors.js";
+import { QivrynError, QivrynErrorReason } from "core/util/errors.js";
 
 import {
   parseEnvNumber,
@@ -14,7 +14,7 @@ const DEFAULT_FETCH_MAX_CHARS = 20000;
 
 function getFetchMaxChars(): number {
   return parseEnvNumber(
-    process.env.CONTINUE_CLI_FETCH_MAX_OUTPUT_LENGTH,
+    process.env.QIVRYN_CLI_FETCH_MAX_OUTPUT_LENGTH,
     DEFAULT_FETCH_MAX_CHARS,
   );
 }
@@ -62,8 +62,8 @@ export const fetchTool: Tool = {
       console.error = originalConsoleError;
 
       if (contextItems.length === 0) {
-        throw new ContinueError(
-          ContinueErrorReason.Unspecified,
+        throw new QivrynError(
+          QivrynErrorReason.Unspecified,
           `Could not fetch content from ${url}`,
         );
       }
@@ -84,7 +84,7 @@ export const fetchTool: Tool = {
 
       return truncatedOutput;
     } catch (error) {
-      if (error instanceof ContinueError) {
+      if (error instanceof QivrynError) {
         throw error;
       }
       throw new Error(

@@ -11,7 +11,7 @@ import {
   stat,
   writeFile,
 } from "node:fs/promises";
-import { getContinueGlobalPath } from "../../util/paths";
+import { getQivrynGlobalPath } from "../../util/paths";
 
 const REGISTRY_VERSION = 1;
 const MAX_PLUGIN_FILES = 1_000;
@@ -56,7 +56,7 @@ interface PluginRegistry {
   plugins: InstalledLocalPlugin[];
 }
 
-const pluginRoot = () => path.join(getContinueGlobalPath(), "plugins");
+const pluginRoot = () => path.join(getQivrynGlobalPath(), "plugins");
 const installedRoot = () => path.join(pluginRoot(), "installed");
 const registryPath = () => path.join(pluginRoot(), "registry.json");
 

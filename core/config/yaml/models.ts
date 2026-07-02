@@ -1,9 +1,9 @@
 import {
   mergeConfigYamlRequestOptions,
   ModelConfig,
-} from "@continuedev/config-yaml";
+} from "@qivryn/config-yaml";
 
-import { ContinueConfig, ILLMLogger, LLMOptions } from "../..";
+import { QivrynConfig, ILLMLogger, LLMOptions } from "../..";
 import { BaseLLM } from "../../llm";
 import { LLMClasses } from "../../llm/llms";
 
@@ -57,7 +57,7 @@ async function modelConfigToBaseLLM({
   model: ModelConfig;
   uniqueId: string;
   llmLogger: ILLMLogger;
-  config: ContinueConfig;
+  config: QivrynConfig;
   isFromAutoDetect?: boolean;
 }): Promise<BaseLLM | undefined> {
   const cls = getModelClass(model);
@@ -156,7 +156,7 @@ async function autodetectModels({
   model: ModelConfig;
   uniqueId: string;
   llmLogger: ILLMLogger;
-  config: ContinueConfig;
+  config: QivrynConfig;
 }): Promise<BaseLLM[]> {
   try {
     const modelNames = await llm.listModels();
@@ -195,7 +195,7 @@ export async function llmsFromModelConfig({
   model: ModelConfig;
   uniqueId: string;
   llmLogger: ILLMLogger;
-  config: ContinueConfig;
+  config: QivrynConfig;
 }): Promise<BaseLLM[]> {
   const baseLlm = await modelConfigToBaseLLM({
     model,

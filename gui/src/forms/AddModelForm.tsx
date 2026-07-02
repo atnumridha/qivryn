@@ -25,10 +25,9 @@ interface AddModelFormProps {
   onDone: () => void;
 }
 
-const MODEL_PROVIDERS_URL =
-  "https://docs.continue.dev/customize/model-providers";
+const MODEL_PROVIDERS_URL = "https://docs.qivryn.ai/customize/model-providers";
 const CODESTRAL_URL = "https://console.mistral.ai/codestral";
-const CONTINUE_SETUP_URL = "https://docs.continue.dev/setup/overview";
+const QIVRYN_SETUP_URL = "https://docs.qivryn.ai/setup/overview";
 
 export function AddModelForm({ onDone }: AddModelFormProps) {
   const [selectedProvider, setSelectedProvider] = useState<ProviderInfo>(

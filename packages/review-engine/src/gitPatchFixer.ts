@@ -4,7 +4,7 @@ import { rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import type { ReviewFinding } from "@continuedev/agent-runtime";
+import type { ReviewFinding } from "@qivryn/agent-runtime";
 import type { ReviewFixer } from "./engine.js";
 
 const execFileAsync = promisify(execFile);
@@ -16,7 +16,7 @@ export class GitPatchReviewFixer implements ReviewFixer {
     }
     const patchFile = path.join(
       os.tmpdir(),
-      `continue-review-${randomUUID()}.patch`,
+      `qivryn-review-${randomUUID()}.patch`,
     );
     await writeFile(patchFile, finding.proposedPatch, { mode: 0o600 });
     try {

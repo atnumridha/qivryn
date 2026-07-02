@@ -26,7 +26,7 @@ describe("Keyboard Shortcuts", () => {
 
   before(async function () {
     this.timeout(DEFAULT_TIMEOUT.XL);
-    await GUIActions.moveContinueToSidebar(VSBrowser.instance.driver);
+    await GUIActions.moveQivrynToSidebar(VSBrowser.instance.driver);
     await GlobalActions.disableNextEdit();
   });
 
@@ -73,7 +73,7 @@ describe("Keyboard Shortcuts", () => {
   }
 
   it("Should correctly undo and redo using keyboard shortcuts when writing a chat message", async () => {
-    await GUIActions.executeFocusContinueInputShortcut(driver);
+    await GUIActions.executeFocusQivrynInputShortcut(driver);
     ({ view } = await GUIActions.switchToReactIframe());
     const chatInput = await TestUtils.waitForSuccess(async () => {
       return GUISelectors.getMessageInputFieldAtIndex(view, 0);
@@ -88,7 +88,7 @@ describe("Keyboard Shortcuts", () => {
     await chatInput.sendKeys("HELLO ");
     await TestUtils.waitForTimeout(DEFAULT_TIMEOUT.XS);
 
-    await chatInput.sendKeys("CONTINUE");
+    await chatInput.sendKeys("QIVRYN");
     await TestUtils.waitForTimeout(DEFAULT_TIMEOUT.XS);
 
     await chatInput.sendKeys(TestUtils.osControlKey + "z");
@@ -120,7 +120,7 @@ describe("Keyboard Shortcuts", () => {
 
     await chatInput.sendKeys(Key.SHIFT + TestUtils.osControlKey + "z");
     await driver.wait(
-      until.elementTextIs(chatInput, "HELLO WORLD HELLO CONTINUE"),
+      until.elementTextIs(chatInput, "HELLO WORLD HELLO QIVRYN"),
       DEFAULT_TIMEOUT.SM,
     );
   }).timeout(DEFAULT_TIMEOUT.XL);
@@ -128,18 +128,18 @@ describe("Keyboard Shortcuts", () => {
   it("Should not create a code block when Cmd+L is pressed on an empty document", async () => {
     expect((await editor.getText()).trim()).to.equal("");
 
-    await GUIActions.executeFocusContinueInputShortcut(driver);
+    await GUIActions.executeFocusQivrynInputShortcut(driver);
 
     ({ view } = await GUIActions.switchToReactIframe());
 
     await TestUtils.expectNoElement(async () => {
       return GUISelectors.getInputBoxCodeBlockAtIndex(view, 0);
     }, DEFAULT_TIMEOUT.XS);
-    await GUIActions.executeFocusContinueInputShortcut(driver);
+    await GUIActions.executeFocusQivrynInputShortcut(driver);
   }).timeout(DEFAULT_TIMEOUT.XL);
 
   it("Fresh VS Code window → sidebar closed → cmd+L with no code highlighted → opens sidebar and focuses input → cmd+L closes sidebar", async () => {
-    await GUIActions.executeFocusContinueInputShortcut(driver);
+    await GUIActions.executeFocusQivrynInputShortcut(driver);
     ({ view } = await GUIActions.switchToReactIframe());
     const textInput = await TestUtils.waitForSuccess(() =>
       GUISelectors.getMessageInputFieldAtIndex(view, 0),
@@ -150,14 +150,14 @@ describe("Keyboard Shortcuts", () => {
     expect(textInputHtml).to.equal(activeElementHtml);
     expect(await textInput.isDisplayed()).to.equal(true);
 
-    await GUIActions.executeFocusContinueInputShortcut(driver);
+    await GUIActions.executeFocusQivrynInputShortcut(driver);
 
     await driver.wait(until.elementIsNotVisible(textInput), DEFAULT_TIMEOUT.XS);
     expect(await textInput.isDisplayed()).to.equal(false);
   }).timeout(DEFAULT_TIMEOUT.XL);
 
   it("Send a message → focus code editor (not sidebar) → cmd+L → should focus sidebar and start a new session", async () => {
-    await GUIActions.executeFocusContinueInputShortcut(driver);
+    await GUIActions.executeFocusQivrynInputShortcut(driver);
     ({ view } = await GUIActions.switchToReactIframe());
 
     const { userMessage: userMessage0 } = TestUtils.generateTestMessagePair(0);
@@ -174,7 +174,7 @@ describe("Keyboard Shortcuts", () => {
 
     await TestUtils.waitForTimeout(DEFAULT_TIMEOUT.XS);
 
-    await GUIActions.executeFocusContinueInputShortcut(driver);
+    await GUIActions.executeFocusQivrynInputShortcut(driver);
 
     ({ view } = await GUIActions.switchToReactIframe());
 
@@ -188,13 +188,13 @@ describe("Keyboard Shortcuts", () => {
     const activeElementHtml = await activeElement.getAttribute("outerHTML");
     expect(textInputHtml).to.equal(activeElementHtml);
 
-    await GUIActions.executeFocusContinueInputShortcut(driver);
+    await GUIActions.executeFocusQivrynInputShortcut(driver);
 
     await driver.wait(until.elementIsNotVisible(textInput), DEFAULT_TIMEOUT.XS);
     expect(await textInput.isDisplayed()).to.equal(false);
 
     // Make sure the view is visible again, so it can be cleared in afterEach()
-    await GUIActions.executeFocusContinueInputShortcut(driver);
+    await GUIActions.executeFocusQivrynInputShortcut(driver);
   }).timeout(DEFAULT_TIMEOUT.XL);
 
   it("Should create a code block when Cmd+L is pressed with text highlighted", async () => {
@@ -203,7 +203,7 @@ describe("Keyboard Shortcuts", () => {
     await editor.setText(text);
     await editor.selectText(text);
 
-    await GUIActions.executeFocusContinueInputShortcut(driver);
+    await GUIActions.executeFocusQivrynInputShortcut(driver);
 
     ({ view } = await GUIActions.switchToReactIframe());
 
@@ -216,17 +216,17 @@ describe("Keyboard Shortcuts", () => {
 
     expect(codeblockContent).to.equal(text);
 
-    await GUIActions.executeFocusContinueInputShortcut(driver);
+    await GUIActions.executeFocusQivrynInputShortcut(driver);
   }).timeout(DEFAULT_TIMEOUT.XL);
 
-  // the below 2 skips are skipped because some behaviour from https://github.com/continuedev/continue/pull/6711 was reverted
+  // the below 2 skips are skipped because some behaviour from https://github.com/atnumridha/qivryn/pull/6711 was reverted
   it.skip("Should create a code block with the whole file when Cmd+L is pressed on an empty line", async () => {
     const text = "Hello,\n\n\nworld!";
 
     await editor.setText(text);
     await editor.moveCursor(2, 1); //Move cursor to an empty line
 
-    await GUIActions.executeFocusContinueInputShortcut(driver);
+    await GUIActions.executeFocusQivrynInputShortcut(driver);
 
     ({ view } = await GUIActions.switchToReactIframe());
 
@@ -248,7 +248,7 @@ describe("Keyboard Shortcuts", () => {
       await editor.setText(text);
       await editor.moveCursor(1, 7); //Move cursor to the 1st space
 
-      await GUIActions.executeFocusContinueInputShortcut(driver);
+      await GUIActions.executeFocusQivrynInputShortcut(driver);
 
       ({ view } = await GUIActions.switchToReactIframe());
 

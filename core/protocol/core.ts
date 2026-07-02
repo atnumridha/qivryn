@@ -3,8 +3,8 @@ import {
   ConfigResult,
   DevDataLogEvent,
   ModelRole,
-} from "@continuedev/config-yaml";
-import { ToolPolicy } from "@continuedev/terminal-security";
+} from "@qivryn/config-yaml";
+import { ToolPolicy } from "@qivryn/terminal-security";
 
 import {
   AutocompleteInput,
@@ -16,7 +16,7 @@ import { GlobalContextModelSelections } from "../util/GlobalContext";
 
 import {
   BaseSessionMetadata,
-  BrowserSerializedContinueConfig,
+  BrowserSerializedQivrynConfig,
   ChatMessage,
   CompiledMessagesResult,
   CompleteOnboardingPayload,
@@ -35,7 +35,7 @@ import {
   PromptLog,
   RangeInFile,
   RangeInFileWithNextEditInfo,
-  SerializedContinueConfig,
+  SerializedQivrynConfig,
   Session,
   SiteIndexingConfig,
   SlashCommandDescWithSource,
@@ -47,7 +47,7 @@ import { GetLspDefinitionsFunction } from "../autocomplete/types";
 import { ConfigHandler } from "../config/ConfigHandler";
 import { ProcessedItem } from "../nextEdit/NextEditPrefetchQueue";
 import { NextEditOutcome } from "../nextEdit/types";
-import { ContinueErrorReason } from "../util/errors";
+import { QivrynErrorReason } from "../util/errors";
 
 export type RuleApplicationMode = "always" | "auto" | "agent" | "manual";
 
@@ -86,7 +86,7 @@ export type ToCoreFromIdeOrWebviewProtocol = {
   "config/addOpenAiKey": [string, void];
   "config/addModel": [
     {
-      model: SerializedContinueConfig["models"][number];
+      model: SerializedQivrynConfig["models"][number];
       role?: keyof ExperimentalModelRoles;
     },
     void,
@@ -103,7 +103,7 @@ export type ToCoreFromIdeOrWebviewProtocol = {
   "config/getSerializedProfileInfo": [
     undefined,
     {
-      result: ConfigResult<BrowserSerializedContinueConfig>;
+      result: ConfigResult<BrowserSerializedQivrynConfig>;
       profileId: string | null;
       profiles: ProfileDescription[];
     },
@@ -331,7 +331,7 @@ export type ToCoreFromIdeOrWebviewProtocol = {
     {
       contextItems: ContextItem[];
       errorMessage?: string;
-      errorReason?: ContinueErrorReason;
+      errorReason?: QivrynErrorReason;
       mcpUiState?: McpUiState;
     },
   ];
@@ -348,7 +348,7 @@ export type ToCoreFromIdeOrWebviewProtocol = {
     { toolName: string; args: Record<string, unknown> },
     {
       preprocessedArgs?: Record<string, unknown>;
-      errorReason?: ContinueErrorReason;
+      errorReason?: QivrynErrorReason;
       errorMessage?: string;
     },
   ];

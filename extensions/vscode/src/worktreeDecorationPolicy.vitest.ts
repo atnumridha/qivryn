@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AgentRun } from "@continuedev/agent-runtime";
+import type { AgentRun } from "@qivryn/agent-runtime";
 import { worktreeDecorationForFile } from "./worktreeDecorationPolicy";
 
 function run(id: string, root: string, branch: string): AgentRun {
@@ -25,12 +25,12 @@ function run(id: string, root: string, branch: string): AgentRun {
 describe("worktree tab decoration", () => {
   it("uses the deepest matching agent worktree and exposes its branch", () => {
     const result = worktreeDecorationForFile(
-      "/repo/.continue/worktrees/agent-a/packages/app/src/index.ts",
+      "/repo/.qivryn/worktrees/agent-a/packages/app/src/index.ts",
       [
-        run("parent", "/repo/.continue/worktrees/agent-a", "codex/parent"),
+        run("parent", "/repo/.qivryn/worktrees/agent-a", "codex/parent"),
         run(
           "nested",
-          "/repo/.continue/worktrees/agent-a/packages/app",
+          "/repo/.qivryn/worktrees/agent-a/packages/app",
           "codex/nested",
         ),
       ],
@@ -45,7 +45,7 @@ describe("worktree tab decoration", () => {
   it("does not decorate files outside an agent worktree", () => {
     expect(
       worktreeDecorationForFile("/repo/src/index.ts", [
-        run("agent", "/repo/.continue/worktrees/agent", "codex/agent"),
+        run("agent", "/repo/.qivryn/worktrees/agent", "codex/agent"),
       ]),
     ).toBeUndefined();
   });

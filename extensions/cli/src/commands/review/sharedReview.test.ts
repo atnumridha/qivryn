@@ -46,9 +46,9 @@ describe("shared CLI review", () => {
 
   it("uses the persisted IDE review format and renders text or JSON", async () => {
     const repository = await mkdtemp(
-      path.join(os.tmpdir(), "continue-cli-review-"),
+      path.join(os.tmpdir(), "qivryn-cli-review-"),
     );
-    const state = await mkdtemp(path.join(os.tmpdir(), "continue-cli-state-"));
+    const state = await mkdtemp(path.join(os.tmpdir(), "qivryn-cli-state-"));
     roots.push(repository, state);
     await execFileAsync("git", ["-C", repository, "init", "-b", "main"]);
     await execFileAsync("git", [
@@ -56,14 +56,14 @@ describe("shared CLI review", () => {
       repository,
       "config",
       "user.email",
-      "review@continue.dev",
+      "review@qivryn.ai",
     ]);
     await execFileAsync("git", [
       "-C",
       repository,
       "config",
       "user.name",
-      "Continue Review",
+      "Qivryn Review",
     ]);
     await writeFile(
       path.join(repository, "app.ts"),
@@ -75,7 +75,7 @@ describe("shared CLI review", () => {
       path.join(repository, "app.ts"),
       "const password = 'abcdefgh';\n",
     );
-    vi.stubEnv("CONTINUE_GLOBAL_DIR", state);
+    vi.stubEnv("QIVRYN_GLOBAL_DIR", state);
 
     const report = await runSharedReview({ cwd: repository, mode: "deep" });
     expect(report.repositoryPath).toBe(repository);

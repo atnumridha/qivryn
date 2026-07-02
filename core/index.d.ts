@@ -3,8 +3,8 @@ import {
   ModelRole,
   PromptTemplates,
   ToolOverrideConfig,
-} from "@continuedev/config-yaml";
-import { ToolPolicy } from "@continuedev/terminal-security";
+} from "@qivryn/config-yaml";
+import { ToolPolicy } from "@qivryn/terminal-security";
 import { McpUiResourceMeta } from "@modelcontextprotocol/ext-apps";
 import { TextResourceContents } from "@modelcontextprotocol/sdk/types.js";
 import Parser from "web-tree-sitter";
@@ -197,7 +197,7 @@ export interface ContextProviderDescription {
 export type FetchFunction = (url: string | URL, init?: any) => Promise<any>;
 
 export interface ContextProviderExtras {
-  config: ContinueConfig;
+  config: QivrynConfig;
   fullInput: string;
   embeddingsProvider: ILLM | null;
   reranker: ILLM | null;
@@ -209,7 +209,7 @@ export interface ContextProviderExtras {
 }
 
 export interface LoadSubmenuItemsArgs {
-  config: ContinueConfig;
+  config: QivrynConfig;
   ide: IDE;
   fetch: FetchFunction;
 }
@@ -664,7 +664,7 @@ export interface LLMOptions {
   llmRequestHook?: (model: string, prompt: string) => any;
   apiKey?: string;
 
-  // continueProperties
+  // qivrynProperties
   apiKeyLocation?: string;
   envSecretLocations?: Record<string, string>;
   apiBase?: string;
@@ -815,7 +815,7 @@ export interface IdeSettings {
   remoteConfigServerUrl: string | undefined;
   remoteConfigSyncPeriod: number;
   userToken: string;
-  continueTestEnvironment: "none" | "production" | "staging" | "local";
+  qivrynTestEnvironment: "none" | "production" | "staging" | "local";
   pauseCodebaseIndexOnStart: boolean;
 }
 
@@ -958,7 +958,7 @@ export interface SearchOptions {
 
 // Slash Commands
 
-export interface ContinueSDK {
+export interface QivrynSDK {
   ide: IDE;
   llm: ILLM;
   addContextItem: (item: ContextItemWithId) => void;
@@ -967,7 +967,7 @@ export interface ContinueSDK {
   params?: { [key: string]: any } | undefined;
   contextItems: ContextItemWithId[];
   selectedCode: RangeInFile[];
-  config: ContinueConfig;
+  config: QivrynConfig;
   fetch: FetchFunction;
   completionOptions?: LLMFullCompletionOptions;
   abortController: AbortController;
@@ -982,11 +982,11 @@ export interface SlashCommandDescription {
 }
 
 export interface SlashCommand extends SlashCommandDescription {
-  run: (sdk: ContinueSDK) => AsyncGenerator<string | undefined>;
+  run: (sdk: QivrynSDK) => AsyncGenerator<string | undefined>;
 }
 
 export interface SlashCommandWithSource extends SlashCommandDescription {
-  run?: (sdk: ContinueSDK) => AsyncGenerator<string | undefined>; // Optional - only needed for legacy
+  run?: (sdk: QivrynSDK) => AsyncGenerator<string | undefined>; // Optional - only needed for legacy
   source: SlashCommandSource;
   sourceFile?: string;
   slug?: string;
@@ -1139,7 +1139,7 @@ export interface ToolExtras {
     toolCallId: string;
     contextItems: ContextItem[];
   }) => void;
-  config: ContinueConfig;
+  config: QivrynConfig;
   codeBaseIndexer?: CodebaseIndexer;
 }
 
@@ -1468,14 +1468,14 @@ export type MCPServerStatus = InternalMcpOptions & {
   sourceFile?: string;
 };
 
-export interface ContinueUIConfig {
+export interface QivrynUIConfig {
   codeBlockToolbarPosition?: "top" | "bottom";
   fontSize?: number;
   displayRawMarkdown?: boolean;
   showChatScrollbar?: boolean;
   codeWrap?: boolean;
   showSessionTabs?: boolean;
-  continueAfterToolRejection?: boolean;
+  qivrynAfterToolRejection?: boolean;
 }
 
 export interface ContextMenuConfig {
@@ -1766,7 +1766,7 @@ export interface JSONModelDescription {
 }
 
 // config.json
-export interface SerializedContinueConfig {
+export interface SerializedQivrynConfig {
   env?: string[];
   allowAnonymousTelemetry?: boolean;
   models: JSONModelDescription[];
@@ -1782,7 +1782,7 @@ export interface SerializedContinueConfig {
   embeddingsProvider?: EmbeddingsProviderDescription;
   tabAutocompleteModel?: JSONModelDescription | JSONModelDescription[];
   tabAutocompleteOptions?: Partial<TabAutocompleteOptions>;
-  ui?: ContinueUIConfig;
+  ui?: QivrynUIConfig;
   reranker?: RerankerDescription;
   experimental?: ExperimentalConfig;
   analytics?: AnalyticsConfig;
@@ -1792,17 +1792,17 @@ export interface SerializedContinueConfig {
 
 export type ConfigMergeType = "merge" | "overwrite";
 
-export type ContinueRcJson = Partial<SerializedContinueConfig> & {
+export type QivrynRcJson = Partial<SerializedQivrynConfig> & {
   mergeBehavior: ConfigMergeType;
 };
 
 // config.ts - give users simplified interfaces
 export interface Config {
-  /** If set to true, Continue will collect anonymous usage data to improve the product. If set to false, we will collect nothing. Read here to learn more: https://docs.continue.dev/telemetry */
+  /** If set to true, Qivryn will collect anonymous usage data to improve the product. If set to false, we will collect nothing. Read here to learn more: https://docs.qivryn.ai/telemetry */
   allowAnonymousTelemetry?: boolean;
   /** Each entry in this array will originally be a JSONModelDescription, the same object from your config.json, but you may add CustomLLMs.
    * A CustomLLM requires you only to define an AsyncGenerator that calls the LLM and yields string updates. You can choose to define either `streamCompletion` or `streamChat` (or both).
-   * Continue will do the rest of the work to construct prompt templates, handle context items, prune context, etc.
+   * Qivryn will do the rest of the work to construct prompt templates, handle context items, prune context, etc.
    */
   models: (CustomLLM | JSONModelDescription)[];
   /** A system message to be followed by all of your models */
@@ -1814,18 +1814,18 @@ export interface Config {
   /** The list of slash commands that will be available in the sidebar */
   slashCommands?: (SlashCommand | SlashCommandWithSource)[];
   /** Each entry in this array will originally be a ContextProviderWithParams, the same object from your config.json, but you may add CustomContextProviders.
-   * A CustomContextProvider requires you only to define a title and getContextItems function. When you type '@title <query>', Continue will call `getContextItems(query)`.
+   * A CustomContextProvider requires you only to define a title and getContextItems function. When you type '@title <query>', Qivryn will call `getContextItems(query)`.
    */
   contextProviders?: (CustomContextProvider | ContextProviderWithParams)[];
-  /** If set to true, Continue will not index your codebase for retrieval */
+  /** If set to true, Qivryn will not index your codebase for retrieval */
   disableIndexing?: boolean;
-  /** If set to true, Continue will not make extra requests to the LLM to generate a summary title of each session. */
+  /** If set to true, Qivryn will not make extra requests to the LLM to generate a summary title of each session. */
   disableSessionTitles?: boolean;
-  /** An optional token to identify a user. Not used by Continue unless you write custom coniguration that requires such a token */
+  /** An optional token to identify a user. Not used by Qivryn unless you write custom coniguration that requires such a token */
   userToken?: string;
-  /** The provider used to calculate embeddings. If left empty, Continue will use transformers.js to calculate the embeddings with all-MiniLM-L6-v2 */
+  /** The provider used to calculate embeddings. If left empty, Qivryn will use transformers.js to calculate the embeddings with all-MiniLM-L6-v2 */
   embeddingsProvider?: EmbeddingsProviderDescription | ILLM;
-  /** The model that Continue will use for tab autocompletions. */
+  /** The model that Qivryn will use for tab autocompletions. */
   tabAutocompleteModel?:
     | CustomLLM
     | JSONModelDescription
@@ -1833,7 +1833,7 @@ export interface Config {
   /** Options for tab autocomplete */
   tabAutocompleteOptions?: Partial<TabAutocompleteOptions>;
   /** UI styles customization */
-  ui?: ContinueUIConfig;
+  ui?: QivrynUIConfig;
   /** Options for the reranker */
   reranker?: RerankerDescription | ILLM;
   /** Experimental configuration */
@@ -1844,8 +1844,8 @@ export interface Config {
   data?: DataDestination[];
 }
 
-// in the actual Continue source code
-export interface ContinueConfig {
+// in the actual Qivryn source code
+export interface QivrynConfig {
   allowAnonymousTelemetry?: boolean;
   // systemMessage?: string;
   completionOptions?: BaseCompletionOptions;
@@ -1856,7 +1856,7 @@ export interface ContinueConfig {
   disableIndexing?: boolean;
   userToken?: string;
   tabAutocompleteOptions?: Partial<TabAutocompleteOptions>;
-  ui?: ContinueUIConfig;
+  ui?: QivrynUIConfig;
   experimental?: ExperimentalConfig;
   analytics?: AnalyticsConfig;
   docs?: SiteIndexingConfig[];
@@ -1868,7 +1868,7 @@ export interface ContinueConfig {
   data?: DataDestination[];
 }
 
-export interface BrowserSerializedContinueConfig {
+export interface BrowserSerializedQivrynConfig {
   allowAnonymousTelemetry?: boolean;
   // systemMessage?: string;
   completionOptions?: BaseCompletionOptions;
@@ -1878,7 +1878,7 @@ export interface BrowserSerializedContinueConfig {
   disableIndexing?: boolean;
   disableSessionTitles?: boolean;
   userToken?: string;
-  ui?: ContinueUIConfig;
+  ui?: QivrynUIConfig;
   experimental?: ExperimentalConfig;
   analytics?: AnalyticsConfig;
   docs?: SiteIndexingConfig[];
@@ -1943,7 +1943,7 @@ export type RuleSource =
   | "rules-block"
   | "colocated-markdown"
   | "json-systemMessage"
-  | ".continuerules"
+  | ".qivrynrules"
   | "agentFile";
 
 export interface RuleMetadata {
@@ -1971,7 +1971,7 @@ export interface Skill {
   path: string;
   /** Canonical URI for opening or updating the SKILL.md file. */
   sourceFile?: string;
-  /** Client that contributed the skill, such as Continue, Codex, or Cursor. */
+  /** Client that contributed the skill, such as Qivryn, Codex, or Cursor. */
   provenance?: string;
   /** Plugin cache skills are immutable; user and workspace skills are editable. */
   readOnly?: boolean;

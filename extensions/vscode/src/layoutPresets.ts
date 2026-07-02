@@ -5,22 +5,22 @@ export type BuiltInLayoutId =
   | "browser"
   | "maximized-chat";
 
-export interface ContinueLayoutSnapshot {
+export interface QivrynLayoutSnapshot {
   sidebarVisible: boolean;
   auxiliaryBarVisible: boolean;
   panelVisible: boolean;
   zenMode: boolean;
 }
 
-export interface ContinueLayoutPreset {
+export interface QivrynLayoutPreset {
   id: string;
   label: string;
   builtIn: BuiltInLayoutId;
   custom: boolean;
-  snapshot?: ContinueLayoutSnapshot;
+  snapshot?: QivrynLayoutSnapshot;
 }
 
-export const BUILT_IN_LAYOUTS: ContinueLayoutPreset[] = [
+export const BUILT_IN_LAYOUTS: QivrynLayoutPreset[] = [
   { id: "agent", label: "Agent", builtIn: "agent", custom: false },
   { id: "editor", label: "Editor", builtIn: "editor", custom: false },
   { id: "zen", label: "Zen", builtIn: "zen", custom: false },
@@ -35,9 +35,9 @@ export const BUILT_IN_LAYOUTS: ContinueLayoutPreset[] = [
 
 export function createCustomLayout(
   name: string,
-  source: ContinueLayoutPreset,
-  snapshot?: ContinueLayoutSnapshot,
-): ContinueLayoutPreset {
+  source: QivrynLayoutPreset,
+  snapshot?: QivrynLayoutSnapshot,
+): QivrynLayoutPreset {
   const label = name.replace(/\s+/g, " ").trim();
   if (!label) throw new Error("Layout name cannot be empty");
   return {
@@ -53,22 +53,22 @@ export function createCustomLayout(
 }
 
 export function saveCustomLayout(
-  layouts: readonly ContinueLayoutPreset[],
-  preset: ContinueLayoutPreset,
-): ContinueLayoutPreset[] {
+  layouts: readonly QivrynLayoutPreset[],
+  preset: QivrynLayoutPreset,
+): QivrynLayoutPreset[] {
   if (!preset.custom || !preset.snapshot) {
     throw new Error("Saved layouts require a captured workspace snapshot");
   }
   return [...layouts.filter((item) => item.id !== preset.id), preset];
 }
 
-export function restoreSavedLayouts(value: unknown): ContinueLayoutPreset[] {
+export function restoreSavedLayouts(value: unknown): QivrynLayoutPreset[] {
   if (!Array.isArray(value)) return [];
-  return value.filter((item): item is ContinueLayoutPreset => {
+  return value.filter((item): item is QivrynLayoutPreset => {
     if (!item || typeof item !== "object") return false;
-    const candidate = item as Partial<ContinueLayoutPreset>;
+    const candidate = item as Partial<QivrynLayoutPreset>;
     const snapshot = candidate.snapshot as
-      | Partial<ContinueLayoutSnapshot>
+      | Partial<QivrynLayoutSnapshot>
       | undefined;
     return (
       candidate.custom === true &&

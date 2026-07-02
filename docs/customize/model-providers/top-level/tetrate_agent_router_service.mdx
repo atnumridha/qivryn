@@ -24,9 +24,9 @@ Go to the [API keys page](https://router.tetrate.ai/api-keys) to get your key
 <img src="../assets/tetrate-get-api-key.png" alt="Tetrate get API key" style={{width: '250px', maxWidth: '100%'}} />
 </Step>
 
-<Step title="Configure Continue">
+<Step title="Configure Qivryn">
 - Choose a configuration method below.
-- If you use the Continue VS Code extension, install version `>=1.2.3`.
+- If you use the Qivryn VS Code extension, install version `>=1.2.3`.
 </Step>
 
 </Steps>
@@ -55,7 +55,7 @@ Go to the [API keys page](https://router.tetrate.ai/api-keys) to get your key
 
 Use a Tetrate model block in your local agent configuration:
 
-```yaml title="~/.continue/config.yaml"
+```yaml title="~/.qivryn/config.yaml"
 name: Local Agent
 version: 1.0.0
 schema: v1
@@ -75,7 +75,7 @@ context:
 
 Or define the model directly:
 
-```yaml title="~/.continue/config.yaml"
+```yaml title="~/.qivryn/config.yaml"
 name: Local Agent
 version: 1.0.0
 schema: v1
@@ -108,7 +108,7 @@ context:
 Name the file `my-claude-4-model.yaml` so you can reference it in the Agent.
 </Info>
 
-```yaml title="~/.continue/models/my-claude-4-model.yaml"
+```yaml title="~/.qivryn/models/my-claude-4-model.yaml"
 name: Claude Sonnet 4
 version: 1.0.1
 schema: v1
@@ -126,7 +126,7 @@ models:
 ```
 Reference it as `my-claude-4-model` in your Agent configuration:
 
-```yaml title="~/.continue/agents/simple-agent.yaml"
+```yaml title="~/.qivryn/agents/simple-agent.yaml"
 name: Simple Agent
 version: 1.0.0
 schema: v1
@@ -135,9 +135,9 @@ models:
     with:
       TETRATE_API_KEY: ${{ secrets.TETRATE_API_KEY }}
 context:
-  - uses: continuedev/diff-context
-  - uses: continuedev/terminal-context
-  - uses: continuedev/file-context
+  - uses: qivryn/diff-context
+  - uses: qivryn/terminal-context
+  - uses: qivryn/file-context
 ```
 
 <Tip>
@@ -162,7 +162,7 @@ Learn more about [model blocks](/reference#models).
     Check your network or try a less-loaded model. Contact Tetrate support if issues persist.
   </Card>
   <Card title="Configuration not loading" icon="file-lines" vertical>
-    Validate YAML syntax and review error messages in Continue.
+    Validate YAML syntax and review error messages in Qivryn.
   </Card>
 </CardGroup>
 

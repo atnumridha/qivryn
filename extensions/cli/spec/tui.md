@@ -1,10 +1,10 @@
-# Continue CLI Terminal UI spec
+# Qivryn CLI Terminal UI spec
 
 This spec is incomplete.
 
 ## Stack
 
-The Continue CLI uses Ink as a react TUI library.
+The Qivryn CLI uses Ink as a react TUI library.
 
 ## cwd/git display
 

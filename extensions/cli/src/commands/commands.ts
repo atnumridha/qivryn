@@ -1,4 +1,4 @@
-import { type AssistantConfig } from "@continuedev/sdk";
+import { type AssistantConfig } from "@qivryn/sdk";
 
 import {
   getSkillSlashCommandName,
@@ -35,7 +35,7 @@ export const SYSTEM_SLASH_COMMANDS: SystemCommand[] = [
   },
   {
     name: "update",
-    description: "Update the Continue CLI",
+    description: "Update the Qivryn CLI",
     category: "system",
   },
   {
@@ -110,7 +110,7 @@ export const SYSTEM_SLASH_COMMANDS: SystemCommand[] = [
   },
   {
     name: "import-skill",
-    description: "Import a skill from a URL or name into ~/.continue/skills",
+    description: "Import a skill from a URL or name into ~/.qivryn/skills",
     category: "system",
   },
   {

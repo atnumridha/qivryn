@@ -2,7 +2,7 @@ import type {
   SlackAuthorization,
   SlackChannel,
   SlackMessage,
-} from "@continuedev/slack-connector";
+} from "@qivryn/slack-connector";
 import {
   ArrowLeftIcon,
   ArrowPathIcon,
@@ -235,7 +235,7 @@ function SlackConnector() {
                     className="border-input mb-1 min-w-0 rounded border p-2"
                   >
                     <div className="text-description-muted text-2xs">
-                      {message.userId ?? "Continue"} · {message.timestamp}
+                      {message.userId ?? "Qivryn"} · {message.timestamp}
                     </div>
                     <div className="mt-1 whitespace-pre-wrap break-words text-xs">
                       {message.text}

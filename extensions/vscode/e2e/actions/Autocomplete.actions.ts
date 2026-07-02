@@ -14,7 +14,7 @@ export class AutocompleteActions {
     await editor.typeTextAt(1, messagePair0.userMessage.length + 1, " ");
     const ghostText0 = await TestUtils.waitForSuccess(
       () => AutocompleteSelectors.getGhostTextContent(driver),
-      // The first completion takes longer because Continue needs to load
+      // The first completion takes longer because Qivryn needs to load
       DEFAULT_TIMEOUT.XL,
     );
     expect(ghostText0).to.equal(messagePair0.llmResponse);
@@ -34,7 +34,7 @@ export class AutocompleteActions {
     await editor.setText("def main():\n    ");
     await editor.moveCursor(2, 5);
 
-    await new Workbench().executeCommand("Continue: Force Autocomplete");
+    await new Workbench().executeCommand("Qivryn: Force Autocomplete");
 
     const ghostText = await TestUtils.waitForSuccess(() =>
       AutocompleteSelectors.getGhostTextContent(VSBrowser.instance.driver),

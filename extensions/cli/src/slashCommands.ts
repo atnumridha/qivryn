@@ -1,6 +1,6 @@
 import fs from "fs";
 
-import { type AssistantConfig } from "@continuedev/sdk";
+import { type AssistantConfig } from "@qivryn/sdk";
 import chalk from "chalk";
 import type { Session } from "core/index.js";
 import historyManager from "core/util/history.js";
@@ -57,7 +57,7 @@ async function handleHelp(_args: string[], _assistant: AssistantConfig) {
 async function handleFork() {
   try {
     const currentSession = getCurrentSession();
-    const forkCommand = `cn --fork ${currentSession.sessionId}`;
+    const forkCommand = `qivryn --fork ${currentSession.sessionId}`;
     // Try to copy to clipboard dynamically to avoid hard dependency in tests
     try {
       const clipboardy = await import("clipboardy");
@@ -116,7 +116,7 @@ async function handleSkills(): Promise<SlashCommandResult> {
     return {
       exit: false,
       output: chalk.yellow(
-        "No skills found in Continue, Claude, Codex, Copilot, or agent skill directories.",
+        "No skills found in Qivryn, Claude, Codex, Copilot, or agent skill directories.",
       ),
     };
   }
@@ -213,7 +213,7 @@ function handleImport(args: string[]): SlashCommandResult {
       return {
         exit: false,
         output: chalk.red(
-          "Invalid session file: expected a valid Continue exported session (version 1).",
+          "Invalid session file: expected a valid Qivryn exported session (version 1).",
         ),
       };
     }

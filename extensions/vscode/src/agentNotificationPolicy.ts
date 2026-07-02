@@ -1,4 +1,4 @@
-import type { AgentRun } from "@continuedev/agent-runtime";
+import type { AgentRun } from "@qivryn/agent-runtime";
 
 export type AgentNotificationMode = "off" | "whenUnfocused" | "always";
 
@@ -19,7 +19,5 @@ export function agentNotificationMessage(
       : run.status === "attention"
         ? "needs attention"
         : "failed";
-  return includeTaskTitle
-    ? `${run.title} ${status}`
-    : `Continue agent ${status}`;
+  return includeTaskTitle ? `${run.title} ${status}` : `Qivryn agent ${status}`;
 }

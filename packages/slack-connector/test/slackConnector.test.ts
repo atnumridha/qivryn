@@ -36,7 +36,7 @@ function api(): SlackApiClient {
   return {
     authenticate: vi.fn(async () => ({
       workspaceId: "T1",
-      workspaceName: "Continue",
+      workspaceName: "Qivryn",
     })),
     listChannels: vi.fn(async () => [
       { id: "C1", name: "engineering" },
@@ -106,7 +106,7 @@ describe("SlackConnectorService", () => {
   });
 
   it("stores tokens separately with owner-only file permissions", async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "continue-slack-"));
+    const root = await mkdtemp(path.join(os.tmpdir(), "qivryn-slack-"));
     roots.push(root);
     const store = new FileSlackCredentialStore(root);
     await store.saveToken("xoxb-secret");

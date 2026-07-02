@@ -6,9 +6,8 @@ import "./globals.css";
 import "./docs.css";
 
 export const metadata: Metadata = {
-  title: "Continue Docs",
-  description:
-    "Documentation for Continue — the open-source AI code assistant.",
+  title: "Qivryn Docs",
+  description: "Documentation for Qivryn — the open-source AI code assistant.",
 };
 
 export default function RootLayout({

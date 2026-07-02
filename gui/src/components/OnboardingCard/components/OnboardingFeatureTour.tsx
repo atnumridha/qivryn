@@ -40,7 +40,7 @@ export function OnboardingFeatureTour() {
   ];
   return (
     <section
-      aria-label="Continue feature tour"
+      aria-label="Qivryn feature tour"
       className="border-input mt-3 border-t pt-2"
     >
       <div className="mb-1 flex items-center gap-2">

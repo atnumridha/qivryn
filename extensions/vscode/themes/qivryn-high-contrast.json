@@ -1,0 +1,32 @@
+{
+  "$schema": "vscode://schemas/color-theme",
+  "name": "Qivryn High Contrast",
+  "type": "dark",
+  "colors": {
+    "editor.background": "#000000",
+    "editor.foreground": "#FFFFFF",
+    "sideBar.background": "#000000",
+    "activityBar.background": "#000000",
+    "panel.background": "#000000",
+    "input.background": "#000000",
+    "input.foreground": "#FFFFFF",
+    "contrastBorder": "#FFFFFF",
+    "focusBorder": "#2DE2E6",
+    "button.background": "#F4F2FF",
+    "button.foreground": "#10131A",
+    "list.activeSelectionBackground": "#4D35A5",
+    "terminal.background": "#000000"
+  },
+  "tokenColors": [
+    { "scope": ["comment"], "settings": { "foreground": "#D7D7D7" } },
+    {
+      "scope": ["keyword", "storage"],
+      "settings": { "foreground": "#FFD7FF" }
+    },
+    { "scope": ["string"], "settings": { "foreground": "#B6FFB6" } },
+    {
+      "scope": ["entity.name.function"],
+      "settings": { "foreground": "#B6DEFF" }
+    }
+  ]
+}

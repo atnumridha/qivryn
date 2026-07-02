@@ -2,7 +2,7 @@ import type {
   TerminalCommandClassification,
   TerminalJob,
   ToolPolicy,
-} from "@continuedev/terminal-security";
+} from "@qivryn/terminal-security";
 import {
   ArrowLeftIcon,
   ArrowPathIcon,
@@ -107,7 +107,7 @@ function TerminalAssistant() {
     try {
       await ideMessenger.ide.runCommand(command, {
         reuseTerminal: true,
-        terminalName: "Continue Agent",
+        terminalName: "Qivryn Agent",
       });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));

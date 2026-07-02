@@ -2,7 +2,7 @@ import { Core } from "core/core";
 import { DataLogger } from "core/data/log";
 import { myersDiff } from "core/diff/myers";
 
-import { ContinueGUIWebviewViewProvider } from "../ContinueGUIWebviewViewProvider";
+import { QivrynGUIWebviewViewProvider } from "../QivrynGUIWebviewViewProvider";
 import { editOutcomeTracker } from "../extension/EditOutcomeTracker";
 import { VsCodeIde } from "../VsCodeIde";
 
@@ -10,7 +10,7 @@ import { VerticalDiffManager } from "./vertical/manager";
 
 export async function processDiff(
   action: "accept" | "reject",
-  sidebar: ContinueGUIWebviewViewProvider,
+  sidebar: QivrynGUIWebviewViewProvider,
   ide: VsCodeIde,
   core: Core,
   verticalDiffManager: VerticalDiffManager,

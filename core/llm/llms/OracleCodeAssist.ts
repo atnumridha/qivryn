@@ -39,19 +39,19 @@ function readOcaToken(): string {
     `OCA auth not found.\n` +
       `Run: bash ~/Documents/codex-oca-tool/codex-oca-temp.sh login\n` +
       `This writes the access token to ${OCA_SECRETS_FILE}.\n` +
-      `Alternatively, set the OCA_API_KEY environment variable or add it to ~/.continue/.env`,
+      `Alternatively, set the OCA_API_KEY environment variable or add it to ~/.qivryn/.env`,
   );
 }
 
 /**
- * OracleCodeAssist LLM provider for Continue.
+ * OracleCodeAssist LLM provider for Qivryn.
  *
  * Connects **directly** to Oracle Code Assist's LiteLLM HTTPS endpoint —
  * no proxy, no daemon, no local server.
  *
  * Auth is managed automatically:
  *  - Reads `~/.codex/oca-secrets.json` for the JWT access token.
- *  - Falls back to the `OCA_API_KEY` environment variable (or ~/.continue/.env).
+ *  - Falls back to the `OCA_API_KEY` environment variable (or ~/.qivryn/.env).
  *  - Token is re-read from the secrets file on each provider construction,
  *    so a `codex-oca-temp.sh refresh` + VS Code reload always picks up the
  *    new token without any config change.
@@ -88,7 +88,7 @@ class OracleCodeAssist extends OpenAI {
     return {
       ...super._getHeaders(),
       // Required Oracle Cloud Infrastructure headers
-      client: "Continue",
+      client: "Qivryn",
       "client-version": CLIENT_VERSION,
       "client-ide": "vscode",
       "client-ide-version": CLIENT_VERSION,

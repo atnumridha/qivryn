@@ -3,11 +3,11 @@ import {
   createAgentDiagnosticReport,
   FileAgentStore,
   FileAgentAutomationStore,
-  formatContinueDeepLink,
+  formatQivrynDeepLink,
   GitWorktreeWorkspaceProvider,
   type AgentRun,
   runAgentAutomation,
-} from "@continuedev/agent-runtime";
+} from "@qivryn/agent-runtime";
 import path from "node:path";
 import { readFile, writeFile } from "node:fs/promises";
 import { env } from "../env.js";
@@ -46,7 +46,7 @@ interface AgentsCommandOptions {
 }
 
 function createAgentStore(): FileAgentStore {
-  return new FileAgentStore(path.join(env.continueHome, "agents"));
+  return new FileAgentStore(path.join(env.qivrynHome, "agents"));
 }
 
 function formatRun(run: AgentRun): string {
@@ -74,7 +74,7 @@ export async function agentsCommand(
   });
 
   const automationStore = new FileAgentAutomationStore(
-    path.join(env.continueHome, "agents"),
+    path.join(env.qivrynHome, "agents"),
   );
   await automationStore.initialize();
 
@@ -170,7 +170,7 @@ export async function agentsCommand(
   if (action === "diagnostics") {
     const report = await createAgentDiagnosticReport(store);
     const outputPath = path.resolve(
-      options.file ?? `continue-agent-diagnostics-${Date.now()}.json`,
+      options.file ?? `qivryn-agent-diagnostics-${Date.now()}.json`,
     );
     await writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
     console.log(
@@ -212,7 +212,7 @@ export async function agentsCommand(
         runtimeId === "docker"
           ? {
               container: {
-                image: options.image ?? "continue-agent:latest",
+                image: options.image ?? "qivryn-agent:latest",
                 network: options.network ?? "bridge",
                 privileged: options.privileged ?? false,
               },
@@ -346,7 +346,7 @@ export async function agentsCommand(
     action === "worktree-merge"
   ) {
     if (!runId)
-      throw new Error(`Run ID is required: cn agents ${action} <run-id>`);
+      throw new Error(`Run ID is required: qivryn agents ${action} <run-id>`);
     const runtime = await ensureAgentDaemon();
     if (action === "worktree-retain" || action === "worktree-release") {
       const result = await runtime.retainWorktree(
@@ -394,7 +394,7 @@ export async function agentsCommand(
     action === "cleanup"
   ) {
     if (!runId)
-      throw new Error(`Run ID is required: cn agents ${action} <run-id>`);
+      throw new Error(`Run ID is required: qivryn agents ${action} <run-id>`);
     const runtime = await ensureAgentDaemon();
     if (action === "cleanup") {
       await runtime.cleanupRun(runId);
@@ -435,7 +435,7 @@ export async function agentsCommand(
 
   if (action === "show") {
     if (!runId) {
-      throw new Error("Run ID is required: cn agents show <run-id>");
+      throw new Error("Run ID is required: qivryn agents show <run-id>");
     }
     const run = await store.getRun(runId);
     if (!run) {
@@ -456,7 +456,7 @@ export async function agentsCommand(
   }
 
   if (!runId) {
-    throw new Error(`Run ID is required: cn agents ${action} <run-id>`);
+    throw new Error(`Run ID is required: qivryn agents ${action} <run-id>`);
   }
 
   if (action === "rename") {
@@ -470,7 +470,7 @@ export async function agentsCommand(
 
   if (action === "link") {
     console.log(
-      formatContinueDeepLink(
+      formatQivrynDeepLink(
         options.item
           ? { type: "checkpoint", runId, checkpointId: options.item }
           : { type: "agent", runId },

@@ -6,13 +6,13 @@ import {
   DataLogLevel,
   DevDataLogEvent,
   devDataVersionedSchemas,
-} from "@continuedev/config-yaml";
-import { fetchwithRequestOptions } from "@continuedev/fetch";
+} from "@qivryn/config-yaml";
+import { fetchwithRequestOptions } from "@qivryn/fetch";
 import * as URI from "uri-js";
 import { fileURLToPath } from "url";
 import { AnyZodObject } from "zod";
 import { Core } from "../core.js";
-import { ContinueConfig, IdeInfo, IdeSettings } from "../index.js";
+import { QivrynConfig, IdeInfo, IdeSettings } from "../index.js";
 import { getDevDataFilePath } from "../util/paths.js";
 import { joinPathsToUri } from "../util/uri.js";
 
@@ -54,8 +54,8 @@ export class DataLogger {
     }
     if ("userAgent" in zodSchema.shape) {
       newBody.userAgent = ideInfo
-        ? `${ideInfo.name}/${ideInfo.version} (Continue/${ideInfo.extensionVersion})`
-        : "Unknown/Unknown (Continue/Unknown)";
+        ? `${ideInfo.name}/${ideInfo.version} (Qivryn/${ideInfo.extensionVersion})`
+        : "Unknown/Unknown (Qivryn/Unknown)";
     }
     if ("selectedProfileId" in zodSchema.shape) {
       newBody.selectedProfileId =
@@ -160,7 +160,7 @@ export class DataLogger {
   }
 
   async logToOneDestination(
-    dataConfig: NonNullable<ContinueConfig["data"]>[number],
+    dataConfig: NonNullable<QivrynConfig["data"]>[number],
     event: DevDataLogEvent,
   ) {
     try {

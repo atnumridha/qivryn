@@ -1,7 +1,7 @@
 ---
 title: "Building a Continuous AI Workflow with PostHog and GitHub"
 description: "Build an automated system that continuously monitors PostHog analytics, analyzes user behavior with AI, and creates GitHub issues automatically using PostHog MCP."
-sidebarTitle: "PostHog Analytics with Continue CLI"
+sidebarTitle: "PostHog Analytics with Qivryn CLI"
 ---
 
 import { OSAutoDetect } from '/snippets/OSAutoDetect.jsx'
@@ -10,7 +10,7 @@ import CLIInstall from '/snippets/cli-install.mdx'
 <OSAutoDetect />
 
 <Card title="What You'll Build" icon="robot">
-  A fully automated workflow that uses Continue CLI with the PostHog MCP to fetch analytics data, analyze user experience issues with AI, and automatically create GitHub
+  A fully automated workflow that uses Qivryn CLI with the PostHog MCP to fetch analytics data, analyze user experience issues with AI, and automatically create GitHub
   issues with the GitHub CLI.
 </Card>
 
@@ -31,36 +31,36 @@ Before starting, ensure you have:
 - GitHub repository where you want to create issues
 - [PostHog account](https://posthog.com) with [session recordings enabled](https://posthog.com/docs/session-replay/installation) and data collecting
 - Node.js 18+ installed locally
-- [Continue CLI](https://docs.continue.dev/guides/cli) with **active credits** (required for API usage)
+- [Qivryn CLI](https://docs.qivryn.ai/guides/cli) with **active credits** (required for API usage)
 - [GitHub CLI](https://cli.github.com/) installed (`gh` command)
 
 <Steps>
-  <Step title="Install Continue CLI">
+  <Step title="Install Qivryn CLI">
     <CLIInstall />
   </Step>
   
-  <Step title="Set up Continue CLI Account & API Key">
-        1. Visit [Continue Organizations](https://continue.dev/settings/organizations)
-        2. Sign up or log in to your Continue account
+  <Step title="Set up Qivryn CLI Account & API Key">
+        1. Visit [Qivryn Organizations](https://qivryn.ai/settings/organizations)
+        2. Sign up or log in to your Qivryn account
         3. Navigate to your organization settings
         4. Click **"API Keys"** and then **"+ New API Key"** 
         5. Copy the API key immediately (you won't see it again!)
-        6. Login to the CLI: `cn login`
+        6. Login to the CLI: `qivryn login`
   </Step>
 
-  <Step title="Add Required Secrets to Continue CLI">
-    Continue CLI will securely store your API keys as secrets that can be referenced in prompts.
+  <Step title="Add Required Secrets to Qivryn CLI">
+    Qivryn CLI will securely store your API keys as secrets that can be referenced in prompts.
   </Step>
 </Steps>
 
 <Tip>
-  Continue CLI handles the complex API interactions - you just need to provide
+  Qivryn CLI handles the complex API interactions - you just need to provide
   the right prompts!
 </Tip>
 
 ## Step 1: Set Up Your Credentials
 
-First, you'll need to gather your PostHog and GitHub API credentials and add them as secrets in Continue CLI.
+First, you'll need to gather your PostHog and GitHub API credentials and add them as secrets in Qivryn CLI.
 
 <Tabs>
   <Tab title="PostHog API Credentials">
@@ -68,7 +68,7 @@ First, you'll need to gather your PostHog and GitHub API credentials and add the
 
     1. Go to [Personal API Keys](https://app.posthog.com/settings/user-api-keys) in PostHog
     2. Click **+ Create a personal API Key**
-    3. Name it "Continue CLI Session Analysis"
+    3. Name it "Qivryn CLI Session Analysis"
     4. Select these scopes:
        - `session_recording:read` - **Required** for accessing session data
        - `feature_flag:read` - **Required** for feature flag auditing
@@ -81,8 +81,8 @@ First, you'll need to gather your PostHog and GitHub API credentials and add the
     8. You'll also need your POSTHOG_AUTH_HEADER value, which is simply `Bearer YOUR_API_KEY`
 
       <Info>
-  **Continue Secrets**: The `POSTHOG_AUTH_HEADER` secret should be stored in
-  Continue's secure secrets storage. This keeps your API key safe and the MCP
+  **Qivryn Secrets**: The `POSTHOG_AUTH_HEADER` secret should be stored in
+  Qivryn's secure secrets storage. This keeps your API key safe and the MCP
   automatically connects to your default PostHog project.
 </Info>
 
@@ -96,7 +96,7 @@ First, you'll need to gather your PostHog and GitHub API credentials and add the
     4. Grant necessary permissions when prompted (`issues:write` is **required** for creating issues)
 
   </Tab>
-<Tab title= "Configure API Access in Continue CLI">
+<Tab title= "Configure API Access in Qivryn CLI">
  
 You only need to configure the PostHog MCP credential - it automatically handles project selection. Set your PostHog API key as an environment variable:
 
@@ -137,7 +137,7 @@ Replace `YOUR_API_KEY` with your Personal API Key from PostHog (phx_...).
         Run:
         
         ```bash
-        cn --agent continuedev/posthog-continuous-ai-agent
+        qivryn --agent qivryn/posthog-continuous-ai-agent
         ```
 
         This agent includes:
@@ -149,7 +149,7 @@ Replace `YOUR_API_KEY` with your Personal API Key from PostHog (phx_...).
       <Step title="Run the Analysis">
         From your project directory, run:
         ```bash
-        cn "Give me my PostHog Session data and create GitHub issues based on the problems."
+        qivryn "Give me my PostHog Session data and create GitHub issues based on the problems."
         ```
 
         That's it! The agent handles everything automatically.
@@ -164,20 +164,20 @@ Replace `YOUR_API_KEY` with your Personal API Key from PostHog (phx_...).
 
   <Tab title="🛠️ Manual Setup">
   <Steps>
-    <Step title="Add PostHog MCP to Continue CLI">
+    <Step title="Add PostHog MCP to Qivryn CLI">
       Add the PostHog MCP to your [local config](/reference#mcpservers).
     </Step>
     <Step title="Add PostHog + GitHub Analysis Rules">
       Add PostHog GitHub Continuous AI rules to your configuration:
-      1. Pass `--rule bekah-hawrot-weigel/posthog-github-continuous-ai-rules` to `cn` OR
-      2. Copy the rules to your local `.continue/rules` folder. See the [Rules Guide](/customize/deep-dives/rules#how-to-create-rules).
+      1. Pass `--rule bekah-hawrot-weigel/posthog-github-continuous-ai-rules` to `qivryn` OR
+      2. Copy the rules to your local `.qivryn/rules` folder. See the [Rules Guide](/customize/deep-dives/rules#how-to-create-rules).
     </Step>
     <Step title="Create Your Custom Prompts">
-      Use this prompt with Continue CLI to analyze PostHog data and create GitHub issues:
+      Use this prompt with Qivryn CLI to analyze PostHog data and create GitHub issues:
 
       ```bash
 
-       # In cn TUI mode:
+       # In qivryn TUI mode:
       "Create GitHub issues from the PostHog analysis using gh CLI:
       - For each issue, run: gh issue create --title '🔍 UX Issue: [title]' --body '[details]'
       - Add labels: --label 'bug,user-experience,automated'
@@ -200,7 +200,7 @@ Replace `YOUR_API_KEY` with your Personal API Key from PostHog (phx_...).
 
 <Accordion title="Agent Requirements">
     To use the pre-built agent, you need either:
-      - **Continue CLI Pro Plan** with the models add-on, OR
+      - **Qivryn CLI Pro Plan** with the models add-on, OR
       - **Your own API keys** configured as environment variables
 
     The agent will automatically detect and use your configuration.
@@ -220,7 +220,7 @@ Create missing labels in your repo at: **Settings → Labels → New label**
 </Warning>
 
 <Info>
-    **What Continue CLI Does:** 
+    **What Qivryn CLI Does:**
     - Parses your analysis results automatically 
     - Makes authenticated GitHub API calls using your stored token 
     - Creates properly formatted issues with appropriate labels 
@@ -246,7 +246,7 @@ After completing this guide, you have a complete **Continuous AI system** that:
 
 <Card title="Continuous AI" icon="rocket">
   Your system now operates at **[Level 2 Continuous
-  AI](https://blog.continue.dev/what-is-continuous-ai-a-developers-guide/)** -
+  AI](https://blog.qivryn.ai/what-is-continuous-ai-a-developers-guide/)** -
   AI handles routine analysis tasks with human oversight through GitHub issue
   review and prioritization.
 </Card>
@@ -258,7 +258,7 @@ After completing this guide, you have a complete **Continuous AI system** that:
     **Protect Your API Keys:**
     - Store all credentials as GitHub Secrets, never in
     code
-    - Use Continue CLI's secure secret storage
+    - Use Qivryn CLI's secure secret storage
     - Limit token scopes to minimum required permissions
     - Rotate API keys regularly (every 90 days recommended)
     - Monitor token usage for unusual activity
@@ -267,7 +267,7 @@ After completing this guide, you have a complete **Continuous AI system** that:
 
 ## Example Use Cases
 
-Here are practical examples of what you can build with PostHog MCP and Continue CLI:
+Here are practical examples of what you can build with PostHog MCP and Qivryn CLI:
 
 ### Session Recording Analysis (Current Implementation)
 
@@ -285,14 +285,14 @@ The main workflow above focuses on analyzing session recordings to identify UX i
 - Identifies flags that may be candidates for removal or updates
 - Creates GitHub issues for flag cleanup tasks
 
-**Example Continue CLI prompts:**
+**Example Qivryn CLI prompts:**
 
 ```bash
 # Get all feature flags and analyze them
-cn "Use PostHog MCP to fetch all feature flags with feature-flag-get-all. Then analyze each flag to identify: 1) Flags that are 100% rolled out and could be removed, 2) Flags that haven't been updated in 90+ days, 3) Flags with complex targeting that might need simplification, 4) Experimental flags that should be cleaned up."
+qivryn "Use PostHog MCP to fetch all feature flags with feature-flag-get-all. Then analyze each flag to identify: 1) Flags that are 100% rolled out and could be removed, 2) Flags that haven't been updated in 90+ days, 3) Flags with complex targeting that might need simplification, 4) Experimental flags that should be cleaned up."
 
 # Create cleanup issues for identified flags
-cn "For each problematic feature flag identified, create a GitHub issue using gh CLI:
+qivryn "For each problematic feature flag identified, create a GitHub issue using gh CLI:
 - Title: '🏁 Feature Flag Cleanup: [flag_name]'
 - Include flag details: rollout percentage, last modified date, targeting rules
 - Add labels: 'technical-debt', 'feature-flag', 'cleanup'
@@ -300,7 +300,7 @@ cn "For each problematic feature flag identified, create a GitHub issue using gh
 - Include specific recommendations for each flag"
 
 # Audit flag performance impact
-cn "Cross-reference feature flags with PostHog performance metrics to identify flags that may be impacting user experience or site performance. Create performance-focused GitHub issues for flags showing negative impact."
+qivryn "Cross-reference feature flags with PostHog performance metrics to identify flags that may be impacting user experience or site performance. Create performance-focused GitHub issues for flags showing negative impact."
 ```
 
 **Required PostHog MCP Tools:**
@@ -317,7 +317,7 @@ This workflow creates GitHub issues like:
 
 ### Advanced Prompts
 
-Consider enhancing your workflow with these advanced Continue CLI prompts:
+Consider enhancing your workflow with these advanced Qivryn CLI prompts:
 
 <CardGroup cols={2}>
   <Card title="Performance Analysis" icon="chart-line">
@@ -347,5 +347,5 @@ Consider enhancing your workflow with these advanced Continue CLI prompts:
 - [PostHog Feature Flags](https://posthog.com/docs/feature-flags)
 - [PostHog Error Tracking](https://posthog.com/docs/error-tracking)
 - [GitHub CLI Documentation](https://cli.github.com/)
-- [Continue CLI Guide](https://docs.continue.dev/guides/cli)
-- [Continuous AI Best Practices](https://blog.continue.dev/what-is-continuous-ai-a-developers-guide/)
+- [Qivryn CLI Guide](https://docs.qivryn.ai/guides/cli)
+- [Continuous AI Best Practices](https://blog.qivryn.ai/what-is-continuous-ai-a-developers-guide/)

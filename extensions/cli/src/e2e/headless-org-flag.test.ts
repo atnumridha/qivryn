@@ -19,7 +19,7 @@ models:
 
   const testEnv = {
     OPENAI_API_KEY: "test-key",
-    CONTINUE_API_KEY: "test-api-key",
+    QIVRYN_API_KEY: "test-api-key",
   };
 
   beforeEach(async () => {

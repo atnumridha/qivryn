@@ -15,7 +15,7 @@ interface EnvironmentConfig {
 }
 
 const ENVIRONMENT_FILE_NAME = "environment.json";
-const ENVIRONMENT_SEARCH_PATHS = [".continue"];
+const ENVIRONMENT_SEARCH_PATHS = [".qivryn"];
 
 /**
  * Finds and reads the environment.json file

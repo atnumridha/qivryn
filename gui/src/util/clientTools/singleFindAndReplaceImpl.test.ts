@@ -1,4 +1,4 @@
-import { ContinueErrorReason } from "core/util/errors";
+import { QivrynErrorReason } from "core/util/errors";
 import * as ideUtils from "core/util/ideUtils";
 import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
 import { applyForEditTool } from "../../redux/thunks/handleApplyStateUpdate";
@@ -64,7 +64,7 @@ describe("singleFindAndReplaceImpl", () => {
         singleFindAndReplaceImpl(args, "tool-call-id", mockExtras),
       ).rejects.toThrowError(
         expect.objectContaining({
-          reason: ContinueErrorReason.FindAndReplaceMissingFilepath,
+          reason: QivrynErrorReason.FindAndReplaceMissingFilepath,
         }),
       );
     });
@@ -79,7 +79,7 @@ describe("singleFindAndReplaceImpl", () => {
         singleFindAndReplaceImpl(args, "tool-call-id", mockExtras),
       ).rejects.toThrowError(
         expect.objectContaining({
-          reason: ContinueErrorReason.FindAndReplaceMissingOldString,
+          reason: QivrynErrorReason.FindAndReplaceMissingOldString,
         }),
       );
     });
@@ -94,7 +94,7 @@ describe("singleFindAndReplaceImpl", () => {
         singleFindAndReplaceImpl(args, "tool-call-id", mockExtras),
       ).rejects.toThrowError(
         expect.objectContaining({
-          reason: ContinueErrorReason.FindAndReplaceMissingNewString,
+          reason: QivrynErrorReason.FindAndReplaceMissingNewString,
         }),
       );
     });
@@ -110,7 +110,7 @@ describe("singleFindAndReplaceImpl", () => {
         singleFindAndReplaceImpl(args, "tool-call-id", mockExtras),
       ).rejects.toThrowError(
         expect.objectContaining({
-          reason: ContinueErrorReason.FindAndReplaceIdenticalOldAndNewStrings,
+          reason: QivrynErrorReason.FindAndReplaceIdenticalOldAndNewStrings,
         }),
       );
     });
@@ -130,7 +130,7 @@ describe("singleFindAndReplaceImpl", () => {
         singleFindAndReplaceImpl(args, "tool-call-id", mockExtras),
       ).rejects.toThrowError(
         expect.objectContaining({
-          reason: ContinueErrorReason.FileNotFound,
+          reason: QivrynErrorReason.FileNotFound,
         }),
       );
     });
@@ -179,7 +179,7 @@ describe("singleFindAndReplaceImpl", () => {
         singleFindAndReplaceImpl(args, "tool-call-id", mockExtras),
       ).rejects.toThrowError(
         expect.objectContaining({
-          reason: ContinueErrorReason.FindAndReplaceOldStringNotFound,
+          reason: QivrynErrorReason.FindAndReplaceOldStringNotFound,
         }),
       );
     });
@@ -224,7 +224,7 @@ describe("singleFindAndReplaceImpl", () => {
         singleFindAndReplaceImpl(args, "tool-call-id", mockExtras),
       ).rejects.toThrowError(
         expect.objectContaining({
-          reason: ContinueErrorReason.FindAndReplaceMultipleOccurrences,
+          reason: QivrynErrorReason.FindAndReplaceMultipleOccurrences,
         }),
       );
     });

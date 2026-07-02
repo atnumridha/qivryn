@@ -2,7 +2,7 @@ import {
   classifyTerminalCommand,
   type ToolPolicy,
   TerminalJobService,
-} from "@continuedev/terminal-security";
+} from "@qivryn/terminal-security";
 import os from "node:os";
 import path from "node:path";
 
@@ -37,7 +37,7 @@ export async function terminalCommand(
 ): Promise<void> {
   const jobs = new TerminalJobService(
     path.join(
-      process.env.CONTINUE_GLOBAL_DIR ?? path.join(os.homedir(), ".continue"),
+      process.env.QIVRYN_GLOBAL_DIR ?? path.join(os.homedir(), ".qivryn"),
       "terminal-jobs",
     ),
   );
@@ -69,7 +69,7 @@ export async function terminalCommand(
   }
   if (action !== "inspect" || !command?.trim()) {
     throw new Error(
-      "Usage: cn terminal inspect|start|jobs|show|stop [command-or-job-id]",
+      "Usage: qivryn terminal inspect|start|jobs|show|stop [command-or-job-id]",
     );
   }
   const result = inspectTerminalCommand(command, options);

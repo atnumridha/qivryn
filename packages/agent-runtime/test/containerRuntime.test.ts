@@ -28,8 +28,8 @@ function run(permissionMode: AgentRun["permissionMode"]): AgentRun {
 describe("Docker container runtime", () => {
   it("maps read-only mode to a read-only mount and no network", () => {
     const spec = buildDockerRunSpec(run("readOnly"), {
-      image: "continue-agent:latest",
-      command: "cn",
+      image: "qivryn-agent:latest",
+      command: "qivryn",
       args: ["-p", "inspect"],
     });
     expect(spec.command).toBe("docker");
@@ -37,19 +37,19 @@ describe("Docker container runtime", () => {
       expect.arrayContaining([
         "/workspace/worktrees/agent-1:/workspace:ro",
         "none",
-        "CONTINUE_PERMISSION_MODE=readOnly",
+        "QIVRYN_PERMISSION_MODE=readOnly",
       ]),
     );
   });
 
   it("adds explicit read-only attachment mounts", () => {
     const spec = buildDockerRunSpec(run("autonomous"), {
-      image: "continue-agent:latest",
-      command: "cn",
+      image: "qivryn-agent:latest",
+      command: "qivryn",
       mounts: [
         {
           source: "/tmp/screen shot.png",
-          target: "/continue-attachments/image-1",
+          target: "/qivryn-attachments/image-1",
           readOnly: true,
         },
       ],
@@ -57,7 +57,7 @@ describe("Docker container runtime", () => {
     expect(spec.args).toEqual(
       expect.arrayContaining([
         "--mount",
-        "type=bind,source=/tmp/screen shot.png,target=/continue-attachments/image-1,readonly",
+        "type=bind,source=/tmp/screen shot.png,target=/qivryn-attachments/image-1,readonly",
       ]),
     );
   });
@@ -65,8 +65,8 @@ describe("Docker container runtime", () => {
   it("rejects relative attachment mount targets", () => {
     expect(() =>
       buildDockerRunSpec(run("autonomous"), {
-        image: "continue-agent:latest",
-        command: "cn",
+        image: "qivryn-agent:latest",
+        command: "qivryn",
         mounts: [{ source: "/tmp/image.png", target: "attachments/image-1" }],
       }),
     ).toThrow("absolute paths");
@@ -74,28 +74,28 @@ describe("Docker container runtime", () => {
 
   it("keeps autonomous agents writable without granting privilege", () => {
     const spec = buildDockerRunSpec(run("autonomous"), {
-      image: "continue-agent:latest",
-      command: "cn",
-      network: "continue-dev",
+      image: "qivryn-agent:latest",
+      command: "qivryn",
+      network: "qivryn-dev",
       env: { CI: "1" },
     });
     expect(spec.args).toContain("/workspace/worktrees/agent-1:/workspace");
-    expect(spec.args).toContain("continue-dev");
+    expect(spec.args).toContain("qivryn-dev");
     expect(spec.args).not.toContain("--privileged");
   });
 
   it("requires explicit authority for privileged containers", () => {
     expect(() =>
       buildDockerRunSpec(run("fullAccess"), {
-        image: "continue-agent:latest",
-        command: "cn",
+        image: "qivryn-agent:latest",
+        command: "qivryn",
         privileged: true,
       }),
     ).toThrow(/allowPrivileged/);
     expect(
       buildDockerRunSpec(
         run("fullAccess"),
-        { image: "continue-agent:latest", command: "cn", privileged: true },
+        { image: "qivryn-agent:latest", command: "qivryn", privileged: true },
         { allowPrivileged: true },
       ).args,
     ).toContain("--privileged");
@@ -107,8 +107,8 @@ describe("Docker container runtime", () => {
       { prepare: async (agentRun) => agentRun.workspace },
       {
         resolveContainer: () => ({
-          image: "continue-agent:latest",
-          command: "cn",
+          image: "qivryn-agent:latest",
+          command: "qivryn",
         }),
       },
     );

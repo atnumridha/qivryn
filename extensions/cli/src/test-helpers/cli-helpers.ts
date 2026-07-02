@@ -31,8 +31,8 @@ export interface CLIRunResult {
  */
 export async function createTestContext(): Promise<CLITestContext> {
   // Use the wrapper script that invokes runCli(), not the raw bundle entry
-  const cliPath = path.resolve("dist/cn.js");
-  const testDir = await fs.mkdtemp(path.join(os.tmpdir(), "cn-test-"));
+  const cliPath = path.resolve("dist/qivryn.js");
+  const testDir = await fs.mkdtemp(path.join(os.tmpdir(), "qivryn-test-"));
 
   // Ensure the CLI file exists before returning the context
   try {
@@ -84,7 +84,7 @@ export async function runCLI(
     cwd: context.testDir,
     env: {
       ...process.env,
-      CONTINUE_CLI_TEST: "true",
+      QIVRYN_CLI_TEST: "true",
       HOME: context.testDir,
       // Windows-specific home directory variables
       USERPROFILE: context.testDir,
@@ -162,7 +162,7 @@ export async function readSession(
   context: CLITestContext,
 ): Promise<any | null> {
   try {
-    const sessionDir = path.join(context.testDir, ".continue", "sessions");
+    const sessionDir = path.join(context.testDir, ".qivryn", "sessions");
     const files = await fs.readdir(sessionDir);
 
     if (files.length === 0) {
@@ -187,7 +187,7 @@ export async function createMockSession(
   context: CLITestContext,
   messages: any[],
 ): Promise<string> {
-  const sessionDir = path.join(context.testDir, ".continue", "sessions");
+  const sessionDir = path.join(context.testDir, ".qivryn", "sessions");
   await fs.mkdir(sessionDir, { recursive: true });
 
   const sessionId = `test-session-${Date.now()}`;
@@ -251,7 +251,7 @@ export async function withInteractiveInput(
     cwd: context.testDir,
     env: {
       ...process.env,
-      CONTINUE_CLI_TEST: "true",
+      QIVRYN_CLI_TEST: "true",
       HOME: context.testDir,
       // Windows-specific home directory variables
       USERPROFILE: context.testDir,

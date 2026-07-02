@@ -1,7 +1,4 @@
-import {
-  ConfigValidationError,
-  parseMarkdownRule,
-} from "@continuedev/config-yaml";
+import { ConfigValidationError, parseMarkdownRule } from "@qivryn/config-yaml";
 import os from "os";
 import path from "path";
 import { mkdir } from "node:fs/promises";
@@ -10,7 +7,7 @@ import { IDE, Skill } from "../..";
 import { walkDir } from "../../indexing/walkDir";
 import { localPathToUri } from "../../util/pathToUri";
 import { findUriInDirs, joinPathsToUri } from "../../util/uri";
-import { getAllDotContinueDefinitionFiles } from "../loadLocalAssistants";
+import { getAllDotQivrynDefinitionFiles } from "../loadLocalAssistants";
 import { getEnabledLocalPluginSkillPaths } from "../plugins/localPluginManager";
 
 const skillFrontmatterSchema = z.object({
@@ -41,7 +38,7 @@ export interface SaveMarkdownSkillRequest {
 function skillProvenance(fileUri: string): string {
   if (
     fileUri.includes("/plugins/cache/") ||
-    fileUri.includes("/.continue/plugins/installed/")
+    fileUri.includes("/.qivryn/plugins/installed/")
   )
     return "Plugin";
   if (fileUri.includes("/.cursor/")) return "Cursor";
@@ -54,7 +51,7 @@ function skillProvenance(fileUri: string): string {
     return "Copilot";
   if (fileUri.includes("/.github/")) return "GitHub";
   if (fileUri.includes("/.agents/")) return "Agents";
-  if (fileUri.includes("/.continue/")) return "Continue";
+  if (fileUri.includes("/.qivryn/")) return "Qivryn";
   return "Workspace";
 }
 
@@ -139,7 +136,7 @@ async function loadMarkdownSkillsUncached(ide: IDE): Promise<LoadSkillsResult> {
   try {
     const yamlAndMarkdownFileUris = [
       ...(
-        await getAllDotContinueDefinitionFiles(
+        await getAllDotQivrynDefinitionFiles(
           ide,
           {
             includeGlobal: true,
@@ -187,7 +184,7 @@ async function loadMarkdownSkillsUncached(ide: IDE): Promise<LoadSkillsResult> {
             provenance: skillProvenance(fileUri),
             readOnly:
               fileUri.includes("/plugins/cache/") ||
-              fileUri.includes("/.continue/plugins/installed/"),
+              fileUri.includes("/.qivryn/plugins/installed/"),
             scope: foundRelativeUri.foundInDir ? "workspace" : "global",
             path: foundRelativeUri.foundInDir
               ? foundRelativeUri.relativePathOrBasename
@@ -207,7 +204,7 @@ async function loadMarkdownSkillsUncached(ide: IDE): Promise<LoadSkillsResult> {
     const seenSkillNames = new Set<string>();
     for (const candidate of candidates) {
       if (!candidate || seenSkillNames.has(candidate.name)) continue;
-      // Promise.all preserves source order, so Continue/workspace definitions
+      // Promise.all preserves source order, so Qivryn/workspace definitions
       // still win over cross-agent workspace and global roots.
       seenSkillNames.add(candidate.name);
       skills.push(candidate);
@@ -272,11 +269,11 @@ export async function saveMarkdownSkill(
     const baseUri =
       request.scope === "workspace"
         ? workspaceDirs[0]
-        : localPathToUri(path.join(os.homedir(), ".continue"));
+        : localPathToUri(path.join(os.homedir(), ".qivryn"));
     if (!baseUri) throw new Error("Open a workspace before creating a skill");
     targetUri = joinPathsToUri(
       baseUri,
-      ...(request.scope === "workspace" ? [".continue"] : []),
+      ...(request.scope === "workspace" ? [".qivryn"] : []),
       SKILLS_DIR,
       skillSlug(request.name),
       "SKILL.md",

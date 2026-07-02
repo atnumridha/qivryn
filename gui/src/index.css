@@ -17,7 +17,12 @@
 }
 
 :root {
-  --example-var: rgb(30, 30, 30);
+  --qivryn-violet: #7c5cff;
+  --qivryn-violet-hover: #927bff;
+  --qivryn-cyan: #2de2e6;
+  --qivryn-ink: #10131a;
+  --qivryn-surface: #171b27;
+  --qivryn-glow: color-mix(in srgb, var(--qivryn-cyan) 28%, transparent);
 }
 
 html,
@@ -46,6 +51,19 @@ body {
   padding: 0px;
   margin: 0px;
   height: 100%;
+  accent-color: var(--qivryn-violet);
+}
+
+.qivryn-brand-gradient {
+  background-image: linear-gradient(
+    135deg,
+    var(--qivryn-violet),
+    var(--qivryn-cyan)
+  );
+}
+
+.qivryn-brand-focus:focus-visible {
+  box-shadow: 0 0 0 2px var(--qivryn-glow);
 }
 
 /* Keep native controls aligned with the active IDE theme. Chromium otherwise

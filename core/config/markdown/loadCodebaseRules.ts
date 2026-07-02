@@ -1,7 +1,4 @@
-import {
-  ConfigValidationError,
-  markdownToRule,
-} from "@continuedev/config-yaml";
+import { ConfigValidationError, markdownToRule } from "@qivryn/config-yaml";
 import os from "os";
 import path from "path";
 import { IDE, RuleWithSource } from "../..";
@@ -37,7 +34,7 @@ function isPortableAgentRuleDirFile(normalizedUri: string): boolean {
   );
 }
 
-/** Cursor, Claude, Codex, Copilot and Continue rule files share one loader. */
+/** Cursor, Claude, Codex, Copilot and Qivryn rule files share one loader. */
 export function isCrossAgentRuleFile(fileUri: string): boolean {
   const normalized = fileUri.replaceAll("\\", "/").toLowerCase();
   const filename = getUriPathBasename(normalized).toLowerCase();

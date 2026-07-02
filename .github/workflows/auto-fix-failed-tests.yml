@@ -101,15 +101,15 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Install Continue CLI globally
+      - name: Install Qivryn CLI globally
         if: steps.workflow-details.outputs.has_failed_tests == 'true'
-        run: npm i -g @continuedev/cli
+        run: npm i -g @qivryn/cli
 
       - name: Start remote session to fix failed tests
         if: steps.workflow-details.outputs.has_failed_tests == 'true'
         id: remote-session
         env:
-          CONTINUE_API_KEY: ${{ secrets.CONTINUE_API_KEY }}
+          QIVRYN_API_KEY: ${{ secrets.QIVRYN_API_KEY }}
         run: |
           # Create a detailed prompt for fixing the failed tests
           cat > /tmp/fix_tests_prompt.txt << 'PROMPT_EOF'
@@ -140,12 +140,12 @@ jobs:
           Please start by examining the failing tests and their error messages, then proceed with the necessary fixes.
           PROMPT_EOF
 
-          echo "Starting Continue CLI remote session for test fixes..."
+          echo "Starting Qivryn CLI remote session for test fixes..."
           echo "Prompt content:"
           cat /tmp/fix_tests_prompt.txt
 
           # Start remote session and capture JSON output
-          SESSION_OUTPUT=$(cat /tmp/fix_tests_prompt.txt | cn remote -s --branch ${{ steps.workflow-details.outputs.head_branch }})
+          SESSION_OUTPUT=$(cat /tmp/fix_tests_prompt.txt | qivryn remote -s --branch ${{ steps.workflow-details.outputs.head_branch }})
           echo "Raw session output: $SESSION_OUTPUT"
 
           # Extract URL from JSON output

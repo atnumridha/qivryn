@@ -91,7 +91,7 @@ export const updateSession = createAsyncThunk<void, Session, ThunkApiType>(
 );
 
 /*
- this is only used for the custom focusContinueSessionId command at the moment
+ this is only used for the custom focusQivrynSessionId command at the moment
 */
 export const loadSession = createAsyncThunk<
   void,

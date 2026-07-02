@@ -1,5 +1,5 @@
 /**
- * ChatGPTCodex LLM provider for Continue.
+ * ChatGPTCodex LLM provider for Qivryn.
  *
  * Uses the ChatGPT Codex backend (chatgpt.com/backend-api/codex) — the same
  * backend used by Codex Desktop and the Codex CLI.

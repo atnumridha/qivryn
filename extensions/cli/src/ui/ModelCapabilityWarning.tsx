@@ -17,7 +17,7 @@ const ModelCapabilityWarning: React.FC<ModelCapabilityWarningProps> = ({
         </Text>
       </Box>
       <Text color="gray">
-        The model "{modelName}" is not recommended for use with cn due to
+        The model "{modelName}" is not recommended for use with qivryn due to
         limited reasoning and tool calling capabilities
       </Text>
     </Box>

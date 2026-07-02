@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentRun } from "@continuedev/agent-runtime";
+import type { AgentEvent, AgentRun } from "@qivryn/agent-runtime";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { Provider } from "react-redux";
@@ -26,9 +26,9 @@ const selectedRun: AgentRun = {
   workspace: {
     id: "workspace-1",
     location: "local",
-    repositoryPath: "/Users/user/continue",
-    worktreePath: "/Users/user/.continue/agents/worktrees/visual-run",
-    branch: "continue/agent-visual-run",
+    repositoryPath: "/Users/user/qivryn",
+    worktreePath: "/Users/user/.qivryn/agents/worktrees/visual-run",
+    branch: "qivryn/agent-visual-run",
   },
 };
 
@@ -107,7 +107,7 @@ messenger.responses["agents/checkpoints"] = Array.from(
 );
 messenger.responses.getFileResults = Array.from(
   { length: 20 },
-  (_, index) => `/Users/user/continue/src/feature-${index}.ts`,
+  (_, index) => `/Users/user/qivryn/src/feature-${index}.ts`,
 );
 messenger.responseHandlers["agents/control"] = async (request) => {
   (window as Window & { __lastAgentControl?: unknown }).__lastAgentControl =

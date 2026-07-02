@@ -8,35 +8,35 @@ const path = require("path");
 
 const { execCmdSync } = require("../../../scripts/util");
 
-const { continueDir } = require("./utils");
+const { qivrynDir } = require("./utils");
 
 async function generateConfigYamlSchema() {
-  process.chdir(path.join(continueDir, "packages", "config-yaml"));
+  process.chdir(path.join(qivrynDir, "packages", "config-yaml"));
   execCmdSync("npm install");
   execCmdSync("npm run build");
   execCmdSync("npm run generate-schema");
   fs.copyFileSync(
     path.join("schema", "config-yaml-schema.json"),
-    path.join(continueDir, "extensions", "vscode", "config-yaml-schema.json"),
+    path.join(qivrynDir, "extensions", "vscode", "config-yaml-schema.json"),
   );
   console.log("[info] Generated config.yaml schema");
 }
 
 async function copyConfigSchema() {
-  process.chdir(path.join(continueDir, "extensions", "vscode"));
-  // Modify and copy for .continuerc.json
+  process.chdir(path.join(qivrynDir, "extensions", "vscode"));
+  // Modify and copy for .qivrynrc.json
   const schema = JSON.parse(fs.readFileSync("config_schema.json", "utf8"));
-  schema.$defs.SerializedContinueConfig.properties.mergeBehavior = {
+  schema.$defs.SerializedQivrynConfig.properties.mergeBehavior = {
     type: "string",
     enum: ["merge", "overwrite"],
     default: "merge",
     title: "Merge behavior",
     markdownDescription:
-      "If set to 'merge', .continuerc.json will be applied on top of config.json (arrays and objects are merged). If set to 'overwrite', then every top-level property of .continuerc.json will overwrite that property from config.json.",
+      "If set to 'merge', .qivrynrc.json will be applied on top of config.json (arrays and objects are merged). If set to 'overwrite', then every top-level property of .qivrynrc.json will overwrite that property from config.json.",
     "x-intellij-html-description":
-      "<p>If set to <code>merge</code>, <code>.continuerc.json</code> will be applied on top of <code>config.json</code> (arrays and objects are merged). If set to <code>overwrite</code>, then every top-level property of <code>.continuerc.json</code> will overwrite that property from <code>config.json</code>.</p>",
+      "<p>If set to <code>merge</code>, <code>.qivrynrc.json</code> will be applied on top of <code>config.json</code> (arrays and objects are merged). If set to <code>overwrite</code>, then every top-level property of <code>.qivrynrc.json</code> will overwrite that property from <code>config.json</code>.</p>",
   };
-  fs.writeFileSync("continue_rc_schema.json", JSON.stringify(schema, null, 2));
+  fs.writeFileSync("qivryn_rc_schema.json", JSON.stringify(schema, null, 2));
 
   // Copy config schemas to intellij
   fs.copyFileSync(
@@ -51,14 +51,14 @@ async function copyConfigSchema() {
     ),
   );
   fs.copyFileSync(
-    "continue_rc_schema.json",
+    "qivryn_rc_schema.json",
     path.join(
       "..",
       "intellij",
       "src",
       "main",
       "resources",
-      "continue_rc_schema.json",
+      "qivryn_rc_schema.json",
     ),
   );
 }

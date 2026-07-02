@@ -236,8 +236,8 @@ export function DocsShell({
             >
               <Link href={resolveHref("/")} className="flex items-center">
                 <img
-                  src={withBasePath("/images/continue-logo-light.png")}
-                  alt="Continue"
+                  src={withBasePath("/images/qivryn-wordmark.svg")}
+                  alt="Qivryn"
                   className="h-8 w-auto dark:invert"
                 />
               </Link>
@@ -246,8 +246,8 @@ export function DocsShell({
             <div className="flex items-center px-5 py-3 lg:hidden">
               <Link href={resolveHref("/")} className="flex items-center">
                 <img
-                  src={withBasePath("/images/continue-logo-light.png")}
-                  alt="Continue"
+                  src={withBasePath("/images/qivryn-wordmark.svg")}
+                  alt="Qivryn"
                   className="h-8 w-auto dark:invert"
                 />
               </Link>

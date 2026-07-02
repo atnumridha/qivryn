@@ -43,7 +43,7 @@ export interface DockerContainerRuntimeOptions
 }
 
 function containerName(runId: string): string {
-  return `continue-agent-${runId.replace(/[^a-zA-Z0-9_.-]/g, "-").slice(0, 48)}`;
+  return `qivryn-agent-${runId.replace(/[^a-zA-Z0-9_.-]/g, "-").slice(0, 48)}`;
 }
 
 export function buildDockerRunSpec(
@@ -71,7 +71,7 @@ export function buildDockerRunSpec(
     "--network",
     readOnly ? "none" : (spec.network ?? "bridge"),
     "--env",
-    `CONTINUE_PERMISSION_MODE=${run.permissionMode}`,
+    `QIVRYN_PERMISSION_MODE=${run.permissionMode}`,
   ];
   for (const mount of spec.mounts ?? []) {
     if (!mount.source || mount.source.includes("\0")) {

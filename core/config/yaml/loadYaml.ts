@@ -11,11 +11,11 @@ import {
   RegistryClient,
   unrollAssistant,
   validateConfigYaml,
-} from "@continuedev/config-yaml";
+} from "@qivryn/config-yaml";
 import { dirname } from "node:path";
 
 import {
-  ContinueConfig,
+  QivrynConfig,
   IDE,
   IdeInfo,
   IdeSettings,
@@ -34,14 +34,14 @@ import { loadJsonMcpConfigs } from "../../context/mcp/json/loadJsonMcpConfigs";
 import { getBaseToolDefinitions } from "../../tools";
 import { getCleanUriPath } from "../../util/uri";
 import { loadConfigContextProviders } from "../loadContextProviders";
-import { getAllDotContinueDefinitionFiles } from "../loadLocalAssistants";
+import { getAllDotQivrynDefinitionFiles } from "../loadLocalAssistants";
 import { unrollLocalYamlBlocks } from "./loadLocalYamlBlocks";
 import { LocalPlatformClient } from "./LocalPlatformClient";
 import { llmsFromModelConfig } from "./models";
 import {
   convertYamlMcpConfigToInternalMcpOptions,
-  convertYamlRuleToContinueRule,
-} from "./yamlToContinueConfig";
+  convertYamlRuleToQivrynRule,
+} from "./yamlToQivrynConfig";
 
 async function loadConfigYaml(options: {
   overrideConfigYaml: AssistantUnrolled | undefined;
@@ -51,11 +51,11 @@ async function loadConfigYaml(options: {
 }): Promise<ConfigResult<AssistantUnrolled>> {
   const { overrideConfigYaml, ideSettings, ide, packageIdentifier } = options;
 
-  // Add local .continue blocks
+  // Add local .qivryn blocks
   // Use "content" field to pass pre-read content directly, avoiding
   // fs.readFileSync which fails for vscode-remote:// URIs in WSL (#6242, #7810)
   const localBlockPromises = BLOCK_TYPES.map(async (blockType) => {
-    const localBlocks = await getAllDotContinueDefinitionFiles(
+    const localBlocks = await getAllDotQivrynDefinitionFiles(
       ide,
       { includeGlobal: true, includeWorkspace: true, fileExtType: "yaml" },
       blockType,
@@ -153,18 +153,18 @@ function nonNullifyConfigYaml(
   };
 }
 
-export async function configYamlToContinueConfig(options: {
+export async function configYamlToQivrynConfig(options: {
   unrolledAssistant: AssistantUnrolled;
   ide: IDE;
   ideInfo: IdeInfo;
   uniqueId: string;
   llmLogger: ILLMLogger;
-}): Promise<{ config: ContinueConfig; errors: ConfigValidationError[] }> {
+}): Promise<{ config: QivrynConfig; errors: ConfigValidationError[] }> {
   let { unrolledAssistant, ide, ideInfo, uniqueId, llmLogger } = options;
 
   const localErrors: ConfigValidationError[] = [];
 
-  const continueConfig: ContinueConfig = {
+  const qivrynConfig: QivrynConfig = {
     slashCommands: [],
     tools: getBaseToolDefinitions(),
     mcpServerStatuses: [],
@@ -196,18 +196,18 @@ export async function configYamlToContinueConfig(options: {
   const config = nonNullifyConfigYaml(unrolledAssistant);
 
   for (const rule of config.rules ?? []) {
-    const convertedRule = convertYamlRuleToContinueRule(rule);
-    continueConfig.rules.push(convertedRule);
+    const convertedRule = convertYamlRuleToQivrynRule(rule);
+    qivrynConfig.rules.push(convertedRule);
   }
 
-  continueConfig.data = config.data?.map((d) => ({
+  qivrynConfig.data = config.data?.map((d) => ({
     ...d,
     requestOptions: mergeConfigYamlRequestOptions(
       d.requestOptions,
-      continueConfig.requestOptions,
+      qivrynConfig.requestOptions,
     ),
   }));
-  continueConfig.docs = config.docs?.map((doc) => ({
+  qivrynConfig.docs = config.docs?.map((doc) => ({
     title: doc.name,
     startUrl: doc.startUrl,
     rootUrl: doc.rootUrl,
@@ -227,7 +227,7 @@ export async function configYamlToContinueConfig(options: {
           file.content,
         );
         if (slashCommand) {
-          continueConfig.slashCommands?.push(slashCommand);
+          qivrynConfig.slashCommands?.push(slashCommand);
         }
       } catch (e) {
         // If the file is in a rules directory, we can provide a more helpful error message
@@ -267,7 +267,7 @@ export async function configYamlToContinueConfig(options: {
   config.prompts?.forEach((prompt) => {
     try {
       const slashCommand = convertPromptBlockToSlashCommand(prompt);
-      continueConfig.slashCommands?.push(slashCommand);
+      qivrynConfig.slashCommands?.push(slashCommand);
     } catch (e) {
       localErrors.push({
         message: `Error loading prompt ${prompt.name}: ${e instanceof Error ? e.message : e}`,
@@ -286,34 +286,34 @@ export async function configYamlToContinueConfig(options: {
         model,
         uniqueId,
         llmLogger,
-        config: continueConfig,
+        config: qivrynConfig,
       });
 
       if (model.roles?.includes("chat")) {
-        continueConfig.modelsByRole.chat.push(...llms);
+        qivrynConfig.modelsByRole.chat.push(...llms);
       }
 
       if (model.roles?.includes("summarize")) {
-        continueConfig.modelsByRole.summarize.push(...llms);
+        qivrynConfig.modelsByRole.summarize.push(...llms);
       }
 
       if (model.roles?.includes("apply")) {
-        continueConfig.modelsByRole.apply.push(...llms);
+        qivrynConfig.modelsByRole.apply.push(...llms);
       }
 
       if (model.roles?.includes("edit")) {
-        continueConfig.modelsByRole.edit.push(...llms);
+        qivrynConfig.modelsByRole.edit.push(...llms);
       }
 
       if (model.roles?.includes("autocomplete")) {
-        continueConfig.modelsByRole.autocomplete.push(...llms);
+        qivrynConfig.modelsByRole.autocomplete.push(...llms);
       }
 
       if (model.roles?.includes("embed")) {
         const { provider } = model;
         if (provider === "transformers.js") {
           if (ideInfo.ideType === "vscode") {
-            continueConfig.modelsByRole.embed.push(
+            qivrynConfig.modelsByRole.embed.push(
               new TransformersJsEmbeddingsProvider(),
             );
           } else {
@@ -323,16 +323,16 @@ export async function configYamlToContinueConfig(options: {
             });
           }
         } else {
-          continueConfig.modelsByRole.embed.push(...llms);
+          qivrynConfig.modelsByRole.embed.push(...llms);
         }
       }
 
       if (model.roles?.includes("rerank")) {
-        continueConfig.modelsByRole.rerank.push(...llms);
+        qivrynConfig.modelsByRole.rerank.push(...llms);
       }
 
       if (model.roles?.includes("subagent")) {
-        continueConfig.modelsByRole.subagent.push(...llms);
+        qivrynConfig.modelsByRole.subagent.push(...llms);
       }
     } catch (e) {
       localErrors.push({
@@ -345,11 +345,11 @@ export async function configYamlToContinueConfig(options: {
   // Add transformers js to the embed models in vs code if not already added
   if (
     ideInfo.ideType === "vscode" &&
-    !continueConfig.modelsByRole.embed.find(
+    !qivrynConfig.modelsByRole.embed.find(
       (m) => m.providerName === "transformers.js",
     )
   ) {
-    continueConfig.modelsByRole.embed.push(
+    qivrynConfig.modelsByRole.embed.push(
       new TransformersJsEmbeddingsProvider(),
     );
   }
@@ -360,7 +360,7 @@ export async function configYamlToContinueConfig(options: {
     ideInfo.ideType,
   );
 
-  continueConfig.contextProviders = providers;
+  qivrynConfig.contextProviders = providers;
   localErrors.push(...contextErrors);
 
   // Trigger MCP server refreshes (Config is reloaded again once connected!)
@@ -379,10 +379,10 @@ export async function configYamlToContinueConfig(options: {
   mcpOptions.push(...mcpServers);
   mcpManager.setConnections(mcpOptions, false, { ide });
 
-  return { config: continueConfig, errors: localErrors };
+  return { config: qivrynConfig, errors: localErrors };
 }
 
-export async function loadContinueConfigFromYaml(options: {
+export async function loadQivrynConfigFromYaml(options: {
   ide: IDE;
   ideSettings: IdeSettings;
   ideInfo: IdeInfo;
@@ -390,7 +390,7 @@ export async function loadContinueConfigFromYaml(options: {
   llmLogger: ILLMLogger;
   overrideConfigYaml: AssistantUnrolled | undefined;
   packageIdentifier: PackageIdentifier;
-}): Promise<ConfigResult<ContinueConfig>> {
+}): Promise<ConfigResult<QivrynConfig>> {
   const {
     ide,
     ideSettings,
@@ -417,8 +417,8 @@ export async function loadContinueConfigFromYaml(options: {
     };
   }
 
-  const { config: continueConfig, errors: localErrors } =
-    await configYamlToContinueConfig({
+  const { config: qivrynConfig, errors: localErrors } =
+    await configYamlToQivrynConfig({
       unrolledAssistant: configYamlResult.config,
       ide,
       ideInfo,
@@ -431,7 +431,7 @@ export async function loadContinueConfigFromYaml(options: {
   // Don't try catch this - has security implications and failure should be fatal
   const sharedConfig = new GlobalContext().getSharedConfig();
   const withShared = modifyAnyConfigWithSharedConfig(
-    continueConfig,
+    qivrynConfig,
     sharedConfig,
   );
   if (withShared.allowAnonymousTelemetry === undefined) {

@@ -2,7 +2,7 @@ import { SlashCommandWithSource } from "..";
 import { RULES_MARKDOWN_FILENAME } from "../llm/rules/constants";
 import { BuiltInToolNames } from "../tools/builtIn";
 
-const initFilename = "CONTINUE.md";
+const initFilename = "QIVRYN.md";
 
 // Prompt for init slash command
 export const INIT_PROMPT_CONTENT = `
@@ -15,7 +15,7 @@ First, verify that you have access to the necessary tools:
 - ${BuiltInToolNames.LSTool}: To explore directory structure
 - ${BuiltInToolNames.CreateNewFile}: To generate the ${initFilename} file
 
-If any of these tools are unavailable, inform the user that they need to activate them and enable "Agent Mode" in Continue before proceeding.
+If any of these tools are unavailable, inform the user that they need to activate them and enable "Agent Mode" in Qivryn before proceeding.
 
 ## Step 2: Project Analysis
 Analyze the project structure and key files to understand:
@@ -26,7 +26,7 @@ Analyze the project structure and key files to understand:
 - Build/deployment system
 
 ## Step 3: Generate ${initFilename}
-Create a comprehensive ${initFilename} file in the .continue/rules/ directory with the following sections:
+Create a comprehensive ${initFilename} file in the .qivryn/rules/ directory with the following sections:
 
 1. **Project Overview**
    - Brief description of the project's purpose
@@ -70,10 +70,10 @@ Create a comprehensive ${initFilename} file in the .continue/rules/ directory wi
 Make sure your analysis is thorough but concise. Focus on information that would be most helpful to developers working on the project. If certain information isn't available from the codebase, make reasonable assumptions but mark these sections as needing verification.
 
 ## Step 4: Finalize
-After creating the .continue/rules/${initFilename} file, provide a summary of what you've created and remind the user to:
+After creating the .qivryn/rules/${initFilename} file, provide a summary of what you've created and remind the user to:
 1. Review and edit the file as needed
 2. Commit it to their repository to share with their team
-3. Explain that Continue will automatically load this file into context when working with the project
+3. Explain that Qivryn will automatically load this file into context when working with the project
 
 Also inform the user that they can create additional ${RULES_MARKDOWN_FILENAME} files in subdirectories for more specific documentation related to those components.
 `.trim();

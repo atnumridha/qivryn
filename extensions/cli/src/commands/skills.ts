@@ -66,8 +66,8 @@ export async function skillsCommand(
     ? path.resolve(existing.path)
     : path.join(
         options.workspace
-          ? path.join(process.cwd(), ".continue")
-          : env.continueHome,
+          ? path.join(process.cwd(), ".qivryn")
+          : env.qivrynHome,
         "skills",
         slug(name),
         "SKILL.md",

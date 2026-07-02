@@ -1,4 +1,4 @@
-import { Chunk, ContinueConfig, IDE, ILLM } from "../..";
+import { Chunk, QivrynConfig, IDE, ILLM } from "../..";
 import { getModelByRole } from "../../config/util";
 import generateRepoMap from "../../util/generateRepoMap";
 import { resolveRelativePathInDir } from "../../util/ideUtils";
@@ -12,10 +12,7 @@ const SUPPORTED_MODEL_TITLE_FAMILIES = [
   "gpt-4",
 ];
 
-function isSupportedModel(
-  config: ContinueConfig,
-  modelTitle?: string,
-): boolean {
+function isSupportedModel(config: QivrynConfig, modelTitle?: string): boolean {
   if (config.experimental?.modelRoles?.repoMapFileSelection) {
     return true;
   }
@@ -33,7 +30,7 @@ function isSupportedModel(
 
 export async function requestFilesFromRepoMap(
   defaultLlm: ILLM,
-  config: ContinueConfig,
+  config: QivrynConfig,
   ide: IDE,
   input: string,
   filterDirUri?: string,

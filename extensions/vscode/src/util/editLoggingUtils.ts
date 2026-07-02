@@ -4,7 +4,7 @@ import { GetLspDefinitionsFunction } from "core/autocomplete/types";
 import { ConfigHandler } from "core/config/ConfigHandler";
 import { RecentlyEditedRange } from "core/nextEdit/types";
 import * as vscode from "vscode";
-import { ContinueCompletionProvider } from "../autocomplete/completionProvider";
+import { QivrynCompletionProvider } from "../autocomplete/completionProvider";
 
 // Cache to store the last known content for each file (before edits)
 const documentContentCache = new Map<string, string>();
@@ -79,7 +79,7 @@ export const handleTextDocumentChange = async (
   event: vscode.TextDocumentChangeEvent,
   configHandler: ConfigHandler,
   ide: IDE,
-  completionProvider: ContinueCompletionProvider,
+  completionProvider: QivrynCompletionProvider,
   getDefinitionsFromLsp: GetLspDefinitionsFunction,
 ) => {
   const changes = event.contentChanges;
@@ -90,7 +90,7 @@ export const handleTextDocumentChange = async (
   if (!editor) return;
   if (event.contentChanges.length === 0) return;
 
-  // Ensure that logging will only happen in the open-source continue repo
+  // Ensure that logging will only happen in the open-source Qivryn repo
   const workspaceDirUri = await getWorkspaceDirUri(event);
   if (!workspaceDirUri) return;
 

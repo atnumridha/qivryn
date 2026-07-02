@@ -20,7 +20,7 @@ import { useFindWidget } from "../../components/find/FindWidget";
 import TimelineItem from "../../components/gui/TimelineItem";
 import { NewSessionButton } from "../../components/mainInput/belowMainInput/NewSessionButton";
 import ThinkingBlockPeek from "../../components/mainInput/belowMainInput/ThinkingBlockPeek";
-import ContinueInputBox from "../../components/mainInput/ContinueInputBox";
+import QivrynInputBox from "../../components/mainInput/QivrynInputBox";
 import StepContainer from "../../components/StepContainer";
 import { TabBar } from "../../components/TabBar/TabBar";
 import { IdeMessengerContext } from "../../context/IdeMessenger";
@@ -45,7 +45,6 @@ import { ToolCallDiv } from "./ToolCallDiv";
 import { useStore } from "react-redux";
 import FeedbackDialog from "../../components/dialogs/FeedbackDialog";
 
-import { DeprecationBanner } from "../../components/DeprecationBanner";
 import { FatalErrorIndicator } from "../../components/config/FatalErrorNotice";
 import { RuntimeRecoveryActions } from "../../components/RuntimeRecoveryActions";
 import InlineErrorMessage from "../../components/mainInput/InlineErrorMessage";
@@ -306,7 +305,7 @@ export function Chat() {
 
       if (message.role === "user") {
         return (
-          <ContinueInputBox
+          <QivrynInputBox
             onEnter={(editorState, modifiers) =>
               sendInput(editorState, modifiers, index)
             }
@@ -421,7 +420,6 @@ export function Chat() {
         ref={stepsDivRef}
         className={`pt-[8px] ${showScrollbar ? "thin-scrollbar" : "no-scrollbar"} ${history.length > 0 ? "min-h-0 flex-1 overflow-y-scroll" : "shrink-0"}`}
       >
-        <DeprecationBanner dismissable={true} />
         {highlights}
         {renderableHistory.hiddenCount > 0 && (
           <div className="flex justify-center py-3">
@@ -467,7 +465,7 @@ export function Chat() {
         ))}
       </StepsDiv>
       <div className="relative min-w-0 max-w-full shrink-0 overflow-x-hidden">
-        <ContinueInputBox
+        <QivrynInputBox
           isMainInput
           isLastUserInput={false}
           onEnter={(editorState, modifiers, editor) =>

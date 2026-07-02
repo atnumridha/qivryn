@@ -62,10 +62,10 @@ export function isGitHubActions(): boolean {
 }
 
 /**
- * Check if running in Continue remote agents
+ * Check if running in Qivryn remote agents
  */
-export function isContinueRemoteAgent(): boolean {
-  return process.env.CONTINUE_REMOTE === "true";
+export function isQivrynRemoteAgent(): boolean {
+  return process.env.QIVRYN_REMOTE === "true";
 }
 
 /**

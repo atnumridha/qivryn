@@ -5,7 +5,7 @@ import {
   BranchAndDir,
   Chunk,
   ContextItem,
-  ContinueConfig,
+  QivrynConfig,
   IDE,
   ILLM,
   Tool,
@@ -37,7 +37,7 @@ const AVAILABLE_TOOLS: Tool[] = [
 
 export interface RetrievalPipelineOptions {
   llm: ILLM;
-  config: ContinueConfig;
+  config: QivrynConfig;
   ide: IDE;
   input: string;
   nRetrieve: number;

@@ -7,9 +7,9 @@ import {
 
 describe("agent event stream", () => {
   it("is explicitly enabled for durable agent workers", () => {
-    expect(
-      isAgentEventStreamEnabled({ CONTINUE_AGENT_EVENT_STREAM: "1" }),
-    ).toBe(true);
+    expect(isAgentEventStreamEnabled({ QIVRYN_AGENT_EVENT_STREAM: "1" })).toBe(
+      true,
+    );
     expect(isAgentEventStreamEnabled({})).toBe(false);
   });
 

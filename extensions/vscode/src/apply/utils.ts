@@ -4,7 +4,7 @@ export const FAST_APPLY_MODELS: Array<ILLM["model"]> = ["Fast-Apply"];
 
 /**
  * Checks against model names, which can include proxy prefixes
- * such as `continuedev/hub`
+ * such as `qivryn/hub`
  * @param llm
  * @returns
  */

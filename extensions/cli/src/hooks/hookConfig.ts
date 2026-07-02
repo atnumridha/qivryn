@@ -2,16 +2,16 @@
  * Hook configuration loader.
  *
  * Loads hooks from settings files in the same locations as Claude Code:
- * - ~/.continue/settings.json  (user-global)
- * - .continue/settings.json    (project, committable)
- * - .continue/settings.local.json (project-local, gitignored)
+ * - ~/.qivryn/settings.json  (user-global)
+ * - .qivryn/settings.json    (project, committable)
+ * - .qivryn/settings.local.json (project-local, gitignored)
  *
  * Also supports Claude Code's native locations for cross-compatibility:
  * - ~/.claude/settings.json
  * - .claude/settings.json
  * - .claude/settings.local.json
  *
- * Hooks from all sources are merged (project > user, continue > claude).
+ * Hooks from all sources are merged (project > user, Qivryn > Claude).
  */
 
 import * as fs from "fs";
@@ -72,24 +72,24 @@ function mergeHooksConfigs(
  */
 function getSettingsFilePaths(cwd: string, homeDir?: string): string[] {
   const home = homeDir ?? os.homedir();
-  const continueHome =
-    process.env.CONTINUE_GLOBAL_DIR || path.join(home, ".continue");
+  const qivrynHome =
+    process.env.QIVRYN_GLOBAL_DIR || path.join(home, ".qivryn");
 
   return [
     // User-global (lowest precedence)
     path.join(home, ".cursor", "settings.json"),
     path.join(home, ".claude", "settings.json"),
-    path.join(continueHome, "settings.json"),
+    path.join(qivrynHome, "settings.json"),
 
     // Project-level
     path.join(cwd, ".cursor", "settings.json"),
     path.join(cwd, ".claude", "settings.json"),
-    path.join(cwd, ".continue", "settings.json"),
+    path.join(cwd, ".qivryn", "settings.json"),
 
     // Project-local (highest precedence)
     path.join(cwd, ".cursor", "settings.local.json"),
     path.join(cwd, ".claude", "settings.local.json"),
-    path.join(cwd, ".continue", "settings.local.json"),
+    path.join(cwd, ".qivryn", "settings.local.json"),
   ];
 }
 

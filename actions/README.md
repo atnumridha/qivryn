@@ -1,6 +1,6 @@
-# Continue PR Review Actions
+# Qivryn PR Review Actions
 
-GitHub Actions that provide automated code reviews for pull requests using Continue CLI.
+GitHub Actions that provide automated code reviews for pull requests using Qivryn CLI.
 
 ## Available Actions
 
@@ -10,8 +10,8 @@ This repository provides a GitHub Action for automated PR reviews:
 
 Provides high-level PR assessment with overall feedback and recommendations.
 
-- **Path:** `continuedev/continue/actions/general-review@main`
-- **Trigger:** `@continue-review`
+- **Path:** `qivryn/qivryn/actions/general-review@main`
+- **Trigger:** `@qivryn-review`
 - **Output:** Summary comment with strengths, issues, and recommendations
 
 ## Quick Start
@@ -36,38 +36,38 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: continuedev/continue/actions/general-review@main
+      - uses: qivryn/qivryn/actions/general-review@main
         with:
-          continue-api-key: ${{ secrets.CONTINUE_API_KEY }}
-          continue-org: "your-org-name"
-          continue-config: "your-org-name/review-bot"
+          qivryn-api-key: ${{ secrets.QIVRYN_API_KEY }}
+          qivryn-org: "your-org-name"
+          qivryn-config: "your-org-name/review-bot"
 ```
 
 ## Inputs
 
 The action accepts the following inputs:
 
-| Input              | Description                            | Required |
-| ------------------ | -------------------------------------- | -------- |
-| `continue-api-key` | API key for Continue service           | Yes      |
-| `continue-org`     | Organization for Continue config       | Yes      |
-| `continue-config`  | Config path (e.g., "myorg/review-bot") | Yes      |
+| Input            | Description                            | Required |
+| ---------------- | -------------------------------------- | -------- |
+| `qivryn-api-key` | API key for Qivryn service             | Yes      |
+| `qivryn-org`     | Organization for Qivryn config         | Yes      |
+| `qivryn-config`  | Config path (e.g., "myorg/review-bot") | Yes      |
 
 ## Setup Requirements
 
-### 1. Continue API Key
+### 1. Qivryn API Key
 
-Add your Continue API key as a secret named `CONTINUE_API_KEY` in your repository:
+Add your Qivryn API key as a secret named `QIVRYN_API_KEY` in your repository:
 
 1. Go to your repository's Settings
 2. Navigate to Secrets and variables → Actions
 3. Click "New repository secret"
-4. Name: `CONTINUE_API_KEY`
-5. Value: Your Continue API key
+4. Name: `QIVRYN_API_KEY`
+5. Value: Your Qivryn API key
 
-### 2. Continue Configuration
+### 2. Qivryn Configuration
 
-Set up your review bot configuration in Continue:
+Set up your review bot configuration in Qivryn:
 
 1. Create a configuration for your organization
 2. Configure the review bot settings
@@ -94,7 +94,7 @@ The action can be triggered in two ways:
 
 Team members can trigger reviews by commenting on any pull request:
 
-- `@continue-review` - Triggers a review
+- `@qivryn-review` - Triggers a review
 
 ## Review Output
 
@@ -110,7 +110,7 @@ The general review provides a structured comment that includes:
 1. Checks out repository code
 2. Fetches PR diff using GitHub CLI
 3. Generates a comprehensive review prompt
-4. Runs Continue CLI with specified configuration
+4. Runs Qivryn CLI with specified configuration
 5. Posts review as a PR comment
 
 ## Versioning
@@ -122,7 +122,7 @@ We recommend using the main branch:
 Example:
 
 ```yaml
-uses: continuedev/continue/actions/general-review@main
+uses: qivryn/qivryn/actions/general-review@main
 ```
 
 ## Troubleshooting
@@ -131,18 +131,18 @@ uses: continuedev/continue/actions/general-review@main
 
 - Ensure the PR author or commenter has appropriate permissions (OWNER, MEMBER, or COLLABORATOR)
 - Check that the workflow file is in the default branch
-- Verify the Continue API key is correctly set as a repository secret
+- Verify the Qivryn API key is correctly set as a repository secret
 
 ### No review output generated
 
 - Check the action logs for any errors
-- Verify your Continue configuration is correct
-- Ensure your Continue API key is valid
+- Verify your Qivryn configuration is correct
+- Ensure your Qivryn API key is valid
 
 ## Support
 
 For issues or questions:
 
-- [Continue Documentation](https://docs.continue.dev)
-- [GitHub Issues](https://github.com/continuedev/continue/issues)
-- [GitHub Discussions](https://github.com/continuedev/continue/discussions)
+- [Qivryn Documentation](https://docs.qivryn.ai)
+- [GitHub Issues](https://github.com/atnumridha/qivryn/issues)
+- [GitHub Discussions](https://github.com/atnumridha/qivryn/discussions)

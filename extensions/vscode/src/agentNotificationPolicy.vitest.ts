@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AgentRun } from "@continuedev/agent-runtime";
+import type { AgentRun } from "@qivryn/agent-runtime";
 import {
   agentNotificationMessage,
   shouldNotifyAgent,
@@ -30,9 +30,7 @@ describe("agent notification policy", () => {
   });
 
   it("does not expose task or repository details by default", () => {
-    expect(agentNotificationMessage(run, false)).toBe(
-      "Continue agent completed",
-    );
+    expect(agentNotificationMessage(run, false)).toBe("Qivryn agent completed");
     expect(agentNotificationMessage(run, false)).not.toContain(run.title);
     expect(agentNotificationMessage(run, true)).toContain(run.title);
   });

@@ -1,7 +1,7 @@
 import { jest } from "@jest/globals";
 
 import { IndexTag } from "../..";
-import { IContinueServerClient } from "../../continueServer/interface";
+import { IQivrynServerClient } from "../../qivrynServer/interface";
 import { ChunkCodebaseIndex } from "../chunk/ChunkCodebaseIndex";
 import { CodebaseIndex, RefreshIndexResults } from "../types";
 
@@ -32,15 +32,15 @@ export const mockTag: IndexTag = {
 
 export const mockTagString = tagToString(mockTag);
 
-export const testContinueServerClient = {
+export const testQivrynServerClient = {
   connected: false,
   getFromIndexCache: jest.fn(),
-} as unknown as IContinueServerClient;
+} as unknown as IQivrynServerClient;
 
-const mockContinueServerClient = {
+const mockQivrynServerClient = {
   connected: false,
   getFromIndexCache: jest.fn(),
-} as unknown as IContinueServerClient;
+} as unknown as IQivrynServerClient;
 
 const mockResults: RefreshIndexResults = {
   compute: [],
@@ -56,7 +56,7 @@ const mockMarkComplete = jest
 export async function insertMockChunks() {
   const index = new ChunkCodebaseIndex(
     testIde.readFile.bind(testIde),
-    mockContinueServerClient,
+    mockQivrynServerClient,
     1000,
   );
 

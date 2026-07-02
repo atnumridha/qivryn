@@ -4,7 +4,7 @@ import {
   PackageIdentifier,
   RegistryClient,
   unrollAssistantFromContent,
-} from "@continuedev/config-yaml";
+} from "@qivryn/config-yaml";
 import { IDE } from "../..";
 import { LocalPlatformClient } from "./LocalPlatformClient";
 

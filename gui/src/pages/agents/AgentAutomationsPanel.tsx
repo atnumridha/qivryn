@@ -2,7 +2,7 @@ import type {
   AgentAutomation,
   AgentAutomationControlRequest,
   AgentPermissionMode,
-} from "@continuedev/agent-runtime";
+} from "@qivryn/agent-runtime";
 import { PlayIcon, TrashIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { useCallback, useContext, useEffect, useState } from "react";
 import { IdeMessengerContext } from "../../context/IdeMessenger";

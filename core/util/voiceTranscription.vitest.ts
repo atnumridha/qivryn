@@ -11,10 +11,10 @@ const model = {
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  delete process.env.CONTINUE_VOICE_TRANSCRIPTION_URL;
-  delete process.env.CONTINUE_VOICE_TRANSCRIPTION_API_KEY;
-  delete process.env.CONTINUE_VOICE_TRANSCRIPTION_MODEL;
-  delete process.env.CONTINUE_VOICE_LOCAL_TRANSCRIPTION;
+  delete process.env.QIVRYN_VOICE_TRANSCRIPTION_URL;
+  delete process.env.QIVRYN_VOICE_TRANSCRIPTION_API_KEY;
+  delete process.env.QIVRYN_VOICE_TRANSCRIPTION_MODEL;
+  delete process.env.QIVRYN_VOICE_LOCAL_TRANSCRIPTION;
 });
 
 describe("transcribeVoiceAudio", () => {
@@ -49,7 +49,7 @@ describe("transcribeVoiceAudio", () => {
   });
 
   it("supports a keyless local transcription endpoint", async () => {
-    process.env.CONTINUE_VOICE_TRANSCRIPTION_URL =
+    process.env.QIVRYN_VOICE_TRANSCRIPTION_URL =
       "http://127.0.0.1:8080/v1/audio/transcriptions";
     const fetchMock = vi
       .fn()
@@ -74,12 +74,12 @@ describe("transcribeVoiceAudio", () => {
   });
 
   it("returns an actionable error when transcription is unavailable", async () => {
-    process.env.CONTINUE_VOICE_LOCAL_TRANSCRIPTION = "false";
+    process.env.QIVRYN_VOICE_LOCAL_TRANSCRIPTION = "false";
     await expect(
       transcribeVoiceAudio({ audioBase64: "YQ==", mimeType: "audio/webm" }, {
         providerName: "chatgpt-codex",
         underlyingProviderName: "openai",
       } as ILLM),
-    ).rejects.toThrow("CONTINUE_VOICE_TRANSCRIPTION_URL");
+    ).rejects.toThrow("QIVRYN_VOICE_TRANSCRIPTION_URL");
   });
 });

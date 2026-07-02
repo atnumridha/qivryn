@@ -19,10 +19,10 @@ export const cancelToolCallThunk = createAsyncThunk<
   ThunkApiType
 >("chat/cancelToolCall", async ({ toolCallId }, { dispatch, getState }) => {
   const state = getState();
-  const continueAfterToolRejection =
-    state.config.config.ui?.continueAfterToolRejection;
+  const qivrynAfterToolRejection =
+    state.config.config.ui?.qivrynAfterToolRejection;
 
-  if (continueAfterToolRejection) {
+  if (qivrynAfterToolRejection) {
     // Update tool call output with rejection message
     dispatch(
       updateToolCallOutput({

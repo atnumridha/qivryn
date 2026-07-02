@@ -4,10 +4,10 @@ import {
   createPromptMarkdown,
   createRuleMarkdown,
   sanitizeRuleName,
-} from "@continuedev/config-yaml";
+} from "@qivryn/config-yaml";
 import * as YAML from "yaml";
 import { IDE } from "../..";
-import { getContinueGlobalPath } from "../../util/paths";
+import { getQivrynGlobalPath } from "../../util/paths";
 import { localPathToUri } from "../../util/pathToUri";
 import { joinPathsToUri } from "../../util/uri";
 
@@ -143,7 +143,7 @@ function getContentsForNewBlock(blockType: BlockType): ConfigYaml {
       configYaml.docs = [
         {
           name: "New docs",
-          startUrl: "https://docs.continue.dev",
+          startUrl: "https://docs.qivryn.ai",
         },
       ];
       break;
@@ -257,7 +257,7 @@ export async function createNewWorkspaceBlockFile(
     );
   }
 
-  const baseDirUri = joinPathsToUri(workspaceDirs[0], `.continue/${blockType}`);
+  const baseDirUri = joinPathsToUri(workspaceDirs[0], `.qivryn/${blockType}`);
 
   const fileUri = await findAvailableFilename(
     baseDirUri,
@@ -282,7 +282,7 @@ export async function createNewGlobalRuleFile(
     typeof options === "string" ? { baseFilename: options } : (options ?? {});
 
   try {
-    const globalDir = localPathToUri(getContinueGlobalPath());
+    const globalDir = localPathToUri(getQivrynGlobalPath());
 
     // Create the rules subdirectory within the global directory
     const rulesDir = joinPathsToUri(globalDir, "rules");

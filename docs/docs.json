@@ -1,7 +1,7 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "Continue",
+  "name": "Qivryn",
   "colors": {
     "primary": "#6b7280",
     "light": "#ffffff",
@@ -160,7 +160,7 @@
             "pages": [
               "reference",
               "reference/yaml-migration",
-              "reference/continue-mcp",
+              "reference/qivryn-mcp",
               "reference/json-reference",
               "reference/deprecated-context-providers",
               "reference/deprecated-codebase",
@@ -178,7 +178,7 @@
               "guides/plan-mode-guide",
               "guides/ollama-guide",
               "guides/instinct",
-              "guides/running-continue-without-internet",
+              "guides/running-qivryn-without-internet",
               "guides/custom-code-rag",
               "guides/how-to-self-host-a-model"
             ]
@@ -213,7 +213,7 @@
   "logo": {
     "light": "/logo/light.svg",
     "dark": "/logo/dark.svg",
-    "href": "https://docs.continue.dev"
+    "href": "https://docs.qivryn.ai"
   },
   "background": {
     "color": {
@@ -223,15 +223,15 @@
   "navbar": {
     "primary": {
       "type": "github",
-      "href": "https://github.com/continuedev/continue"
+      "href": "https://github.com/atnumridha/qivryn"
     }
   },
   "footer": {
     "socials": {
-      "x": "https://twitter.com/continuedev",
-      "github": "https://github.com/continuedev/continue",
-      "linkedin": "https://linkedin.com/company/continuedev",
-      "youtube": "https://www.youtube.com/@continuedev"
+      "x": "https://twitter.com/qivryn",
+      "github": "https://github.com/atnumridha/qivryn",
+      "linkedin": "https://linkedin.com/company/qivryn",
+      "youtube": "https://www.youtube.com/@qivryn"
     }
   },
   "contextual": {
@@ -262,7 +262,7 @@
     },
     {
       "source": "/changelog",
-      "destination": "https://changelog.continue.dev"
+      "destination": "https://changelog.qivryn.ai"
     },
     {
       "source": "/customization",
@@ -373,7 +373,7 @@
       "destination": "/"
     },
     {
-      "source": "/how-to-use-continue",
+      "source": "/how-to-use-qivryn",
       "destination": "/"
     },
     {
@@ -874,7 +874,7 @@
     },
     {
       "source": "/about",
-      "destination": "https://continue.dev/about-us"
+      "destination": "https://qivryn.ai/about-us"
     },
     {
       "source": "/autocomplete/model-setup",
@@ -1038,8 +1038,8 @@
       "destination": "/faqs#changes-to-agents-not-showing-in-vs-code"
     },
     {
-      "source": "/troubleshooting#i-installed-continue-but-dont-see-the-sidebar-window",
-      "destination": "/faqs#i-installed-continue-but-dont-see-the-sidebar-window"
+      "source": "/troubleshooting#i-installed-qivryn-but-dont-see-the-sidebar-window",
+      "destination": "/faqs#i-installed-qivryn-but-dont-see-the-sidebar-window"
     },
     {
       "source": "/troubleshooting#im-getting-a-404-error-from-openai",

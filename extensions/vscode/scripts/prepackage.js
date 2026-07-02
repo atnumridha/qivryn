@@ -17,14 +17,19 @@ const { installAndCopyNodeModules } = require("./install-copy-nodemodule");
 const { npmInstall } = require("./npm-install");
 const {
   writeBuildTimestamp,
-  continueDir,
+  qivrynDir,
   copyOnnxWasmFromNodeModules,
 } = require("./utils");
 
 function bundleAgentCli() {
-  const cliRoot = path.join(continueDir, "extensions", "cli");
+  const cliRoot = path.join(qivrynDir, "extensions", "cli");
   const cliDist = path.join(cliRoot, "dist");
-  const required = ["cn.js", "index.js", "xhr-sync-worker.js"];
+  const required = [
+    "qivryn.js",
+    "index.js",
+    "package.json",
+    "xhr-sync-worker.js",
+  ];
   const npm = process.platform === "win32" ? "npm.cmd" : "npm";
   console.log("[info] Building self-contained agent CLI for the VSIX");
   execFileSync(npm, ["run", "build"], {
@@ -33,7 +38,7 @@ function bundleAgentCli() {
     stdio: "inherit",
   });
   const destination = path.join(
-    continueDir,
+    qivrynDir,
     "extensions",
     "vscode",
     "out",
@@ -46,8 +51,8 @@ function bundleAgentCli() {
       path.join(destination, filename),
     );
   }
-  fs.chmodSync(path.join(destination, "cn.js"), 0o755);
-  console.log("[info] Bundled the Continue agent CLI runtime");
+  fs.chmodSync(path.join(destination, "qivryn.js"), 0o755);
+  console.log("[info] Bundled the Qivryn agent CLI runtime");
 }
 
 // Clear folders that will be packaged to ensure clean slate
@@ -71,8 +76,8 @@ if (args[2] === "--target") {
 }
 if (!target) {
   const envTarget =
-    process.env.CONTINUE_VSCODE_TARGET ||
-    process.env.CONTINUE_BUILD_TARGET ||
+    process.env.QIVRYN_VSCODE_TARGET ||
+    process.env.QIVRYN_BUILD_TARGET ||
     process.env.VSCODE_TARGET;
   if (envTarget && typeof envTarget === "string") {
     target = envTarget.trim();
@@ -120,7 +125,7 @@ void (async () => {
     );
   }
 
-  process.chdir(path.join(continueDir, "gui"));
+  process.chdir(path.join(qivrynDir, "gui"));
 
   // Copy over the dist folder to the JetBrains extension //
   const intellijExtensionWebviewPath = path.join(
@@ -504,7 +509,7 @@ void (async () => {
 
     // Tutorial
     "media/move-chat-panel-right.md",
-    "continue_tutorial.py",
+    "qivryn_tutorial.py",
     "config_schema.json",
 
     // Embeddings model
@@ -525,8 +530,9 @@ void (async () => {
     // Worker required by jsdom
     "out/xhr-sync-worker.js",
     // Self-contained runtime used by the Agents workspace
-    "out/cli/cn.js",
+    "out/cli/qivryn.js",
     "out/cli/index.js",
+    "out/cli/package.json",
     "out/cli/xhr-sync-worker.js",
     // SQLite3 Node native module
     "out/build/Release/node_sqlite3.node",

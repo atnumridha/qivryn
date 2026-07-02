@@ -7,10 +7,10 @@ on:
   workflow_dispatch: # Allows manual triggering
 
 jobs:
-  run-cn-task:
+  run-qivryn-task:
     runs-on: ubuntu-latest
-    # Only run this workflow on the main repository (continuedev/continue)
-    if: github.repository == 'continuedev/continue'
+    # Only run this workflow on the main repository (atnumridha/qivryn)
+    if: github.repository == 'qivryn/qivryn'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -23,11 +23,11 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Install Continue CLI globally
-        run: npm install -g @continuedev/cli@latest
+      - name: Install Qivryn CLI globally
+        run: npm install -g @qivryn/cli@latest
 
       - name: Run Snyk Agent
-        run: cd extensions/cli && cn -p --agent continuedev/snyk-code-scan-agent "The current directory"
+        run: cd extensions/cli && qivryn -p --agent qivryn/snyk-code-scan-agent "The current directory"
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-          CONTINUE_API_KEY: ${{ secrets.CONTINUE_API_KEY }}
+          QIVRYN_API_KEY: ${{ secrets.QIVRYN_API_KEY }}

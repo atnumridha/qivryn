@@ -12,16 +12,16 @@ afterEach(() => {
 
 describe("agent CLI path", () => {
   it("prefers the runtime bundled in the extension", () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), "continue-cli-path-"));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "qivryn-cli-path-"));
     roots.push(root);
-    const cli = path.join(root, "out", "cli", "cn.js");
+    const cli = path.join(root, "out", "cli", "qivryn.js");
     fs.mkdirSync(path.dirname(cli), { recursive: true });
     fs.writeFileSync(cli, "#!/usr/bin/env node\n");
     expect(resolveAgentCliPath(root)).toBe(cli);
   });
 
   it("returns undefined when neither packaged nor development CLI exists", () => {
-    const parent = fs.mkdtempSync(path.join(os.tmpdir(), "continue-cli-path-"));
+    const parent = fs.mkdtempSync(path.join(os.tmpdir(), "qivryn-cli-path-"));
     roots.push(parent);
     const root = path.join(parent, "vscode");
     fs.mkdirSync(root);

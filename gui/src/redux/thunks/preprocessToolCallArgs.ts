@@ -1,5 +1,5 @@
 import { ToolCallState } from "core";
-import { ContinueErrorReason } from "core/util/errors";
+import { QivrynErrorReason } from "core/util/errors";
 
 import { IIdeMessenger } from "../../context/IdeMessenger";
 import {
@@ -17,7 +17,7 @@ export async function preprocessToolCalls(
   // Tool call pre-processing
   await Promise.all(
     generatedToolCalls.map(async (tcState) => {
-      let errorReason: ContinueErrorReason | undefined = undefined;
+      let errorReason: QivrynErrorReason | undefined = undefined;
       let errorMessage: string | undefined = undefined;
       let preprocessedArgs: Record<string, unknown> | undefined = undefined;
       const result = await ideMessenger.request("tools/preprocessArgs", {
@@ -30,7 +30,7 @@ export async function preprocessToolCalls(
         errorReason = result.content.errorReason;
       } else {
         errorMessage = result.error;
-        errorReason = ContinueErrorReason.Unknown;
+        errorReason = QivrynErrorReason.Unknown;
       }
       if (errorReason) {
         dispatch(

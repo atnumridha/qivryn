@@ -1,4 +1,4 @@
-import type { AgentControlRequest, AgentRun } from "@continuedev/agent-runtime";
+import type { AgentControlRequest, AgentRun } from "@qivryn/agent-runtime";
 import { act, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Route, Routes } from "react-router-dom";
@@ -12,9 +12,9 @@ import Agents from ".";
 
 afterEach(() => {
   delete (window as any).isFullScreen;
-  window.localStorage.removeItem("continue.skills.catalog.v2");
-  window.localStorage.removeItem("continue.models.catalog.v1");
-  window.localStorage.removeItem("continue.agents.lastRepository");
+  window.localStorage.removeItem("qivryn.skills.catalog.v2");
+  window.localStorage.removeItem("qivryn.models.catalog.v1");
+  window.localStorage.removeItem("qivryn.agents.lastRepository");
 });
 
 function run(overrides: Partial<AgentRun>): AgentRun {
@@ -766,7 +766,7 @@ describe("Agents workspace", () => {
     );
     const image = screen.getByRole("textbox", { name: "Container image" });
     await user.clear(image);
-    await user.type(image, "continue-agent:test");
+    await user.type(image, "qivryn-agent:test");
     await user.click(screen.getByRole("button", { name: "Start" }));
     await waitFor(() =>
       expect(request).toMatchObject({
@@ -776,7 +776,7 @@ describe("Agents workspace", () => {
           workspace: { location: "container" },
           metadata: {
             container: {
-              image: "continue-agent:test",
+              image: "qivryn-agent:test",
               network: "bridge",
               privileged: false,
             },
@@ -821,7 +821,7 @@ describe("Agents workspace", () => {
     expect(screen.getByText("med")).toBeInTheDocument();
     await waitFor(() =>
       expect(
-        window.localStorage.getItem("continue.models.catalog.v1"),
+        window.localStorage.getItem("qivryn.models.catalog.v1"),
       ).not.toContain("must-not-enter-browser-cache"),
     );
     await user.type(
@@ -842,7 +842,7 @@ describe("Agents workspace", () => {
 
   it("renders the cached model catalog immediately while config refreshes", async () => {
     window.localStorage.setItem(
-      "continue.models.catalog.v1",
+      "qivryn.models.catalog.v1",
       JSON.stringify({
         selected: "Cached Reasoner",
         options: [{ value: "Cached Reasoner", title: "Cached Reasoner" }],
@@ -1283,9 +1283,9 @@ describe("Agents workspace", () => {
         {
           name: "code-review",
           description: "Review code deeply",
-          path: ".continue/skills/code-review/SKILL.md",
-          sourceFile: "file:///workspace/.continue/skills/code-review/SKILL.md",
-          provenance: "Continue",
+          path: ".qivryn/skills/code-review/SKILL.md",
+          sourceFile: "file:///workspace/.qivryn/skills/code-review/SKILL.md",
+          provenance: "Qivryn",
           readOnly: false,
           scope: "workspace",
           content: "Review the implementation",
@@ -1390,7 +1390,7 @@ describe("Agents workspace", () => {
     expect(
       screen.getByRole("combobox", { name: "Multitask repository" }),
     ).toHaveValue("/chosen/repository");
-    expect(window.localStorage.getItem("continue.agents.lastRepository")).toBe(
+    expect(window.localStorage.getItem("qivryn.agents.lastRepository")).toBe(
       "/chosen/repository",
     );
   });

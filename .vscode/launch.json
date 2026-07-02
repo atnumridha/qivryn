@@ -21,8 +21,8 @@
       "preLaunchTask": "vscode-extension:build-with-packages",
       "env": {
         // "CONTROL_PLANE_ENV": "local",
-        "CONTINUE_GLOBAL_DIR": "${workspaceFolder}/extensions/.continue-debug"
-        // "staging" for the preview deployment	        "CONTINUE_GLOBAL_DIR": "${workspaceFolder}/extensions/.continue-debug"
+        "QIVRYN_GLOBAL_DIR": "${workspaceFolder}/extensions/.qivryn-debug"
+        // "staging" for the preview deployment	        "QIVRYN_GLOBAL_DIR": "${workspaceFolder}/extensions/.qivryn-debug"
         // "local" for entirely local development of control plane/proxy
       }
     },
@@ -39,8 +39,8 @@
       "cwd": "${workspaceFolder}/binary",
       "env": {
         // "CONTROL_PLANE_ENV": "test",
-        "CONTINUE_DEVELOPMENT": "true",
-        "CONTINUE_GLOBAL_DIR": "${workspaceFolder}/extensions/.continue-debug"
+        "QIVRYN_DEVELOPMENT": "true",
+        "QIVRYN_GLOBAL_DIR": "${workspaceFolder}/extensions/.qivryn-debug"
       }
     },
     {
@@ -136,7 +136,7 @@
       "name": "Debug CLI",
       "type": "node",
       "request": "launch",
-      "program": "${workspaceFolder}/extensions/cli/dist/cn.js",
+      "program": "${workspaceFolder}/extensions/cli/dist/qivryn.js",
       "args": [],
       "runtimeArgs": ["--enable-source-maps"],
       "env": {
@@ -163,12 +163,12 @@
       "name": "Debug CLI - AWS Bedrock",
       "type": "node",
       "request": "launch",
-      "program": "${workspaceFolder}/extensions/cli/dist/cn.js",
+      "program": "${workspaceFolder}/extensions/cli/dist/qivryn.js",
       "args": [],
       "runtimeArgs": ["--enable-source-maps"],
       "env": {
         "NODE_ENV": "development",
-        "CONTINUE_USE_BEDROCK": "1"
+        "QIVRYN_USE_BEDROCK": "1"
       },
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen",

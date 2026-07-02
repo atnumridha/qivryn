@@ -1,4 +1,4 @@
-import { generateCommitMessage } from "@continuedev/agent-runtime";
+import { generateCommitMessage } from "@qivryn/agent-runtime";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 

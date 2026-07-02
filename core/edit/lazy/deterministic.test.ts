@@ -4,7 +4,7 @@ import path from "node:path";
 // @ts-ignore no typings available
 import { diff as myersDiff } from "myers-diff";
 import { DiffLine } from "../..";
-import { myersDiff as continueMyersDiff } from "../../diff/myers";
+import { myersDiff as qivrynMyersDiff } from "../../diff/myers";
 import { dedent } from "../../util";
 import { deterministicApplyLazyEdit } from "./deterministic";
 
@@ -71,7 +71,7 @@ async function expectDiff(file: string) {
     fs.writeFileSync(
       testFilePath,
       `${oldFile}\n\n---\n\n${newFile}\n\n---\n\n${displayDiff(
-        continueMyersDiff(oldFile, newFile),
+        qivrynMyersDiff(oldFile, newFile),
       )}`,
     );
 

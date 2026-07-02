@@ -104,8 +104,8 @@ describe("normalizeRepoUrl", () => {
     });
 
     it("should handle mixed case in shorthand format", () => {
-      expect(normalizeRepoUrl("ContinueDev/Continue")).toBe(
-        "https://github.com/continuedev/continue",
+      expect(normalizeRepoUrl("QivrynDev/Qivryn")).toBe(
+        "https://github.com/atnumridha/qivryn",
       );
     });
   });
@@ -180,35 +180,35 @@ describe("normalizeRepoUrl", () => {
   });
 
   describe("real-world examples", () => {
-    it("should normalize Continue's repository from SSH", () => {
-      expect(normalizeRepoUrl("git@github.com:continuedev/continue.git")).toBe(
-        "https://github.com/continuedev/continue",
+    it("should normalize Qivryn's repository from SSH", () => {
+      expect(normalizeRepoUrl("git@github.com:qivryn/qivryn.git")).toBe(
+        "https://github.com/atnumridha/qivryn",
       );
     });
 
-    it("should normalize Continue's repository from shorthand", () => {
-      expect(normalizeRepoUrl("continuedev/continue")).toBe(
-        "https://github.com/continuedev/continue",
+    it("should normalize Qivryn's repository from shorthand", () => {
+      expect(normalizeRepoUrl("qivryn/qivryn")).toBe(
+        "https://github.com/atnumridha/qivryn",
       );
     });
 
-    it("should normalize Continue's repository from HTTPS", () => {
-      expect(
-        normalizeRepoUrl("https://github.com/continuedev/continue.git"),
-      ).toBe("https://github.com/continuedev/continue");
+    it("should normalize Qivryn's repository from HTTPS", () => {
+      expect(normalizeRepoUrl("https://github.com/atnumridha/qivryn.git")).toBe(
+        "https://github.com/atnumridha/qivryn",
+      );
     });
 
     it("should match repositories regardless of input format", () => {
       const formats = [
-        "git@github.com:continuedev/continue.git",
-        "continuedev/continue",
-        "https://github.com/continuedev/continue",
-        "https://github.com/continuedev/continue.git",
-        "ssh://git@github.com/continuedev/continue.git",
-        "ContinueDev/Continue",
+        "git@github.com:qivryn/qivryn.git",
+        "qivryn/qivryn",
+        "https://github.com/atnumridha/qivryn",
+        "https://github.com/atnumridha/qivryn.git",
+        "ssh://git@github.com/atnumridha/qivryn.git",
+        "QivrynDev/Qivryn",
       ];
 
-      const expected = "https://github.com/continuedev/continue";
+      const expected = "https://github.com/atnumridha/qivryn";
       formats.forEach((format) => {
         expect(normalizeRepoUrl(format)).toBe(expected);
       });

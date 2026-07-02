@@ -32,7 +32,7 @@ const ACCESS_MODES: Array<{
   {
     value: "fullAccess",
     label: "Full access",
-    description: "Run tools without Continue approval",
+    description: "Run tools without Qivryn approval",
   },
   {
     value: "readOnly",

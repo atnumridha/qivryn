@@ -109,7 +109,7 @@ export function SessionSelector({
     return (
       <Box {...defaultBoxStyles("blue")}>
         <Text color="yellow">No previous sessions found.</Text>
-        <Text color="gray">Start a new conversation with: cn</Text>
+        <Text color="gray">Start a new conversation with: qivryn</Text>
         <Text color="gray">Press Esc to exit</Text>
       </Box>
     );

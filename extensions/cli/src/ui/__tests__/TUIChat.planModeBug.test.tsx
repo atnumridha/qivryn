@@ -92,7 +92,7 @@ describe("TUIChat - Plan Mode Bug Reproduction", () => {
       expect(frame!).toContain("sandbox]");
       expect(frame!).not.toContain("plan]");
 
-      // Continue through autonomous and full-access modes
+      // Qivryn through autonomous and full-access modes
       stdin.write("\x1b[Z");
       await new Promise((resolve) => setTimeout(resolve, 100));
       frame = lastFrame();

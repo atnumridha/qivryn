@@ -6,7 +6,7 @@
 # Everything needs node and npm
 Write-Host "`nChecking for dependencies that may require manual installation...`n" -ForegroundColor White
 
-# $cargo = (get-command cargo -ErrorAction SilentlyContinue)
+# $cargo = (get-command cargo -ErrorAction SilentlyQivryn)
 # if ($null -eq $cargo) {
 #     Write-Host "Not Found " -ForegroundColor Red -NoNewLine
 #     Write-Host "cargo"
@@ -15,7 +15,7 @@ Write-Host "`nChecking for dependencies that may require manual installation...`
 #     & cargo --version
 # }
 
-$node  = (get-command node -ErrorAction SilentlyContinue)
+$node  = (get-command node -ErrorAction SilentlyQivryn)
 if ($null -eq $node) {
     Write-Host "Not Found " -ForegroundColor Red -NoNewLine
     Write-Host "node"
@@ -88,7 +88,7 @@ Pop-Location
 Write-Output "`nInstalling GUI extension dependencies..." -ForegroundColor White
 Push-Location gui
 npm install
-npm link @continuedev/core
+npm link @qivryn/core
 npm run build
 Pop-Location
 
@@ -98,7 +98,7 @@ Push-Location extensions/vscode
 
 # This does way too many things inline but is the common denominator between many of the scripts
 npm install
-npm link @continuedev/core
+npm link @qivryn/core
 npm run prepackage
 npm run package
 

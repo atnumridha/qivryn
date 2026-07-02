@@ -8,7 +8,7 @@ import {
   RuleType,
   getRuleType,
   parseMarkdownRule,
-} from "@continuedev/config-yaml";
+} from "@qivryn/config-yaml";
 
 import { env } from "./env.js";
 import { processRule } from "./hubLoader.js";
@@ -46,7 +46,7 @@ function getGitStatus(): string {
   }
 }
 
-const baseSystemMessage = `You are an agent in the Continue CLI, a powerful software engineering agent working in the user's current terminal workspace. Given the user's prompt, use the tools available to answer the question or complete the requested task.
+const baseSystemMessage = `You are an agent in the Qivryn CLI, a powerful software engineering agent working in the user's current terminal workspace. Given the user's prompt, use the tools available to answer the question or complete the requested task.
 
 <persistence>
 1. Continue until the requested outcome is genuinely handled, or until a concrete blocker requires the user.
@@ -243,8 +243,8 @@ export function loadMarkdownRulesWithMetadata(
   home = os.homedir(),
 ): RuleObject[] {
   const rulePaths = [
-    path.join(cwd, ".continue", "rules"),
-    path.join(env.continueHome, "rules"),
+    path.join(cwd, ".qivryn", "rules"),
+    path.join(env.qivrynHome, "rules"),
     path.join(cwd, ".cursor", "rules"),
     path.join(cwd, ".claude", "rules"),
     path.join(cwd, ".codex", "rules"),
@@ -338,7 +338,7 @@ export async function constructSystemMessage(
   const configYamlRules = await getConfigYamlRules();
   processedRules.push(...configYamlRules);
 
-  // Load markdown rules from .continue/rules/ directories
+  // Load markdown rules from .qivryn/rules/ directories
   const markdownRules = loadMarkdownRulesWithMetadata().filter((rule) =>
     isAlwaysAppliedRule(rule),
   );
@@ -360,11 +360,11 @@ export async function constructSystemMessage(
       '\n<context name="planMode">You are operating in _Plan Mode_, which means that your goal is to help the user investigate their ideas and develop a plan before taking action. You only have access to read-only tools and should not attempt to circumvent them to write / delete / create files. Ask the user to switch to agent mode if they want to make changes. For example, it is not acceptable to use the Bash tool to write to files.</context>\n';
   } else {
     // Check if commit signature is disabled via environment variable
-    if (!process.env.CONTINUE_CLI_DISABLE_COMMIT_SIGNATURE) {
+    if (!process.env.QIVRYN_CLI_DISABLE_COMMIT_SIGNATURE) {
       systemMessage += `\n<context name="commitSignature">When creating commits using any CLI or tool, include the following in the commit message:
-Generated with [Continue](https://continue.dev)
+Generated with [Qivryn](https://qivryn.ai)
 
-Co-Authored-By: Continue <noreply@continue.dev>
+Co-Authored-By: Qivryn <noreply@qivryn.ai>
 </context>\n`;
     }
   }

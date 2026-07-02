@@ -1,10 +1,10 @@
-# OTLP Metrics Specification for Continue CLI
+# OTLP Metrics Specification for Qivryn CLI
 
-This document specifies the OpenTelemetry Protocol (OTLP) metrics that should be emitted by the Continue CLI to provide comprehensive observability and usage monitoring. The metrics are designed to be compatible with Claude Code dashboards for easy migration.
+This document specifies the OpenTelemetry Protocol (OTLP) metrics that should be emitted by the Qivryn CLI to provide comprehensive observability and usage monitoring. The metrics are designed to be compatible with Claude Code dashboards for easy migration.
 
 ## Overview
 
-The Continue CLI should emit metrics that provide insights into:
+The Qivryn CLI should emit metrics that provide insights into:
 
 - Usage patterns and session analytics
 - Performance and reliability
@@ -17,18 +17,18 @@ The Continue CLI should emit metrics that provide insights into:
 
 ### Environment Variables
 
-| Environment Variable            | Description                                                     | Example Values                       |
-| ------------------------------- | --------------------------------------------------------------- | ------------------------------------ |
-| `CONTINUE_METRICS_ENABLED`      | Enables OTEL telemetry collection (preferred, takes precedence) | `0` to disable, `1` to enable        |
-| `CONTINUE_CLI_ENABLE_TELEMETRY` | Enables OTEL telemetry collection (legacy, lower precedence)    | `0` to disable, `1` to enable        |
-| `OTEL_METRICS_EXPORTER`         | Metrics exporter type(s) (comma-separated)                      | `console`, `otlp`, `prometheus`      |
-| `OTEL_LOGS_EXPORTER`            | Logs/events exporter type(s) (comma-separated)                  | `console`, `otlp`                    |
-| `OTEL_EXPORTER_OTLP_PROTOCOL`   | Protocol for OTLP exporter (all signals)                        | `grpc`, `http/json`, `http/protobuf` |
-| `OTEL_EXPORTER_OTLP_ENDPOINT`   | OTLP collector endpoint (all signals)                           | `http://localhost:4317`              |
-| `OTEL_EXPORTER_OTLP_HEADERS`    | Authentication headers for OTLP                                 | `Authorization=Bearer token`         |
-| `OTEL_METRIC_EXPORT_INTERVAL`   | Export interval in milliseconds (default: 60000)                | `5000`, `60000`                      |
-| `OTEL_LOGS_EXPORT_INTERVAL`     | Logs export interval in milliseconds (default: 5000)            | `1000`, `10000`                      |
-| `OTEL_LOG_USER_PROMPTS`         | Enable logging of user prompt content (default: disabled)       | `1` to enable                        |
+| Environment Variable          | Description                                                     | Example Values                       |
+| ----------------------------- | --------------------------------------------------------------- | ------------------------------------ |
+| `QIVRYN_METRICS_ENABLED`      | Enables OTEL telemetry collection (preferred, takes precedence) | `0` to disable, `1` to enable        |
+| `QIVRYN_CLI_ENABLE_TELEMETRY` | Enables OTEL telemetry collection (legacy, lower precedence)    | `0` to disable, `1` to enable        |
+| `OTEL_METRICS_EXPORTER`       | Metrics exporter type(s) (comma-separated)                      | `console`, `otlp`, `prometheus`      |
+| `OTEL_LOGS_EXPORTER`          | Logs/events exporter type(s) (comma-separated)                  | `console`, `otlp`                    |
+| `OTEL_EXPORTER_OTLP_PROTOCOL` | Protocol for OTLP exporter (all signals)                        | `grpc`, `http/json`, `http/protobuf` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP collector endpoint (all signals)                           | `http://localhost:4317`              |
+| `OTEL_EXPORTER_OTLP_HEADERS`  | Authentication headers for OTLP                                 | `Authorization=Bearer token`         |
+| `OTEL_METRIC_EXPORT_INTERVAL` | Export interval in milliseconds (default: 60000)                | `5000`, `60000`                      |
+| `OTEL_LOGS_EXPORT_INTERVAL`   | Logs export interval in milliseconds (default: 5000)            | `1000`, `10000`                      |
+| `OTEL_LOG_USER_PROMPTS`       | Enable logging of user prompt content (default: disabled)       | `1` to enable                        |
 
 ### Metrics Cardinality Control
 
@@ -45,14 +45,14 @@ All metrics and events share these standard attributes:
 | Attribute           | Description                                                   | Controlled By                                       |
 | ------------------- | ------------------------------------------------------------- | --------------------------------------------------- |
 | `session.id`        | Unique session identifier                                     | `OTEL_METRICS_INCLUDE_SESSION_ID` (default: true)   |
-| `app.version`       | Current Continue CLI version                                  | `OTEL_METRICS_INCLUDE_VERSION` (default: false)     |
+| `app.version`       | Current Qivryn CLI version                                    | `OTEL_METRICS_INCLUDE_VERSION` (default: false)     |
 | `organization.id`   | Organization UUID (when authenticated)                        | Always included when available                      |
 | `user.account_uuid` | Account UUID (when authenticated)                             | `OTEL_METRICS_INCLUDE_ACCOUNT_UUID` (default: true) |
 | `terminal.type`     | Terminal type (e.g., `iTerm.app`, `vscode`, `cursor`, `tmux`) | Always included when detected                       |
 
 ## Core Metrics
 
-### ✅ `continue_cli_session_count`
+### ✅ `qivryn_cli_session_count`
 
 **Type:** Counter  
 **Unit:** `count`  
@@ -66,7 +66,7 @@ All metrics and events share these standard attributes:
 
 ---
 
-### ✅ `continue_cli_lines_of_code_count`
+### ✅ `qivryn_cli_lines_of_code_count`
 
 **Type:** Counter  
 **Unit:** `count`  
@@ -81,7 +81,7 @@ All metrics and events share these standard attributes:
 
 ---
 
-### ✅ `continue_cli_pull_request_count`
+### ✅ `qivryn_cli_pull_request_count`
 
 **Type:** Counter  
 **Unit:** `count`  
@@ -95,7 +95,7 @@ All metrics and events share these standard attributes:
 
 ---
 
-### ✅ `continue_cli_commit_count`
+### ✅ `qivryn_cli_commit_count`
 
 **Type:** Counter  
 **Unit:** `count`  
@@ -109,11 +109,11 @@ All metrics and events share these standard attributes:
 
 ---
 
-### ✅ `continue_cli_cost_usage`
+### ✅ `qivryn_cli_cost_usage`
 
 **Type:** Counter  
 **Unit:** `USD`  
-**Description:** Cost of the Continue CLI session
+**Description:** Cost of the Qivryn CLI session
 
 **Attributes:**
 
@@ -124,7 +124,7 @@ All metrics and events share these standard attributes:
 
 ---
 
-### ✅ `continue_cli_token_usage`
+### ✅ `qivryn_cli_token_usage`
 
 **Type:** Counter  
 **Unit:** `tokens`  
@@ -140,7 +140,7 @@ All metrics and events share these standard attributes:
 
 ---
 
-### ❌ `continue_cli_code_edit_tool_decision`
+### ❌ `qivryn_cli_code_edit_tool_decision`
 
 **Type:** Counter  
 **Unit:** `count`  
@@ -157,7 +157,7 @@ All metrics and events share these standard attributes:
 
 ---
 
-### ✅ `continue_cli_active_time_total`
+### ✅ `qivryn_cli_active_time_total`
 
 **Type:** Counter  
 **Unit:** `s`  
@@ -173,7 +173,7 @@ All metrics and events share these standard attributes:
 
 ### ✅ User Prompt Event
 
-**Event Name:** `continue_cli_user_prompt`
+**Event Name:** `qivryn_cli_user_prompt`
 
 **Attributes:**
 
@@ -189,7 +189,7 @@ All metrics and events share these standard attributes:
 
 ### ✅ Tool Result Event
 
-**Event Name:** `continue_cli_tool_result`
+**Event Name:** `qivryn_cli_tool_result`
 
 **Attributes:**
 
@@ -210,7 +210,7 @@ All metrics and events share these standard attributes:
 
 ### ✅ API Request Event
 
-**Event Name:** `continue_cli_api_request`
+**Event Name:** `qivryn_cli_api_request`
 
 **Attributes:**
 
@@ -229,11 +229,11 @@ All metrics and events share these standard attributes:
 
 ## Additional Metrics
 
-These metrics are unique to Continue CLI and provide additional insights without conflicting with compatibility:
+These metrics are unique to Qivryn CLI and provide additional insights without conflicting with compatibility:
 
 ### Authentication Metrics
 
-#### ✅ `continue_cli_auth_attempts`
+#### ✅ `qivryn_cli_auth_attempts`
 
 **Type:** Counter  
 **Unit:** `{attempt}`  
@@ -249,7 +249,7 @@ These metrics are unique to Continue CLI and provide additional insights without
 
 ### MCP Integration Metrics
 
-#### ❌ `continue_cli_mcp_connections`
+#### ❌ `qivryn_cli_mcp_connections`
 
 **Type:** Gauge  
 **Unit:** `{connection}`  
@@ -265,7 +265,7 @@ These metrics are unique to Continue CLI and provide additional insights without
 
 ### Performance Metrics
 
-#### ❌ `continue_cli_startup_time`
+#### ❌ `qivryn_cli_startup_time`
 
 **Type:** Histogram  
 **Unit:** `ms`  
@@ -279,7 +279,7 @@ These metrics are unique to Continue CLI and provide additional insights without
 
 **Implementation:** Track in `src/index.ts` and `src/commands/chat.ts`
 
-#### ✅ `continue_cli_response_time`
+#### ✅ `qivryn_cli_response_time`
 
 **Type:** Histogram  
 **Unit:** `ms`  
@@ -298,7 +298,7 @@ These metrics are unique to Continue CLI and provide additional insights without
 
 ### Migration from Claude Code Dashboards
 
-The core metrics (`session_count`, `lines_of_code_count`, `token_usage`, `cost_usage`, etc.) use identical naming and attribute structures to Claude Code, allowing for easy dashboard migration by simply changing the metric prefix from `claude_code_*` to `continue_cli_*`.
+The core metrics (`session_count`, `lines_of_code_count`, `token_usage`, `cost_usage`, etc.) use identical naming and attribute structures to Claude Code, allowing for easy dashboard migration by simply changing the metric prefix from `claude_code_*` to `qivryn_cli_*`.
 
 ### Privacy Considerations
 
@@ -311,7 +311,7 @@ The core metrics (`session_count`, `lines_of_code_count`, `token_usage`, `cost_u
 
 All metrics should include these resource attributes:
 
-- `service.name`: `continue-cli`
+- `service.name`: `qivryn-cli`
 - `service.version`: CLI version
 - `deployment.environment`: `development` | `production`
 - `os.type`: Operating system
@@ -338,6 +338,6 @@ All metrics should include these resource attributes:
 
 **Missing implementations:**
 
-- `continue_cli_code_edit_tool_decision` - requires user confirmation UI
-- `continue_cli_mcp_connections` - needs MCP service monitoring
-- `continue_cli_startup_time` - needs startup time tracking
+- `qivryn_cli_code_edit_tool_decision` - requires user confirmation UI
+- `qivryn_cli_mcp_connections` - needs MCP service monitoring
+- `qivryn_cli_startup_time` - needs startup time tracking

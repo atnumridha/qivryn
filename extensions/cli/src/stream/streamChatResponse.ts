@@ -1,5 +1,5 @@
-import { ModelConfig } from "@continuedev/config-yaml";
-import { BaseLlmApi } from "@continuedev/openai-adapters";
+import { ModelConfig } from "@qivryn/config-yaml";
+import { BaseLlmApi } from "@qivryn/openai-adapters";
 import type { ChatHistoryItem } from "core/index.js";
 import { convertFromUnifiedHistoryWithSystemMessage } from "core/util/messageConversion.js";
 import * as dotenv from "dotenv";
@@ -110,13 +110,13 @@ function handleAutoContinuation(
     typeof chatHistorySvc?.isReady === "function" &&
     chatHistorySvc.isReady()
   ) {
-    chatHistorySvc.addUserMessage("continue");
+    chatHistorySvc.addUserMessage("qivryn");
     chatHistory = chatHistorySvc.getHistory();
   } else {
     chatHistory.push({
       message: {
         role: "user",
-        content: "continue",
+        content: "qivryn",
       },
       contextItems: [],
     });

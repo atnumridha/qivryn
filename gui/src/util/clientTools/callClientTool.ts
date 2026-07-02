@@ -1,6 +1,6 @@
 import { ContextItem, ToolCallState } from "core";
 import { BuiltInToolNames } from "core/tools/builtIn";
-import { ContinueError, ContinueErrorReason } from "core/util/errors";
+import { QivrynError, QivrynErrorReason } from "core/util/errors";
 import { IIdeMessenger } from "../../context/IdeMessenger";
 import { AppThunkDispatch, RootState } from "../../redux/store";
 import { editToolImpl } from "./editImpl";
@@ -19,7 +19,7 @@ export interface ClientToolOutput {
 }
 
 export interface ClientToolResult extends ClientToolOutput {
-  error?: ContinueError;
+  error?: QivrynError;
 }
 
 export type ClientToolImpl = (
@@ -57,11 +57,11 @@ export async function callClientTool(
     return {
       respondImmediately: true,
       error:
-        e instanceof ContinueError
+        e instanceof QivrynError
           ? e
           : e instanceof Error
-            ? new ContinueError(ContinueErrorReason.Unspecified, e.message)
-            : new ContinueError(ContinueErrorReason.Unknown, String(e)),
+            ? new QivrynError(QivrynErrorReason.Unspecified, e.message)
+            : new QivrynError(QivrynErrorReason.Unknown, String(e)),
       output: undefined,
     };
   }

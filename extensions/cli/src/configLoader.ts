@@ -9,8 +9,8 @@ import {
   RegistryClient,
   unrollAssistant,
   unrollAssistantFromContent,
-} from "@continuedev/config-yaml";
-import { DefaultApiInterface } from "@continuedev/sdk/dist/api/dist/index.js";
+} from "@qivryn/config-yaml";
+import { DefaultApiInterface } from "@qivryn/sdk/dist/api/dist/index.js";
 import chalk from "chalk";
 
 import { uriToPath, uriToSlug } from "./auth/uriUtils.js";
@@ -92,7 +92,7 @@ function determineConfigSource(
   }
 
   // Priority 2: Check for default config.yaml, then fallback to default config
-  const defaultConfigPath = path.join(env.continueHome, "config.yaml");
+  const defaultConfigPath = path.join(env.qivrynHome, "config.yaml");
   if (fs.existsSync(defaultConfigPath)) {
     return { type: "local-config-yaml" };
   }
@@ -302,7 +302,7 @@ async function loadUserAssistantWithFallback(
 }
 
 /**
- * Loads default config.yaml from ~/.continue/config.yaml
+ * Loads default config.yaml from ~/.qivryn/config.yaml
  */
 async function loadLocalConfigYaml(
   accessToken: string | null,
@@ -310,7 +310,7 @@ async function loadLocalConfigYaml(
   apiClient: DefaultApiInterface,
   injectBlocks: PackageIdentifier[],
 ): Promise<AssistantUnrolled> {
-  const defaultConfigPath = path.join(env.continueHome, "config.yaml");
+  const defaultConfigPath = path.join(env.qivrynHome, "config.yaml");
   return await loadConfigYaml(
     defaultConfigPath,
     accessToken,
@@ -321,7 +321,7 @@ async function loadLocalConfigYaml(
 }
 
 /**
- * Loads the default continuedev/default-config
+ * Loads the default qivryn/default-config
  */
 async function loadDefaultConfig(
   organizationId: string | null,
@@ -330,7 +330,7 @@ async function loadDefaultConfig(
   injectBlocks: PackageIdentifier[],
 ): Promise<AssistantUnrolled> {
   const resp = await apiClient.getAssistant({
-    ownerSlug: "continuedev",
+    ownerSlug: "qivryn",
     packageSlug: "default-cli-config",
     organizationId: organizationId ?? undefined,
   });
@@ -447,7 +447,7 @@ async function loadConfigYaml(
 }
 
 /**
- * Loads an assistant by slug from the Continue platform
+ * Loads an assistant by slug from the Qivryn platform
  */
 async function loadAssistantSlug(
   slug: string,
@@ -536,7 +536,7 @@ function getUriFromSource(source: ConfigSource): string | null {
     case "saved-uri":
       return source.uri;
     case "local-config-yaml":
-      return `file://${path.join(env.continueHome, "config.yaml")}`;
+      return `file://${path.join(env.qivrynHome, "config.yaml")}`;
     default:
       return null;
   }

@@ -19,7 +19,7 @@ export default function GUI() {
   const isStandaloneWindow = Boolean((window as any).isFullScreen);
 
   return (
-    <div className="continue-agents-cursor flex min-h-0 w-screen flex-row overflow-x-hidden">
+    <div className="qivryn-agents-cursor flex min-h-0 w-screen flex-row overflow-x-hidden">
       <aside className="cursor-agents-sidebar 4xl:flex no-scrollbar hidden min-h-0 w-96 overflow-y-auto border-0 border-r border-solid">
         <History />
       </aside>

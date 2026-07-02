@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 
-import { parseContinueDeepLink } from "@continuedev/agent-runtime";
+import { parseQivrynDeepLink } from "@qivryn/agent-runtime";
 import { IContextProvider } from "core";
 import { ConfigHandler } from "core/config/ConfigHandler";
 import { Core } from "core/core";
@@ -12,20 +12,20 @@ import {
   getConfigJsonPath,
   getConfigTsPath,
   getConfigYamlPath,
-  getContinueGlobalPath,
+  getQivrynGlobalPath,
 } from "core/util/paths";
 import { v4 as uuidv4 } from "uuid";
 import * as vscode from "vscode";
 
-import { ContinueCompletionProvider } from "../autocomplete/completionProvider";
+import { QivrynCompletionProvider } from "../autocomplete/completionProvider";
 import {
   monitorBatteryChanges,
   setupStatusBar,
   StatusBarStatus,
 } from "../autocomplete/statusBar";
 import { registerAllCommands } from "../commands";
-import { ContinueConsoleWebviewViewProvider } from "../ContinueConsoleWebviewViewProvider";
-import { ContinueGUIWebviewViewProvider } from "../ContinueGUIWebviewViewProvider";
+import { QivrynConsoleWebviewViewProvider } from "../QivrynConsoleWebviewViewProvider";
+import { QivrynGUIWebviewViewProvider } from "../QivrynGUIWebviewViewProvider";
 import { VerticalDiffManager } from "../diff/vertical/manager";
 import { registerAllCodeLensProviders } from "../lang-server/codeLens";
 import { registerAllPromptFilesCompletionProviders } from "../lang-server/promptFileCompletions";
@@ -59,7 +59,7 @@ import { AgentWorktreeDecorationProvider } from "../AgentWorktreeDecorationProvi
 import { AiAttributionCodeLensProvider } from "../AiAttributionCodeLensProvider";
 import { GhostTextAcceptanceTracker } from "../autocomplete/GhostTextAcceptanceTracker";
 import { getDefinitionsFromLsp } from "../autocomplete/lsp";
-import { ContinueLayoutManager } from "../ContinueLayoutManager";
+import { QivrynLayoutManager } from "../QivrynLayoutManager";
 import {
   clearDocumentContentCache,
   handleTextDocumentChange,
@@ -74,8 +74,8 @@ export class VsCodeExtension {
   private extensionContext: vscode.ExtensionContext;
   private ide: VsCodeIde;
   private ideUtils: VsCodeIdeUtils;
-  private consoleView: ContinueConsoleWebviewViewProvider;
-  private sidebar: ContinueGUIWebviewViewProvider;
+  private consoleView: QivrynConsoleWebviewViewProvider;
+  private sidebar: QivrynGUIWebviewViewProvider;
   private windowId: string;
   private editDecorationManager: EditDecorationManager;
   private verticalDiffManager: VerticalDiffManager;
@@ -84,7 +84,7 @@ export class VsCodeExtension {
   private battery: Battery;
   private fileSearch: FileSearch;
   private uriHandler = new UriEventHandler();
-  private completionProvider: ContinueCompletionProvider;
+  private completionProvider: QivrynCompletionProvider;
 
   private ARBITRARY_TYPING_DELAY = 2000;
 
@@ -97,8 +97,8 @@ export class VsCodeExtension {
   private async updateNextEditState(
     context: vscode.ExtensionContext,
   ): Promise<void> {
-    const { config: continueConfig } = await this.configHandler.loadConfig();
-    const autocompleteModel = continueConfig?.selectedModelByRole.autocomplete;
+    const { config: qivrynConfig } = await this.configHandler.loadConfig();
+    const autocompleteModel = qivrynConfig?.selectedModelByRole.autocomplete;
     const vscodeConfig = vscode.workspace.getConfiguration(EXTENSION_NAME);
 
     const modelSupportsNext =
@@ -126,7 +126,7 @@ export class VsCodeExtension {
       nextEditEnabled &&
       !modelSupportsNext &&
       !isNextEditTest() &&
-      process.env.CONTINUE_E2E_NON_NEXT_EDIT_TEST === "true"
+      process.env.QIVRYN_E2E_NON_NEXT_EDIT_TEST === "true"
     ) {
       vscode.window
         .showWarningMessage(
@@ -143,7 +143,7 @@ export class VsCodeExtension {
             );
           } else if (selection === "Select different model") {
             vscode.commands.executeCommand(
-              "continue.openTabAutocompleteConfigMenu",
+              "qivryn.openTabAutocompleteConfigMenu",
             );
           }
         });
@@ -179,8 +179,8 @@ export class VsCodeExtension {
   constructor(context: vscode.ExtensionContext) {
     const bundledAgentCli = resolveAgentCliPath(context.extensionPath);
     if (bundledAgentCli) {
-      process.env.CONTINUE_CLI_PATH = bundledAgentCli;
-      process.env.CONTINUE_CLI_SOURCE = "bundled";
+      process.env.QIVRYN_CLI_PATH = bundledAgentCli;
+      process.env.QIVRYN_CLI_SOURCE = "bundled";
     }
     this.editDecorationManager = new EditDecorationManager(context);
 
@@ -257,7 +257,7 @@ export class VsCodeExtension {
     const configHandlerPromise = new Promise<ConfigHandler>((resolve) => {
       resolveConfigHandler = resolve;
     });
-    this.sidebar = new ContinueGUIWebviewViewProvider(
+    this.sidebar = new QivrynGUIWebviewViewProvider(
       this.windowId,
       this.extensionContext,
     );
@@ -265,7 +265,7 @@ export class VsCodeExtension {
     // Sidebar
     context.subscriptions.push(
       vscode.window.registerWebviewViewProvider(
-        "continue.continueGUIView",
+        "qivryn.qivrynGUIView",
         this.sidebar,
         {
           webviewOptions: { retainContextWhenHidden: true },
@@ -278,7 +278,7 @@ export class VsCodeExtension {
       vscode.window.registerFileDecorationProvider(worktreeDecorations),
     );
     const agentScmGraphManager = new AgentScmGraphManager();
-    const layoutManager = new ContinueLayoutManager(context);
+    const layoutManager = new QivrynLayoutManager(context);
     context.subscriptions.push(agentScmGraphManager);
     resolveWebviewProtocol(this.sidebar.webviewProtocol);
 
@@ -364,7 +364,7 @@ export class VsCodeExtension {
     setupStatusBar(
       enabled ? StatusBarStatus.Enabled : StatusBarStatus.Disabled,
     );
-    this.completionProvider = new ContinueCompletionProvider(
+    this.completionProvider = new QivrynCompletionProvider(
       this.configHandler,
       this.ide,
       this.sidebar.webviewProtocol,
@@ -379,33 +379,33 @@ export class VsCodeExtension {
 
     // Handle uri events
     this.uriHandler.event(async (uri) => {
-      const deepLink = parseContinueDeepLink(uri.toString());
+      const deepLink = parseQivrynDeepLink(uri.toString());
       if (deepLink) {
         switch (deepLink.type) {
           case "agent":
             await vscode.commands.executeCommand(
-              "continue.navigateTo",
+              "qivryn.navigateTo",
               `/agents?runId=${encodeURIComponent(deepLink.runId)}`,
               false,
             );
             return;
           case "checkpoint":
             await vscode.commands.executeCommand(
-              "continue.navigateTo",
+              "qivryn.navigateTo",
               `/agents?runId=${encodeURIComponent(deepLink.runId)}&checkpointId=${encodeURIComponent(deepLink.checkpointId)}`,
               false,
             );
             return;
           case "review":
             await vscode.commands.executeCommand(
-              "continue.navigateTo",
+              "qivryn.navigateTo",
               `/review?reviewId=${encodeURIComponent(deepLink.reviewId)}`,
               false,
             );
             return;
           case "settings":
             await vscode.commands.executeCommand(
-              "continue.navigateTo",
+              "qivryn.navigateTo",
               deepLink.section
                 ? `/config?tab=${encodeURIComponent(deepLink.section)}`
                 : "/config",
@@ -458,7 +458,7 @@ export class VsCodeExtension {
     );
 
     // LLM Log view
-    this.consoleView = new ContinueConsoleWebviewViewProvider(
+    this.consoleView = new QivrynConsoleWebviewViewProvider(
       this.windowId,
       this.extensionContext,
       this.core.llmLogger,
@@ -466,7 +466,7 @@ export class VsCodeExtension {
 
     context.subscriptions.push(
       vscode.window.registerWebviewViewProvider(
-        "continue.continueConsoleView",
+        "qivryn.qivrynConsoleView",
         this.consoleView,
       ),
     );
@@ -524,7 +524,7 @@ export class VsCodeExtension {
     });
 
     // watch global rules directory for changes
-    const globalRulesDir = path.join(getContinueGlobalPath(), "rules");
+    const globalRulesDir = path.join(getQivrynGlobalPath(), "rules");
     if (fs.existsSync(globalRulesDir)) {
       fs.watch(globalRulesDir, { recursive: true }, (eventType, filename) => {
         if (filename && filename.endsWith(".md")) {
@@ -601,7 +601,7 @@ export class VsCodeExtension {
       });
     });
 
-    // TODO merge this and re-enable https://github.com/continuedev/continue/pull/8364
+    // TODO merge this and re-enable https://github.com/atnumridha/qivryn/pull/8364
     // vscode.workspace.onDidOpenTextDocument(async (event) => {
     //   const ast = await getAst(event.fileName, event.getText());
     //   if (ast) {
@@ -672,7 +672,7 @@ export class VsCodeExtension {
     })();
     context.subscriptions.push(
       vscode.workspace.registerTextDocumentContentProvider(
-        VsCodeExtension.continueVirtualDocumentScheme,
+        VsCodeExtension.qivrynVirtualDocumentScheme,
         documentContentProvider,
       ),
     );
@@ -707,7 +707,7 @@ export class VsCodeExtension {
     });
   }
 
-  static continueVirtualDocumentScheme = EXTENSION_NAME;
+  static qivrynVirtualDocumentScheme = EXTENSION_NAME;
 
   // eslint-disable-next-line @typescript-eslint/naming-convention
   private PREVIOUS_BRANCH_FOR_WORKSPACE_DIR: { [dir: string]: string } = {};

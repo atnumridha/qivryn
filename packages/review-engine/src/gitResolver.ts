@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import path from "node:path";
 import { promisify } from "node:util";
-import type { ReviewRequest } from "@continuedev/agent-runtime";
+import type { ReviewRequest } from "@qivryn/agent-runtime";
 import type { ReviewDiff } from "./contracts.js";
 
 const execFileAsync = promisify(execFile);

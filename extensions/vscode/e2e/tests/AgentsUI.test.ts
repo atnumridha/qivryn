@@ -19,7 +19,7 @@ describe("Agents and chat UI release gate", () => {
 
   before(async function () {
     this.timeout(DEFAULT_TIMEOUT.XL);
-    await GUIActions.moveContinueToSidebar(VSBrowser.instance.driver);
+    await GUIActions.moveQivrynToSidebar(VSBrowser.instance.driver);
     await GlobalActions.openTestWorkspace();
     await GlobalActions.clearAllNotifications();
     await GUIActions.toggleGui();
@@ -135,7 +135,7 @@ describe("Agents and chat UI release gate", () => {
     const beforeHandles = await driver.getAllWindowHandles();
 
     const { Workbench } = await import("vscode-extension-tester");
-    await new Workbench().executeCommand("Continue: Open Agents Window");
+    await new Workbench().executeCommand("Qivryn: Open Agents Window");
     const handles = await TestUtils.waitForSuccess(async () => {
       const current = await driver.getAllWindowHandles();
       if (current.length <= beforeHandles.length)

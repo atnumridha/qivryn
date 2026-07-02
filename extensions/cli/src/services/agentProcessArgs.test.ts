@@ -2,7 +2,7 @@ import {
   AgentAttachmentKind,
   AgentImageMediaType,
   type AgentRun,
-} from "@continuedev/agent-runtime";
+} from "@qivryn/agent-runtime";
 import { describe, expect, it } from "vitest";
 import {
   buildAgentChatArgs,

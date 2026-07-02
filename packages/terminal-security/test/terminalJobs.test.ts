@@ -13,7 +13,7 @@ afterEach(() =>
 
 describe("durable terminal jobs", () => {
   it("reopens persisted output after service restart", async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "continue-jobs-"));
+    const root = await mkdtemp(path.join(os.tmpdir(), "qivryn-jobs-"));
     roots.push(root);
     const service = new TerminalJobService(root);
     await service.initialize();
@@ -32,7 +32,7 @@ describe("durable terminal jobs", () => {
   });
 
   it("stops background process groups", async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "continue-jobs-"));
+    const root = await mkdtemp(path.join(os.tmpdir(), "qivryn-jobs-"));
     roots.push(root);
     const service = new TerminalJobService(root);
     await service.initialize();

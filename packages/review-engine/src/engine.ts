@@ -1,10 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import type {
-  AgentHookExecutor,
-  ReviewFinding,
-} from "@continuedev/agent-runtime";
+import type { AgentHookExecutor, ReviewFinding } from "@qivryn/agent-runtime";
 import type {
   CreateReviewRequest,
   ReviewAnalyzer,

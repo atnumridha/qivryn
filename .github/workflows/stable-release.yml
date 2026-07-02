@@ -18,8 +18,8 @@ jobs:
   stable-release:
     name: Stable Release
     runs-on: ubuntu-latest
-    # Only run this workflow on the main repository (continuedev/continue)
-    if: github.repository == 'continuedev/continue'
+    # Only run this workflow on the main repository (atnumridha/qivryn)
+    if: github.repository == 'qivryn/qivryn'
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -129,6 +129,6 @@ jobs:
             fi
           }
 
-          # Publish both cn and cn-staging blueprints
-          publish_blueprint "cn" "runloop-blueprint-template.json"
-          publish_blueprint "cn-staging" "runloop-blueprint-staging-template.json"
+          # Publish both qivryn and qivryn-staging blueprints
+          publish_blueprint "qivryn" "runloop-blueprint-template.json"
+          publish_blueprint "qivryn-staging" "runloop-blueprint-staging-template.json"

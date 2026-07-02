@@ -30,7 +30,7 @@ describe("SSH agent runtime", () => {
       host: "dev@example.test",
       remotePath: "/srv/project",
       port: 2222,
-      env: { CONTINUE_AGENT_EVENT_STREAM: "1" },
+      env: { QIVRYN_AGENT_EVENT_STREAM: "1" },
     });
     expect(spec.command).toBe("ssh");
     expect(spec.args).toEqual(
@@ -41,7 +41,7 @@ describe("SSH agent runtime", () => {
       ]),
     );
     expect(spec.args?.at(-1)).toContain("/srv/project");
-    expect(spec.args?.at(-1)).toContain("CONTINUE_AGENT_EVENT_STREAM='1'");
+    expect(spec.args?.at(-1)).toContain("QIVRYN_AGENT_EVENT_STREAM='1'");
     expect(spec.args?.at(-1)).toContain("--autonomous");
     expect(spec.args?.at(-1)).not.toContain("--auto ");
   });
@@ -50,10 +50,10 @@ describe("SSH agent runtime", () => {
     const spec = buildSshRunSpec(createRun(), {
       host: "dev@example.test",
       remotePath: "/srv/project",
-      args: ["inspect", "--image", "/tmp/continue images/image-1"],
+      args: ["inspect", "--image", "/tmp/qivryn images/image-1"],
     });
     expect(spec.args?.at(-1)).toContain(
-      "'--image' '/tmp/continue images/image-1'",
+      "'--image' '/tmp/qivryn images/image-1'",
     );
   });
 
@@ -69,11 +69,11 @@ describe("SSH agent runtime", () => {
         port: 2222,
         identityFile: "/tmp/id key",
       },
-      "/tmp/continue-agent-run-attachments",
+      "/tmp/qivryn-agent-run-attachments",
       [
         {
           localPath: "/tmp/screen shot.png",
-          remotePath: "/tmp/continue-agent-run-attachments/image-1",
+          remotePath: "/tmp/qivryn-agent-run-attachments/image-1",
         },
       ],
     );
@@ -90,11 +90,11 @@ describe("SSH agent runtime", () => {
         "/tmp/id key",
         "--",
         "/tmp/screen shot.png",
-        "dev@example.test:/tmp/continue-agent-run-attachments/image-1",
+        "dev@example.test:/tmp/qivryn-agent-run-attachments/image-1",
       ],
     });
     expect(spec.cleanup?.[0].args?.at(-1)).toContain(
-      "rm -rf -- '/tmp/continue-agent-run-attachments'",
+      "rm -rf -- '/tmp/qivryn-agent-run-attachments'",
     );
   });
 

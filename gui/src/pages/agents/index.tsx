@@ -9,13 +9,13 @@ import type {
   AgentRuntimeStatus,
   AgentRunSnapshot,
   AgentWorktreeResult,
-} from "@continuedev/agent-runtime";
+} from "@qivryn/agent-runtime";
 import type {
   BaseSessionMetadata,
   ContextProviderDescription,
   ContextSubmenuItem,
 } from "core";
-import { formatContinueDeepLink } from "@continuedev/agent-runtime/deep-links";
+import { formatQivrynDeepLink } from "@qivryn/agent-runtime/deep-links";
 import {
   ArchiveBoxIcon,
   ClockIcon,
@@ -2555,7 +2555,7 @@ export default function Agents() {
     "local",
   );
   const [newContainerImage, setNewContainerImage] = useState(
-    "continue-agent:latest",
+    "qivryn-agent:latest",
   );
   const [newSshHost, setNewSshHost] = useState("");
   const [newPermissionMode, setNewPermissionMode] =
@@ -2922,7 +2922,7 @@ export default function Agents() {
           .repositoryPath ??
         chatSessions.find((session) => session.workspaceDirectory)
           ?.workspaceDirectory ??
-        window.localStorage.getItem("continue.agents.lastRepository") ??
+        window.localStorage.getItem("qivryn.agents.lastRepository") ??
         "";
       if (fallback) setNewRepository(fallback);
     },
@@ -2937,7 +2937,7 @@ export default function Agents() {
     if (response.status === "success" && response.content) {
       setNewRepository(response.content);
       window.localStorage.setItem(
-        "continue.agents.lastRepository",
+        "qivryn.agents.lastRepository",
         response.content,
       );
     }
@@ -2961,7 +2961,7 @@ export default function Agents() {
         .repositoryPath ??
       chatSessions.find((session) => session.workspaceDirectory)
         ?.workspaceDirectory ??
-      window.localStorage.getItem("continue.agents.lastRepository") ??
+      window.localStorage.getItem("qivryn.agents.lastRepository") ??
       "";
     if (fallback) setNewRepository(fallback);
   }, [chatSessions, ideMessenger, newRepository, runs, selectedId]);
@@ -2986,7 +2986,7 @@ export default function Agents() {
           ...(newRuntime === "docker"
             ? {
                 container: {
-                  image: newContainerImage.trim() || "continue-agent:latest",
+                  image: newContainerImage.trim() || "qivryn-agent:latest",
                   network: "bridge",
                   privileged: false,
                 },
@@ -3018,7 +3018,7 @@ export default function Agents() {
     }
     const run = response.content as AgentRun;
     window.localStorage.setItem(
-      "continue.agents.lastRepository",
+      "qivryn.agents.lastRepository",
       newRepository.trim(),
     );
     setShowCreate(false);
@@ -3071,8 +3071,7 @@ export default function Agents() {
               ...(newRuntime === "docker"
                 ? {
                     container: {
-                      image:
-                        newContainerImage.trim() || "continue-agent:latest",
+                      image: newContainerImage.trim() || "qivryn-agent:latest",
                       network: "bridge",
                       privileged: false,
                     },
@@ -3110,7 +3109,7 @@ export default function Agents() {
     }
     if (responses.some((response) => response.status === "success")) {
       window.localStorage.setItem(
-        "continue.agents.lastRepository",
+        "qivryn.agents.lastRepository",
         newRepository.trim(),
       );
       setShowMultitask(false);
@@ -3147,7 +3146,7 @@ export default function Agents() {
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `continue-agent-${run.id}.json`;
+      anchor.download = `qivryn-agent-${run.id}.json`;
       anchor.click();
       URL.revokeObjectURL(url);
     },
@@ -3169,7 +3168,7 @@ export default function Agents() {
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `continue-agent-${run.id}.patch`;
+      anchor.download = `qivryn-agent-${run.id}.patch`;
       anchor.click();
       URL.revokeObjectURL(url);
     },
@@ -3317,7 +3316,7 @@ export default function Agents() {
       data-testid="agents-workspace"
       tabIndex={0}
       onKeyDown={onWorkspaceKeyDown}
-      className="continue-agents-cursor relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden outline-none"
+      className="qivryn-agents-cursor relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden outline-none"
     >
       <header className="cursor-agents-toolbar flex flex-shrink-0 items-center gap-2 border-b px-3">
         <button
@@ -3683,8 +3682,8 @@ export default function Agents() {
                   <div>
                     <h2 className="m-0 text-base font-semibold">New agent</h2>
                     <p className="text-description mb-0 mt-1 text-xs">
-                      Describe the outcome. Continue runs it in an isolated
-                      local workspace and keeps the conversation here.
+                      Describe the outcome. Qivryn runs it in an isolated local
+                      workspace and keeps the conversation here.
                     </p>
                   </div>
                   <button
@@ -4151,7 +4150,7 @@ export default function Agents() {
               }
               onCopyRunLink={() =>
                 void ideMessenger.request("copyText", {
-                  text: formatContinueDeepLink({
+                  text: formatQivrynDeepLink({
                     type: "agent",
                     runId: selected.id,
                   }),
@@ -4159,7 +4158,7 @@ export default function Agents() {
               }
               onCopyCheckpointLink={(checkpointId) =>
                 void ideMessenger.request("copyText", {
-                  text: formatContinueDeepLink({
+                  text: formatQivrynDeepLink({
                     type: "checkpoint",
                     runId: selected.id,
                     checkpointId,

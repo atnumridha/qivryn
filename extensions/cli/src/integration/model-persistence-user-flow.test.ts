@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
-import { AssistantUnrolled, ModelConfig } from "@continuedev/config-yaml";
+import { AssistantUnrolled, ModelConfig } from "@qivryn/config-yaml";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { getModelName, updateModelName } from "../auth/workos.js";
@@ -15,7 +15,7 @@ vi.mock("../config.js");
 
 describe("Model Persistence User Flow", () => {
   let testDir: string;
-  let originalContinueHome: string | undefined;
+  let originalQivrynHome: string | undefined;
   let mockAssistant: AssistantUnrolled;
   const mockLlmApi = { complete: vi.fn(), stream: vi.fn() };
 
@@ -23,9 +23,9 @@ describe("Model Persistence User Flow", () => {
     vi.clearAllMocks();
 
     // Create a temporary directory for testing
-    testDir = fs.mkdtempSync(path.join(os.tmpdir(), "continue-test-"));
-    originalContinueHome = process.env.CONTINUE_GLOBAL_DIR;
-    process.env.CONTINUE_GLOBAL_DIR = testDir;
+    testDir = fs.mkdtempSync(path.join(os.tmpdir(), "qivryn-test-"));
+    originalQivrynHome = process.env.QIVRYN_GLOBAL_DIR;
+    process.env.QIVRYN_GLOBAL_DIR = testDir;
 
     // Clear GlobalContext for clean test state
     persistModelName(null);
@@ -71,10 +71,10 @@ describe("Model Persistence User Flow", () => {
     if (fs.existsSync(testDir)) {
       fs.rmSync(testDir, { recursive: true });
     }
-    if (originalContinueHome) {
-      process.env.CONTINUE_GLOBAL_DIR = originalContinueHome;
+    if (originalQivrynHome) {
+      process.env.QIVRYN_GLOBAL_DIR = originalQivrynHome;
     } else {
-      delete process.env.CONTINUE_GLOBAL_DIR;
+      delete process.env.QIVRYN_GLOBAL_DIR;
     }
   });
 

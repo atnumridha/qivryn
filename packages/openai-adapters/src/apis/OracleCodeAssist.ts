@@ -12,18 +12,22 @@ const CLIENT_VERSION = "0.137.0";
 function readOcaToken(): string {
   try {
     if (fs.existsSync(OCA_SECRETS_FILE)) {
-      const secrets = JSON.parse(fs.readFileSync(OCA_SECRETS_FILE, "utf8")) as Record<string, unknown>;
+      const secrets = JSON.parse(
+        fs.readFileSync(OCA_SECRETS_FILE, "utf8"),
+      ) as Record<string, unknown>;
       const t = secrets?.ocaApiKey;
       if (typeof t === "string" && t.trim()) return t.trim();
     }
-  } catch { /* fall through */ }
+  } catch {
+    /* fall through */
+  }
   return process.env.OCA_API_KEY?.trim() ?? "";
 }
 
 export interface OracleCodeAssistConfig extends OpenAIConfig {}
 
 /**
- * OracleCodeAssist API adapter for Continue's openai-adapters package.
+ * OracleCodeAssist API adapter for Qivryn's openai-adapters package.
  *
  * Talks directly to Oracle Code Assist's LiteLLM HTTPS endpoint — no proxy.
  * Reads the JWT token from ~/.codex/oca-secrets.json (written by
@@ -41,7 +45,7 @@ export class OracleCodeAssistApi extends OpenAIApi {
   protected override getHeaders(): Record<string, string> {
     return {
       ...super.getHeaders(),
-      client: "Continue",
+      client: "Qivryn",
       "client-version": CLIENT_VERSION,
       "client-ide": "vscode",
       "client-ide-version": CLIENT_VERSION,

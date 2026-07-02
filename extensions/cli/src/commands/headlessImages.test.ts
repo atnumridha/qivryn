@@ -7,7 +7,7 @@ import { formatHeadlessMessageWithImages } from "./headlessImages.js";
 const temporaryDirectories: string[] = [];
 
 async function temporaryImage(contents: Buffer): Promise<string> {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "cn-image-test-"));
+  const directory = await mkdtemp(path.join(os.tmpdir(), "qivryn-image-test-"));
   temporaryDirectories.push(directory);
   const filepath = path.join(directory, "image.png");
   await writeFile(filepath, contents);

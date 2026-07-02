@@ -1,21 +1,21 @@
-import { markdownToRule } from "@continuedev/config-yaml";
+import { markdownToRule } from "@qivryn/config-yaml";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { IDE } from "../..";
-import { getAllDotContinueDefinitionFiles } from "../loadLocalAssistants";
+import { getAllDotQivrynDefinitionFiles } from "../loadLocalAssistants";
 import { loadMarkdownRules } from "./loadMarkdownRules";
 
-vi.mock("@continuedev/config-yaml", () => ({
+vi.mock("@qivryn/config-yaml", () => ({
   markdownToRule: vi.fn(),
 }));
 
 vi.mock("../loadLocalAssistants", () => ({
-  getAllDotContinueDefinitionFiles: vi.fn(),
+  getAllDotQivrynDefinitionFiles: vi.fn(),
 }));
 
 describe("loadMarkdownRules", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    (getAllDotContinueDefinitionFiles as any).mockResolvedValue([]);
+    (getAllDotQivrynDefinitionFiles as any).mockResolvedValue([]);
     (markdownToRule as any).mockImplementation((content: string) => ({
       name: "Agent guidance",
       rule: content,

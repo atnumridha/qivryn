@@ -1,7 +1,7 @@
 /**
  * ReasoningEffortSelect
  *
- * A stable dropdown (using Continue's own Listbox component) that lets the
+ * A stable dropdown (using Qivryn's own Listbox component) that lets the
  * user choose a reasoning effort level for the current model.
  *
  * Available levels come from:

@@ -11,7 +11,7 @@ import {
 
 vi.mock("../env.js", () => ({
   env: {
-    apiBase: "https://api.continue.dev",
+    apiBase: "https://api.qivryn.ai",
   },
 }));
 
@@ -54,7 +54,7 @@ describe("apiClient", () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        new URL("test-endpoint", "https://api.continue.dev"),
+        new URL("test-endpoint", "https://api.qivryn.ai"),
         {
           method: "POST",
           headers: {

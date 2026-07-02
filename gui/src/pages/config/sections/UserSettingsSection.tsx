@@ -53,8 +53,7 @@ export function UserSettingsSection() {
 
   // TODO defaults are in multiple places, should be consolidated and probably not explicit here
   const showSessionTabs = config.ui?.showSessionTabs ?? false;
-  const continueAfterToolRejection =
-    config.ui?.continueAfterToolRejection ?? false;
+  const qivrynAfterToolRejection = config.ui?.qivrynAfterToolRejection ?? false;
   const codeWrap = config.ui?.codeWrap ?? false;
   const showChatScrollbar = config.ui?.showChatScrollbar ?? false;
   const readResponseTTS = config.experimental?.readResponseTTS ?? false;
@@ -291,7 +290,7 @@ export function UserSettingsSection() {
                   <UserSetting
                     type="toggle"
                     title="Only use system message tools"
-                    description=" Continue will not attempt to use native tool calling and will only use system message tools."
+                    description=" Qivryn will not attempt to use native tool calling and will only use system message tools."
                     value={onlyUseSystemMessageTools}
                     onChange={(value) =>
                       handleUpdate({ onlyUseSystemMessageTools: value })
@@ -310,9 +309,9 @@ export function UserSettingsSection() {
                     type="toggle"
                     title="Stream after tool rejection"
                     description=" streaming will continue after the tool call is rejected."
-                    value={continueAfterToolRejection}
+                    value={qivrynAfterToolRejection}
                     onChange={(value) =>
-                      handleUpdate({ continueAfterToolRejection: value })
+                      handleUpdate({ qivrynAfterToolRejection: value })
                     }
                   />
                 </div>

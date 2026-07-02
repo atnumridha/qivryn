@@ -1,11 +1,11 @@
-import { getContinueRcPath, getTsConfigPath } from "core/util/paths";
+import { getQivrynRcPath, getTsConfigPath } from "core/util/paths";
 import * as vscode from "vscode";
 
 import { VsCodeExtension } from "../extension/VsCodeExtension";
 import { isUnsupportedPlatform } from "../util/util";
 
 import { GlobalContext } from "core/util/GlobalContext";
-import { VsCodeContinueApi } from "./api";
+import { VsCodeQivrynApi } from "./api";
 import setupInlineTips from "./InlineTipManager";
 import { registerConfigYamlSchema } from "./registerConfigYamlSchema";
 
@@ -21,28 +21,28 @@ export async function activateExtension(context: vscode.ExtensionContext) {
 
     globalContext.update("hasShownUnsupportedPlatformWarning", true);
     void vscode.window.showInformationMessage(
-      `Continue detected that you are using ${platformTarget}. Due to native dependencies, Continue may not be able to start`,
+      `Qivryn detected that you are using ${platformTarget}. Due to native dependencies, Qivryn may not be able to start`,
     );
   }
 
   // Add necessary files
   getTsConfigPath();
-  getContinueRcPath();
+  getQivrynRcPath();
 
   // Register commands and providers
   setupInlineTips(context);
 
   const vscodeExtension = new VsCodeExtension(context);
 
-  // Load Continue configuration
+  // Load Qivryn configuration
   if (!context.globalState.get("hasBeenInstalled")) {
     void context.globalState.update("hasBeenInstalled", true);
   }
 
   await registerConfigYamlSchema(context);
 
-  const api = new VsCodeContinueApi(vscodeExtension);
-  const continuePublicApi = {
+  const api = new VsCodeQivrynApi(vscodeExtension);
+  const qivrynPublicApi = {
     registerCustomContextProvider: api.registerCustomContextProvider.bind(api),
   };
 
@@ -50,8 +50,8 @@ export async function activateExtension(context: vscode.ExtensionContext) {
   // or entire extension for testing
   return process.env.NODE_ENV === "test"
     ? {
-        ...continuePublicApi,
+        ...qivrynPublicApi,
         extension: vscodeExtension,
       }
-    : continuePublicApi;
+    : qivrynPublicApi;
 }

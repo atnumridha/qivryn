@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 set -e
 
-# oneper - Install Continue VS Code extension from PR builds or latest pre-release
+# oneper - Install Qivryn VS Code extension from PR builds or latest pre-release
 # Usage:
 #   oneper install --pr X     - Install VSIX from PR number X
 #   oneper install --latest   - Install latest pre-release from marketplace
 
-REPO="continuedev/continue"
-ONEPER_DIR="$HOME/.continue/.utils/oneper"
+REPO="qivryn/qivryn"
+ONEPER_DIR="$HOME/.qivryn/.utils/oneper"
 
 show_help() {
-    echo "oneper - Install Continue VS Code extension from builds or latest pre-release"
+    echo "oneper - Install Qivryn VS Code extension from builds or latest pre-release"
     echo ""
     echo "Usage: oneper <command> [options]"
     echo "       oneper -h | --help"
@@ -42,7 +42,7 @@ show_help() {
     echo "  oneper clean                         # Clear cached VSIX files"
     echo "  oneper -h                            # Show help"
     echo ""
-    echo "VSIX files are cached in: ~/.continue/.utils/oneper/"
+    echo "VSIX files are cached in: ~/.qivryn/.utils/oneper/"
 }
 
 detect_os() {
@@ -153,9 +153,9 @@ install_from_main() {
         exit 1
     fi
 
-    # Extract version from the original VSIX filename (e.g., continue-1.1.66.vsix -> 1.1.66)
+    # Extract version from the original VSIX filename (e.g., qivryn-1.1.66.vsix -> 1.1.66)
     local original_filename=$(basename "$vsix_file")
-    local version=$(echo "$original_filename" | sed 's/continue-\(.*\)\.vsix/\1/')
+    local version=$(echo "$original_filename" | sed 's/qivryn-\(.*\)\.vsix/\1/')
 
     if [ -z "$version" ]; then
         echo "⚠️  Could not extract version from filename: $original_filename"
@@ -163,7 +163,7 @@ install_from_main() {
     fi
 
     # Create new VSIX name with version and "main" suffix
-    local target_path="$ONEPER_DIR/continue-${version}-main.vsix"
+    local target_path="$ONEPER_DIR/qivryn-${version}-main.vsix"
 
     # Check if file already exists and notify about overwrite
     if [ -f "$target_path" ]; then
@@ -179,7 +179,7 @@ install_from_main() {
     # Install the extension
     echo "🚀 Installing VS Code extension..."
     if code --install-extension "$target_path" --force; then
-        echo "✅ Successfully installed Continue extension from main branch"
+        echo "✅ Successfully installed Qivryn extension from main branch"
         echo "📄 VSIX file saved to: $target_path"
         echo ""
         echo "💡 To use the new extension version, reload your VS Code window:"
@@ -271,9 +271,9 @@ install_from_pr() {
         exit 1
     fi
 
-    # Extract full version from the original VSIX filename (e.g., continue-1.1.66-a1b2c3d.vsix -> 1.1.66-a1b2c3d)
+    # Extract full version from the original VSIX filename (e.g., qivryn-1.1.66-a1b2c3d.vsix -> 1.1.66-a1b2c3d)
     local original_filename=$(basename "$vsix_file")
-    local full_version=$(echo "$original_filename" | sed 's/continue-\(.*\)\.vsix/\1/')
+    local full_version=$(echo "$original_filename" | sed 's/qivryn-\(.*\)\.vsix/\1/')
 
     if [ -z "$full_version" ]; then
         echo "⚠️  Could not extract version from filename: $original_filename"
@@ -281,7 +281,7 @@ install_from_pr() {
     fi
 
     # Use the full version (which includes commit SHA) for the target filename
-    local target_path="$ONEPER_DIR/continue-${full_version}.vsix"
+    local target_path="$ONEPER_DIR/qivryn-${full_version}.vsix"
 
     # Check if file already exists and notify about overwrite
     if [ -f "$target_path" ]; then
@@ -297,7 +297,7 @@ install_from_pr() {
     # Install the extension
     echo "🚀 Installing VS Code extension..."
     if code --install-extension "$target_path"; then
-        echo "✅ Successfully installed Continue extension from PR #$pr_number"
+        echo "✅ Successfully installed Qivryn extension from PR #$pr_number"
         echo "📄 VSIX file saved to: $target_path"
         echo "🔖 Extension version: ${full_version} (includes commit SHA)"
         echo ""
@@ -312,9 +312,9 @@ install_from_pr() {
 }
 
 install_latest() {
-    echo "🚀 Installing latest pre-release Continue extension..."
-    if code --install-extension --pre-release Continue.continue --force; then
-        echo "✅ Successfully installed latest pre-release Continue extension"
+    echo "🚀 Installing latest pre-release Qivryn extension..."
+    if code --install-extension --pre-release Qivryn.qivryn --force; then
+        echo "✅ Successfully installed latest pre-release Qivryn extension"
         echo ""
         echo "💡 To use the new extension version, reload your VS Code window:"
         echo "   • Press Ctrl+Shift+P (Cmd+Shift+P on Mac)"

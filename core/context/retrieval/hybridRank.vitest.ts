@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Chunk, ContinueConfig } from "../..";
+import type { Chunk, QivrynConfig } from "../..";
 import { assertLocalOnlyRetrieval, rankHybridChunks } from "./hybridRank";
 
 function chunk(filepath: string, signature?: string): Chunk {
@@ -40,7 +40,7 @@ describe("hybrid retrieval ranking", () => {
       selectedModelByRole: {
         chat: { providerName: "openai", apiBase: "https://api.openai.com" },
       },
-    } as unknown as ContinueConfig;
+    } as unknown as QivrynConfig;
     expect(() => assertLocalOnlyRetrieval(config)).toThrow(
       /blocked remote chat/,
     );

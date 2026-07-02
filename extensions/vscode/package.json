@@ -1,27 +1,27 @@
 {
-  "name": "continue",
+  "name": "qivryn",
   "icon": "media/icon.png",
-  "author": "Continue Dev, Inc",
+  "author": "Qivryn AI",
   "version": "1.3.40",
   "repository": {
     "type": "git",
-    "url": "https://github.com/continuedev/continue"
+    "url": "https://github.com/atnumridha/qivryn"
   },
   "extensionKind": [
     "ui",
     "workspace"
   ],
   "bugs": {
-    "url": "https://github.com/continuedev/continue/issues",
-    "email": "nate@continue.dev"
+    "url": "https://github.com/atnumridha/qivryn/issues",
+    "email": "nate@qivryn.ai"
   },
-  "homepage": "https://continue.dev",
-  "qna": "https://github.com/continuedev/continue/issues/new/choose",
+  "homepage": "https://qivryn.ai",
+  "qna": "https://github.com/atnumridha/qivryn/issues/new/choose",
   "license": "Apache-2.0",
-  "displayName": "Continue - open-source AI code agent",
+  "displayName": "Qivryn - open-source AI code agent",
   "pricing": "Free",
   "description": "The leading open-source AI code agent",
-  "publisher": "Continue",
+  "publisher": "Qivryn",
   "engines": {
     "vscode": "^1.70.0",
     "node": ">=20.20.1"
@@ -53,38 +53,38 @@
   "activationEvents": [
     "onUri",
     "onStartupFinished",
-    "onWebviewPanel:continue.continueGUIView",
-    "onView:continueGUIView"
+    "onWebviewPanel:qivryn.qivrynGUIView",
+    "onView:qivrynGUIView"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "themes": [
       {
-        "label": "Continue Dark",
+        "label": "Qivryn Dark",
         "uiTheme": "vs-dark",
-        "path": "./themes/continue-dark.json"
+        "path": "./themes/qivryn-dark.json"
       },
       {
-        "label": "Continue Midnight",
+        "label": "Qivryn Midnight",
         "uiTheme": "vs-dark",
-        "path": "./themes/continue-midnight.json"
+        "path": "./themes/qivryn-midnight.json"
       },
       {
-        "label": "Continue Light",
+        "label": "Qivryn Light",
         "uiTheme": "vs",
-        "path": "./themes/continue-light.json"
+        "path": "./themes/qivryn-light.json"
       },
       {
-        "label": "Continue High Contrast",
+        "label": "Qivryn High Contrast",
         "uiTheme": "hc-black",
-        "path": "./themes/continue-high-contrast.json"
+        "path": "./themes/qivryn-high-contrast.json"
       }
     ],
     "languages": [
       {
         "filenames": [
           "config.json",
-          ".continuerc.json"
+          ".qivrynrc.json"
         ],
         "id": "jsonc"
       },
@@ -107,56 +107,56 @@
       }
     ],
     "configuration": {
-      "title": "Continue",
+      "title": "Qivryn",
       "properties": {
-        "continue.telemetryEnabled": {
+        "qivryn.telemetryEnabled": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "Continue collects anonymous usage data, cleaned of PII, to help us improve the product for our users. Read more  at [continue.dev › Telemetry](https://docs.continue.dev/telemetry).",
+          "markdownDescription": "Qivryn collects anonymous usage data, cleaned of PII, to help us improve the product for our users. Read more  at [qivryn.ai › Telemetry](https://docs.qivryn.ai/telemetry).",
           "markdownDeprecationMessage": "This setting is deprecated and will be removed in a later version. Please use the _Telemetry > Allow Anonymous Telemetry_ setting in the extension's User Settings page.",
           "deprecationMessage": "Please use the _Telemetry > Allow Anonymous Telemetry_ setting in the extension's User Settings page."
         },
-        "continue.showInlineTip": {
+        "qivryn.showInlineTip": {
           "type": "boolean",
           "default": true,
-          "description": "Show inline suggestion to use the Continue keyboard shortcuts (e.g. \"Cmd/Ctrl L to select code, Cmd/Ctrl I to edit\")."
+          "description": "Show inline suggestion to use the Qivryn keyboard shortcuts (e.g. \"Cmd/Ctrl L to select code, Cmd/Ctrl I to edit\")."
         },
-        "continue.disableQuickFix": {
+        "qivryn.disableQuickFix": {
           "type": "boolean",
           "default": false,
           "description": "Disable the quick fix feature."
         },
-        "continue.enableQuickActions": {
+        "qivryn.enableQuickActions": {
           "type": "boolean",
           "default": false,
-          "markdownDescription": "Enable the experimental Quick Actions feature. Read our walkthrough to learn about configuration and how to share feedback: [continue.dev › Walkthrough: Quick Actions (experimental)](https://docs.continue.dev/customize/deep-dives/vscode-actions#quick-actions)"
+          "markdownDescription": "Enable the experimental Quick Actions feature. Read our walkthrough to learn about configuration and how to share feedback: [qivryn.ai › Walkthrough: Quick Actions (experimental)](https://docs.qivryn.ai/customize/deep-dives/vscode-actions#quick-actions)"
         },
-        "continue.enableTabAutocomplete": {
+        "qivryn.enableTabAutocomplete": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "Enable Continue's tab autocomplete feature. Read our walkthrough to learn about configuration and how to share feedback: [continue.dev › Walkthrough: Tab Autocomplete (beta)](https://docs.continue.dev/features/tab-autocomplete)"
+          "markdownDescription": "Enable Qivryn's tab autocomplete feature. Read our walkthrough to learn about configuration and how to share feedback: [qivryn.ai › Walkthrough: Tab Autocomplete (beta)](https://docs.qivryn.ai/features/tab-autocomplete)"
         },
-        "continue.enableNextEdit": {
+        "qivryn.enableNextEdit": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "Enable Continue's next edit feature. Read our docs to learn about configuration and how to share feedback: [continue.dev › Features › Autocomplete › Next Edit (experimental)](https://docs.continue.dev/features/autocomplete/next-edit)"
+          "markdownDescription": "Enable Qivryn's next edit feature. Read our docs to learn about configuration and how to share feedback: [qivryn.ai › Features › Autocomplete › Next Edit (experimental)](https://docs.qivryn.ai/features/autocomplete/next-edit)"
         },
-        "continue.pauseTabAutocompleteOnBattery": {
+        "qivryn.pauseTabAutocompleteOnBattery": {
           "type": "boolean",
           "default": false,
-          "markdownDescription": "Pause Continue's tab autocomplete feature when your battery is low."
+          "markdownDescription": "Pause Qivryn's tab autocomplete feature when your battery is low."
         },
-        "continue.pauseCodebaseIndexOnStart": {
+        "qivryn.pauseCodebaseIndexOnStart": {
           "type": "boolean",
           "default": false,
-          "markdownDescription": "Pause Continue's codebase index on start."
+          "markdownDescription": "Pause Qivryn's codebase index on start."
         },
-        "continue.enableConsole": {
+        "qivryn.enableConsole": {
           "type": "boolean",
           "default": false,
           "markdownDescription": "Enable a console to log and explore model inputs and outputs. It can be found in the bottom panel."
         },
-        "continue.agentCompletionNotifications": {
+        "qivryn.agentCompletionNotifications": {
           "type": "string",
           "enum": [
             "off",
@@ -171,27 +171,27 @@
           "default": "whenUnfocused",
           "description": "Controls native notifications for background agent completion."
         },
-        "continue.agentNotificationIncludeTaskTitle": {
+        "qivryn.agentNotificationIncludeTaskTitle": {
           "type": "boolean",
           "default": false,
           "description": "Include the agent task title in native notifications. Disabled by default to avoid exposing project details."
         },
-        "continue.enableAiAttribution": {
+        "qivryn.enableAiAttribution": {
           "type": "boolean",
           "default": true,
           "description": "Show CodeLens links from agent-generated lines to their originating conversation."
         },
-        "continue.remoteConfigServerUrl": {
+        "qivryn.remoteConfigServerUrl": {
           "type": "string",
           "default": null,
           "markdownDescription": "If your team is set up to use shared configuration, enter the server URL here and your user token below to enable automatic syncing."
         },
-        "continue.userToken": {
+        "qivryn.userToken": {
           "type": "string",
           "default": null,
           "markdownDescription": "If your team is set up to use shared configuration, enter your user token here and your server URL above to enable automatic syncing."
         },
-        "continue.remoteConfigSyncPeriod": {
+        "qivryn.remoteConfigSyncPeriod": {
           "type": "number",
           "default": 60,
           "description": "The period of time in minutes between automatic syncs."
@@ -200,639 +200,639 @@
     },
     "commands": [
       {
-        "command": "continue.applyCodeFromChat",
-        "category": "Continue",
+        "command": "qivryn.applyCodeFromChat",
+        "category": "Qivryn",
         "title": "Apply code from chat",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.acceptDiff",
-        "category": "Continue",
+        "command": "qivryn.acceptDiff",
+        "category": "Qivryn",
         "title": "Accept Diff",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.rejectDiff",
-        "category": "Continue",
+        "command": "qivryn.rejectDiff",
+        "category": "Qivryn",
         "title": "Reject Diff",
-        "group": "Continue",
+        "group": "Qivryn",
         "icon": "$(stop)"
       },
       {
-        "command": "continue.acceptVerticalDiffBlock",
-        "category": "Continue",
+        "command": "qivryn.acceptVerticalDiffBlock",
+        "category": "Qivryn",
         "title": "Accept Vertical Diff Block",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.rejectVerticalDiffBlock",
-        "category": "Continue",
+        "command": "qivryn.rejectVerticalDiffBlock",
+        "category": "Qivryn",
         "title": "Reject Vertical Diff Block",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.focusEdit",
-        "category": "Continue",
+        "command": "qivryn.focusEdit",
+        "category": "Qivryn",
         "title": "Add to Edit",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.focusContinueInput",
-        "category": "Continue",
+        "command": "qivryn.focusQivrynInput",
+        "category": "Qivryn",
         "title": "Add Highlighted Code to Context and Clear Chat",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.focusContinueInputWithoutClear",
-        "category": "Continue",
+        "command": "qivryn.focusQivrynInputWithoutClear",
+        "category": "Qivryn",
         "title": "Add to Chat",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.debugTerminal",
-        "category": "Continue",
+        "command": "qivryn.debugTerminal",
+        "category": "Qivryn",
         "title": "Debug Terminal",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.exitEditMode",
-        "category": "Continue",
+        "command": "qivryn.exitEditMode",
+        "category": "Qivryn",
         "title": "Exit Edit Mode",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.openConfigPage",
-        "category": "Continue",
+        "command": "qivryn.openConfigPage",
+        "category": "Qivryn",
         "title": "Open Settings",
         "icon": "$(gear)",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.toggleTabAutocompleteEnabled",
-        "category": "Continue",
+        "command": "qivryn.toggleTabAutocompleteEnabled",
+        "category": "Qivryn",
         "title": "Toggle Autocomplete Enabled",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.forceAutocomplete",
-        "title": "Continue: Force Autocomplete",
-        "category": "Continue"
+        "command": "qivryn.forceAutocomplete",
+        "title": "Qivryn: Force Autocomplete",
+        "category": "Qivryn"
       },
       {
-        "command": "continue.acceptNextSuggestionToken",
-        "title": "Continue: Accept Next Suggestion Token",
-        "category": "Continue"
+        "command": "qivryn.acceptNextSuggestionToken",
+        "title": "Qivryn: Accept Next Suggestion Token",
+        "category": "Qivryn"
       },
       {
-        "command": "continue.acceptNextSuggestionWord",
-        "title": "Continue: Accept Next Suggestion Word",
-        "category": "Continue"
+        "command": "qivryn.acceptNextSuggestionWord",
+        "title": "Qivryn: Accept Next Suggestion Word",
+        "category": "Qivryn"
       },
       {
-        "command": "continue.acceptNextSuggestionLine",
-        "title": "Continue: Accept Next Suggestion Line",
-        "category": "Continue"
+        "command": "qivryn.acceptNextSuggestionLine",
+        "title": "Qivryn: Accept Next Suggestion Line",
+        "category": "Qivryn"
       },
       {
-        "command": "continue.selectFilesAsContext",
-        "category": "Continue",
+        "command": "qivryn.selectFilesAsContext",
+        "category": "Qivryn",
         "title": "Select Files as Context",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.newSession",
-        "category": "Continue",
+        "command": "qivryn.newSession",
+        "category": "Qivryn",
         "title": "New Session",
         "icon": "$(add)",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.shareSession",
-        "category": "Continue",
+        "command": "qivryn.shareSession",
+        "category": "Qivryn",
         "title": "Share Current Chat Session as Markdown",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.viewHistory",
-        "category": "Continue",
+        "command": "qivryn.viewHistory",
+        "category": "Qivryn",
         "title": "View History",
         "icon": "$(history)",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.viewLogs",
-        "category": "Continue",
+        "command": "qivryn.viewLogs",
+        "category": "Qivryn",
         "title": "View Logs",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.clearConsole",
-        "category": "Continue",
+        "command": "qivryn.clearConsole",
+        "category": "Qivryn",
         "title": "Clear Console",
         "icon": "$(clear-all)",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.navigateTo",
-        "category": "Continue",
+        "command": "qivryn.navigateTo",
+        "category": "Qivryn",
         "title": "Navigate to a path",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.writeCommentsForCode",
-        "category": "Continue",
+        "command": "qivryn.writeCommentsForCode",
+        "category": "Qivryn",
         "title": "Write Comments for this Code",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.writeDocstringForCode",
-        "category": "Continue",
+        "command": "qivryn.writeDocstringForCode",
+        "category": "Qivryn",
         "title": "Write a Docstring for this Code",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.fixCode",
-        "category": "Continue",
+        "command": "qivryn.fixCode",
+        "category": "Qivryn",
         "title": "Fix this Code",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.optimizeCode",
-        "category": "Continue",
+        "command": "qivryn.optimizeCode",
+        "category": "Qivryn",
         "title": "Optimize this Code",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.fixGrammar",
-        "category": "Continue",
+        "command": "qivryn.fixGrammar",
+        "category": "Qivryn",
         "title": "Fix Grammar / Spelling",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.codebaseForceReIndex",
-        "category": "Continue",
+        "command": "qivryn.codebaseForceReIndex",
+        "category": "Qivryn",
         "title": "Codebase Force Re-Index",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.rebuildCodebaseIndex",
-        "category": "Continue",
+        "command": "qivryn.rebuildCodebaseIndex",
+        "category": "Qivryn",
         "title": "Rebuild codebase index",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.docsIndex",
-        "category": "Continue",
+        "command": "qivryn.docsIndex",
+        "category": "Qivryn",
         "title": "Docs Index",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.docsReIndex",
-        "category": "Continue",
+        "command": "qivryn.docsReIndex",
+        "category": "Qivryn",
         "title": "Docs Force Re-Index",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.focusContinueInput",
-        "category": "Continue",
-        "title": "Focus Continue Chat",
-        "group": "Continue"
+        "command": "qivryn.focusQivrynInput",
+        "category": "Qivryn",
+        "title": "Focus Qivryn Chat",
+        "group": "Qivryn"
       },
       {
-        "command": "continue.enterEnterpriseLicenseKey",
-        "category": "Continue",
+        "command": "qivryn.enterEnterpriseLicenseKey",
+        "category": "Qivryn",
         "title": "Enter Enterprise License Key",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.toggleNextEditEnabled",
-        "title": "Continue: Toggle Next Edit"
+        "command": "qivryn.toggleNextEditEnabled",
+        "title": "Qivryn: Toggle Next Edit"
       },
       {
-        "command": "continue.nextEditWindow.hideNextEditSuggestion",
-        "category": "Continue",
+        "command": "qivryn.nextEditWindow.hideNextEditSuggestion",
+        "category": "Qivryn",
         "title": "Hide Next Edit Suggestion"
       },
       {
-        "command": "continue.nextEditWindow.acceptNextEditSuggestion",
-        "category": "Continue",
+        "command": "qivryn.nextEditWindow.acceptNextEditSuggestion",
+        "category": "Qivryn",
         "title": "Accept Next Edit Suggestion"
       },
       {
-        "command": "continue.forceNextEdit",
-        "category": "Continue",
-        "title": "Continue: Force Next Edit"
+        "command": "qivryn.forceNextEdit",
+        "category": "Qivryn",
+        "title": "Qivryn: Force Next Edit"
       },
       {
-        "command": "continue.acceptJump",
-        "category": "Continue",
-        "title": "Continue: Accept Jump Suggestion"
+        "command": "qivryn.acceptJump",
+        "category": "Qivryn",
+        "title": "Qivryn: Accept Jump Suggestion"
       },
       {
-        "command": "continue.rejectJump",
-        "category": "Continue",
-        "title": "Continue: Reject Jump Suggestion"
+        "command": "qivryn.rejectJump",
+        "category": "Qivryn",
+        "title": "Qivryn: Reject Jump Suggestion"
       },
       {
-        "command": "continue.openInNewWindow",
-        "category": "Continue",
+        "command": "qivryn.openInNewWindow",
+        "category": "Qivryn",
         "title": "Open in new window",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.openAgentsWindow",
-        "category": "Continue",
+        "command": "qivryn.openAgentsWindow",
+        "category": "Qivryn",
         "title": "Open Agents Window",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.reloadAgentsWindow",
-        "category": "Continue",
+        "command": "qivryn.reloadAgentsWindow",
+        "category": "Qivryn",
         "title": "Reload Agents Window",
         "icon": "$(refresh)",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.switchAgent",
-        "category": "Continue",
+        "command": "qivryn.switchAgent",
+        "category": "Qivryn",
         "title": "Switch Agent",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.openAgentReview",
-        "category": "Continue",
+        "command": "qivryn.openAgentReview",
+        "category": "Qivryn",
         "title": "Open Agent Review",
         "icon": "$(search-fuzzy)",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.openTerminalAssistant",
-        "category": "Continue",
+        "command": "qivryn.openTerminalAssistant",
+        "category": "Qivryn",
         "title": "Open Terminal Assistant",
         "icon": "$(terminal)",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.openTerminalPromptBar",
-        "category": "Continue",
+        "command": "qivryn.openTerminalPromptBar",
+        "category": "Qivryn",
         "title": "Open Native Terminal Prompt",
         "icon": "$(sparkle)",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.openBrowserWorkspace",
-        "category": "Continue",
+        "command": "qivryn.openBrowserWorkspace",
+        "category": "Qivryn",
         "title": "Open Browser Workspace",
         "icon": "$(globe)",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.openAgentAttribution",
-        "category": "Continue",
+        "command": "qivryn.openAgentAttribution",
+        "category": "Qivryn",
         "title": "Open Agent Attribution for Current Line",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.chooseLayout",
-        "category": "Continue",
+        "command": "qivryn.chooseLayout",
+        "category": "Qivryn",
         "title": "Choose Layout",
         "icon": "$(layout)",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.saveLayout",
-        "category": "Continue",
+        "command": "qivryn.saveLayout",
+        "category": "Qivryn",
         "title": "Save Current Layout",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.openAgentGraph",
-        "category": "Continue",
+        "command": "qivryn.openAgentGraph",
+        "category": "Qivryn",
         "title": "Open Agent Branches in Source Control Graph",
         "icon": "$(git-branch)",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.generateCommitMessage",
-        "category": "Continue",
+        "command": "qivryn.generateCommitMessage",
+        "category": "Qivryn",
         "title": "Generate Commit Message",
         "icon": "$(sparkle)",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.openSlackConnector",
-        "category": "Continue",
+        "command": "qivryn.openSlackConnector",
+        "category": "Qivryn",
         "title": "Open Slack Connector",
         "icon": "$(comment-discussion)",
-        "group": "Continue"
+        "group": "Qivryn"
       },
       {
-        "command": "continue.exportAgentDiagnostics",
-        "category": "Continue",
+        "command": "qivryn.exportAgentDiagnostics",
+        "category": "Qivryn",
         "title": "Export Redacted Agent Diagnostics",
         "icon": "$(export)",
-        "group": "Continue"
+        "group": "Qivryn"
       }
     ],
     "keybindings": [
       {
-        "command": "continue.acceptNextSuggestionWord",
+        "command": "qivryn.acceptNextSuggestionWord",
         "key": "alt+right",
         "mac": "alt+right",
         "when": "inlineSuggestionVisible"
       },
       {
-        "command": "continue.acceptNextSuggestionLine",
+        "command": "qivryn.acceptNextSuggestionLine",
         "key": "shift+alt+right",
         "mac": "shift+alt+right",
         "when": "inlineSuggestionVisible"
       },
       {
-        "command": "continue.focusContinueInput",
+        "command": "qivryn.focusQivrynInput",
         "mac": "cmd+l",
         "key": "ctrl+l"
       },
       {
-        "command": "continue.focusContinueInputWithoutClear",
+        "command": "qivryn.focusQivrynInputWithoutClear",
         "mac": "cmd+shift+l",
         "key": "ctrl+shift+l"
       },
       {
-        "command": "continue.acceptDiff",
+        "command": "qivryn.acceptDiff",
         "mac": "shift+cmd+enter",
         "key": "shift+ctrl+enter",
-        "when": "continue.diffVisible"
+        "when": "qivryn.diffVisible"
       },
       {
-        "command": "continue.rejectDiff",
+        "command": "qivryn.rejectDiff",
         "mac": "shift+cmd+backspace",
         "key": "shift+ctrl+backspace",
-        "when": "continue.diffVisible"
+        "when": "qivryn.diffVisible"
       },
       {
-        "command": "continue.rejectDiff",
+        "command": "qivryn.rejectDiff",
         "mac": "cmd+z",
         "key": "ctrl+z",
-        "when": "continue.diffVisible"
+        "when": "qivryn.diffVisible"
       },
       {
-        "command": "continue.quickEditHistoryUp",
+        "command": "qivryn.quickEditHistoryUp",
         "mac": "up",
         "key": "up",
-        "when": "false && continue.quickEditHistoryFocused"
+        "when": "false && qivryn.quickEditHistoryFocused"
       },
       {
-        "command": "continue.quickEditHistoryDown",
+        "command": "qivryn.quickEditHistoryDown",
         "mac": "down",
         "key": "down",
-        "when": "false && continue.quickEditHistoryFocused"
+        "when": "false && qivryn.quickEditHistoryFocused"
       },
       {
-        "command": "continue.acceptVerticalDiffBlock",
+        "command": "qivryn.acceptVerticalDiffBlock",
         "mac": "alt+cmd+y",
         "key": "alt+ctrl+y"
       },
       {
-        "command": "continue.rejectVerticalDiffBlock",
+        "command": "qivryn.rejectVerticalDiffBlock",
         "mac": "alt+cmd+n",
         "key": "alt+ctrl+n"
       },
       {
-        "command": "continue.focusEdit",
+        "command": "qivryn.focusEdit",
         "title": "Edit code with natural language",
         "mac": "cmd+i",
         "key": "ctrl+i"
       },
       {
-        "command": "continue.exitEditMode",
+        "command": "qivryn.exitEditMode",
         "mac": "escape",
         "key": "escape",
-        "when": "continue.inEditMode && editorFocus"
+        "when": "qivryn.inEditMode && editorFocus"
       },
       {
-        "command": "continue.debugTerminal",
+        "command": "qivryn.debugTerminal",
         "mac": "cmd+shift+r",
         "key": "ctrl+shift+r"
       },
       {
-        "command": "continue.openInNewWindow",
+        "command": "qivryn.openInNewWindow",
         "mac": "cmd+k cmd+m",
         "key": "ctrl+k ctrl+m",
         "when": "!terminalFocus"
       },
       {
-        "command": "continue.toggleTabAutocompleteEnabled",
+        "command": "qivryn.toggleTabAutocompleteEnabled",
         "mac": "cmd+k cmd+a",
         "key": "ctrl+k ctrl+a",
         "when": "!terminalFocus"
       },
       {
-        "command": "continue.forceAutocomplete",
+        "command": "qivryn.forceAutocomplete",
         "key": "ctrl+alt+space",
         "mac": "cmd+alt+space",
         "when": "editorTextFocus && !editorHasSelection && !editorReadOnly && !inSnippetMode"
       },
       {
-        "command": "continue.applyCodeFromChat",
+        "command": "qivryn.applyCodeFromChat",
         "mac": "alt+a",
         "key": "alt+a"
       },
       {
-        "command": "continue.toggleNextEditEnabled",
+        "command": "qivryn.toggleNextEditEnabled",
         "key": "ctrl+k ctrl+n",
         "mac": "cmd+k cmd+n",
         "when": "editorTextFocus"
       },
       {
-        "command": "continue.nextEditWindow.hideNextEditSuggestion",
+        "command": "qivryn.nextEditWindow.hideNextEditSuggestion",
         "key": "escape",
-        "when": "editorTextFocus && nextEditWindowActive && !continue.jumpDecorationVisible"
+        "when": "editorTextFocus && nextEditWindowActive && !qivryn.jumpDecorationVisible"
       },
       {
-        "command": "continue.nextEditWindow.acceptNextEditSuggestion",
+        "command": "qivryn.nextEditWindow.acceptNextEditSuggestion",
         "key": "tab",
-        "when": "editorTextFocus && nextEditWindowActive && !continue.jumpDecorationVisible"
+        "when": "editorTextFocus && nextEditWindowActive && !qivryn.jumpDecorationVisible"
       },
       {
-        "command": "continue.acceptJump",
+        "command": "qivryn.acceptJump",
         "key": "tab",
-        "when": "editorTextFocus && continue.jumpDecorationVisible"
+        "when": "editorTextFocus && qivryn.jumpDecorationVisible"
       },
       {
-        "command": "continue.rejectJump",
+        "command": "qivryn.rejectJump",
         "key": "escape",
-        "when": "editorTextFocus && continue.jumpDecorationVisible"
+        "when": "editorTextFocus && qivryn.jumpDecorationVisible"
       }
     ],
     "submenus": [
       {
-        "id": "continue.continueSubMenu",
-        "label": "Continue"
+        "id": "qivryn.qivrynSubMenu",
+        "label": "Qivryn"
       }
     ],
     "menus": {
       "commandPalette": [
         {
-          "command": "continue.focusContinueInput"
+          "command": "qivryn.focusQivrynInput"
         },
         {
-          "command": "continue.focusContinueInputWithoutClear"
+          "command": "qivryn.focusQivrynInputWithoutClear"
         },
         {
-          "command": "continue.debugTerminal"
+          "command": "qivryn.debugTerminal"
         },
         {
-          "command": "continue.newSession"
+          "command": "qivryn.newSession"
         },
         {
-          "command": "continue.enterEnterpriseLicenseKey"
+          "command": "qivryn.enterEnterpriseLicenseKey"
         },
         {
-          "command": "continue.openInNewWindow"
+          "command": "qivryn.openInNewWindow"
         },
         {
-          "command": "continue.openAgentsWindow"
+          "command": "qivryn.openAgentsWindow"
         },
         {
-          "command": "continue.switchAgent"
+          "command": "qivryn.switchAgent"
         },
         {
-          "command": "continue.openAgentReview"
+          "command": "qivryn.openAgentReview"
         },
         {
-          "command": "continue.openTerminalAssistant"
+          "command": "qivryn.openTerminalAssistant"
         },
         {
-          "command": "continue.openBrowserWorkspace"
+          "command": "qivryn.openBrowserWorkspace"
         },
         {
-          "command": "continue.openAgentAttribution"
+          "command": "qivryn.openAgentAttribution"
         },
         {
-          "command": "continue.chooseLayout"
+          "command": "qivryn.chooseLayout"
         },
         {
-          "command": "continue.saveLayout"
+          "command": "qivryn.saveLayout"
         },
         {
-          "command": "continue.openAgentGraph"
+          "command": "qivryn.openAgentGraph"
         },
         {
-          "command": "continue.generateCommitMessage"
+          "command": "qivryn.generateCommitMessage"
         },
         {
-          "command": "continue.openSlackConnector"
+          "command": "qivryn.openSlackConnector"
         },
         {
-          "command": "continue.exportAgentDiagnostics"
+          "command": "qivryn.exportAgentDiagnostics"
         }
       ],
       "editor/context": [
         {
-          "submenu": "continue.continueSubMenu",
-          "group": "0_acontinue"
+          "submenu": "qivryn.qivrynSubMenu",
+          "group": "0_aqivryn"
         }
       ],
       "editor/title/run": [
         {
-          "command": "continue.rejectDiff",
-          "group": "Continue",
-          "when": "continue.streamingDiff"
+          "command": "qivryn.rejectDiff",
+          "group": "Qivryn",
+          "when": "qivryn.streamingDiff"
         }
       ],
-      "continue.continueSubMenu": [
+      "qivryn.qivrynSubMenu": [
         {
-          "command": "continue.focusContinueInputWithoutClear",
-          "group": "Continue"
+          "command": "qivryn.focusQivrynInputWithoutClear",
+          "group": "Qivryn"
         },
         {
-          "command": "continue.focusEdit",
-          "group": "Continue",
+          "command": "qivryn.focusEdit",
+          "group": "Qivryn",
           "when": "!editorReadonly"
         }
       ],
       "explorer/context": [
         {
-          "command": "continue.selectFilesAsContext",
+          "command": "qivryn.selectFilesAsContext",
           "group": "1_debug@1"
         }
       ],
       "view/title": [
         {
-          "command": "continue.newSession",
+          "command": "qivryn.newSession",
           "group": "navigation@1",
-          "when": "view == continue.continueGUIView"
+          "when": "view == qivryn.qivrynGUIView"
         },
         {
-          "command": "continue.viewHistory",
+          "command": "qivryn.viewHistory",
           "group": "navigation@2",
-          "when": "view == continue.continueGUIView"
+          "when": "view == qivryn.qivrynGUIView"
         },
         {
-          "command": "continue.openAgentsWindow",
+          "command": "qivryn.openAgentsWindow",
           "group": "navigation@3",
-          "when": "view == continue.continueGUIView"
+          "when": "view == qivryn.qivrynGUIView"
         },
         {
-          "command": "continue.openAgentReview",
+          "command": "qivryn.openAgentReview",
           "group": "navigation@4",
-          "when": "view == continue.continueGUIView"
+          "when": "view == qivryn.qivrynGUIView"
         },
         {
-          "command": "continue.openConfigPage",
+          "command": "qivryn.openConfigPage",
           "group": "navigation@5",
-          "when": "view == continue.continueGUIView"
+          "when": "view == qivryn.qivrynGUIView"
         },
         {
-          "command": "continue.clearConsole",
+          "command": "qivryn.clearConsole",
           "group": "navigation@1",
-          "when": "view == continue.continueConsoleView"
+          "when": "view == qivryn.qivrynConsoleView"
         }
       ],
       "editor/title": [
         {
-          "command": "continue.reloadAgentsWindow",
+          "command": "qivryn.reloadAgentsWindow",
           "group": "navigation@0",
-          "when": "activeWebviewPanelId == continue.continueGUIView"
+          "when": "activeWebviewPanelId == qivryn.qivrynGUIView"
         },
         {
-          "command": "continue.newSession",
+          "command": "qivryn.newSession",
           "group": "navigation@1",
-          "when": "activeWebviewPanelId == continue.continueGUIView"
+          "when": "activeWebviewPanelId == qivryn.qivrynGUIView"
         },
         {
-          "command": "continue.viewHistory",
+          "command": "qivryn.viewHistory",
           "group": "navigation@2",
-          "when": "activeWebviewPanelId == continue.continueGUIView"
+          "when": "activeWebviewPanelId == qivryn.qivrynGUIView"
         },
         {
-          "command": "continue.openAgentsWindow",
+          "command": "qivryn.openAgentsWindow",
           "group": "navigation@3",
-          "when": "activeWebviewPanelId == continue.continueGUIView"
+          "when": "activeWebviewPanelId == qivryn.qivrynGUIView"
         },
         {
-          "command": "continue.openAgentReview",
+          "command": "qivryn.openAgentReview",
           "group": "navigation@4",
-          "when": "activeWebviewPanelId == continue.continueGUIView"
+          "when": "activeWebviewPanelId == qivryn.qivrynGUIView"
         }
       ],
       "terminal/context": [
         {
-          "command": "continue.openTerminalPromptBar",
+          "command": "qivryn.openTerminalPromptBar",
           "group": "navigation@top"
         },
         {
-          "command": "continue.openTerminalAssistant",
+          "command": "qivryn.openTerminalAssistant",
           "group": "navigation@1"
         },
         {
-          "command": "continue.debugTerminal",
+          "command": "qivryn.debugTerminal",
           "group": "navigation@2"
         }
       ],
       "terminal/title/context": [
         {
-          "command": "continue.openTerminalPromptBar",
+          "command": "qivryn.openTerminalPromptBar",
           "group": "navigation@top"
         }
       ]
@@ -840,48 +840,48 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "continue",
-          "title": "Continue",
+          "id": "qivryn",
+          "title": "Qivryn",
           "icon": "media/sidebar-icon.png"
         }
       ],
       "panel": [
         {
-          "id": "continueConsole",
-          "title": "Continue Console",
+          "id": "qivrynConsole",
+          "title": "Qivryn Console",
           "icon": "$(window)"
         }
       ]
     },
     "views": {
-      "continue": [
+      "qivryn": [
         {
           "type": "webview",
-          "id": "continue.continueGUIView",
-          "name": "Continue",
+          "id": "qivryn.qivrynGUIView",
+          "name": "Qivryn",
           "icon": "media/sidebar-icon.png",
           "visibility": "visible"
         }
       ],
-      "continueConsole": [
+      "qivrynConsole": [
         {
           "type": "webview",
-          "id": "continue.continueConsoleView",
-          "name": "Continue Console",
+          "id": "qivryn.qivrynConsoleView",
+          "name": "Qivryn Console",
           "icon": "$(window)",
           "visibility": "visible",
-          "when": "config.continue.enableConsole"
+          "when": "config.qivryn.enableConsole"
         }
       ]
     },
     "jsonValidation": [
       {
-        "fileMatch": "**/.continue*/config.json",
+        "fileMatch": "**/.qivryn*/config.json",
         "url": "./config_schema.json"
       },
       {
-        "fileMatch": ".continuerc.json",
-        "url": "./continue_rc_schema.json"
+        "fileMatch": ".qivrynrc.json",
+        "url": "./qivryn_rc_schema.json"
       },
       {
         "fileMatch": "**/config.yaml",
@@ -919,18 +919,18 @@
     "e2e:get-vscode": "extest get-vscode --storage ./e2e/storage --code_version 1.95.0",
     "e2e:sign-vscode": "codesign --entitlements entitlements.plist --deep --force -s - './e2e/storage/Visual Studio Code.app'",
     "e2e:copy-vsix": "chmod +x ./e2e/get-latest-vsix.sh && bash ./e2e/get-latest-vsix.sh",
-    "e2e:install-vsix": "extest install-vsix -f ./e2e/vsix/continue.vsix --extensions_dir ./e2e/.test-extensions --storage ./e2e/storage",
+    "e2e:install-vsix": "extest install-vsix -f ./e2e/vsix/qivryn.vsix --extensions_dir ./e2e/.test-extensions --storage ./e2e/storage",
     "e2e:install-extensions": "extest install-from-marketplace ms-vscode-remote.remote-ssh --extensions_dir ./e2e/.test-extensions --storage ./e2e/storage && extest install-from-marketplace ms-vscode-remote.remote-containers --extensions_dir ./e2e/.test-extensions --storage ./e2e/storage && extest install-from-marketplace ms-vscode-remote.remote-wsl --extensions_dir ./e2e/.test-extensions --storage ./e2e/storage",
     "e2e:test": "NODE_ENV=e2e extest run-tests ${TEST_FILE:-'./e2e/_output/tests/*.test.js'} --code_settings settings.json --extensions_dir ./e2e/.test-extensions --storage ./e2e/storage",
     "e2e:clean": "rm -rf ./e2e/_output ./e2e/storage",
-    "e2e:all": "npm run e2e:build && npm run e2e:compile && npm run e2e:create-storage && npm run e2e:get-chromedriver && npm run e2e:get-vscode && npm run e2e:sign-vscode && npm run e2e:copy-vsix && npm run e2e:install-vsix && npm run e2e:install-extensions && CONTINUE_GLOBAL_DIR=e2e/test-continue npm run e2e:test && npm run e2e:clean",
-    "e2e:all-non-mac": "npm run e2e:build && npm run e2e:compile && npm run e2e:create-storage && npm run e2e:get-chromedriver && npm run e2e:get-vscode && npm run e2e:copy-vsix && npm run e2e:install-vsix && npm run e2e:install-extensions && CONTINUE_GLOBAL_DIR=e2e/test-continue npm run e2e:test && npm run e2e:clean",
-    "e2e:recompile-extension": "npm run package && npm run e2e:compile && npm run e2e:copy-vsix && npm run e2e:install-vsix && npm run e2e:install-extensions && CONTINUE_GLOBAL_DIR=e2e/test-continue npm run e2e:test && npm run e2e:clean",
-    "e2e:rebuild-gui": "rm -rf gui && cp -r ../../gui/dist gui && npm run package && npm run e2e:copy-vsix && npm run e2e:install-vsix && npm run e2e:install-extensions && CONTINUE_GLOBAL_DIR=e2e/test-continue npm run e2e:test && npm run e2e:clean",
-    "e2e:quick": "npm run e2e:compile && CONTINUE_GLOBAL_DIR=e2e/test-continue npm run e2e:test && npm run e2e:clean",
+    "e2e:all": "npm run e2e:build && npm run e2e:compile && npm run e2e:create-storage && npm run e2e:get-chromedriver && npm run e2e:get-vscode && npm run e2e:sign-vscode && npm run e2e:copy-vsix && npm run e2e:install-vsix && npm run e2e:install-extensions && QIVRYN_GLOBAL_DIR=e2e/test-qivryn npm run e2e:test && npm run e2e:clean",
+    "e2e:all-non-mac": "npm run e2e:build && npm run e2e:compile && npm run e2e:create-storage && npm run e2e:get-chromedriver && npm run e2e:get-vscode && npm run e2e:copy-vsix && npm run e2e:install-vsix && npm run e2e:install-extensions && QIVRYN_GLOBAL_DIR=e2e/test-qivryn npm run e2e:test && npm run e2e:clean",
+    "e2e:recompile-extension": "npm run package && npm run e2e:compile && npm run e2e:copy-vsix && npm run e2e:install-vsix && npm run e2e:install-extensions && QIVRYN_GLOBAL_DIR=e2e/test-qivryn npm run e2e:test && npm run e2e:clean",
+    "e2e:rebuild-gui": "rm -rf gui && cp -r ../../gui/dist gui && npm run package && npm run e2e:copy-vsix && npm run e2e:install-vsix && npm run e2e:install-extensions && QIVRYN_GLOBAL_DIR=e2e/test-qivryn npm run e2e:test && npm run e2e:clean",
+    "e2e:quick": "npm run e2e:compile && QIVRYN_GLOBAL_DIR=e2e/test-qivryn npm run e2e:test && npm run e2e:clean",
     "e2e:ci:download": "npm run e2e:create-storage && npm run e2e:get-chromedriver && npm run e2e:get-vscode",
-    "e2e:ci:run": "npm run e2e:compile && npm run e2e:copy-vsix && npm run e2e:install-vsix && npm run e2e:install-extensions && CONTINUE_GLOBAL_DIR=e2e/test-continue npm run e2e:test",
-    "e2e:ci:run-yaml": "npm run e2e:compile && npm run e2e:copy-vsix && npm run e2e:install-vsix && npm run e2e:install-extensions && CONTINUE_GLOBAL_DIR=e2e/test-continue-yaml npm run e2e:test"
+    "e2e:ci:run": "npm run e2e:compile && npm run e2e:copy-vsix && npm run e2e:install-vsix && npm run e2e:install-extensions && QIVRYN_GLOBAL_DIR=e2e/test-qivryn npm run e2e:test",
+    "e2e:ci:run-yaml": "npm run e2e:compile && npm run e2e:copy-vsix && npm run e2e:install-vsix && npm run e2e:install-extensions && QIVRYN_GLOBAL_DIR=e2e/test-qivryn-yaml npm run e2e:test"
   },
   "devDependencies": {
     "@biomejs/biome": "1.6.4",
@@ -963,9 +963,9 @@
     "vscode-extension-tester": "^8.14.1"
   },
   "dependencies": {
-    "@continuedev/agent-runtime": "file:../../packages/agent-runtime",
-    "@continuedev/config-types": "file:../../packages/config-types",
-    "@continuedev/fetch": "file:../../packages/fetch",
+    "@qivryn/agent-runtime": "file:../../packages/agent-runtime",
+    "@qivryn/config-types": "file:../../packages/config-types",
+    "@qivryn/fetch": "file:../../packages/fetch",
     "@electron/rebuild": "^4.0.3",
     "@reduxjs/toolkit": "^1.9.3",
     "@vscode/ripgrep": "^1.15.9",

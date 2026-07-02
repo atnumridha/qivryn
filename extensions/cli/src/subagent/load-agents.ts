@@ -1,4 +1,4 @@
-import { parseMarkdownRule } from "@continuedev/config-yaml";
+import { parseMarkdownRule } from "@qivryn/config-yaml";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -16,13 +16,15 @@ export interface PortableSubagentDefinition {
   sourceFile: string;
 }
 
-const WORKSPACE_ROOTS = [
-  ".continue",
-  ".cursor",
-  ".claude",
-  ".codex",
-  ".agents",
-];
+const WORKSPACE_ROOTS = [".qivryn", ".cursor", ".claude", ".codex", ".agents"];
+
+const IGNORED_AGENT_DIRECTORIES = new Set([
+  ".git",
+  "build",
+  "coverage",
+  "dist",
+  "node_modules",
+]);
 
 function strings(value: unknown): string[] | undefined {
   if (Array.isArray(value)) {
@@ -42,9 +44,9 @@ function strings(value: unknown): string[] | undefined {
 }
 
 function managedPluginAgentRoots(home: string): string[] {
-  const continueHome =
-    process.env.CONTINUE_GLOBAL_DIR ?? path.join(home, ".continue");
-  const registryPath = path.join(continueHome, "plugins", "registry.json");
+  const qivrynHome =
+    process.env.QIVRYN_GLOBAL_DIR ?? path.join(home, ".qivryn");
+  const registryPath = path.join(qivrynHome, "plugins", "registry.json");
   try {
     const registry = JSON.parse(fs.readFileSync(registryPath, "utf8")) as {
       version?: number;
@@ -92,15 +94,16 @@ function agentFiles(root: string): string[] {
     }
     for (const entry of entries) {
       const fullPath = path.join(directory, entry.name);
-      if (entry.isDirectory()) pending.push(fullPath);
-      else if (entry.isFile() && /\.(md|mdc)$/i.test(entry.name))
+      if (entry.isDirectory() && !IGNORED_AGENT_DIRECTORIES.has(entry.name)) {
+        pending.push(fullPath);
+      } else if (entry.isFile() && /\.(md|mdc)$/i.test(entry.name))
         files.push(fullPath);
     }
   }
   return files.sort();
 }
 
-/** Load Continue, Cursor, Claude, Codex and .agents subagent definitions. */
+/** Load Qivryn, Cursor, Claude, Codex and .agents subagent definitions. */
 export function loadPortableSubagents(
   cwd = process.cwd(),
   home = os.homedir(),
@@ -152,7 +155,7 @@ export function loadPortableSubagents(
       });
     } catch {
       // Invalid third-party definitions are surfaced by their owning client and
-      // must not prevent the Continue CLI from starting.
+      // must not prevent the Qivryn CLI from starting.
     }
   }
   return definitions;

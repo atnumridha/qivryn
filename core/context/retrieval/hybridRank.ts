@@ -1,4 +1,4 @@
-import type { Chunk, ContinueConfig } from "../..";
+import type { Chunk, QivrynConfig } from "../..";
 
 export interface HybridSources {
   lexical: Chunk[];
@@ -72,7 +72,7 @@ function isLoopback(value?: string): boolean {
   }
 }
 
-export function assertLocalOnlyRetrieval(config: ContinueConfig): void {
+export function assertLocalOnlyRetrieval(config: QivrynConfig): void {
   if (!config.experimental?.localOnly) return;
   for (const [role, model] of Object.entries(config.selectedModelByRole)) {
     if (!model) continue;

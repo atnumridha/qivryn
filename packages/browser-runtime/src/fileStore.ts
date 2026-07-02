@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { BrowserEvent, BrowserSession } from "@continuedev/agent-runtime";
+import type { BrowserEvent, BrowserSession } from "@qivryn/agent-runtime";
 import type { BrowserStore } from "./contracts.js";
 
 interface BrowserState {

@@ -1,4 +1,4 @@
-import { ConfigJson } from "@continuedev/config-types";
+import { ConfigJson } from "@qivryn/config-types";
 import { ConfigYaml } from "./schemas/index.js";
 import { ModelRole } from "./schemas/models.js";
 
@@ -108,7 +108,7 @@ function convertContext(configJson: ConfigJson): ContextYaml[] {
         };
       }
       return {
-        uses: `continuedev/${ctx.name === "open" ? "open-files" : ctx.name}-context`,
+        uses: `qivryn/${ctx.name === "open" ? "open-files" : ctx.name}-context`,
         with: ctx.params,
       };
     }) ?? [];
@@ -122,7 +122,7 @@ function convertCustomCommand(
   return {
     name: cmd.name,
     description: cmd.description,
-    prompt: (cmd as any).prompt, // The type is wrong in @continuedev/config-types
+    prompt: (cmd as any).prompt, // The type is wrong in @qivryn/config-types
   };
 }
 
@@ -185,7 +185,7 @@ export function convertJsonToYamlConfig(configJson: ConfigJson): ConfigYaml {
   const docs = configJson.docs?.map(convertDoc);
 
   const configYaml: ConfigYaml = {
-    name: "Continue Config",
+    name: "Qivryn Config",
     version: "0.0.1",
     models,
     context,

@@ -6,8 +6,8 @@ import {
   PlatformClient,
   SecretResult,
   SecretType,
-} from "@continuedev/config-yaml";
-import { DefaultApiInterface } from "@continuedev/sdk/dist/api";
+} from "@qivryn/config-yaml";
+import { DefaultApiInterface } from "@qivryn/sdk/dist/api";
 import * as dotenv from "dotenv";
 
 import { env } from "./env.js";
@@ -61,11 +61,11 @@ export class CLIPlatformClient implements PlatformClient {
       return processEnvSecret;
     }
 
-    // Then check in priority order: ~/.continue/.env, <workspace>/.continue/.env, <workspace>/.env
+    // Then check in priority order: ~/.qivryn/.env, <workspace>/.qivryn/.env, <workspace>/.env
     const workspaceDir = process.cwd();
     const envPaths = [
-      path.join(env.continueHome, ".env"),
-      path.join(workspaceDir, ".continue", ".env"),
+      path.join(env.qivrynHome, ".env"),
+      path.join(workspaceDir, ".qivryn", ".env"),
       path.join(workspaceDir, ".env"),
     ];
 

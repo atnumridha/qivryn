@@ -1,7 +1,7 @@
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import type { ReviewRequest } from "@continuedev/agent-runtime";
+import type { ReviewRequest } from "@qivryn/agent-runtime";
 import {
   DiffSafetyAnalyzer,
   FileReviewStore,
@@ -9,7 +9,7 @@ import {
   GitPatchReviewFixer,
   ReviewEngine,
   type ReviewReport,
-} from "@continuedev/review-engine";
+} from "@qivryn/review-engine";
 
 export interface SharedReviewOptions {
   cwd?: string;
@@ -55,7 +55,7 @@ export async function runSharedReview(
   options: SharedReviewOptions = {},
 ): Promise<ReviewReport> {
   const globalDirectory =
-    process.env.CONTINUE_GLOBAL_DIR ?? path.join(os.homedir(), ".continue");
+    process.env.QIVRYN_GLOBAL_DIR ?? path.join(os.homedir(), ".qivryn");
   const engine = new ReviewEngine(
     new FileReviewStore(path.join(globalDirectory, "reviews")),
     new GitReviewTargetResolver(),

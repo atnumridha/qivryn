@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Continue CLI supports running in TTY-less environments (environments without a terminal/TTY), which is essential for:
+The Qivryn CLI supports running in TTY-less environments (environments without a terminal/TTY), which is essential for:
 
 - VSCode and IntelliJ extensions using the `run_terminal_command` tool
 - Docker containers without TTY allocation
@@ -107,7 +107,7 @@ Configures output handling for TTY-less environments:
 
 ```typescript
 // Using the run_terminal_command tool
-const command = 'cn -p "Analyze the current git diff"';
+const command = 'qivryn -p "Analyze the current git diff"';
 const result = await runTerminalCommand(command);
 ```
 
@@ -115,15 +115,15 @@ const result = await runTerminalCommand(command);
 
 ```bash
 # Without TTY allocation (-t flag)
-docker run --rm my-image cn -p "Generate a README"
+docker run --rm my-image qivryn -p "Generate a README"
 ```
 
 ### From CI/CD Pipeline
 
 ```yaml
-- name: Run Continue CLI
+- name: Run Qivryn CLI
   run: |
-    cn -p "Review code changes" --format json
+    qivryn -p "Review code changes" --format json
 ```
 
 ### From Automated Script
@@ -131,13 +131,13 @@ docker run --rm my-image cn -p "Generate a README"
 ```bash
 #!/bin/bash
 # Non-interactive script
-cn -p "Generate commit message for current changes" --silent
+qivryn -p "Generate commit message for current changes" --silent
 ```
 
 ## Environment Variables
 
 - `FORCE_NO_TTY`: Forces TTY-less mode, prevents stdin reading
-- `CONTINUE_CLI_TEST`: Marks test environment, prevents stdin reading
+- `QIVRYN_CLI_TEST`: Marks test environment, prevents stdin reading
 
 ## Testing
 
@@ -166,7 +166,7 @@ const result = await runCLI(context, {
 ```
 Error: Cannot start TUI in TTY-less environment. No TTY available for interactive mode.
 For non-interactive use, run with -p flag:
-  cn -p "your prompt here"
+  qivryn -p "your prompt here"
 ```
 
 ### Missing Prompt in Headless Mode
@@ -175,10 +175,10 @@ For non-interactive use, run with -p flag:
 Error: A prompt is required when using the -p/--print flag, unless --prompt or --agent is provided.
 
 Usage examples:
-  cn -p "please review my current git diff"
-  echo "hello" | cn -p
-  cn -p "analyze the code in src/"
-  cn -p --agent my-org/my-agent
+  qivryn -p "please review my current git diff"
+  echo "hello" | qivryn -p
+  qivryn -p "analyze the code in src/"
+  qivryn -p --agent my-org/my-agent
 ```
 
 ## Troubleshooting
@@ -190,7 +190,7 @@ Usage examples:
 **Solution**: Ensure using `-p` flag with a prompt:
 
 ```bash
-cn -p "your prompt" --config config.yaml
+qivryn -p "your prompt" --config config.yaml
 ```
 
 ### "Cannot start TUI" Error
@@ -200,7 +200,7 @@ cn -p "your prompt" --config config.yaml
 **Solution**: Use headless mode:
 
 ```bash
-cn -p "your prompt"
+qivryn -p "your prompt"
 ```
 
 ### Raw Mode Error

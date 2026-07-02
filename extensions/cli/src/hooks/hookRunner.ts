@@ -40,7 +40,7 @@ function executeCommandHook(
     const env = {
       ...process.env,
       CLAUDE_PROJECT_DIR: cwd,
-      CONTINUE_PROJECT_DIR: cwd,
+      QIVRYN_PROJECT_DIR: cwd,
     };
 
     // Use shell to execute the command (matches Claude Code behavior)

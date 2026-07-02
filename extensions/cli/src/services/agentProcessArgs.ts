@@ -4,7 +4,7 @@ import {
   type AgentInputAttachment,
   type AgentRun,
   validateAgentAttachments,
-} from "@continuedev/agent-runtime";
+} from "@qivryn/agent-runtime";
 import { fileURLToPath } from "node:url";
 
 export function imagePathsForAgentRun(run: AgentRun): string[] {

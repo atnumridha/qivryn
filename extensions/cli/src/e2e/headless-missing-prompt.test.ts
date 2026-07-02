@@ -45,9 +45,9 @@ models:
     expect(output).toContain(
       "A prompt is required when using the -p/--print flag",
     );
-    expect(output).toContain('cn -p "please review my current git diff"');
-    expect(output).toContain('echo "hello" | cn -p');
-    expect(output).toContain('cn -p "analyze the code in src/"');
+    expect(output).toContain('qivryn -p "please review my current git diff"');
+    expect(output).toContain('echo "hello" | qivryn -p');
+    expect(output).toContain('qivryn -p "analyze the code in src/"');
   });
 
   it("should work correctly when prompt is provided with -p flag", async () => {

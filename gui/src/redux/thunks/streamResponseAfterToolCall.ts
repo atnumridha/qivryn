@@ -16,7 +16,7 @@ import { streamThunkWrapper } from "./streamThunkWrapper";
  */
 function areAllToolsDoneStreaming(
   assistantMessage: ChatHistoryItemWithMessageId,
-  continueAfterToolRejection: boolean | undefined,
+  qivrynAfterToolRejection: boolean | undefined,
 ): boolean {
   // This might occur because of race conditions, if so, the tools are completed
   if (!assistantMessage.toolCallStates) {
@@ -28,7 +28,7 @@ function areAllToolsDoneStreaming(
     (tc) =>
       tc.status === "done" ||
       tc.status === "errored" ||
-      (continueAfterToolRejection && tc.status === "canceled"),
+      (qivrynAfterToolRejection && tc.status === "canceled"),
   );
 
   return completedToolCalls.length === assistantMessage.toolCallStates.length;
@@ -77,7 +77,7 @@ export const streamResponseAfterToolCall = createAsyncThunk<
           assistantMessage &&
           areAllToolsDoneStreaming(
             assistantMessage,
-            state.config.config.ui?.continueAfterToolRejection,
+            state.config.config.ui?.qivrynAfterToolRejection,
           )
         ) {
           unwrapResult(await dispatch(streamNormalInput({ depth: depth + 1 })));

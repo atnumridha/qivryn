@@ -3,10 +3,10 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const originalGlobalDir = process.env.CONTINUE_GLOBAL_DIR;
+const originalGlobalDir = process.env.QIVRYN_GLOBAL_DIR;
 
 afterEach(() => {
-  process.env.CONTINUE_GLOBAL_DIR = originalGlobalDir;
+  process.env.QIVRYN_GLOBAL_DIR = originalGlobalDir;
   vi.resetModules();
 });
 
@@ -27,7 +27,7 @@ async function createBundle(root: string, version = "1.0.0") {
       rules: "./rules",
       agents: "./agents",
       mcp: "./mcp",
-      interface: { displayName: "Example Plugin", developerName: "Continue" },
+      interface: { displayName: "Example Plugin", developerName: "Qivryn" },
     }),
   );
   await writeFile(
@@ -41,8 +41,8 @@ async function createBundle(root: string, version = "1.0.0") {
 }
 
 async function setup() {
-  const root = await mkdtemp(path.join(os.tmpdir(), "continue-plugin-test-"));
-  process.env.CONTINUE_GLOBAL_DIR = path.join(root, "continue-home");
+  const root = await mkdtemp(path.join(os.tmpdir(), "qivryn-plugin-test-"));
+  process.env.QIVRYN_GLOBAL_DIR = path.join(root, "qivryn-home");
   vi.resetModules();
   return {
     root,

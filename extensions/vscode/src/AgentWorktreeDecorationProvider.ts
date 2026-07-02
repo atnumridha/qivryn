@@ -1,5 +1,5 @@
-import { FileAgentStore, type AgentRun } from "@continuedev/agent-runtime";
-import { getContinueGlobalPath } from "core/util/paths";
+import { FileAgentStore, type AgentRun } from "@qivryn/agent-runtime";
+import { getQivrynGlobalPath } from "core/util/paths";
 import path from "node:path";
 import * as vscode from "vscode";
 import { worktreeDecorationForFile } from "./worktreeDecorationPolicy";
@@ -21,7 +21,7 @@ export class AgentWorktreeDecorationProvider
   >();
   readonly onDidChangeFileDecorations = this.emitter.event;
   private readonly store = new FileAgentStore(
-    path.join(getContinueGlobalPath(), "agents"),
+    path.join(getQivrynGlobalPath(), "agents"),
   );
   private runs: AgentRun[] = [];
   private readonly timer: NodeJS.Timeout;
@@ -53,7 +53,7 @@ export class AgentWorktreeDecorationProvider
     try {
       await this.refresh();
     } catch (error) {
-      console.warn("Failed to refresh Continue worktree decorations", error);
+      console.warn("Failed to refresh Qivryn worktree decorations", error);
     }
   }
 

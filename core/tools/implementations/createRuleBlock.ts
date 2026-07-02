@@ -1,4 +1,4 @@
-import { createRuleMarkdown } from "@continuedev/config-yaml";
+import { createRuleMarkdown } from "@qivryn/config-yaml";
 import { ToolImpl } from ".";
 import { RuleWithSource } from "../..";
 import { createRuleFilePath } from "../../config/markdown/utils";
@@ -30,8 +30,8 @@ export const createRuleBlockImpl: ToolImpl = async (args, extras) => {
     regex,
   });
 
-  const [localContinueDir] = await extras.ide.getWorkspaceDirs();
-  const ruleFilePath = createRuleFilePath(localContinueDir, name);
+  const [localQivrynDir] = await extras.ide.getWorkspaceDirs();
+  const ruleFilePath = createRuleFilePath(localQivrynDir, name);
 
   await extras.ide.writeFile(ruleFilePath, fileContent);
   await extras.ide.openFile(ruleFilePath);

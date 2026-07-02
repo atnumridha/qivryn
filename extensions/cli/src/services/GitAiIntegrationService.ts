@@ -76,7 +76,7 @@ export class GitAiIntegrationService extends BaseService<GitAiIntegrationService
     await new Promise<void>((resolve, reject) => {
       const gitAiProcess = spawn(
         "git-ai",
-        ["checkpoint", "continue-cli", "--hook-input", "stdin"],
+        ["checkpoint", "qivryn-cli", "--hook-input", "stdin"],
         { cwd: workspaceDirectory },
       );
 

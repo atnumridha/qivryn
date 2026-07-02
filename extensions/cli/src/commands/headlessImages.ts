@@ -2,7 +2,7 @@ import {
   MAX_AGENT_ATTACHMENT_TOTAL_BYTES,
   MAX_AGENT_IMAGE_ATTACHMENTS,
   MAX_AGENT_IMAGE_SIZE_BYTES,
-} from "@continuedev/agent-runtime";
+} from "@qivryn/agent-runtime";
 import type { ChatHistoryItem } from "core/index.js";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";

@@ -39,7 +39,7 @@ interface Option {
   isAutoDetected?: boolean;
 }
 
-const MODEL_CACHE_KEY = "continue.models.catalog.v1";
+const MODEL_CACHE_KEY = "qivryn.models.catalog.v1";
 
 function readModelCache(): { options: Option[]; selected?: string } {
   try {

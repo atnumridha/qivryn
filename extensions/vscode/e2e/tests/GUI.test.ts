@@ -23,7 +23,7 @@ describe.skip("GUI Test", () => {
   before(async function () {
     this.timeout(DEFAULT_TIMEOUT.XL + DEFAULT_TIMEOUT.MD + DEFAULT_TIMEOUT.MD);
     // Uncomment this line for faster testing
-    await GUIActions.moveContinueToSidebar(VSBrowser.instance.driver);
+    await GUIActions.moveQivrynToSidebar(VSBrowser.instance.driver);
     await GlobalActions.openTestWorkspace();
     await GlobalActions.clearAllNotifications();
     await GlobalActions.disableNextEdit();
@@ -43,7 +43,7 @@ describe.skip("GUI Test", () => {
 
     await view.switchBack();
     await TestUtils.waitForSuccess(
-      async () => (await GUISelectors.getContinueExtensionBadge(view)).click(),
+      async () => (await GUISelectors.getQivrynExtensionBadge(view)).click(),
       DEFAULT_TIMEOUT.XS,
     );
     await new EditorView().closeAllEditors();
@@ -293,12 +293,12 @@ describe.skip("GUI Test", () => {
       await messageInput.sendKeys(Key.ENTER);
 
       const statusMessage = await TestUtils.waitForSuccess(
-        () => GUISelectors.getToolCallStatusMessage(view), // Defined in extensions/vscode/e2e/test-continue/config.json's TOOL MOCK LLM that we are calling the exact search tool
+        () => GUISelectors.getToolCallStatusMessage(view), // Defined in extensions/vscode/e2e/test-qivryn/config.json's TOOL MOCK LLM that we are calling the exact search tool
         DEFAULT_TIMEOUT.SM,
       );
 
       expect(await statusMessage.getText()).contain(
-        "Continue viewed the git diff",
+        "Qivryn viewed the git diff",
       );
     }).timeout(DEFAULT_TIMEOUT.MD * 100);
 
@@ -315,7 +315,7 @@ describe.skip("GUI Test", () => {
       await acceptToolCallButton.click();
 
       const statusMessage = await TestUtils.waitForSuccess(
-        () => GUISelectors.getToolCallStatusMessage(view), // Defined in extensions/vscode/e2e/test-continue/config.json's TOOL MOCK LLM that we are calling the exact search tool
+        () => GUISelectors.getToolCallStatusMessage(view), // Defined in extensions/vscode/e2e/test-qivryn/config.json's TOOL MOCK LLM that we are calling the exact search tool
         DEFAULT_TIMEOUT.SM,
       );
 
@@ -336,12 +336,12 @@ describe.skip("GUI Test", () => {
       await cancelToolCallButton.click();
 
       const statusMessage = await TestUtils.waitForSuccess(
-        () => GUISelectors.getToolCallStatusMessage(view), // Defined in extensions/vscode/e2e/test-continue/config.json's TOOL MOCK LLM that we are calling the exact search tool
+        () => GUISelectors.getToolCallStatusMessage(view), // Defined in extensions/vscode/e2e/test-qivryn/config.json's TOOL MOCK LLM that we are calling the exact search tool
         DEFAULT_TIMEOUT.SM,
       );
 
       const text = await statusMessage.getText();
-      expect(text).contain("Continue tried to view the git diff");
+      expect(text).contain("Qivryn tried to view the git diff");
     }).timeout(DEFAULT_TIMEOUT.XL);
   });
 

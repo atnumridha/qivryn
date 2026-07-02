@@ -30,29 +30,32 @@ export function parseMarkdownRule(content: string): {
 } {
   // Normalize line endings to \n
   const normalizedContent = content.replace(/\r\n/g, "\n");
-
-  // More reliable frontmatter detection
-  const parts = normalizedContent.split(/^---\s*$/m);
-
-  // If we have at least 3 parts (before ---, frontmatter, after ---), we have frontmatter
-  if (parts.length >= 3) {
-    const frontmatterStr = parts[1];
-    // Join the remaining parts back together (in case there are more --- in the markdown)
-    const markdownContent = parts.slice(2).join("---");
-
-    try {
-      // Parse YAML frontmatter
-      const frontmatter = YAML.parse(frontmatterStr) || {}; // Handle empty frontmatter
-      return { frontmatter, markdown: markdownContent.trim() };
-    } catch (e) {
-      // Error parsing frontmatter, treat as markdown only
-      console.warn("Error parsing markdown frontmatter:", e);
-      return { frontmatter: {}, markdown: normalizedContent };
-    }
+  const openingDelimiter = normalizedContent.match(/^\uFEFF?---[\t ]*\n/);
+  if (!openingDelimiter) {
+    return { frontmatter: {}, markdown: normalizedContent };
   }
 
-  // No frontmatter found
-  return { frontmatter: {}, markdown: normalizedContent };
+  const contentAfterOpening = normalizedContent.slice(
+    openingDelimiter[0].length,
+  );
+  const closingDelimiter = /^---[\t ]*$/m.exec(contentAfterOpening);
+  if (!closingDelimiter) {
+    return { frontmatter: {}, markdown: normalizedContent };
+  }
+
+  const frontmatterStr = contentAfterOpening.slice(0, closingDelimiter.index);
+  const markdownContent = contentAfterOpening.slice(
+    closingDelimiter.index + closingDelimiter[0].length,
+  );
+
+  try {
+    const frontmatter = YAML.parse(frontmatterStr) || {};
+    return { frontmatter, markdown: markdownContent.trim() };
+  } catch {
+    // Third-party Markdown may begin with a horizontal rule. Treat malformed
+    // frontmatter as ordinary Markdown without polluting CLI startup output.
+    return { frontmatter: {}, markdown: normalizedContent };
+  }
 }
 
 export function getRuleName(
@@ -81,7 +84,7 @@ function getGlobPattern(globs: RuleFrontmatter["globs"], relativeDir?: string) {
   if (relativeDir === undefined) {
     return globs;
   }
-  if (relativeDir.includes(".continue")) {
+  if (relativeDir.includes(".qivryn")) {
     return globs;
   }
   if (!relativeDir.endsWith("/")) {

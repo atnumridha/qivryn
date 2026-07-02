@@ -16,7 +16,7 @@ interface HostCapture {
 const captures = new Map<string, HostCapture>();
 
 export function ffmpegExecutable(): string {
-  const configured = process.env.CONTINUE_FFMPEG_PATH;
+  const configured = process.env.QIVRYN_FFMPEG_PATH;
   if (configured) return configured;
   const candidates =
     process.platform === "darwin"
@@ -60,7 +60,7 @@ export async function startHostVoiceCapture(): Promise<{
   recorder: "ffmpeg";
 }> {
   const captureId = randomBytes(12).toString("hex");
-  const filePath = path.join(os.tmpdir(), `continue-voice-${captureId}.wav`);
+  const filePath = path.join(os.tmpdir(), `qivryn-voice-${captureId}.wav`);
   const child = spawn(ffmpegExecutable(), captureArguments(filePath), {
     stdio: ["pipe", "ignore", "pipe"],
   });

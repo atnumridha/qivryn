@@ -17,9 +17,9 @@ import {
 } from "@opentelemetry/semantic-conventions";
 import { v4 as uuidv4 } from "uuid";
 
-import { ContinueErrorReason } from "../../../../core/util/errors.js";
+import { QivrynErrorReason } from "../../../../core/util/errors.js";
 import { isHeadlessMode } from "../util/cli.js";
-import { isContinueRemoteAgent, isGitHubActions } from "../util/git.js";
+import { isQivrynRemoteAgent, isGitHubActions } from "../util/git.js";
 import { logger } from "../util/logger.js";
 import { getVersion } from "../version.js";
 
@@ -73,12 +73,12 @@ class TelemetryService {
     );
 
     let telemetryEnabled = true;
-    if (process.env.CONTINUE_METRICS_ENABLED === "0") {
+    if (process.env.QIVRYN_METRICS_ENABLED === "0") {
       telemetryEnabled = false;
-    } else if (process.env.CONTINUE_METRICS_ENABLED === "1") {
+    } else if (process.env.QIVRYN_METRICS_ENABLED === "1") {
       telemetryEnabled = true;
     } else {
-      telemetryEnabled = process.env.CONTINUE_CLI_ENABLE_TELEMETRY !== "0";
+      telemetryEnabled = process.env.QIVRYN_CLI_ENABLE_TELEMETRY !== "0";
     }
 
     const enabled = telemetryEnabled && hasOtelConfig;
@@ -99,7 +99,7 @@ class TelemetryService {
     try {
       // Create resource
       const resource = resourceFromAttributes({
-        [SEMRESATTRS_SERVICE_NAME]: "continue-cli",
+        [SEMRESATTRS_SERVICE_NAME]: "qivryn-cli",
         [SEMRESATTRS_SERVICE_VERSION]: getVersion(),
         [SEMRESATTRS_HOST_NAME]: os.hostname(),
         [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]:
@@ -162,7 +162,7 @@ class TelemetryService {
       });
 
       metrics.setGlobalMeterProvider(this.meterProvider);
-      this.meter = metrics.getMeter("continue-cli", getVersion());
+      this.meter = metrics.getMeter("qivryn-cli", getVersion());
 
       this.initializeMetrics();
 
@@ -202,16 +202,13 @@ class TelemetryService {
     if (!this.meter) return;
 
     // Core metrics (Claude Code compatible)
-    this.sessionCounter = this.meter.createCounter(
-      "continue_cli_session_count",
-      {
-        description: "Count of CLI sessions started",
-        unit: "count",
-      },
-    );
+    this.sessionCounter = this.meter.createCounter("qivryn_cli_session_count", {
+      description: "Count of CLI sessions started",
+      unit: "count",
+    });
 
     this.linesOfCodeCounter = this.meter.createCounter(
-      "continue_cli_lines_of_code_count",
+      "qivryn_cli_lines_of_code_count",
       {
         description: "Count of lines of code modified",
         unit: "count",
@@ -219,30 +216,30 @@ class TelemetryService {
     );
 
     this.pullRequestCounter = this.meter.createCounter(
-      "continue_cli_pull_request_count",
+      "qivryn_cli_pull_request_count",
       {
         description: "Number of pull requests created",
         unit: "count",
       },
     );
 
-    this.commitCounter = this.meter.createCounter("continue_cli_commit_count", {
+    this.commitCounter = this.meter.createCounter("qivryn_cli_commit_count", {
       description: "Number of git commits created",
       unit: "count",
     });
 
-    this.costCounter = this.meter.createCounter("continue_cli_cost_usage", {
-      description: "Cost of the Continue CLI session",
+    this.costCounter = this.meter.createCounter("qivryn_cli_cost_usage", {
+      description: "Cost of the Qivryn CLI session",
       unit: "USD",
     });
 
-    this.tokenCounter = this.meter.createCounter("continue_cli_token_usage", {
+    this.tokenCounter = this.meter.createCounter("qivryn_cli_token_usage", {
       description: "Number of tokens used",
       unit: "tokens",
     });
 
     this.codeEditDecisionCounter = this.meter.createCounter(
-      "continue_cli_code_edit_tool_decision",
+      "qivryn_cli_code_edit_tool_decision",
       {
         description: "Count of code editing tool permission decisions",
         unit: "count",
@@ -250,16 +247,16 @@ class TelemetryService {
     );
 
     this.activeTimeCounter = this.meter.createCounter(
-      "continue_cli_active_time_total",
+      "qivryn_cli_active_time_total",
       {
         description: "Total active time in seconds",
         unit: "s",
       },
     );
 
-    // Additional Continue CLI specific metrics
+    // Additional Qivryn CLI specific metrics
     this.authAttemptsCounter = this.meter.createCounter(
-      "continue_cli_auth_attempts",
+      "qivryn_cli_auth_attempts",
       {
         description: "Authentication attempts",
         unit: "{attempt}",
@@ -267,7 +264,7 @@ class TelemetryService {
     );
 
     this.mcpConnectionsGauge = this.meter.createObservableGauge(
-      "continue_cli_mcp_connections",
+      "qivryn_cli_mcp_connections",
       {
         description: "Active MCP connections",
         unit: "{connection}",
@@ -275,7 +272,7 @@ class TelemetryService {
     );
 
     this.startupTimeHistogram = this.meter.createHistogram(
-      "continue_cli_startup_time",
+      "qivryn_cli_startup_time",
       {
         description: "Time from CLI start to ready state",
         unit: "ms",
@@ -283,7 +280,7 @@ class TelemetryService {
     );
 
     this.responseTimeHistogram = this.meter.createHistogram(
-      "continue_cli_response_time",
+      "qivryn_cli_response_time",
       {
         description: "LLM response time metrics",
         unit: "ms",
@@ -291,7 +288,7 @@ class TelemetryService {
     );
 
     this.slashCommandCounter = this.meter.createCounter(
-      "continue_cli_slash_command_usage",
+      "qivryn_cli_slash_command_usage",
       {
         description: "Count of slash commands used",
         unit: "count",
@@ -342,7 +339,7 @@ class TelemetryService {
     const sessionAttributes = this.getStandardAttributes({
       is_headless: isHeadlessMode().toString(),
       is_github_actions: isGitHubActionsEnv.toString(),
-      is_continue_remote_agent: isContinueRemoteAgent().toString(),
+      is_qivryn_remote_agent: isQivrynRemoteAgent().toString(),
     });
 
     this.sessionCounter.add(1, sessionAttributes);
@@ -508,7 +505,7 @@ class TelemetryService {
     success: boolean;
     durationMs: number;
     error?: string;
-    errorReason?: ContinueErrorReason;
+    errorReason?: QivrynErrorReason;
     decision?: "accept" | "reject";
     source?: string;
     toolParameters?: string;

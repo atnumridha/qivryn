@@ -16,13 +16,13 @@ EXPOSE 22
 CMD ["/usr/sbin/sshd", "-D"]
 EOF
 
-docker build -t continue-ubuntu-ssh . # build the image
+docker build -t qivryn-ubuntu-ssh . # build the image
 
 rm Dockerfile # remove the created Dockerfile
 
-container_name="continue-ssh-container"
+container_name="qivryn-ssh-container"
 
-docker run -d -p 2222:22 --name $container_name continue-ubuntu-ssh # run the container
+docker run -d -p 2222:22 --name $container_name qivryn-ubuntu-ssh # run the container
 
 echo "docker container ${container_name} running on port 2222"
 

@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import type { ReviewFinding } from "@continuedev/agent-runtime";
+import type { ReviewFinding } from "@qivryn/agent-runtime";
 import type { ReviewAnalyzer, ReviewAnalyzerContext } from "./contracts.js";
 
 interface AddedLine {

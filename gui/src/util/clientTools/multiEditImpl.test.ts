@@ -1,4 +1,4 @@
-import { ContinueErrorReason } from "core/util/errors";
+import { QivrynErrorReason } from "core/util/errors";
 import * as ideUtils from "core/util/ideUtils";
 import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
 import { applyForEditTool } from "../../redux/thunks/handleApplyStateUpdate";
@@ -53,7 +53,7 @@ describe("multiEditImpl GUI specific", () => {
         ),
       ).rejects.toThrowError(
         expect.objectContaining({
-          reason: ContinueErrorReason.FindAndReplaceMissingFilepath,
+          reason: QivrynErrorReason.FindAndReplaceMissingFilepath,
         }),
       );
     });
@@ -72,7 +72,7 @@ describe("multiEditImpl GUI specific", () => {
         ),
       ).rejects.toThrowError(
         expect.objectContaining({
-          reason: ContinueErrorReason.FileNotFound,
+          reason: QivrynErrorReason.FileNotFound,
         }),
       );
     });

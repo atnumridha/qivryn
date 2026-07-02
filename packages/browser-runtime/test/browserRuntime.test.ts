@@ -2,7 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { BrowserSession } from "@continuedev/agent-runtime";
+import type { BrowserSession } from "@qivryn/agent-runtime";
 import type {
   BrowserAdapter,
   BrowserPermissionRequest,
@@ -45,7 +45,7 @@ function adapter(): BrowserAdapter {
 }
 
 async function service(allow = true) {
-  const root = await mkdtemp(path.join(os.tmpdir(), "continue-browser-"));
+  const root = await mkdtemp(path.join(os.tmpdir(), "qivryn-browser-"));
   roots.push(root);
   const requests: BrowserPermissionRequest[] = [];
   const store = new FileBrowserStore(root);
@@ -125,7 +125,7 @@ describe("BrowserSessionService", () => {
 
   it("persists origin-scoped agent grants and audits revocation", async () => {
     const root = await mkdtemp(
-      path.join(os.tmpdir(), "continue-browser-grants-"),
+      path.join(os.tmpdir(), "qivryn-browser-grants-"),
     );
     roots.push(root);
     const store = new FileBrowserStore(path.join(root, "sessions"));
@@ -215,7 +215,7 @@ describe("BrowserSessionService", () => {
 
   it("closes the driver and removes the session while retaining its audit log", async () => {
     const browserAdapter = adapter();
-    const root = await mkdtemp(path.join(os.tmpdir(), "continue-browser-"));
+    const root = await mkdtemp(path.join(os.tmpdir(), "qivryn-browser-"));
     roots.push(root);
     const store = new FileBrowserStore(root);
     const browser = new BrowserSessionService(store, browserAdapter, {

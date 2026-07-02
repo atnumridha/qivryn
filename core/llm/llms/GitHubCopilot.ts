@@ -166,7 +166,7 @@ async function loadAuth(): Promise<CopilotAuth> {
 }
 
 /**
- * GitHubCopilot LLM provider for Continue.
+ * GitHubCopilot LLM provider for Qivryn.
  *
  * Talks **directly** to the GitHub Copilot API (`api.githubcopilot.com`)
  * with no local proxy, no daemon, and no external process.
@@ -184,7 +184,7 @@ async function loadAuth(): Promise<CopilotAuth> {
  *   2. Run from VS Code Command Palette:
  *        Codex Copilot: Export Token and Enable
  *      This writes ~/.codex/copilot-auth.json.
- *   3. Add this provider to ~/.continue/config.yaml (see setup script).
+ *   3. Add this provider to ~/.qivryn/config.yaml (see setup script).
  *
  * No proxy, no port, no background process required.
  */
@@ -239,7 +239,7 @@ class GitHubCopilot extends OpenAI {
     const pluginVersion =
       this._cachedAuth?.editor_plugin_version ??
       this._cachedAuth?.editorPluginVersion ??
-      "copilot-chat/continue";
+      "copilot-chat/qivryn";
 
     return {
       Authorization: `Bearer ${bearer}`,

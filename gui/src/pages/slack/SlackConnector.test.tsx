@@ -1,4 +1,4 @@
-import type { SlackAuthorization } from "@continuedev/slack-connector";
+import type { SlackAuthorization } from "@qivryn/slack-connector";
 import { screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { MockIdeMessenger } from "../../context/MockIdeMessenger";
@@ -7,7 +7,7 @@ import SlackConnector from ".";
 
 const authorization: SlackAuthorization = {
   workspaceId: "T1",
-  workspaceName: "Continue",
+  workspaceName: "Qivryn",
   channelIds: ["C1"],
   allowRead: true,
   allowWrite: false,

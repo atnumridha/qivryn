@@ -1,4 +1,4 @@
-import { classifyTerminalCommand } from "@continuedev/terminal-security";
+import { classifyTerminalCommand } from "@qivryn/terminal-security";
 import { screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { MockIdeMessenger } from "../../context/MockIdeMessenger";

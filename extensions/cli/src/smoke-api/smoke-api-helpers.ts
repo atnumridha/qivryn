@@ -14,7 +14,7 @@ export interface SmokeTestContext {
  * Creates an isolated test directory and resolves the CLI entry point.
  */
 export async function createSmokeContext(): Promise<SmokeTestContext> {
-  const cliPath = path.resolve("dist/cn.js");
+  const cliPath = path.resolve("dist/qivryn.js");
 
   try {
     await fs.access(cliPath);
@@ -22,13 +22,13 @@ export async function createSmokeContext(): Promise<SmokeTestContext> {
     throw new Error(`CLI not found at ${cliPath}. Run 'npm run build' first.`);
   }
 
-  const testDir = await fs.mkdtemp(path.join(os.tmpdir(), "cn-smoke-"));
+  const testDir = await fs.mkdtemp(path.join(os.tmpdir(), "qivryn-smoke-"));
 
   // Create onboarding flag so the CLI skips onboarding flow
-  const continueDir = path.join(testDir, ".continue");
-  await fs.mkdir(continueDir, { recursive: true });
+  const qivrynDir = path.join(testDir, ".qivryn");
+  await fs.mkdir(qivrynDir, { recursive: true });
   await fs.writeFile(
-    path.join(continueDir, ".onboarding_complete"),
+    path.join(qivrynDir, ".onboarding_complete"),
     new Date().toISOString(),
   );
 
@@ -78,15 +78,15 @@ models:
   return configPath;
 }
 
-// continue-proxy requires a 4-part model name (owner/package/provider/model).
+// qivryn-proxy requires a 4-part model name (owner/package/provider/model).
 // Override via SMOKE_PROXY_MODEL env var.
 const SMOKE_PROXY_MODEL = process.env.SMOKE_PROXY_MODEL || "";
 
 /**
- * Writes a YAML config that uses the Continue proxy (CONTINUE_API_KEY).
+ * Writes a YAML config that uses the Qivryn proxy (QIVRYN_API_KEY).
  * Requires SMOKE_PROXY_MODEL to be set to a valid proxy model name.
  */
-export async function writeContinueProxyConfig(
+export async function writeQivrynProxyConfig(
   ctx: SmokeTestContext,
   apiKey: string,
 ): Promise<string> {
@@ -96,7 +96,7 @@ schema: v1
 models:
   - name: smoke-haiku
     model: ${SMOKE_PROXY_MODEL}
-    provider: continue-proxy
+    provider: qivryn-proxy
     apiKey: "${apiKey}"
     defaultCompletionOptions:
       maxTokens: 1024
@@ -110,7 +110,7 @@ models:
 }
 
 /**
- * Runs `cn` (headless) and returns stdout/stderr/exitCode.
+ * Runs `qivryn` (headless) and returns stdout/stderr/exitCode.
  */
 export async function runHeadless(
   ctx: SmokeTestContext,
@@ -123,7 +123,7 @@ export async function runHeadless(
     cwd: ctx.testDir,
     env: {
       ...process.env,
-      CONTINUE_CLI_TEST: "true",
+      QIVRYN_CLI_TEST: "true",
       HOME: ctx.testDir,
       USERPROFILE: ctx.testDir,
       FORCE_NO_TTY: "true",
@@ -141,7 +141,7 @@ export async function runHeadless(
 }
 
 /**
- * Spawns `cn serve` as a background subprocess and returns it along with
+ * Spawns `qivryn serve` as a background subprocess and returns it along with
  * a helper to wait for the server to be ready.
  */
 export function spawnServe(
@@ -153,7 +153,7 @@ export function spawnServe(
     cwd: ctx.testDir,
     env: {
       ...process.env,
-      CONTINUE_CLI_TEST: "true",
+      QIVRYN_CLI_TEST: "true",
       HOME: ctx.testDir,
       USERPROFILE: ctx.testDir,
       ...opts.env,

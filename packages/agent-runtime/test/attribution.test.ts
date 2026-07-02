@@ -68,7 +68,7 @@ describe("agent line attribution", () => {
   });
 
   it("persists attribution and reanchors a uniquely moved block", async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "continue-attribution-"));
+    const root = await mkdtemp(path.join(os.tmpdir(), "qivryn-attribution-"));
     roots.push(root);
     const filepath = path.join(root, "app.ts");
     await writeFile(filepath, "header\nconst generated = true;\n");
@@ -95,10 +95,10 @@ describe("agent line attribution", () => {
 
   it("captures the real worktree diff after an agent run", async () => {
     const root = await mkdtemp(
-      path.join(os.tmpdir(), "continue-attribution-git-"),
+      path.join(os.tmpdir(), "qivryn-attribution-git-"),
     );
     const state = await mkdtemp(
-      path.join(os.tmpdir(), "continue-attribution-state-"),
+      path.join(os.tmpdir(), "qivryn-attribution-state-"),
     );
     roots.push(root, state);
     await execFileAsync("git", ["-C", root, "init", "-b", "main"]);
@@ -107,14 +107,14 @@ describe("agent line attribution", () => {
       root,
       "config",
       "user.email",
-      "agent@continue.dev",
+      "agent@qivryn.ai",
     ]);
     await execFileAsync("git", [
       "-C",
       root,
       "config",
       "user.name",
-      "Continue Agent",
+      "Qivryn Agent",
     ]);
     await writeFile(
       path.join(root, "app.ts"),

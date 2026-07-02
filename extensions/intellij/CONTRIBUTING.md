@@ -1,4 +1,4 @@
-# Contributing to Continue (JetBrains extension) <!-- omit in toc -->
+# Contributing to Qivryn (JetBrains extension) <!-- omit in toc -->
 
 This file is for contribution guidelines specific to the JetBrains extension. See the root [
 `CONTRIBUTING.md`](../../CONTRIBUTING.md) for general contribution guidelines.
@@ -15,7 +15,7 @@ This file is for contribution guidelines specific to the JetBrains extension. Se
   - [Misc](#misc)
 - [Development Workflow](#development-workflow)
   - [Running the extension in debug mode](#running-the-extension-in-debug-mode)
-  - [Accessing files in the `.continue` directory](#accessing-files-in-the-continue-directory)
+  - [Accessing files in the `.qivryn` directory](#accessing-files-in-the-qivryn-directory)
   - [Viewing logs](#viewing-logs)
   - [Reloading changes](#reloading-changes)
   - [Setting breakpoints](#setting-breakpoints)
@@ -39,7 +39,7 @@ packaging it in a binary in the `binary` directory. Communication occurs over st
 
 ### IDE Installation
 
-Continue is built with JDK version 17 (as specified in [`./build.gradle.kts`](./build.gradle.kts)), which can be
+Qivryn is built with JDK version 17 (as specified in [`./build.gradle.kts`](./build.gradle.kts)), which can be
 downloaded from [Oracle](https://www.oracle.com/java/technologies/javase/jdk17-archive-downloads.html).
 
 We recommend using IntelliJ IDEA, which you can download from
@@ -57,7 +57,7 @@ notes below).
 - [Thread Access Info](https://plugins.jetbrains.com/plugin/16815-thread-access-info) - adds an extra debug panel
   showing possible thread access violation (according to Intellij Platform SDK guidelines)
 - [File Expander](https://plugins.jetbrains.com/plugin/11940-file-expander) - allows you to easily preview archives as
-  directories (like `build/distributions/continue-*.zip`)
+  directories (like `build/distributions/qivryn-*.zip`)
 
 ### Node.js Requirements
 
@@ -80,26 +80,26 @@ This project requires Node.js version 20.20.1 (LTS) or higher. You have two opti
 
 ### Running the extension in debug mode
 
-Select the `Run Continue` task in the top right corner of the IDE and then select the "Debug" option.
+Select the `Run Qivryn` task in the top right corner of the IDE and then select the "Debug" option.
 
-> In community edition, use `Run Continue (CE)` instead, which uses shell scripts instead of Ultimate-only node configs.
+> In community edition, use `Run Qivryn (CE)` instead, which uses shell scripts instead of Ultimate-only node configs.
 > If you want to debug the core in CE, you'll need to quit the `Start Core Dev Server (CE)` process and run the core in
 > a
 > different environment that supports debugging, such as VS Code (Launch "Core Binary").
 
-![run-extension-screenshot](../../media/run-continue-intellij.png)
+![run-extension-screenshot](../../media/run-qivryn-intellij.png)
 
 This should open a new instance on IntelliJ with the extension installed.
 
-### Accessing files in the `.continue` directory
+### Accessing files in the `.qivryn` directory
 
-When running the `Start Core Dev Server` task, we set the location of your Continue directory to
-`./extensions/.continue-debug`. This is to
+When running the `Start Core Dev Server` task, we set the location of your Qivryn directory to
+`./extensions/.qivryn-debug`. This is to
 allow for changes to your `config.json` and other files during development, without affecting your actual configuration.
 
 ### Viewing logs
 
-When using the `Run Continue` task, we automatically tail both prompt logs and IDE logs.
+When using the `Run Qivryn` task, we automatically tail both prompt logs and IDE logs.
 
 #### Viewing more IDE logs
 
@@ -158,7 +158,7 @@ A handful of the most relevant tasks are outlined below:
 ```shell
 build - Assembles and tests this project.
 clean - Deletes the build directory.
-dependencies - Displays all dependencies declared in root project 'continue-intellij-extension'
+dependencies - Displays all dependencies declared in root project 'qivryn-intellij-extension'
 runIde - Runs the IDE instance with the developed plugin installed.
 verifyPluginConfiguration - Checks if Java and Kotlin compilers configuration meet IntelliJ SDK requirements
 ```

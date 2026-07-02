@@ -2,7 +2,7 @@ import type { ILLM } from "..";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { ffmpegExecutable } from "./hostVoiceCapture";
-import { getContinueGlobalPath } from "./paths";
+import { getQivrynGlobalPath } from "./paths";
 
 const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
 const DEFAULT_TRANSCRIPTION_MODEL = "gpt-4o-mini-transcribe";
@@ -36,8 +36,8 @@ function extensionForMimeType(mimeType: string): string {
 }
 
 function openAiCompatibleEndpoint(model: ILLM): string | undefined {
-  if (process.env.CONTINUE_VOICE_TRANSCRIPTION_URL) {
-    return process.env.CONTINUE_VOICE_TRANSCRIPTION_URL;
+  if (process.env.QIVRYN_VOICE_TRANSCRIPTION_URL) {
+    return process.env.QIVRYN_VOICE_TRANSCRIPTION_URL;
   }
 
   const provider =
@@ -119,13 +119,13 @@ async function getLocalTranscriber(): Promise<LocalTranscriber> {
     localTranscriberPromise = (async () => {
       const transformers = await import("@xenova/transformers");
       transformers.env.cacheDir = path.join(
-        getContinueGlobalPath(),
+        getQivrynGlobalPath(),
         "models",
         "voice",
       );
       return (await transformers.pipeline(
         "automatic-speech-recognition",
-        process.env.CONTINUE_VOICE_LOCAL_MODEL ||
+        process.env.QIVRYN_VOICE_LOCAL_MODEL ||
           DEFAULT_LOCAL_TRANSCRIPTION_MODEL,
         { quantized: true },
       )) as unknown as LocalTranscriber;
@@ -170,9 +170,9 @@ export async function transcribeVoiceAudio(
   signal?: AbortSignal,
 ): Promise<VoiceTranscriptionResult> {
   const endpoint = openAiCompatibleEndpoint(model);
-  if (!endpoint && process.env.CONTINUE_VOICE_LOCAL_TRANSCRIPTION === "false") {
+  if (!endpoint && process.env.QIVRYN_VOICE_LOCAL_TRANSCRIPTION === "false") {
     throw new Error(
-      "Voice transcription is not configured. Enable local transcription or set CONTINUE_VOICE_TRANSCRIPTION_URL to a local or remote OpenAI-compatible /audio/transcriptions endpoint.",
+      "Voice transcription is not configured. Enable local transcription or set QIVRYN_VOICE_TRANSCRIPTION_URL to a local or remote OpenAI-compatible /audio/transcriptions endpoint.",
     );
   }
 
@@ -187,20 +187,18 @@ export async function transcribeVoiceAudio(
   form.append(
     "file",
     new Blob([audio], { type: request.mimeType }),
-    `continue-voice.${extensionForMimeType(request.mimeType)}`,
+    `qivryn-voice.${extensionForMimeType(request.mimeType)}`,
   );
   form.append(
     "model",
-    process.env.CONTINUE_VOICE_TRANSCRIPTION_MODEL ||
-      DEFAULT_TRANSCRIPTION_MODEL,
+    process.env.QIVRYN_VOICE_TRANSCRIPTION_MODEL || DEFAULT_TRANSCRIPTION_MODEL,
   );
   const language = languageCode(request.language);
   if (language) form.append("language", language);
 
   const timeout = AbortSignal.timeout(DEFAULT_TIMEOUT_MS);
   const combinedSignal = signal ? AbortSignal.any([signal, timeout]) : timeout;
-  const apiKey =
-    process.env.CONTINUE_VOICE_TRANSCRIPTION_API_KEY || model.apiKey;
+  const apiKey = process.env.QIVRYN_VOICE_TRANSCRIPTION_API_KEY || model.apiKey;
   const response = await fetch(endpoint, {
     method: "POST",
     headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined,

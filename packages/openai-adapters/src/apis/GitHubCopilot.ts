@@ -153,7 +153,7 @@ function copilotHeaders(
   const pluginVersion =
     auth.editor_plugin_version ??
     auth.editorPluginVersion ??
-    "copilot-chat/continue";
+    "copilot-chat/qivryn";
   return {
     Authorization: `Bearer ${copilotBearer(auth)}`,
     "Copilot-Integration-Id": "vscode-chat",
@@ -168,7 +168,7 @@ function copilotHeaders(
 export interface GitHubCopilotConfig extends OpenAIConfig {}
 
 /**
- * GitHubCopilot API adapter for Continue.
+ * GitHubCopilot API adapter for Qivryn.
  *
  * Talks directly to api.githubcopilot.com — no proxy or daemon.
  *

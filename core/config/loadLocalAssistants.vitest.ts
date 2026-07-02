@@ -3,23 +3,23 @@ import { walkDirCache } from "../indexing/walkDir";
 import { testIde } from "../test/fixtures";
 import { addToTestDir, setUpTestDir, tearDownTestDir } from "../test/testDir";
 import {
-  getAllDotContinueDefinitionFiles,
+  getAllDotQivrynDefinitionFiles,
   LoadAssistantFilesOptions,
 } from "./loadLocalAssistants";
-describe("ASSISTANTS getAllDotContinueDefinitionFiles with fileExtType option", () => {
+describe("ASSISTANTS getAllDotQivrynDefinitionFiles with fileExtType option", () => {
   beforeEach(() => {
     setUpTestDir();
     walkDirCache.invalidate();
 
     // Add test files to the test directory
     addToTestDir([
-      ".continue/assistants/",
-      [".continue/assistants/assistant1.yaml", "yaml content 1"],
-      [".continue/assistants/assistant2.yml", "yaml content 2"],
-      [".continue/assistants/assistant3.md", "markdown content 1"],
-      [".continue/assistants/assistant4.txt", "txt content"],
-      [".continue/assistants/config.yaml", "txt content"],
-      [".continue/assistants/config.yml", "txt content"],
+      ".qivryn/assistants/",
+      [".qivryn/assistants/assistant1.yaml", "yaml content 1"],
+      [".qivryn/assistants/assistant2.yml", "yaml content 2"],
+      [".qivryn/assistants/assistant3.md", "markdown content 1"],
+      [".qivryn/assistants/assistant4.txt", "txt content"],
+      [".qivryn/assistants/config.yaml", "txt content"],
+      [".qivryn/assistants/config.yml", "txt content"],
     ]);
   });
 
@@ -35,7 +35,7 @@ describe("ASSISTANTS getAllDotContinueDefinitionFiles with fileExtType option", 
       fileExtType: "yaml",
     };
 
-    const result = await getAllDotContinueDefinitionFiles(
+    const result = await getAllDotQivrynDefinitionFiles(
       testIde,
       options,
       "assistants",
@@ -61,7 +61,7 @@ describe("ASSISTANTS getAllDotContinueDefinitionFiles with fileExtType option", 
       fileExtType: "markdown",
     };
 
-    const result = await getAllDotContinueDefinitionFiles(
+    const result = await getAllDotQivrynDefinitionFiles(
       testIde,
       options,
       "assistants",
@@ -91,7 +91,7 @@ describe("ASSISTANTS getAllDotContinueDefinitionFiles with fileExtType option", 
       // fileExtType not specified
     };
 
-    const result = await getAllDotContinueDefinitionFiles(
+    const result = await getAllDotQivrynDefinitionFiles(
       testIde,
       options,
       "assistants",
@@ -120,7 +120,7 @@ describe("ASSISTANTS getAllDotContinueDefinitionFiles with fileExtType option", 
       fileExtType: "yaml",
     };
 
-    const noWorkspaceResult = await getAllDotContinueDefinitionFiles(
+    const noWorkspaceResult = await getAllDotQivrynDefinitionFiles(
       testIde,
       workspaceOffOptions,
       "assistants",
@@ -134,7 +134,7 @@ describe("ASSISTANTS getAllDotContinueDefinitionFiles with fileExtType option", 
       fileExtType: "yaml",
     };
 
-    const workspaceResult = await getAllDotContinueDefinitionFiles(
+    const workspaceResult = await getAllDotQivrynDefinitionFiles(
       testIde,
       workspaceOnOptions,
       "assistants",
@@ -156,9 +156,9 @@ describe("ASSISTANTS getAllDotContinueDefinitionFiles with fileExtType option", 
     walkDirCache.invalidate();
     setUpTestDir();
     addToTestDir([
-      ".continue/assistants/",
-      [".continue/assistants/nonmatch1.txt", "txt content"],
-      [".continue/assistants/nonmatch2.json", "json content"],
+      ".qivryn/assistants/",
+      [".qivryn/assistants/nonmatch1.txt", "txt content"],
+      [".qivryn/assistants/nonmatch2.json", "json content"],
     ]);
 
     const options: LoadAssistantFilesOptions = {
@@ -168,7 +168,7 @@ describe("ASSISTANTS getAllDotContinueDefinitionFiles with fileExtType option", 
       fileExtType: "yaml",
     };
 
-    const result = await getAllDotContinueDefinitionFiles(
+    const result = await getAllDotQivrynDefinitionFiles(
       testIde,
       options,
       "assistants",
@@ -187,7 +187,7 @@ describe("ASSISTANTS getAllDotContinueDefinitionFiles with fileExtType option", 
       fileExtType: "yaml",
     };
 
-    const result = await getAllDotContinueDefinitionFiles(
+    const result = await getAllDotQivrynDefinitionFiles(
       testIde,
       options,
       "assistants",
@@ -202,7 +202,7 @@ describe("ASSISTANTS getAllDotContinueDefinitionFiles with fileExtType option", 
       fileExtType: "yaml",
     };
 
-    const result = await getAllDotContinueDefinitionFiles(
+    const result = await getAllDotQivrynDefinitionFiles(
       testIde,
       options,
       "assistants",
@@ -215,9 +215,9 @@ describe("ASSISTANTS getAllDotContinueDefinitionFiles with fileExtType option", 
   it("should filter by file extension case sensitively", async () => {
     // Add files with uppercase extensions
     addToTestDir([
-      [".continue/assistants/assistant5.YAML", "uppercase yaml"],
-      [".continue/assistants/assistant6.YML", "uppercase yml"],
-      [".continue/assistants/assistant7.MD", "uppercase md"],
+      [".qivryn/assistants/assistant5.YAML", "uppercase yaml"],
+      [".qivryn/assistants/assistant6.YML", "uppercase yml"],
+      [".qivryn/assistants/assistant7.MD", "uppercase md"],
     ]);
 
     const yamlOptions: LoadAssistantFilesOptions = {
@@ -226,7 +226,7 @@ describe("ASSISTANTS getAllDotContinueDefinitionFiles with fileExtType option", 
       fileExtType: "yaml",
     };
 
-    const yamlResult = await getAllDotContinueDefinitionFiles(
+    const yamlResult = await getAllDotQivrynDefinitionFiles(
       testIde,
       yamlOptions,
       "assistants",
@@ -251,7 +251,7 @@ describe("ASSISTANTS getAllDotContinueDefinitionFiles with fileExtType option", 
       fileExtType: "markdown",
     };
 
-    const markdownResult = await getAllDotContinueDefinitionFiles(
+    const markdownResult = await getAllDotQivrynDefinitionFiles(
       testIde,
       markdownOptions,
       "assistants",
@@ -266,18 +266,18 @@ describe("ASSISTANTS getAllDotContinueDefinitionFiles with fileExtType option", 
   });
 });
 
-describe("AGENTS getAllDotContinueDefinitionFiles with fileExtType option", () => {
+describe("AGENTS getAllDotQivrynDefinitionFiles with fileExtType option", () => {
   beforeEach(() => {
     setUpTestDir();
     walkDirCache.invalidate();
 
     // Add test files to the test directory
     addToTestDir([
-      ".continue/agents/",
-      [".continue/agents/agent1.yaml", "yaml content 1"],
-      [".continue/agents/agent2.yml", "yaml content 2"],
-      [".continue/agents/agent3.md", "markdown content 1"],
-      [".continue/agents/agent4.txt", "txt content"],
+      ".qivryn/agents/",
+      [".qivryn/agents/agent1.yaml", "yaml content 1"],
+      [".qivryn/agents/agent2.yml", "yaml content 2"],
+      [".qivryn/agents/agent3.md", "markdown content 1"],
+      [".qivryn/agents/agent4.txt", "txt content"],
     ]);
   });
 
@@ -293,7 +293,7 @@ describe("AGENTS getAllDotContinueDefinitionFiles with fileExtType option", () =
       fileExtType: "yaml",
     };
 
-    const result = await getAllDotContinueDefinitionFiles(
+    const result = await getAllDotQivrynDefinitionFiles(
       testIde,
       options,
       "agents",
@@ -314,7 +314,7 @@ describe("AGENTS getAllDotContinueDefinitionFiles with fileExtType option", () =
       fileExtType: "markdown",
     };
 
-    const result = await getAllDotContinueDefinitionFiles(
+    const result = await getAllDotQivrynDefinitionFiles(
       testIde,
       options,
       "agents",
@@ -336,7 +336,7 @@ describe("AGENTS getAllDotContinueDefinitionFiles with fileExtType option", () =
       // fileExtType not specified
     };
 
-    const result = await getAllDotContinueDefinitionFiles(
+    const result = await getAllDotQivrynDefinitionFiles(
       testIde,
       options,
       "agents",
@@ -359,7 +359,7 @@ describe("AGENTS getAllDotContinueDefinitionFiles with fileExtType option", () =
       fileExtType: "yaml",
     };
 
-    const noWorkspaceResult = await getAllDotContinueDefinitionFiles(
+    const noWorkspaceResult = await getAllDotQivrynDefinitionFiles(
       testIde,
       workspaceOffOptions,
       "agents",
@@ -373,7 +373,7 @@ describe("AGENTS getAllDotContinueDefinitionFiles with fileExtType option", () =
       fileExtType: "yaml",
     };
 
-    const workspaceResult = await getAllDotContinueDefinitionFiles(
+    const workspaceResult = await getAllDotQivrynDefinitionFiles(
       testIde,
       workspaceOnOptions,
       "agents",
@@ -390,9 +390,9 @@ describe("AGENTS getAllDotContinueDefinitionFiles with fileExtType option", () =
     walkDirCache.invalidate();
     setUpTestDir();
     addToTestDir([
-      ".continue/agents/",
-      [".continue/agents/nonmatch1.txt", "txt content"],
-      [".continue/agents/nonmatch2.json", "json content"],
+      ".qivryn/agents/",
+      [".qivryn/agents/nonmatch1.txt", "txt content"],
+      [".qivryn/agents/nonmatch2.json", "json content"],
     ]);
 
     const options: LoadAssistantFilesOptions = {
@@ -402,7 +402,7 @@ describe("AGENTS getAllDotContinueDefinitionFiles with fileExtType option", () =
       fileExtType: "yaml",
     };
 
-    const result = await getAllDotContinueDefinitionFiles(
+    const result = await getAllDotQivrynDefinitionFiles(
       testIde,
       options,
       "agents",
@@ -421,7 +421,7 @@ describe("AGENTS getAllDotContinueDefinitionFiles with fileExtType option", () =
       fileExtType: "yaml",
     };
 
-    const result = await getAllDotContinueDefinitionFiles(
+    const result = await getAllDotQivrynDefinitionFiles(
       testIde,
       options,
       "agents",
@@ -436,7 +436,7 @@ describe("AGENTS getAllDotContinueDefinitionFiles with fileExtType option", () =
       fileExtType: "yaml",
     };
 
-    const result = await getAllDotContinueDefinitionFiles(
+    const result = await getAllDotQivrynDefinitionFiles(
       testIde,
       options,
       "agents",
@@ -449,9 +449,9 @@ describe("AGENTS getAllDotContinueDefinitionFiles with fileExtType option", () =
   it("should filter by file extension case sensitively", async () => {
     // Add files with uppercase extensions
     addToTestDir([
-      [".continue/agents/agent5.YAML", "uppercase yaml"],
-      [".continue/agents/agent6.YML", "uppercase yml"],
-      [".continue/agents/agent7.MD", "uppercase md"],
+      [".qivryn/agents/agent5.YAML", "uppercase yaml"],
+      [".qivryn/agents/agent6.YML", "uppercase yml"],
+      [".qivryn/agents/agent7.MD", "uppercase md"],
     ]);
 
     const yamlOptions: LoadAssistantFilesOptions = {
@@ -460,7 +460,7 @@ describe("AGENTS getAllDotContinueDefinitionFiles with fileExtType option", () =
       fileExtType: "yaml",
     };
 
-    const yamlResult = await getAllDotContinueDefinitionFiles(
+    const yamlResult = await getAllDotQivrynDefinitionFiles(
       testIde,
       yamlOptions,
       "agents",
@@ -480,7 +480,7 @@ describe("AGENTS getAllDotContinueDefinitionFiles with fileExtType option", () =
       fileExtType: "markdown",
     };
 
-    const markdownResult = await getAllDotContinueDefinitionFiles(
+    const markdownResult = await getAllDotQivrynDefinitionFiles(
       testIde,
       markdownOptions,
       "agents",

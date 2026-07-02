@@ -1,5 +1,5 @@
 /**
- * ChatGPTCodex API adapter for Continue.
+ * ChatGPTCodex API adapter for Qivryn.
  *
  * Connects directly to the ChatGPT Codex backend used by Codex Desktop/CLI:
  *   POST https://chatgpt.com/backend-api/codex/responses
@@ -19,7 +19,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
-import { streamSse } from "@continuedev/fetch";
+import { streamSse } from "@qivryn/fetch";
 import {
   ChatCompletion,
   ChatCompletionChunk,
@@ -59,7 +59,7 @@ export class CodexApiError extends Error {
 
   constructor(message: string, details: ApiErrorDetails) {
     // Format the full diagnostic block as the error message so it shows up
-    // verbatim in Continue's error panel and can be copied with one click.
+    // verbatim in Qivryn's error panel and can be copied with one click.
     const parsed = (() => {
       try {
         return JSON.stringify(JSON.parse(details.body), null, 2);
@@ -283,7 +283,7 @@ export function chatMessagesToCodexBody(
 // ── Tool format conversion ───────────────────────────────────────────────────
 // The Codex backend expects the Responses API tool shape:
 //   { type: "function", name: "...", description: "...", parameters: {...} }
-// Continue sends the chat completions tool shape:
+// Qivryn sends the chat completions tool shape:
 //   { type: "function", function: { name: "...", description: "...", parameters: {...} } }
 function convertTools(tools: any[] | undefined): any[] | undefined {
   if (!tools?.length) return undefined;

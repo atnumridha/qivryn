@@ -4,10 +4,10 @@ import {
   ModelConfig,
   parseAgentFileRules,
   parseAgentFileTools,
-} from "@continuedev/config-yaml";
-import { BaseLlmApi } from "@continuedev/openai-adapters";
-import { AssistantConfig } from "@continuedev/sdk";
-import { DefaultApiInterface } from "@continuedev/sdk/dist/api/dist/index.js";
+} from "@qivryn/config-yaml";
+import { BaseLlmApi } from "@qivryn/openai-adapters";
+import { AssistantConfig } from "@qivryn/sdk";
+import { DefaultApiInterface } from "@qivryn/sdk/dist/api/dist/index.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 
 import type { AuthConfig } from "../auth/workos.js";

@@ -47,8 +47,8 @@ for (const feature of ledger.features ?? []) {
   ) {
     errors.push(`${feature.id}: phase must be an integer from 1 through 8`);
   }
-  if (!feature.cursorEvidence?.trim() || !feature.continueBaseline?.trim()) {
-    errors.push(`${feature.id}: reference and Continue baseline are required`);
+  if (!feature.cursorEvidence?.trim() || !feature.qivrynBaseline?.trim()) {
+    errors.push(`${feature.id}: reference and Qivryn baseline are required`);
   }
   if (!feature.acceptance?.trim()) {
     errors.push(

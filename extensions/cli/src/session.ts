@@ -34,8 +34,8 @@ export interface ExtendedSessionMetadata extends BaseSessionMetadata {
  */
 function getSessionDir(): string {
   // For tests, use the test directory if we're in test mode
-  if (process.env.CONTINUE_CLI_TEST && process.env.HOME) {
-    const sessionDir = path.join(process.env.HOME, ".continue", "sessions");
+  if (process.env.QIVRYN_CLI_TEST && process.env.HOME) {
+    const sessionDir = path.join(process.env.HOME, ".qivryn", "sessions");
 
     // Create directory if it doesn't exist
     if (!fs.existsSync(sessionDir)) {
@@ -45,10 +45,10 @@ function getSessionDir(): string {
     return sessionDir;
   }
 
-  // Use CONTINUE_GLOBAL_DIR if set (for testing)
-  const continueHome =
-    process.env.CONTINUE_GLOBAL_DIR || path.join(os.homedir(), ".continue");
-  const sessionDir = path.join(continueHome, "sessions");
+  // Use QIVRYN_GLOBAL_DIR if set (for testing)
+  const qivrynHome =
+    process.env.QIVRYN_GLOBAL_DIR || path.join(os.homedir(), ".qivryn");
+  const sessionDir = path.join(qivrynHome, "sessions");
 
   // Create directory if it doesn't exist
   if (!fs.existsSync(sessionDir)) {
@@ -93,8 +93,8 @@ class SessionManager {
   getCurrentSession(): Session {
     if (!this.currentSession) {
       // Use test session ID for testing consistency
-      const sessionId = process.env.CONTINUE_CLI_TEST_SESSION_ID
-        ? process.env.CONTINUE_CLI_TEST_SESSION_ID
+      const sessionId = process.env.QIVRYN_CLI_TEST_SESSION_ID
+        ? process.env.QIVRYN_CLI_TEST_SESSION_ID
         : uuidv4();
 
       this.currentSession = {
@@ -514,7 +514,7 @@ export function loadSessionById(sessionId: string): Session | null {
 
 /**
  * Load an existing session by ID or create a new one with that ID.
- * Useful for long-lived processes (e.g., cn serve) that need to
+ * Useful for long-lived processes (e.g., qivryn serve) that need to
  * preserve chat history across restarts for the same storage/agent id.
  */
 export function loadOrCreateSessionById(

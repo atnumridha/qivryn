@@ -4,7 +4,7 @@ import path from "path";
 import { validateSingleEdit } from "core/edit/searchAndReplace/findAndReplaceUtils.js";
 import { executeFindAndReplace } from "core/edit/searchAndReplace/performReplace.js";
 import { throwIfFileIsSecurityConcern } from "core/indexing/ignore.js";
-import { ContinueError, ContinueErrorReason } from "core/util/errors.js";
+import { QivrynError, QivrynErrorReason } from "core/util/errors.js";
 
 import { telemetryService } from "../telemetry/telemetryService.js";
 import {
@@ -24,8 +24,8 @@ export function validateAndResolveFilePath(args: any): {
   const { file_path } = args;
 
   if (!file_path) {
-    throw new ContinueError(
-      ContinueErrorReason.FindAndReplaceMissingFilepath,
+    throw new QivrynError(
+      QivrynErrorReason.FindAndReplaceMissingFilepath,
       "file_path is required",
     );
   }
@@ -40,16 +40,16 @@ export function validateAndResolveFilePath(args: any): {
 
   // Check if file exists
   if (!fs.existsSync(resolvedPath)) {
-    throw new ContinueError(
-      ContinueErrorReason.FileNotFound,
+    throw new QivrynError(
+      QivrynErrorReason.FileNotFound,
       `File ${file_path} does not exist`,
     );
   }
 
   // Check if file has been read
   if (!readFilesSet.has(resolvedPath)) {
-    throw new ContinueError(
-      ContinueErrorReason.EditToolFileNotRead,
+    throw new QivrynError(
+      QivrynErrorReason.EditToolFileNotRead,
       `You must use the ${readFileTool.name} tool to read ${file_path} before editing it.`,
     );
   }
@@ -179,11 +179,11 @@ WARNINGS:
 
       return `Successfully edited ${args.resolvedPath}\nDiff:\n${diff}`;
     } catch (error) {
-      if (error instanceof ContinueError) {
+      if (error instanceof QivrynError) {
         throw error;
       }
-      throw new ContinueError(
-        ContinueErrorReason.FileWriteError,
+      throw new QivrynError(
+        QivrynErrorReason.FileWriteError,
         `Error: failed to edit ${args.resolvedPath}: ${
           error instanceof Error ? error.message : String(error)
         }`,

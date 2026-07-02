@@ -16,7 +16,7 @@ afterEach(() =>
 
 describe("shadow workspace validation", () => {
   it("validates dirty state without touching the active workspace", async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "continue-shadow-"));
+    const root = await mkdtemp(path.join(os.tmpdir(), "qivryn-shadow-"));
     roots.push(root);
     const repo = path.join(root, "repo");
     await exec("git", ["init", repo]);

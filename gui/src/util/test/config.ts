@@ -1,5 +1,5 @@
 import { EnhancedStore } from "@reduxjs/toolkit";
-import { BrowserSerializedContinueConfig, ModelDescription } from "core";
+import { BrowserSerializedQivrynConfig, ModelDescription } from "core";
 import { copyOf } from "core/util";
 import { MockIdeMessenger } from "../../context/MockIdeMessenger";
 
@@ -8,8 +8,8 @@ interface TestConfigUpdateParams {
   ideMessenger: MockIdeMessenger;
   newProfileId?: string;
   editConfig?: (
-    current: BrowserSerializedContinueConfig,
-  ) => BrowserSerializedContinueConfig;
+    current: BrowserSerializedQivrynConfig,
+  ) => BrowserSerializedQivrynConfig;
 }
 
 export function triggerConfigUpdate({

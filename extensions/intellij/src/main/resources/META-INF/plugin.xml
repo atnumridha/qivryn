@@ -1,197 +1,197 @@
 <!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
 <idea-plugin>
-    <id>com.github.continuedev.continueintellijextension</id>
-    <name>Continue</name>
-    <vendor url="https://www.continue.dev/">continue-dev</vendor>
+    <id>com.github.qivryn.qivrynintellijextension</id>
+    <name>Qivryn</name>
+    <vendor url="https://www.qivryn.ai/">qivryn-dev</vendor>
     <change-notes>
-        <![CDATA[View the latest release notes on <a href="https://github.com/continuedev/continue/releases">GitHub</a>]]></change-notes>
+        <![CDATA[View the latest release notes on <a href="https://github.com/atnumridha/qivryn/releases">GitHub</a>]]></change-notes>
 
     <depends>com.intellij.modules.platform</depends>
     <depends>org.jetbrains.plugins.terminal</depends>
 
-    <!-- See here for why this is optional:  https://github.com/continuedev/continue/issues/2775#issuecomment-2535620877-->
-    <depends optional="true" config-file="continueintellijextension-withJSON.xml">
+    <!-- See here for why this is optional:  https://github.com/atnumridha/qivryn/issues/2775#issuecomment-2535620877-->
+    <depends optional="true" config-file="qivrynintellijextension-withJSON.xml">
         com.intellij.modules.json
     </depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <toolWindow id="Continue" anchor="right" icon="com.github.continuedev.continueintellijextension.Icons.Continue"
-                    factoryClass="com.github.continuedev.continueintellijextension.toolWindow.ContinuePluginToolWindowFactory"/>
-        <projectService id="ContinuePluginService"
-                        serviceImplementation="com.github.continuedev.continueintellijextension.services.ContinuePluginService"/>
+        <toolWindow id="Qivryn" anchor="right" icon="com.github.qivryn.qivrynintellijextension.Icons.Qivryn"
+                    factoryClass="com.github.qivryn.qivrynintellijextension.toolWindow.QivrynPluginToolWindowFactory"/>
+        <projectService id="QivrynPluginService"
+                        serviceImplementation="com.github.qivryn.qivrynintellijextension.services.QivrynPluginService"/>
         <projectService
                 id="DiffStreamService"
-                serviceImplementation="com.github.continuedev.continueintellijextension.editor.DiffStreamService"/>
+                serviceImplementation="com.github.qivryn.qivrynintellijextension.editor.DiffStreamService"/>
 
-        <projectService serviceInterface="com.github.continuedev.continueintellijextension.autocomplete.CompletionService"
-                        serviceImplementation="com.github.continuedev.continueintellijextension.autocomplete.ContinueCompletionService"/>
+        <projectService serviceInterface="com.github.qivryn.qivrynintellijextension.autocomplete.CompletionService"
+                        serviceImplementation="com.github.qivryn.qivrynintellijextension.autocomplete.QivrynCompletionService"/>
         <projectService
-                serviceInterface="com.github.continuedev.continueintellijextension.nextEdit.NextEditService"
-                serviceImplementation="com.github.continuedev.continueintellijextension.nextEdit.ContinueNextEditService"/>
-
-        <projectService
-                serviceImplementation="com.github.continuedev.continueintellijextension.nextEdit.NextEditWindowManager"/>
+                serviceInterface="com.github.qivryn.qivrynintellijextension.nextEdit.NextEditService"
+                serviceImplementation="com.github.qivryn.qivrynintellijextension.nextEdit.QivrynNextEditService"/>
 
         <projectService
-                serviceImplementation="com.github.continuedev.continueintellijextension.nextEdit.NextEditJumpManager"/>
+                serviceImplementation="com.github.qivryn.qivrynintellijextension.nextEdit.NextEditWindowManager"/>
 
-        <inline.completion.provider id="Continue" implementation="com.github.continuedev.continueintellijextension.autocomplete.ContinueInlineCompletionProvider"/>
+        <projectService
+                serviceImplementation="com.github.qivryn.qivrynintellijextension.nextEdit.NextEditJumpManager"/>
+
+        <inline.completion.provider id="Qivryn" implementation="com.github.qivryn.qivrynintellijextension.autocomplete.QivrynInlineCompletionProvider"/>
         
-        <notificationGroup id="Continue"
+        <notificationGroup id="Qivryn"
                            displayType="BALLOON"/>
         <actionPromoter order="last"
-                        implementation="com.github.continuedev.continueintellijextension.actions.ContinueActionPromote"/>
+                        implementation="com.github.qivryn.qivrynintellijextension.actions.QivrynActionPromote"/>
         <postStartupActivity
-                implementation="com.github.continuedev.continueintellijextension.activities.ContinuePluginStartupActivity"/>
-        <postStartupActivity implementation="com.github.continuedev.continueintellijextension.proxy.ProxyPoolingActivity"/>
+                implementation="com.github.qivryn.qivrynintellijextension.activities.QivrynPluginStartupActivity"/>
+        <postStartupActivity implementation="com.github.qivryn.qivrynintellijextension.proxy.ProxyPoolingActivity"/>
         <applicationConfigurable
                 parentId="tools"
-                instance="com.github.continuedev.continueintellijextension.services.ContinueExtensionConfigurable"
-                id="com.github.continuedev.continueintellijextension.services.ContinueExtensionConfigurable"
-                displayName="Continue"/>
+                instance="com.github.qivryn.qivrynintellijextension.services.QivrynExtensionConfigurable"
+                id="com.github.qivryn.qivrynintellijextension.services.QivrynExtensionConfigurable"
+                displayName="Qivryn"/>
         <applicationService
-                serviceImplementation="com.github.continuedev.continueintellijextension.services.ContinueExtensionSettings"/>
+                serviceImplementation="com.github.qivryn.qivrynintellijextension.services.QivrynExtensionSettings"/>
     </extensions>
 
     <actions>
-        <action class="com.github.continuedev.continueintellijextension.editor.InlineEditAction"
-                id="continue.inlineEdit"
+        <action class="com.github.qivryn.qivrynintellijextension.editor.InlineEditAction"
+                id="qivryn.inlineEdit"
                 description="Inline Edit"
                 text="Inline Edit">
             <keyboard-shortcut keymap="$default"
                                first-keystroke="ctrl I"/>
             <keyboard-shortcut keymap="Mac OS X"
                                first-keystroke="meta I"/>
-            <override-text place="GoToAction" text="Continue: Edit Code"/>
+            <override-text place="GoToAction" text="Qivryn: Edit Code"/>
         </action>
 
-        <action id="continue.acceptDiff"
-                class="com.github.continuedev.continueintellijextension.actions.AcceptDiffAction"
+        <action id="qivryn.acceptDiff"
+                class="com.github.qivryn.qivrynintellijextension.actions.AcceptDiffAction"
                 text="Accept Diff" description="Accept Diff">
             <keyboard-shortcut keymap="$default"
                                first-keystroke="shift ctrl ENTER"/>
             <keyboard-shortcut keymap="Mac OS X"
                                first-keystroke="shift meta ENTER"/>
-            <override-text place="GoToAction" text="Continue: Accept Diff"/>
+            <override-text place="GoToAction" text="Qivryn: Accept Diff"/>
         </action>
 
-        <action id="continue.restartProcess"
-                class="com.github.continuedev.continueintellijextension.actions.RestartContinueProcess"
+        <action id="qivryn.restartProcess"
+                class="com.github.qivryn.qivrynintellijextension.actions.RestartQivrynProcess"
                 text="Restart Process"
                 description="Restart Process">
-            <override-text place="GoToAction" text="Continue: Restart Process"/>
+            <override-text place="GoToAction" text="Qivryn: Restart Process"/>
         </action>
 
-        <action id="continue.rejectDiff"
-                class="com.github.continuedev.continueintellijextension.actions.RejectDiffAction"
+        <action id="qivryn.rejectDiff"
+                class="com.github.qivryn.qivrynintellijextension.actions.RejectDiffAction"
                 text="Reject Diff" description="Reject Diff">
             <keyboard-shortcut keymap="$default"
                                first-keystroke="shift ctrl BACK_SPACE"/>
             <keyboard-shortcut keymap="Mac OS X"
                                first-keystroke="shift meta BACK_SPACE"/>
-            <override-text place="GoToAction" text="Continue: Reject Diff"/>
+            <override-text place="GoToAction" text="Qivryn: Reject Diff"/>
         </action>
 
-        <action id="continue.acceptVerticalDiffBlock"
-                class="com.github.continuedev.continueintellijextension.actions.AcceptDiffAction"
+        <action id="qivryn.acceptVerticalDiffBlock"
+                class="com.github.qivryn.qivrynintellijextension.actions.AcceptDiffAction"
                 text="Accept Diff" description="Accept Vertical Diff Block">
             <keyboard-shortcut keymap="$default"
                                first-keystroke="alt shift Y"/>
             <keyboard-shortcut keymap="Mac OS X"
                                first-keystroke="alt shift Y"/>
-            <override-text place="GoToAction" text="Continue: Accept Vertical Diff Block"/>
+            <override-text place="GoToAction" text="Qivryn: Accept Vertical Diff Block"/>
         </action>
 
-        <action id="continue.rejectVerticalDiffBlock"
-                class="com.github.continuedev.continueintellijextension.actions.RejectDiffAction"
+        <action id="qivryn.rejectVerticalDiffBlock"
+                class="com.github.qivryn.qivrynintellijextension.actions.RejectDiffAction"
                 text="Reject Diff" description="Reject Vertical Diff Block">
             <keyboard-shortcut keymap="$default"
                                first-keystroke="alt shift N"/>
             <keyboard-shortcut keymap="Mac OS X"
                                first-keystroke="alt shift N"/>
-            <override-text place="GoToAction" text="Continue: Reject Vertical Diff Block"/>
+            <override-text place="GoToAction" text="Qivryn: Reject Vertical Diff Block"/>
         </action>
 
-        <action id="continue.addLicenseKey"
-                class="com.github.continuedev.continueintellijextension.license.AddLicenseKey"
+        <action id="qivryn.addLicenseKey"
+                class="com.github.qivryn.qivrynintellijextension.license.AddLicenseKey"
                 text="Enter Enterprise License Key"
                 description="Enter Enterprise License Key">
-            <override-text place="GoToAction" text="Continue: Enter Enterprise License Key"/>
+            <override-text place="GoToAction" text="Qivryn: Enter Enterprise License Key"/>
         </action>
 
-        <action id="continue.focusContinueInputWithoutClear"
-                class="com.github.continuedev.continueintellijextension.actions.FocusContinueInputWithoutClearAction"
+        <action id="qivryn.focusQivrynInputWithoutClear"
+                class="com.github.qivryn.qivrynintellijextension.actions.FocusQivrynInputWithoutClearAction"
                 text="Add selected code to context"
-                description="Focus Continue Input With Edit">
+                description="Focus Qivryn Input With Edit">
             <keyboard-shortcut keymap="$default"
                                first-keystroke="ctrl shift J"/>
             <keyboard-shortcut keymap="Mac OS X"
                                first-keystroke="meta shift J"/>
-            <override-text place="GoToAction" text="Continue: Add Highlighted Code to Context"/>
+            <override-text place="GoToAction" text="Qivryn: Add Highlighted Code to Context"/>
         </action>
 
-        <action id="continue.newContinueSession"
+        <action id="qivryn.newQivrynSession"
                 icon="AllIcons.General.Add"
-                class="com.github.continuedev.continueintellijextension.actions.NewContinueSessionAction"
+                class="com.github.qivryn.qivrynintellijextension.actions.NewQivrynSessionAction"
                 text="New Session"
                 description="New Session">
 
             <override-text place="GoToAction" text="New Session"/>
         </action>
 
-        <action id="continue.viewHistory"
+        <action id="qivryn.viewHistory"
                 icon="AllIcons.Vcs.History"
-                class="com.github.continuedev.continueintellijextension.actions.ViewHistoryAction"
+                class="com.github.qivryn.qivrynintellijextension.actions.ViewHistoryAction"
                 text="View History"
                 description="View History">
             <override-text place="GoToAction" text="View History"/>
         </action>
 
-        <action id="continue.openConfigPage"
-                class="com.github.continuedev.continueintellijextension.actions.OpenConfigAction"
+        <action id="qivryn.openConfigPage"
+                class="com.github.qivryn.qivrynintellijextension.actions.OpenConfigAction"
                 icon="AllIcons.General.GearPlain"
                 text="Settings"
                 description="Settings">
             <override-text place="GoToAction" text="Settings"/>
         </action>
 
-        <action id="continue.reloadPage"
-                class="com.github.continuedev.continueintellijextension.actions.ReloadBrowserAction"
+        <action id="qivryn.reloadPage"
+                class="com.github.qivryn.qivrynintellijextension.actions.ReloadBrowserAction"
                 icon="AllIcons.Actions.Refresh"
-                text="Reload Continue Browser"
-                description="Reload Continue Browser">
-            <override-text place="GoToAction" text="Reload Continue Browser"/>
+                text="Reload Qivryn Browser"
+                description="Reload Qivryn Browser">
+            <override-text place="GoToAction" text="Reload Qivryn Browser"/>
         </action>
 
-        <action id="continue.openLogs"
-                class="com.github.continuedev.continueintellijextension.actions.OpenLogsAction"
+        <action id="qivryn.openLogs"
+                class="com.github.qivryn.qivrynintellijextension.actions.OpenLogsAction"
                 icon="AllIcons.General.ShowInfos"
                 text="Open Logs"
-                description="Open Continue Logs">
-            <override-text place="GoToAction" text="Open Continue Logs"/>
+                description="Open Qivryn Logs">
+            <override-text place="GoToAction" text="Open Qivryn Logs"/>
         </action>
 
-        <group id="ContinueSidebarActionsGroup">
-            <reference ref="continue.newContinueSession"/>
-            <reference ref="continue.viewHistory"/>
-            <reference ref="continue.openConfigPage"/>
-            <reference ref="continue.reloadPage" />
+        <group id="QivrynSidebarActionsGroup">
+            <reference ref="qivryn.newQivrynSession"/>
+            <reference ref="qivryn.viewHistory"/>
+            <reference ref="qivryn.openConfigPage"/>
+            <reference ref="qivryn.reloadPage" />
         </group>
 
-        <action id="continue.focusContinueInput"
-                class="com.github.continuedev.continueintellijextension.actions.FocusContinueInputAction"
+        <action id="qivryn.focusQivrynInput"
+                class="com.github.qivryn.qivrynintellijextension.actions.FocusQivrynInputAction"
                 text="Add selected code to context"
-                description="Focus Continue Input">
+                description="Focus Qivryn Input">
             <keyboard-shortcut keymap="$default"
                                first-keystroke="ctrl J"/>
             <keyboard-shortcut keymap="Mac OS X"
                                first-keystroke="meta J"/>
             <add-to-group group-id="EditorPopupMenu"/>
-            <override-text place="GoToAction" text="Continue: Add Highlighted Code to Context and Clear Chat"/>
+            <override-text place="GoToAction" text="Qivryn: Add Highlighted Code to Context and Clear Chat"/>
         </action>
-        <group id="ContinueProjectViewPopUpMenuGroup" popup="true" text="Continue" icon="/icons/continue.svg">
-            <action id="com.github.continuedev.continueintellijextension.actions.AddToChatAction"
-                    class="com.github.continuedev.continueintellijextension.actions.AddToChatAction"
+        <group id="QivrynProjectViewPopUpMenuGroup" popup="true" text="Qivryn" icon="/icons/qivryn.svg">
+            <action id="com.github.qivryn.qivrynintellijextension.actions.AddToChatAction"
+                    class="com.github.qivryn.qivrynintellijextension.actions.AddToChatAction"
                     text="Add to Chat">
             </action>
             <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>

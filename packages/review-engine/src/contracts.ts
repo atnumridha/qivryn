@@ -1,4 +1,4 @@
-import type { ReviewFinding, ReviewRequest } from "@continuedev/agent-runtime";
+import type { ReviewFinding, ReviewRequest } from "@qivryn/agent-runtime";
 
 export interface ReviewDiff {
   repositoryPath: string;

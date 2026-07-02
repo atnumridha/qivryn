@@ -39,10 +39,10 @@ export const docsRedirects: Map<string, string> = loadDocsRedirects();
 
 // Whitelist of allowed external redirect domains for security
 const ALLOWED_REDIRECT_DOMAINS = [
-  "continue.dev",
-  "docs.continue.dev",
-  "www.continue.dev",
-  "changelog.continue.dev",
+  "qivryn.ai",
+  "docs.qivryn.ai",
+  "www.qivryn.ai",
+  "changelog.qivryn.ai",
 ];
 
 export function resolveDocsRedirect(slug: string[]): string | null {

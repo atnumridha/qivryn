@@ -2,7 +2,7 @@ import type {
   ReviewActionRequest,
   ReviewFindingComment,
   ReviewReport,
-} from "@continuedev/review-engine";
+} from "@qivryn/review-engine";
 import {
   ArrowLeftIcon,
   ArrowPathIcon,

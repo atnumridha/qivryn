@@ -1,5 +1,5 @@
-import { FileAgentStore, type AgentRun } from "@continuedev/agent-runtime";
-import { getContinueGlobalPath } from "core/util/paths";
+import { FileAgentStore, type AgentRun } from "@qivryn/agent-runtime";
+import { getQivrynGlobalPath } from "core/util/paths";
 import path from "node:path";
 import * as vscode from "vscode";
 import {
@@ -16,7 +16,7 @@ const TERMINAL_STATUSES = new Set<AgentRun["status"]>([
 
 export class AgentNotificationManager implements vscode.Disposable {
   private readonly store = new FileAgentStore(
-    path.join(getContinueGlobalPath(), "agents"),
+    path.join(getQivrynGlobalPath(), "agents"),
   );
   private readonly timer: NodeJS.Timeout;
   private ready = false;
@@ -42,7 +42,7 @@ export class AgentNotificationManager implements vscode.Disposable {
       this.ready = true;
       return;
     }
-    const config = vscode.workspace.getConfiguration("continue");
+    const config = vscode.workspace.getConfiguration("qivryn");
     const mode = config.get<AgentNotificationMode>(
       "agentCompletionNotifications",
       "whenUnfocused",
@@ -68,7 +68,7 @@ export class AgentNotificationManager implements vscode.Disposable {
       );
       if (selection === "Open agent") {
         await vscode.commands.executeCommand(
-          "continue.navigateTo",
+          "qivryn.navigateTo",
           `/agents?runId=${encodeURIComponent(run.id)}`,
           false,
         );
@@ -83,6 +83,6 @@ export class AgentNotificationManager implements vscode.Disposable {
   }
 
   private key(run: AgentRun): string {
-    return `continue.agentNotification.${run.id}`;
+    return `qivryn.agentNotification.${run.id}`;
   }
 }

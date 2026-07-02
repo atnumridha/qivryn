@@ -1,5 +1,5 @@
 {
-  "name": "continue",
+  "name": "qivryn",
   "scripts": {
     "validate:cursor-parity": "node scripts/validate-cursor-parity.mjs",
     "build:agent-runtime": "npm --prefix packages/agent-runtime run build",

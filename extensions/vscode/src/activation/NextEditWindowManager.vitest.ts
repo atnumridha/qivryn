@@ -78,7 +78,7 @@ vi.mock("vscode", () => ({
 }));
 
 vi.mock("core/util/constants", () => ({
-  EXTENSION_NAME: "continue",
+  EXTENSION_NAME: "qivryn",
 }));
 
 vi.mock("../util/getTheme", () => ({

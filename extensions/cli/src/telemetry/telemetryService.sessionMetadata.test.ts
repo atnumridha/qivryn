@@ -22,7 +22,7 @@ describe("TelemetryService - Session Metadata", () => {
     }));
 
     // Enable telemetry for tests
-    process.env.CONTINUE_CLI_ENABLE_TELEMETRY = "1";
+    process.env.QIVRYN_CLI_ENABLE_TELEMETRY = "1";
     process.env.OTEL_METRICS_EXPORTER = "console";
   });
 
@@ -126,7 +126,7 @@ describe("TelemetryService - Session Metadata", () => {
         1,
         expect.objectContaining({
           is_github_actions: "false",
-          is_continue_remote_agent: "false",
+          is_qivryn_remote_agent: "false",
         }),
       );
     });
@@ -151,7 +151,7 @@ describe("TelemetryService - Session Metadata", () => {
         1,
         expect.objectContaining({
           is_github_actions: "true",
-          is_continue_remote_agent: "false",
+          is_qivryn_remote_agent: "false",
         }),
       );
     });
@@ -178,14 +178,14 @@ describe("TelemetryService - Session Metadata", () => {
         expect.objectContaining({
           is_headless: "true",
           is_github_actions: "true",
-          is_continue_remote_agent: "false",
+          is_qivryn_remote_agent: "false",
         }),
       );
     });
 
-    it("should include is_continue_remote_agent=true when in remote agent mode", () => {
-      // Set Continue remote agent environment
-      process.env.CONTINUE_REMOTE = "true";
+    it("should include is_qivryn_remote_agent=true when in remote agent mode", () => {
+      // Set Qivryn remote agent environment
+      process.env.QIVRYN_REMOTE = "true";
 
       const mockAdd = vi.fn();
       const mockRecord = vi.fn();
@@ -202,7 +202,7 @@ describe("TelemetryService - Session Metadata", () => {
       expect(mockAdd).toHaveBeenCalledWith(
         1,
         expect.objectContaining({
-          is_continue_remote_agent: "true",
+          is_qivryn_remote_agent: "true",
         }),
       );
     });
@@ -211,7 +211,7 @@ describe("TelemetryService - Session Metadata", () => {
       // Set all environments
       process.argv = ["node", "cli.js", "-p", "What is the weather?"];
       process.env.GITHUB_ACTIONS = "true";
-      process.env.CONTINUE_REMOTE = "true";
+      process.env.QIVRYN_REMOTE = "true";
 
       const mockAdd = vi.fn();
       const mockRecord = vi.fn();
@@ -230,7 +230,7 @@ describe("TelemetryService - Session Metadata", () => {
         expect.objectContaining({
           is_headless: "true",
           is_github_actions: "true",
-          is_continue_remote_agent: "true",
+          is_qivryn_remote_agent: "true",
         }),
       );
     });

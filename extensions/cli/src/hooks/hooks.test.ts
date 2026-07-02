@@ -135,7 +135,7 @@ describe("hookConfig", () => {
     let tmpDir: string;
     let fakeHome: string;
     let projectDir: string;
-    let originalContinueGlobalDir: string | undefined;
+    let originalQivrynGlobalDir: string | undefined;
 
     beforeEach(() => {
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "hooks-test-"));
@@ -144,17 +144,17 @@ describe("hookConfig", () => {
       projectDir = path.join(tmpDir, "project");
       fs.mkdirSync(fakeHome, { recursive: true });
       fs.mkdirSync(projectDir, { recursive: true });
-      // Override CONTINUE_GLOBAL_DIR so that user-global settings
-      // from the real ~/.continue/settings.json don't leak into tests
-      originalContinueGlobalDir = process.env.CONTINUE_GLOBAL_DIR;
-      process.env.CONTINUE_GLOBAL_DIR = path.join(fakeHome, ".continue");
+      // Override QIVRYN_GLOBAL_DIR so that user-global settings
+      // from the real ~/.qivryn/settings.json don't leak into tests
+      originalQivrynGlobalDir = process.env.QIVRYN_GLOBAL_DIR;
+      process.env.QIVRYN_GLOBAL_DIR = path.join(fakeHome, ".qivryn");
     });
 
     afterEach(() => {
-      if (originalContinueGlobalDir === undefined) {
-        delete process.env.CONTINUE_GLOBAL_DIR;
+      if (originalQivrynGlobalDir === undefined) {
+        delete process.env.QIVRYN_GLOBAL_DIR;
       } else {
-        process.env.CONTINUE_GLOBAL_DIR = originalContinueGlobalDir;
+        process.env.QIVRYN_GLOBAL_DIR = originalQivrynGlobalDir;
       }
       fs.rmSync(tmpDir, { recursive: true, force: true });
     });
@@ -170,8 +170,8 @@ describe("hookConfig", () => {
       expect(result.disabled).toBe(false);
     });
 
-    it("loads hooks from .continue/settings.json", () => {
-      const settingsDir = path.join(projectDir, ".continue");
+    it("loads hooks from .qivryn/settings.json", () => {
+      const settingsDir = path.join(projectDir, ".qivryn");
       fs.mkdirSync(settingsDir, { recursive: true });
       fs.writeFileSync(
         path.join(settingsDir, "settings.json"),
@@ -227,15 +227,15 @@ describe("hookConfig", () => {
         }),
       );
 
-      // .continue/settings.json (project-level)
-      const continueDir = path.join(projectDir, ".continue");
-      fs.mkdirSync(continueDir, { recursive: true });
+      // .qivryn/settings.json (project-level)
+      const qivrynDir = path.join(projectDir, ".qivryn");
+      fs.mkdirSync(qivrynDir, { recursive: true });
       fs.writeFileSync(
-        path.join(continueDir, "settings.json"),
+        path.join(qivrynDir, "settings.json"),
         JSON.stringify({
           hooks: {
             PreToolUse: [
-              { hooks: [{ type: "command", command: "echo continue" }] },
+              { hooks: [{ type: "command", command: "echo qivryn" }] },
             ],
           },
         }),
@@ -247,7 +247,7 @@ describe("hookConfig", () => {
     });
 
     it("respects disableAllHooks", () => {
-      const settingsDir = path.join(projectDir, ".continue");
+      const settingsDir = path.join(projectDir, ".qivryn");
       fs.mkdirSync(settingsDir, { recursive: true });
       fs.writeFileSync(
         path.join(settingsDir, "settings.json"),
@@ -268,7 +268,7 @@ describe("hookConfig", () => {
     });
 
     it("handles malformed settings files gracefully", () => {
-      const settingsDir = path.join(projectDir, ".continue");
+      const settingsDir = path.join(projectDir, ".qivryn");
       fs.mkdirSync(settingsDir, { recursive: true });
       fs.writeFileSync(
         path.join(settingsDir, "settings.json"),
@@ -828,14 +828,14 @@ describeUnix("hookRunner", () => {
   });
 
   describe("runHooks - environment variables", () => {
-    it("sets CONTINUE_PROJECT_DIR and CLAUDE_PROJECT_DIR env vars", async () => {
+    it("sets QIVRYN_PROJECT_DIR and CLAUDE_PROJECT_DIR env vars", async () => {
       const config: HooksConfig = {
         PreToolUse: [
           {
             hooks: [
               {
                 type: "command",
-                command: 'echo "$CONTINUE_PROJECT_DIR|$CLAUDE_PROJECT_DIR"',
+                command: 'echo "$QIVRYN_PROJECT_DIR|$CLAUDE_PROJECT_DIR"',
               },
             ],
           },

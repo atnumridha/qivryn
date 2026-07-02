@@ -68,8 +68,8 @@ async function loadAndSetSession(
     }
 
     // Set the session ID so future operations use this session
-    process.env.CONTINUE_CLI_TEST_SESSION_ID = sessionId.replace(
-      "continue-cli-",
+    process.env.QIVRYN_CLI_TEST_SESSION_ID = sessionId.replace(
+      "qivryn-cli-",
       "",
     );
 
@@ -322,7 +322,7 @@ const TUIChat: React.FC<TUIChatProps> = ({
 
         const defaultPath = path.join(
           process.cwd(),
-          `continue-session-${session.sessionId}.json`,
+          `qivryn-session-${session.sessionId}.json`,
         );
         const jsonOutput = JSON.stringify(exportPayload, null, 2);
         fs.writeFileSync(defaultPath, jsonOutput, "utf-8");

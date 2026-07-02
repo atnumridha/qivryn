@@ -145,7 +145,7 @@ export function McpAppRenderer({
   useEffect(() => {
     const bridge = new AppBridge(
       null,
-      { name: "Continue", version: "1.0.0" },
+      { name: "Qivryn", version: "1.0.0" },
       {
         openLinks: {},
         logging: {},
@@ -295,7 +295,7 @@ export function McpAppRenderer({
         });
       }
     } catch (err) {
-      console.error("[Continue] Failed to connect bridge to MCP App UI:", err);
+      console.error("[Qivryn] Failed to connect bridge to MCP App UI:", err);
       setError(err instanceof Error ? err : new Error(String(err)));
     }
   }, [html, csp, permissions]);
@@ -415,7 +415,7 @@ ${html}
               onClick={() => setPermissionWarningDismissed(true)}
               className="bg-primary text-primary-foreground hover:bg-primary-hover cursor-pointer rounded border-none px-4 py-2 text-xs font-medium"
             >
-              Continue Anyway
+              Qivryn Anyway
             </button>
           </div>
         </div>

@@ -1,7 +1,7 @@
 import { createAsyncThunk, unwrapResult } from "@reduxjs/toolkit";
 import { ContextItem, McpUiState } from "core";
 import { CLIENT_TOOLS_IMPLS } from "core/tools/builtIn";
-import { ContinueError, ContinueErrorReason } from "core/util/errors";
+import { QivrynError, QivrynErrorReason } from "core/util/errors";
 
 import { callClientTool } from "../../util/clientTools/callClientTool";
 import { selectSelectedChatModel } from "../slices/configSlice";
@@ -48,7 +48,7 @@ export const callToolById = createAsyncThunk<
 
   let output: ContextItem[] | undefined = undefined;
   let mcpUiState: McpUiState | undefined = undefined;
-  let error: ContinueError | undefined = undefined;
+  let error: QivrynError | undefined = undefined;
   let streamResponse: boolean;
 
   // IMPORTANT:
@@ -85,8 +85,8 @@ export const callToolById = createAsyncThunk<
       output = result.content.contextItems;
       mcpUiState = result.content.mcpUiState;
       error = result.content.errorMessage
-        ? new ContinueError(
-            result.content.errorReason || ContinueErrorReason.Unspecified,
+        ? new QivrynError(
+            result.content.errorReason || QivrynErrorReason.Unspecified,
             result.content.errorMessage,
           )
         : undefined;

@@ -4,7 +4,7 @@ import {
   RuleObject,
   RuleType,
   getRuleType,
-} from "@continuedev/config-yaml";
+} from "@qivryn/config-yaml";
 import { Box, Text } from "ink";
 import React, { useMemo } from "react";
 

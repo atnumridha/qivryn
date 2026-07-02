@@ -1,0 +1,10 @@
+<idea-plugin>
+    <extensions defaultExtensionNs="JavaScript.JsonSchema">
+        <ProviderFactory
+                implementation="com.github.qivryn.qivrynintellijextension.qivryn.ConfigJsonSchemaProviderFactory"/>
+    </extensions>
+    <extensions defaultExtensionNs="JavaScript.JsonSchema">
+        <ProviderFactory
+                implementation="com.github.qivryn.qivrynintellijextension.qivryn.ConfigRcJsonSchemaProviderFactory"/>
+    </extensions>
+</idea-plugin>

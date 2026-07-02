@@ -1,7 +1,13 @@
 #!/usr/bin/env node
 
 import * as esbuild from "esbuild";
-import { chmodSync, copyFileSync, writeFileSync } from "fs";
+import {
+  chmodSync,
+  copyFileSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "fs";
 import { dirname, resolve } from "path";
 import { fileURLToPath } from "url";
 
@@ -20,6 +26,7 @@ const external = [
 ];
 
 console.log("Building CLI with esbuild...");
+rmSync(resolve(__dirname, "dist"), { recursive: true, force: true });
 
 // Plugin to handle optional react-devtools-core
 const optionalDevtoolsPlugin = {
@@ -51,47 +58,45 @@ try {
 
     // Handle TypeScript paths and local packages
     alias: {
-      "@continuedev/config-yaml": resolve(
+      "@qivryn/config-yaml": resolve(
         __dirname,
         "../../packages/config-yaml/dist/index.js",
       ),
-      "@continuedev/openai-adapters": resolve(
+      "@qivryn/openai-adapters": resolve(
         __dirname,
         "../../packages/openai-adapters/dist/index.js",
       ),
-      "@continuedev/config-types": resolve(
+      "@qivryn/config-types": resolve(
         __dirname,
         "../../packages/config-types/dist/index.js",
       ),
       core: resolve(__dirname, "../../core"),
-      "@continuedev/fetch": resolve(
-        __dirname,
-        "../../packages/fetch/dist/index.js",
-      ),
-      "@continuedev/llm-info": resolve(
+      "@qivryn/fetch": resolve(__dirname, "../../packages/fetch/dist/index.js"),
+      "@qivryn/llm-info": resolve(
         __dirname,
         "../../packages/llm-info/dist/index.js",
       ),
-      "@continuedev/terminal-security": resolve(
+      "@qivryn/terminal-security": resolve(
         __dirname,
         "../../packages/terminal-security/dist/index.js",
       ),
-      "@continuedev/agent-runtime": resolve(
+      "@qivryn/agent-runtime": resolve(
         __dirname,
         "../../packages/agent-runtime/dist/index.js",
       ),
-      "@continuedev/review-engine": resolve(
+      "@qivryn/review-engine": resolve(
         __dirname,
         "../../packages/review-engine/dist/index.js",
       ),
-      "@continuedev/browser-runtime": resolve(
+      "@qivryn/browser-runtime": resolve(
         __dirname,
         "../../packages/browser-runtime/dist/index.js",
       ),
-      "@continuedev/slack-connector": resolve(
+      "@qivryn/slack-connector": resolve(
         __dirname,
         "../../packages/slack-connector/dist/index.js",
       ),
+      "@qivryn/sdk": resolve(__dirname, "../../packages/qivryn-sdk/typescript"),
     },
 
     // Add banner to create require for CommonJS packages
@@ -107,8 +112,23 @@ const require = __createRequire(import.meta.url);`,
   // Create wrapper script with shebang that explicitly runs the CLI
   // Note: We must call runCli(); a plain dynamic import will not execute the CLI.
   writeFileSync(
-    "dist/cn.js",
+    "dist/qivryn.js",
     "#!/usr/bin/env node\nimport { runCli } from './index.js';\nawait runCli();\n",
+  );
+  const packageMetadata = JSON.parse(
+    readFileSync(resolve(__dirname, "package.json"), "utf8"),
+  );
+  writeFileSync(
+    "dist/package.json",
+    JSON.stringify(
+      {
+        name: packageMetadata.name,
+        version: packageMetadata.version,
+        type: "module",
+      },
+      null,
+      2,
+    ),
   );
   // Copy worker files needed by JSDOM
   const workerSource = resolve(
@@ -124,7 +144,7 @@ const require = __createRequire(import.meta.url);`,
   }
 
   // Make the wrapper script executable
-  chmodSync("dist/cn.js", 0o755);
+  chmodSync("dist/qivryn.js", 0o755);
 
   // Calculate bundle size
   const bundleSize = result.metafile.outputs["dist/index.js"].bytes;

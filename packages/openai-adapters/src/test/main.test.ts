@@ -1,4 +1,4 @@
-import { ModelConfig } from "@continuedev/config-yaml";
+import { ModelConfig } from "@qivryn/config-yaml";
 import * as dotenv from "dotenv";
 import { vi } from "vitest";
 import { BedrockApi } from "../apis/Bedrock.js";
@@ -174,7 +174,7 @@ const TESTS: Omit<ModelConfig & { options?: TestConfigOptions }, "name">[] = [
   {
     provider: "azure",
     model: "gpt-4.1",
-    apiBase: "https://continue-openai.openai.azure.com",
+    apiBase: "https://qivryn-openai.openai.azure.com",
     apiKey: process.env.AZURE_OPENAI_GPT41_API_KEY,
     roles: ["chat"],
     env: {

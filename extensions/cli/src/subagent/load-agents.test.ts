@@ -5,9 +5,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import { loadPortableSubagents } from "./load-agents.js";
 
 const temporary: string[] = [];
-const originalGlobalDir = process.env.CONTINUE_GLOBAL_DIR;
+const originalGlobalDir = process.env.QIVRYN_GLOBAL_DIR;
 afterEach(() => {
-  process.env.CONTINUE_GLOBAL_DIR = originalGlobalDir;
+  process.env.QIVRYN_GLOBAL_DIR = originalGlobalDir;
   for (const directory of temporary.splice(0))
     fs.rmSync(directory, { recursive: true });
 });
@@ -15,9 +15,9 @@ afterEach(() => {
 describe("loadPortableSubagents", () => {
   it("loads Cursor-compatible definitions with workspace precedence", () => {
     const cwd = fs.mkdtempSync(
-      path.join(os.tmpdir(), "continue-agent-workspace-"),
+      path.join(os.tmpdir(), "qivryn-agent-workspace-"),
     );
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), "continue-agent-home-"));
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), "qivryn-agent-home-"));
     temporary.push(cwd, home);
     fs.mkdirSync(path.join(cwd, ".cursor", "agents"), { recursive: true });
     fs.mkdirSync(path.join(home, ".cursor", "agents"), { recursive: true });
@@ -43,14 +43,14 @@ describe("loadPortableSubagents", () => {
 
   it("loads enabled managed-plugin agents and ignores disabled plugins", () => {
     const cwd = fs.mkdtempSync(
-      path.join(os.tmpdir(), "continue-agent-workspace-"),
+      path.join(os.tmpdir(), "qivryn-agent-workspace-"),
     );
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), "continue-agent-home-"));
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), "qivryn-agent-home-"));
     temporary.push(cwd, home);
-    const continueHome = path.join(home, ".continue-test");
-    process.env.CONTINUE_GLOBAL_DIR = continueHome;
+    const qivrynHome = path.join(home, ".qivryn-test");
+    process.env.QIVRYN_GLOBAL_DIR = qivrynHome;
     const installedPath = path.join(
-      continueHome,
+      qivrynHome,
       "plugins",
       "installed",
       "review-plugin",
@@ -71,7 +71,7 @@ describe("loadPortableSubagents", () => {
       path.join(installedPath, "agents", "plugin-review.md"),
       "---\nname: plugin-reviewer\n---\nReview from plugin.",
     );
-    const registryPath = path.join(continueHome, "plugins", "registry.json");
+    const registryPath = path.join(qivrynHome, "plugins", "registry.json");
     fs.mkdirSync(path.dirname(registryPath), { recursive: true });
     const writeRegistry = (enabled: boolean) =>
       fs.writeFileSync(
@@ -89,5 +89,29 @@ describe("loadPortableSubagents", () => {
 
     writeRegistry(false);
     expect(loadPortableSubagents(cwd, home)).toEqual([]);
+  });
+
+  it("does not scan dependency documentation as portable agents", () => {
+    const cwd = fs.mkdtempSync(
+      path.join(os.tmpdir(), "qivryn-agent-workspace-"),
+    );
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), "qivryn-agent-home-"));
+    temporary.push(cwd, home);
+    const agentsRoot = path.join(cwd, ".qivryn", "agents");
+    fs.mkdirSync(path.join(agentsRoot, "node_modules", "prettier"), {
+      recursive: true,
+    });
+    fs.writeFileSync(
+      path.join(agentsRoot, "review.md"),
+      "---\nname: reviewer\n---\nReview the repository.",
+    );
+    fs.writeFileSync(
+      path.join(agentsRoot, "node_modules", "prettier", "README.md"),
+      "# Prettier\n\n---\n\n**Documentation:** package documentation",
+    );
+
+    expect(loadPortableSubagents(cwd, home).map(({ name }) => name)).toEqual([
+      "reviewer",
+    ]);
   });
 });

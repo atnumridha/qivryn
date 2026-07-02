@@ -1,4 +1,4 @@
-import type { BrowserSession } from "@continuedev/agent-runtime";
+import type { BrowserSession } from "@qivryn/agent-runtime";
 import { screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { MockIdeMessenger } from "../../context/MockIdeMessenger";

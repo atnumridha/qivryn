@@ -83,9 +83,8 @@ vi.mock("../auth/workos.js", () => ({
 }));
 
 // Mock the config-yaml package
-vi.mock("@continuedev/config-yaml", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@continuedev/config-yaml")>();
+vi.mock("@qivryn/config-yaml", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@qivryn/config-yaml")>();
   return {
     ...actual,
   };
@@ -515,11 +514,10 @@ You are a helpful agent`;
       it("should load from hub when slug has valid two-part format", async () => {
         mockLoadPackageFromHub.mockResolvedValue(mockAgentFile);
 
-        const result =
-          await agentFileService.getAgentFile("continue/dev-agent");
+        const result = await agentFileService.getAgentFile("qivryn/dev-agent");
 
         expect(mockLoadPackageFromHub).toHaveBeenCalledWith(
-          "continue/dev-agent",
+          "qivryn/dev-agent",
           expect.any(Object),
         );
         expect(result).toEqual(mockAgentFile);

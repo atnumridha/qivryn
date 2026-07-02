@@ -19,7 +19,7 @@ const DUD_PROMPT_LOG: PromptLog = {
   completion: "",
 };
 
-const RECURSIVE_PROMPT = `Continue EXACTLY where you left`;
+const RECURSIVE_PROMPT = `Qivryn EXACTLY where you left`;
 
 export async function* recursiveStream(
   llm: ILLM,

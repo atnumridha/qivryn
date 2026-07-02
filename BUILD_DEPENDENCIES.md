@@ -1,6 +1,6 @@
 # Build Dependencies & Secrets
 
-This document catalogs all build dependencies, secrets, and environment variables required by the continue-fork repository.
+This document catalogs all build dependencies, secrets, and environment variables required by the qivryn-fork repository.
 
 ---
 
@@ -30,10 +30,10 @@ This document catalogs all build dependencies, secrets, and environment variable
 
 ## CLI
 
-| Variable            | Purpose                                                                 | Referenced In                                                                                      |
-| ------------------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `CONTINUE_API_BASE` | Base URL for the Continue API (defaults to `https://api.continue.dev/`) | `extensions/cli/.env.example`                                                                      |
-| `CONTINUE_API_KEY`  | API key for Continue authentication                                     | `extensions/cli/.env.example`, `packages/continue-sdk/typescript/.env.example`, multiple workflows |
+| Variable          | Purpose                                                            | Referenced In                                                                                    |
+| ----------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `QIVRYN_API_BASE` | Base URL for the Qivryn API (defaults to `https://api.qivryn.ai/`) | `extensions/cli/.env.example`                                                                    |
+| `QIVRYN_API_KEY`  | API key for Qivryn authentication                                  | `extensions/cli/.env.example`, `packages/qivryn-sdk/typescript/.env.example`, multiple workflows |
 
 ---
 
@@ -51,31 +51,31 @@ This document catalogs all build dependencies, secrets, and environment variable
 
 Used for integration tests in PR checks and package releases.
 
-| Secret                                | Purpose                                | Referenced In                                                                                         |
-| ------------------------------------- | -------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `OPENAI_API_KEY`                      | OpenAI API key                         | `pr-checks.yaml`, `reusable-release.yml`, `release-*.yml`                                             |
-| `ANTHROPIC_API_KEY`                   | Anthropic API key                      | `pr-checks.yaml`, `reusable-release.yml`, `release-*.yml`, `cli-pr-checks.yml`, `continue-agents.yml` |
-| `GEMINI_API_KEY`                      | Google Gemini API key                  | `pr-checks.yaml`, `reusable-release.yml`, `release-*.yml`                                             |
-| `MISTRAL_API_KEY`                     | Mistral API key                        | `pr-checks.yaml`, `reusable-release.yml`, `release-*.yml`                                             |
-| `AZURE_OPENAI_API_KEY`                | Azure OpenAI API key                   | `pr-checks.yaml`, `reusable-release.yml`, `release-*.yml`                                             |
-| `AZURE_FOUNDRY_CODESTRAL_API_KEY`     | Azure AI Foundry Codestral API key     | `pr-checks.yaml`, `reusable-release.yml`, `release-*.yml`                                             |
-| `AZURE_FOUNDRY_MISTRAL_SMALL_API_KEY` | Azure AI Foundry Mistral Small API key | `pr-checks.yaml`, `reusable-release.yml`, `release-*.yml`                                             |
-| `AZURE_OPENAI_GPT41_API_KEY`          | Azure OpenAI GPT-4.1 API key           | `pr-checks.yaml`, `reusable-release.yml`, `release-*.yml`                                             |
-| `VOYAGE_API_KEY`                      | Voyage AI embeddings API key           | `pr-checks.yaml`, `reusable-release.yml`, `release-*.yml`                                             |
-| `RELACE_API_KEY`                      | Relace API key                         | `pr-checks.yaml`, `reusable-release.yml`, `release-*.yml`                                             |
-| `INCEPTION_API_KEY`                   | Inception API key                      | `pr-checks.yaml`, `reusable-release.yml`, `release-*.yml`                                             |
+| Secret                                | Purpose                                | Referenced In                                                                                       |
+| ------------------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `OPENAI_API_KEY`                      | OpenAI API key                         | `pr-checks.yaml`, `reusable-release.yml`, `release-*.yml`                                           |
+| `ANTHROPIC_API_KEY`                   | Anthropic API key                      | `pr-checks.yaml`, `reusable-release.yml`, `release-*.yml`, `cli-pr-checks.yml`, `qivryn-agents.yml` |
+| `GEMINI_API_KEY`                      | Google Gemini API key                  | `pr-checks.yaml`, `reusable-release.yml`, `release-*.yml`                                           |
+| `MISTRAL_API_KEY`                     | Mistral API key                        | `pr-checks.yaml`, `reusable-release.yml`, `release-*.yml`                                           |
+| `AZURE_OPENAI_API_KEY`                | Azure OpenAI API key                   | `pr-checks.yaml`, `reusable-release.yml`, `release-*.yml`                                           |
+| `AZURE_FOUNDRY_CODESTRAL_API_KEY`     | Azure AI Foundry Codestral API key     | `pr-checks.yaml`, `reusable-release.yml`, `release-*.yml`                                           |
+| `AZURE_FOUNDRY_MISTRAL_SMALL_API_KEY` | Azure AI Foundry Mistral Small API key | `pr-checks.yaml`, `reusable-release.yml`, `release-*.yml`                                           |
+| `AZURE_OPENAI_GPT41_API_KEY`          | Azure OpenAI GPT-4.1 API key           | `pr-checks.yaml`, `reusable-release.yml`, `release-*.yml`                                           |
+| `VOYAGE_API_KEY`                      | Voyage AI embeddings API key           | `pr-checks.yaml`, `reusable-release.yml`, `release-*.yml`                                           |
+| `RELACE_API_KEY`                      | Relace API key                         | `pr-checks.yaml`, `reusable-release.yml`, `release-*.yml`                                           |
+| `INCEPTION_API_KEY`                   | Inception API key                      | `pr-checks.yaml`, `reusable-release.yml`, `release-*.yml`                                           |
 
 ---
 
 ## CI/CD & GitHub
 
-| Secret             | Purpose                                                         | Referenced In                                                                                                         |
-| ------------------ | --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `GITHUB_TOKEN`     | Default GitHub Actions token (automatic)                        | Many workflows                                                                                                        |
-| `CI_GITHUB_TOKEN`  | Elevated GitHub PAT for cross-repo operations and PR management | `jetbrains-release.yaml`, `preview.yaml`, `main.yaml`, `pr-checks.yaml`, `auto-assign-issue.yaml`                     |
-| `CONTINUE_API_KEY` | Continue platform API key for agent workflows                   | `run-continue-agent.yml`, `tidy-up-codebase.yml`, `snyk-agent.yaml`, `auto-fix-failed-tests.yml`, `cli-pr-checks.yml` |
-| `RUNLOOP_API_KEY`  | Runloop API key for uploading sandbox blueprints                | `stable-release.yml`, `upload-runloop-blueprint.yml`                                                                  |
-| `SNYK_TOKEN`       | Snyk security scanning token                                    | `snyk-agent.yaml`                                                                                                     |
+| Secret            | Purpose                                                         | Referenced In                                                                                                       |
+| ----------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `GITHUB_TOKEN`    | Default GitHub Actions token (automatic)                        | Many workflows                                                                                                      |
+| `CI_GITHUB_TOKEN` | Elevated GitHub PAT for cross-repo operations and PR management | `jetbrains-release.yaml`, `preview.yaml`, `main.yaml`, `pr-checks.yaml`, `auto-assign-issue.yaml`                   |
+| `QIVRYN_API_KEY`  | Qivryn platform API key for agent workflows                     | `run-qivryn-agent.yml`, `tidy-up-codebase.yml`, `snyk-agent.yaml`, `auto-fix-failed-tests.yml`, `cli-pr-checks.yml` |
+| `RUNLOOP_API_KEY` | Runloop API key for uploading sandbox blueprints                | `stable-release.yml`, `upload-runloop-blueprint.yml`                                                                |
+| `SNYK_TOKEN`      | Snyk security scanning token                                    | `snyk-agent.yaml`                                                                                                   |
 
 ---
 
@@ -102,4 +102,4 @@ Used for integration tests in PR checks and package releases.
 All workflow files are located under `.github/workflows/`. Environment example files are at:
 
 - `extensions/cli/.env.example`
-- `packages/continue-sdk/typescript/.env.example`
+- `packages/qivryn-sdk/typescript/.env.example`

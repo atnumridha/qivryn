@@ -7,16 +7,23 @@ import node_machine_id from "node-machine-id";
 import { logger } from "./util/logger.js";
 
 export function getVersion(): string {
-  try {
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = dirname(__filename);
-    const packageJsonPath = join(__dirname, "../package.json");
-    const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
-    return packageJson.version;
-  } catch {
-    console.warn("Warning: Could not read version from package.json");
-    return "unknown";
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+  for (const packageJsonPath of [
+    join(__dirname, "package.json"),
+    join(__dirname, "../package.json"),
+  ]) {
+    try {
+      const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
+      if (typeof packageJson.version === "string") {
+        return packageJson.version;
+      }
+    } catch {
+      // Try the next package boundary. Bundled VSIX and npm layouts differ.
+    }
   }
+  console.warn("Warning: Could not read version from package.json");
+  return "unknown";
 }
 
 function getEventUserId(): string {
@@ -39,7 +46,7 @@ export async function getLatestVersion(
     try {
       const id = getEventUserId();
       const response = await fetch(
-        `https://api.continue.dev/cn/info?id=${encodeURIComponent(id)}`,
+        `https://api.qivryn.ai/qivryn/info?id=${encodeURIComponent(id)}`,
         { signal },
       );
       if (!response.ok) {
@@ -53,7 +60,7 @@ export async function getLatestVersion(
         return null;
       }
       logger?.debug(
-        "Warning: Could not fetch latest version from api.continue.dev",
+        "Warning: Could not fetch latest version from api.qivryn.ai",
       );
       return null;
     }
@@ -70,7 +77,7 @@ getLatestVersion()
   })
   .catch((error) => {
     logger?.debug(
-      `Warning: Could not fetch latest version from api.continue.dev: ${error}`,
+      `Warning: Could not fetch latest version from api.qivryn.ai: ${error}`,
     );
   });
 

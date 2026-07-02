@@ -1,4 +1,4 @@
-import { ShadowWorkspaceValidator } from "@continuedev/agent-runtime";
+import { ShadowWorkspaceValidator } from "@qivryn/agent-runtime";
 
 export async function shadowCheck(
   command: string,

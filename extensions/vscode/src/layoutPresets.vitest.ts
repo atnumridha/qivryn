@@ -6,7 +6,7 @@ import {
   saveCustomLayout,
 } from "./layoutPresets";
 
-describe("Continue layouts", () => {
+describe("Qivryn layouts", () => {
   it("ships every required built-in layout", () => {
     expect(BUILT_IN_LAYOUTS.map((layout) => layout.builtIn)).toEqual([
       "agent",

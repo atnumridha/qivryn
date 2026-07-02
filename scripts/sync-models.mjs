@@ -2,14 +2,14 @@
 /**
  * sync-models.mjs
  *
- * Fetches live models from both backends and writes ~/.continue/config.yaml.
+ * Fetches live models from both backends and writes ~/.qivryn/config.yaml.
  *
  * For models that support reasoning levels, ONE ENTRY PER REASONING LEVEL is
- * generated so the user can switch reasoning directly from Continue's model
+ * generated so the user can switch reasoning directly from Qivryn's model
  * picker (e.g. "Codex: GPT-5.6-Sol (high)" vs "Codex: GPT-5.6-Sol (max)").
  *
- * Run:  node ~/Documents/continue/scripts/sync-models.mjs
- * Auto: called by setup-continue-providers.sh on every invocation
+ * Run:  node ~/Documents/qivryn/scripts/sync-models.mjs
+ * Auto: called by setup-qivryn-providers.sh on every invocation
  */
 
 import fs from "fs";
@@ -21,14 +21,14 @@ import * as YAML from "yaml";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const CODEX_DIR          = path.join(os.homedir(), ".codex");
-const CONTINUE_DIR       = path.join(os.homedir(), ".continue");
+const QIVRYN_DIR       = path.join(os.homedir(), ".qivryn");
 const COPILOT_AUTH_FILE  = path.join(CODEX_DIR, "copilot-auth.json");
 const CHATGPT_AUTH_FILE  = path.join(CODEX_DIR, "auth.json");
 const INSTALL_ID_FILE    = path.join(CODEX_DIR, "installation_id");
 const MODELS_CACHE_FILE  = path.join(CODEX_DIR, "models_cache.json");
-const CONFIG_SRC         = path.join(__dirname, "..", ".continue-config", "config.yaml");
-const CONFIG_DST         = path.join(CONTINUE_DIR, "config.yaml");
-const GLOBAL_CTX_FILE    = path.join(CONTINUE_DIR, "index", "globalContext.json");
+const CONFIG_SRC         = path.join(__dirname, "..", ".qivryn-config", "config.yaml");
+const CONFIG_DST         = path.join(QIVRYN_DIR, "config.yaml");
+const GLOBAL_CTX_FILE    = path.join(QIVRYN_DIR, "index", "globalContext.json");
 
 // Reasoning level labels shown in the model picker
 const REASONING_LABELS = {
@@ -94,7 +94,7 @@ async function fetchCopilotModels() {
   if (!token) { log("No Copilot token — skipping"); return []; }
   const base = (auth.capiBase || auth.capi_base || auth.endpoints?.api || "https://api.githubcopilot.com").replace(/\/+$/, "");
   const editorVersion = auth.editor_version || auth.editorVersion || "vscode/unknown";
-  const pluginVersion = auth.editor_plugin_version || auth.editorPluginVersion || "copilot-chat/continue";
+  const pluginVersion = auth.editor_plugin_version || auth.editorPluginVersion || "copilot-chat/qivryn";
   try {
     const res = await fetch(`${base}/models`, {
       headers: {
@@ -296,7 +296,7 @@ function writeConfig(models) {
   let base;
   try { base = YAML.parse(fs.readFileSync(CONFIG_DST, "utf8")); } catch { base = {}; }
 
-  base.name    = "Continue — ChatGPT Codex, Copilot, OCA (auto-synced)";
+  base.name    = "Qivryn — ChatGPT Codex, Copilot, OCA (auto-synced)";
   base.version = "1.0.0";
   base.schema  = "v1";
   base.models  = models.map(m => Object.fromEntries(Object.entries(m).filter(([, v]) => v !== undefined)));
@@ -311,7 +311,7 @@ function writeConfig(models) {
   if (!base.env) base.env = ["OCA_API_KEY"];
 
   const yaml = YAML.stringify(base, { lineWidth: 140, defaultKeyType: "PLAIN", defaultStringType: "QUOTE_DOUBLE" });
-  fs.mkdirSync(CONTINUE_DIR, { recursive: true });
+  fs.mkdirSync(QIVRYN_DIR, { recursive: true });
   fs.writeFileSync(CONFIG_DST, yaml);
   try { fs.mkdirSync(path.dirname(CONFIG_SRC), { recursive: true }); fs.writeFileSync(CONFIG_SRC, yaml); } catch { /* ok */ }
 }

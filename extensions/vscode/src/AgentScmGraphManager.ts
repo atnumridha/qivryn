@@ -1,5 +1,5 @@
-import { FileAgentStore } from "@continuedev/agent-runtime";
-import { getContinueGlobalPath } from "core/util/paths";
+import { FileAgentStore } from "@qivryn/agent-runtime";
+import { getQivrynGlobalPath } from "core/util/paths";
 import path from "node:path";
 import * as vscode from "vscode";
 import { activeAgentWorktrees } from "./agentScmPolicy";
@@ -7,7 +7,7 @@ import type { GitExtension } from "./otherExtensions/git";
 
 export class AgentScmGraphManager implements vscode.Disposable {
   private readonly store = new FileAgentStore(
-    path.join(getContinueGlobalPath(), "agents"),
+    path.join(getQivrynGlobalPath(), "agents"),
   );
   private readonly opened = new Set<string>();
   private readonly timer: NodeJS.Timeout;
@@ -31,7 +31,7 @@ export class AgentScmGraphManager implements vscode.Disposable {
     try {
       await this.refresh();
     } catch (error) {
-      console.warn("Failed to refresh Continue agent repositories", error);
+      console.warn("Failed to refresh Qivryn agent repositories", error);
     }
   }
 
@@ -54,7 +54,7 @@ export class AgentScmGraphManager implements vscode.Disposable {
     }
     await vscode.commands.executeCommand(
       "setContext",
-      "continue.hasAgentRepositories",
+      "qivryn.hasAgentRepositories",
       this.opened.size > 0,
     );
   }

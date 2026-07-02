@@ -1,4 +1,4 @@
-import { ToolPolicy } from "@continuedev/terminal-security";
+import { ToolPolicy } from "@qivryn/terminal-security";
 import { Tool, ToolCallState } from "core";
 import { IIdeMessenger } from "../../context/IdeMessenger";
 import { isEditTool } from "../../util/toolCallState";
@@ -46,7 +46,7 @@ async function evaluateToolPolicy(
     };
   }
 
-  // Full access bypasses Continue approval and command classification. OS-level
+  // Full access bypasses Qivryn approval and command classification. OS-level
   // permissions still apply to the extension host process.
   if (accessMode === "fullAccess") {
     return { policy: "allowedWithoutPermission", toolCallState };

@@ -1,7 +1,7 @@
 import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
 import { ContextItem, McpUiState, Tool, ToolCall, ToolExtras } from "..";
 import { MCPManagerSingleton } from "../context/mcp/MCPManagerSingleton";
-import { ContinueError, ContinueErrorReason } from "../util/errors";
+import { QivrynError, QivrynErrorReason } from "../util/errors";
 import { canParseUrl } from "../util/url";
 import { BuiltInToolNames } from "./builtIn";
 
@@ -256,7 +256,7 @@ export async function callTool(
 ): Promise<{
   contextItems: ContextItem[];
   errorMessage: string | undefined;
-  errorReason?: ContinueErrorReason;
+  errorReason?: QivrynErrorReason;
   mcpUiState?: McpUiState;
 }> {
   try {
@@ -279,9 +279,9 @@ export async function callTool(
     };
   } catch (e) {
     let errorMessage = `${e}`;
-    let errorReason: ContinueErrorReason | undefined;
+    let errorReason: QivrynErrorReason | undefined;
 
-    if (e instanceof ContinueError) {
+    if (e instanceof QivrynError) {
       errorMessage = e.message;
       errorReason = e.reason;
     } else if (e instanceof Error) {

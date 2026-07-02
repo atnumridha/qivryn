@@ -1,4 +1,4 @@
-import { Prompt } from "@continuedev/config-yaml";
+import { Prompt } from "@qivryn/config-yaml";
 import { SlashCommandWithSource } from "../..";
 
 export function convertPromptBlockToSlashCommand(

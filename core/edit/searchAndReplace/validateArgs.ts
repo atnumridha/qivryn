@@ -1,5 +1,5 @@
 import { IDE } from "../..";
-import { ContinueError, ContinueErrorReason } from "../../util/errors";
+import { QivrynError, QivrynErrorReason } from "../../util/errors";
 import { resolveRelativePathInDir } from "../../util/ideUtils";
 
 export async function validateSearchAndReplaceFilepath(
@@ -7,15 +7,15 @@ export async function validateSearchAndReplaceFilepath(
   ide: IDE,
 ) {
   if (!filepath || typeof filepath !== "string") {
-    throw new ContinueError(
-      ContinueErrorReason.FindAndReplaceMissingFilepath,
+    throw new QivrynError(
+      QivrynErrorReason.FindAndReplaceMissingFilepath,
       "filepath (string) is required",
     );
   }
   const resolvedFilepath = await resolveRelativePathInDir(filepath, ide);
   if (!resolvedFilepath) {
-    throw new ContinueError(
-      ContinueErrorReason.FileNotFound,
+    throw new QivrynError(
+      QivrynErrorReason.FileNotFound,
       `File ${filepath} does not exist`,
     );
   }

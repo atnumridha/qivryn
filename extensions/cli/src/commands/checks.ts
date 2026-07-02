@@ -272,12 +272,12 @@ async function rejectChecks(prUrl: string): Promise<void> {
 }
 
 /**
- * Main entry point for `cn checks` command.
+ * Main entry point for `qivryn checks` command.
  *
  * Usage:
- *   cn checks [pr-url]              - List checks with diffs
- *   cn checks accept [pr-url]       - Accept pending suggestions
- *   cn checks reject [pr-url]       - Reject pending suggestions
+ *   qivryn checks [pr-url]              - List checks with diffs
+ *   qivryn checks accept [pr-url]       - Accept pending suggestions
+ *   qivryn checks reject [pr-url]       - Reject pending suggestions
  */
 export async function checks(
   actionOrUrl: string | undefined,

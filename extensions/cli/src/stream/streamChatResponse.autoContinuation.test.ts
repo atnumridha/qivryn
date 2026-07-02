@@ -1,5 +1,5 @@
-import { ModelConfig } from "@continuedev/config-yaml";
-import { BaseLlmApi } from "@continuedev/openai-adapters";
+import { ModelConfig } from "@qivryn/config-yaml";
+import { BaseLlmApi } from "@qivryn/openai-adapters";
 import type { ChatHistoryItem } from "core/index.js";
 import { convertToUnifiedHistory } from "core/util/messageConversion.js";
 import type { ChatCompletionChunk } from "openai/resources/chat/completions.mjs";
@@ -172,9 +172,7 @@ describe("streamChatResponse - auto-continuation after compaction", () => {
     expect(onSystemMessage).toHaveBeenCalledWith(
       expect.stringContaining("retrying automatically"),
     );
-    expect(services.chatHistory.addUserMessage).toHaveBeenCalledWith(
-      "continue",
-    );
+    expect(services.chatHistory.addUserMessage).toHaveBeenCalledWith("qivryn");
     expect(response).toContain("Recovered");
   });
 
@@ -206,7 +204,7 @@ describe("streamChatResponse - auto-continuation after compaction", () => {
       });
     });
 
-    // Simulate: first response completes (no tool calls), triggering auto-continue
+    // Simulate: first response completes (no tool calls), triggering auto-qivryn
     let callCount = 0;
     mockLlmApi.chatCompletionStream = vi
       .fn()
@@ -228,8 +226,8 @@ describe("streamChatResponse - auto-continuation after compaction", () => {
       mockAbortController,
     );
 
-    // Verify "continue" message was added
-    expect(historyUpdates).toContain("continue");
+    // Verify "qivryn" message was added
+    expect(historyUpdates).toContain("qivryn");
 
     // Verify logging occurred
     expect(logger.debug).toHaveBeenCalledWith(
@@ -243,7 +241,7 @@ describe("streamChatResponse - auto-continuation after compaction", () => {
     expect(callCount).toBeGreaterThan(1);
   });
 
-  it("should not auto-continue if compaction occurs with tool calls pending", async () => {
+  it("should not auto-qivryn if compaction occurs with tool calls pending", async () => {
     const { services } = await import("../services/index.js");
     const { handleNormalAutoCompaction } = await import(
       "./streamChatResponse.compactionHelpers.js"
@@ -307,8 +305,8 @@ describe("streamChatResponse - auto-continuation after compaction", () => {
       mockAbortController,
     );
 
-    // Should NOT auto-continue because tool calls are pending
-    expect(historyUpdates).not.toContain("continue");
+    // Should NOT auto-qivryn because tool calls are pending
+    expect(historyUpdates).not.toContain("qivryn");
   });
 
   it("should not create infinite loops - flag is reset after continuation", async () => {
@@ -352,12 +350,10 @@ describe("streamChatResponse - auto-continuation after compaction", () => {
       mockAbortController,
     );
 
-    // Should only add "continue" once
+    // Should only add "qivryn" once
     // The flag is reset after the first continuation
-    const continueCount = historyUpdates.filter(
-      (msg) => msg === "continue",
-    ).length;
-    expect(continueCount).toBeLessThanOrEqual(1);
+    const qivrynCount = historyUpdates.filter((msg) => msg === "qivryn").length;
+    expect(qivrynCount).toBeLessThanOrEqual(1);
 
     // Should have called the LLM at least once
     expect(streamCallCount).toBeGreaterThanOrEqual(1);

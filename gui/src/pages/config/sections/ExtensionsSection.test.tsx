@@ -5,7 +5,7 @@ import { renderWithProviders } from "../../../util/test/render";
 import { ExtensionsSection } from "./ExtensionsSection";
 
 afterEach(() => {
-  window.localStorage.removeItem("continue.skills.catalog.v2");
+  window.localStorage.removeItem("qivryn.skills.catalog.v2");
 });
 
 const plugin = {
@@ -14,10 +14,10 @@ const plugin = {
   displayName: "Release Tools",
   version: "1.0.0",
   description: "Release workflow skills",
-  developerName: "Continue",
+  developerName: "Qivryn",
   enabled: true,
   sourcePath: "/plugins/release-tools",
-  installedPath: "/home/.continue/plugins/installed/release-tools",
+  installedPath: "/home/.qivryn/plugins/installed/release-tools",
   installedAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-01T00:00:00.000Z",
   contributions: { skills: 2, rules: 0, agents: 0, mcp: 0 },
@@ -89,10 +89,9 @@ describe("ExtensionsSection", () => {
       saved = request;
       return {
         ...request,
-        path: ".continue/skills/release-review/SKILL.md",
-        sourceFile:
-          "file:///workspace/.continue/skills/release-review/SKILL.md",
-        provenance: "Continue",
+        path: ".qivryn/skills/release-review/SKILL.md",
+        sourceFile: "file:///workspace/.qivryn/skills/release-review/SKILL.md",
+        provenance: "Qivryn",
         readOnly: false,
         files: [],
       };

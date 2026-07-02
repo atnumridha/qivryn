@@ -49,7 +49,7 @@ describe("registerConfigYamlSchema", () => {
       "schemas",
       {
         "file:///old-schema.json": ["old/**/*.yaml"],
-        "file:///extension/config-yaml-schema.json": [".continue/**/*.yaml"],
+        "file:///extension/config-yaml-schema.json": [".qivryn/**/*.yaml"],
       },
       vscode.ConfigurationTarget.Global,
     );

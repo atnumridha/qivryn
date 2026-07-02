@@ -6,7 +6,12 @@ import dotenv from "dotenv";
 dotenv.config();
 
 export const env = {
-  apiBase: process.env.CONTINUE_API_BASE ?? "https://api.continue.dev/",
-  continueHome:
-    process.env.CONTINUE_GLOBAL_DIR || path.join(os.homedir(), ".continue"),
+  apiBase:
+    process.env.QIVRYN_API_BASE ??
+    process.env.CONTINUE_API_BASE ??
+    "https://api.qivryn.ai/",
+  qivrynHome:
+    process.env.QIVRYN_GLOBAL_DIR ||
+    process.env.CONTINUE_GLOBAL_DIR ||
+    path.join(os.homedir(), ".qivryn"),
 };

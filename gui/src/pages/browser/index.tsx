@@ -1,9 +1,9 @@
-import type { BrowserEvent, BrowserSession } from "@continuedev/agent-runtime";
+import type { BrowserEvent, BrowserSession } from "@qivryn/agent-runtime";
 import type {
   BrowserActionRequest,
   BrowserPermissionGrant,
   BrowserScreenshot,
-} from "@continuedev/browser-runtime";
+} from "@qivryn/browser-runtime";
 import {
   ArrowLeftIcon,
   ArrowPathIcon,

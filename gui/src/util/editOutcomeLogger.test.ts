@@ -1,8 +1,4 @@
-import {
-  ApplyState,
-  BrowserSerializedContinueConfig,
-  ToolCallState,
-} from "core";
+import { ApplyState, BrowserSerializedQivrynConfig, ToolCallState } from "core";
 import { describe, expect, it, vi } from "vitest";
 import { EMPTY_CONFIG } from "../redux/slices/configSlice";
 import { assembleEditOutcomeData } from "./editOutcomeLogger";
@@ -22,7 +18,7 @@ vi.mock("../redux/store", () => ({
   },
 }));
 
-const EMPTY_CONFIG_WITH_TEST_MODEL_SELECTED: BrowserSerializedContinueConfig = {
+const EMPTY_CONFIG_WITH_TEST_MODEL_SELECTED: BrowserSerializedQivrynConfig = {
   ...EMPTY_CONFIG,
   selectedModelByRole: {
     ...EMPTY_CONFIG.selectedModelByRole,

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { BrowserEvent, BrowserSession } from "@continuedev/agent-runtime";
+import type { BrowserEvent, BrowserSession } from "@qivryn/agent-runtime";
 import type {
   BrowserActor,
   BrowserAdapter,

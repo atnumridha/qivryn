@@ -8,15 +8,15 @@ import {
   ConfigValidationError,
   mergeConfigYamlRequestOptions,
   ModelRole,
-} from "@continuedev/config-yaml";
+} from "@qivryn/config-yaml";
 import * as JSONC from "comment-json";
 
 import {
-  BrowserSerializedContinueConfig,
+  BrowserSerializedQivrynConfig,
   Config,
   ContextProviderWithParams,
-  ContinueConfig,
-  ContinueRcJson,
+  QivrynConfig,
+  QivrynRcJson,
   CustomContextProvider,
   EmbeddingsProviderDescription,
   IDE,
@@ -29,7 +29,7 @@ import {
   LLMOptions,
   ModelDescription,
   RerankerDescription,
-  SerializedContinueConfig,
+  SerializedQivrynConfig,
   SlashCommandWithSource,
 } from "..";
 import { getLegacyBuiltInSlashCommandFromDescription } from "../commands/slash/built-in-legacy";
@@ -52,7 +52,7 @@ import {
   getConfigJsPath,
   getConfigJsPathForRemote,
   getConfigTsPath,
-  getContinueDotEnv,
+  getQivrynDotEnv,
   getEsbuildBinaryPath,
 } from "../util/paths";
 import { localPathToUri } from "../util/pathToUri";
@@ -73,13 +73,13 @@ import { validateConfig } from "./validation.js";
 
 export function resolveSerializedConfig(
   filepath: string,
-): SerializedContinueConfig {
+): SerializedQivrynConfig {
   let content = fs.readFileSync(filepath, "utf8");
-  const config = JSONC.parse(content) as unknown as SerializedContinueConfig;
+  const config = JSONC.parse(content) as unknown as SerializedQivrynConfig;
   if (config.env && Array.isArray(config.env)) {
     const env = {
       ...process.env,
-      ...getContinueDotEnv(),
+      ...getQivrynDotEnv(),
     };
 
     config.env.forEach((envVar) => {
@@ -92,7 +92,7 @@ export function resolveSerializedConfig(
     });
   }
 
-  return JSONC.parse(content) as unknown as SerializedContinueConfig;
+  return JSONC.parse(content) as unknown as SerializedQivrynConfig;
 }
 
 const configMergeKeys = {
@@ -110,13 +110,13 @@ const configMergeKeys = {
 };
 
 function loadSerializedConfig(
-  workspaceConfigs: ContinueRcJson[],
+  workspaceConfigs: QivrynRcJson[],
   ideSettings: IdeSettings,
   ideType: IdeType,
-  overrideConfigJson: SerializedContinueConfig | undefined,
+  overrideConfigJson: SerializedQivrynConfig | undefined,
   ide: IDE,
-): ConfigResult<SerializedContinueConfig> {
-  let config: SerializedContinueConfig = overrideConfigJson!;
+): ConfigResult<SerializedQivrynConfig> {
+  let config: SerializedQivrynConfig = overrideConfigJson!;
   if (!config) {
     try {
       config = resolveSerializedConfig(getConfigJsonPath());
@@ -167,7 +167,7 @@ function loadSerializedConfig(
 }
 
 async function serializedToIntermediateConfig(
-  initial: SerializedContinueConfig,
+  initial: SerializedQivrynConfig,
   ide: IDE,
 ): Promise<Config> {
   // DEPRECATED - load custom slash commands
@@ -247,7 +247,7 @@ async function intermediateToFinalConfig({
   uniqueId: string;
   llmLogger: ILLMLogger;
   loadPromptFiles?: boolean;
-}): Promise<{ config: ContinueConfig; errors: ConfigValidationError[] }> {
+}): Promise<{ config: QivrynConfig; errors: ConfigValidationError[] }> {
   const errors: ConfigValidationError[] = [];
   const workspaceDirs = await ide.getWorkspaceDirs();
   const getUriFromPath = (path: string) => {
@@ -470,7 +470,7 @@ async function intermediateToFinalConfig({
   }
   const newReranker = getRerankingILLM(config.reranker);
 
-  const continueConfig: ContinueConfig = {
+  const qivrynConfig: QivrynConfig = {
     ...config,
     contextProviders,
     tools: getBaseToolDefinitions(),
@@ -501,9 +501,9 @@ async function intermediateToFinalConfig({
 
   for (const cmd of config.slashCommands ?? []) {
     if ("source" in cmd) {
-      continueConfig.slashCommands.push(cmd);
+      qivrynConfig.slashCommands.push(cmd);
     } else {
-      continueConfig.slashCommands.push({
+      qivrynConfig.slashCommands.push({
         ...cmd,
         source: "config-ts-slash-command",
       });
@@ -511,7 +511,7 @@ async function intermediateToFinalConfig({
   }
 
   if (config.systemMessage) {
-    continueConfig.rules.unshift({
+    qivrynConfig.rules.unshift({
       rule: config.systemMessage,
       source: "json-systemMessage",
     });
@@ -524,7 +524,7 @@ async function intermediateToFinalConfig({
     const mcpOptions: InternalMcpOptions[] = (
       config.experimental?.modelContextProtocolServers ?? []
     ).map((server, index) => ({
-      id: `continue-mcp-server-${index + 1}`,
+      id: `qivryn-mcp-server-${index + 1}`,
       name: `MCP Server`,
       requestOptions: mergeConfigYamlRequestOptions(
         server.transport.type !== "stdio"
@@ -545,14 +545,14 @@ async function intermediateToFinalConfig({
   }
 
   // Handle experimental modelRole config values for apply and edit
-  const inlineEditModel = getModelByRole(continueConfig, "inlineEdit")?.title;
+  const inlineEditModel = getModelByRole(qivrynConfig, "inlineEdit")?.title;
   if (inlineEditModel) {
-    const match = continueConfig.modelsByRole.chat.find(
+    const match = qivrynConfig.modelsByRole.chat.find(
       (m) => m.title === inlineEditModel,
     );
     if (match) {
-      continueConfig.selectedModelByRole.edit = match;
-      continueConfig.modelsByRole.edit = [match]; // The only option if inlineEdit role is set
+      qivrynConfig.selectedModelByRole.edit = match;
+      qivrynConfig.modelsByRole.edit = [match]; // The only option if inlineEdit role is set
     } else {
       errors.push({
         fatal: false,
@@ -561,17 +561,14 @@ async function intermediateToFinalConfig({
     }
   }
 
-  const applyBlockModel = getModelByRole(
-    continueConfig,
-    "applyCodeBlock",
-  )?.title;
+  const applyBlockModel = getModelByRole(qivrynConfig, "applyCodeBlock")?.title;
   if (applyBlockModel) {
-    const match = continueConfig.modelsByRole.chat.find(
+    const match = qivrynConfig.modelsByRole.chat.find(
       (m) => m.title === applyBlockModel,
     );
     if (match) {
-      continueConfig.selectedModelByRole.apply = match;
-      continueConfig.modelsByRole.apply = [match]; // The only option if applyCodeBlock role is set
+      qivrynConfig.selectedModelByRole.apply = match;
+      qivrynConfig.modelsByRole.apply = [match]; // The only option if applyCodeBlock role is set
     } else {
       errors.push({
         fatal: false,
@@ -583,16 +580,16 @@ async function intermediateToFinalConfig({
   // Add transformers JS to the embed models list if not already added
   if (
     ideInfo.ideType === "vscode" &&
-    !continueConfig.modelsByRole.embed.find(
+    !qivrynConfig.modelsByRole.embed.find(
       (m) => m.providerName === "transformers.js",
     )
   ) {
-    continueConfig.modelsByRole.embed.push(
+    qivrynConfig.modelsByRole.embed.push(
       new TransformersJsEmbeddingsProvider(),
     );
   }
 
-  return { config: continueConfig, errors };
+  return { config: qivrynConfig, errors };
 }
 
 function llmToSerializedModelDescription(llm: ILLM): ModelDescription {
@@ -623,9 +620,9 @@ function llmToSerializedModelDescription(llm: ILLM): ModelDescription {
 }
 
 async function finalToBrowserConfig(
-  final: ContinueConfig,
+  final: QivrynConfig,
   ide: IDE,
-): Promise<BrowserSerializedContinueConfig> {
+): Promise<BrowserSerializedQivrynConfig> {
   return {
     allowAnonymousTelemetry: final.allowAnonymousTelemetry,
     completionOptions: final.completionOptions,
@@ -669,31 +666,31 @@ async function handleEsbuildInstallation(
   _ideType: IdeType,
 ): Promise<boolean> {
   // Only check when config.ts is going to be used; never auto-install.
-  const installCmd = "npm i esbuild@x.x.x --prefix ~/.continue";
+  const installCmd = "npm i esbuild@x.x.x --prefix ~/.qivryn";
 
   // Try to detect a user-installed esbuild (normal resolution)
   try {
     await import("esbuild");
     return true; // available
   } catch {
-    // Try resolving from ~/.continue/node_modules as a courtesy
+    // Try resolving from ~/.qivryn/node_modules as a courtesy
     try {
       const userEsbuild = path.join(
         os.homedir(),
-        ".continue",
+        ".qivryn",
         "node_modules",
         "esbuild",
       );
       const candidate = require.resolve("esbuild", { paths: [userEsbuild] });
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       require(candidate);
-      return true; // available via ~/.continue
+      return true; // available via ~/.qivryn
     } catch {
       // Not available → show friendly instructions and opt out of building
       await ide.showToast(
         "error",
         [
-          "config.ts has been deprecated and esbuild is no longer automatically installed by Continue.",
+          "config.ts has been deprecated and esbuild is no longer automatically installed by Qivryn.",
           "To use config.ts, install esbuild manually:",
           "",
           `    ${installCmd}`,
@@ -713,7 +710,7 @@ async function tryBuildConfigTs() {
     }
   } catch (e) {
     console.log(
-      `Build error. Please check your ~/.continue/config.ts file: ${e}`,
+      `Build error. Please check your ~/.qivryn/config.ts file: ${e}`,
     );
   }
 }
@@ -788,14 +785,14 @@ async function buildConfigTsandReadConfigJs(ide: IDE, ideType: IdeType) {
   return readConfigJs();
 }
 
-async function loadContinueConfigFromJson(
+async function loadQivrynConfigFromJson(
   ide: IDE,
   ideSettings: IdeSettings,
   ideInfo: IdeInfo,
   uniqueId: string,
   llmLogger: ILLMLogger,
-  overrideConfigJson: SerializedContinueConfig | undefined,
-): Promise<ConfigResult<ContinueConfig>> {
+  overrideConfigJson: SerializedQivrynConfig | undefined,
+): Promise<ConfigResult<QivrynConfig>> {
   const workspaceConfigs = await getWorkspaceRcConfigs(ide);
   // Serialized config
   let {
@@ -899,6 +896,6 @@ async function loadContinueConfigFromJson(
 
 export {
   finalToBrowserConfig,
-  loadContinueConfigFromJson,
-  type BrowserSerializedContinueConfig,
+  loadQivrynConfigFromJson,
+  type BrowserSerializedQivrynConfig,
 };

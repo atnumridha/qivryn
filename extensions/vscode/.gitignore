@@ -4,6 +4,7 @@ out/
 .vscode-test/
 data/
 src/client
+.qivryn
 .continue
 
 exe
@@ -16,12 +17,17 @@ gui/**
 .devcontainer
 .github
 
+qivryn_rc_schema.json
 continue_rc_schema.json
 
 e2e/_output
 e2e/.test-extensions
 e2e/storage
 e2e/vsix
+e2e/test-qivryn/*
+!e2e/test-qivryn/config.json
+e2e/test-qivryn-yaml/*
+!e2e/test-qivryn-yaml/config.yaml
 e2e/test-continue/*
 !e2e/test-continue/config.json
 e2e/test-continue-yaml/*

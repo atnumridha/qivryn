@@ -1,7 +1,7 @@
 {
-  "name": "@continuedev/review-engine",
+  "name": "@qivryn/review-engine",
   "version": "0.1.0",
-  "description": "Shared local-first review engine for Continue editor, extensions, JetBrains, and CLI",
+  "description": "Shared local-first review engine for Qivryn editor, extensions, JetBrains, and CLI",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
@@ -10,7 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@continuedev/agent-runtime": "file:../agent-runtime"
+    "@qivryn/agent-runtime": "file:../agent-runtime"
   },
   "devDependencies": {
     "@types/node": "^22.15.29",

@@ -1,0 +1,444 @@
+name: "Qivryn — ChatGPT Codex, Copilot, OCA (auto-synced)"
+version: "1.0.0"
+schema: "v1"
+models:
+  - name: "Codex: GPT-5.6-Sol"
+    provider: "chatgpt-codex"
+    model: "gpt-5.6-sol"
+    apiBase: "https://chatgpt.com/backend-api/codex/"
+    roles:
+      - "chat"
+      - "edit"
+      - "apply"
+      - "summarize"
+    capabilities:
+      - "tool_use"
+      - "image_input"
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "medium"
+        _reasoningLevels:
+          - "low"
+          - "medium"
+          - "high"
+          - "xhigh"
+          - "max"
+          - "ultra"
+  - name: "Codex: GPT-5.6-Terra"
+    provider: "chatgpt-codex"
+    model: "gpt-5.6-terra"
+    apiBase: "https://chatgpt.com/backend-api/codex/"
+    roles:
+      - "chat"
+      - "edit"
+      - "apply"
+      - "summarize"
+    capabilities:
+      - "tool_use"
+      - "image_input"
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "medium"
+        _reasoningLevels:
+          - "low"
+          - "medium"
+          - "high"
+          - "xhigh"
+          - "max"
+          - "ultra"
+  - name: "Codex: GPT-5.6-Luna"
+    provider: "chatgpt-codex"
+    model: "gpt-5.6-luna"
+    apiBase: "https://chatgpt.com/backend-api/codex/"
+    roles:
+      - "chat"
+      - "edit"
+      - "apply"
+      - "subagent"
+    capabilities:
+      - "tool_use"
+      - "image_input"
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "medium"
+        _reasoningLevels:
+          - "low"
+          - "medium"
+          - "high"
+          - "xhigh"
+          - "max"
+  - name: "Codex: GPT-5.5"
+    provider: "chatgpt-codex"
+    model: "gpt-5.5"
+    apiBase: "https://chatgpt.com/backend-api/codex/"
+    roles:
+      - "chat"
+      - "edit"
+      - "apply"
+      - "summarize"
+    capabilities:
+      - "tool_use"
+      - "image_input"
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "medium"
+        _reasoningLevels:
+          - "low"
+          - "medium"
+          - "high"
+          - "xhigh"
+  - name: "Codex: GPT-5.4"
+    provider: "chatgpt-codex"
+    model: "gpt-5.4"
+    apiBase: "https://chatgpt.com/backend-api/codex/"
+    roles:
+      - "chat"
+      - "edit"
+      - "apply"
+      - "summarize"
+    capabilities:
+      - "tool_use"
+      - "image_input"
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "medium"
+        _reasoningLevels:
+          - "low"
+          - "medium"
+          - "high"
+          - "xhigh"
+  - name: "Codex: GPT-5.4-Mini"
+    provider: "chatgpt-codex"
+    model: "gpt-5.4-mini"
+    apiBase: "https://chatgpt.com/backend-api/codex/"
+    roles:
+      - "chat"
+      - "edit"
+      - "apply"
+      - "subagent"
+    capabilities:
+      - "tool_use"
+      - "image_input"
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "medium"
+        _reasoningLevels:
+          - "low"
+          - "medium"
+          - "high"
+          - "xhigh"
+  - name: "Codex Autocomplete"
+    provider: "chatgpt-codex"
+    model: "gpt-5.4-mini"
+    apiBase: "https://chatgpt.com/backend-api/codex/"
+    roles:
+      - "autocomplete"
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "medium"
+  - name: "Copilot: Claude Opus 4.6"
+    provider: "github-copilot"
+    model: "claude-opus-4.6"
+    apiBase: "https://api.githubcopilot.com/"
+    roles:
+      - "chat"
+      - "edit"
+      - "apply"
+      - "summarize"
+    capabilities:
+      - "tool_use"
+      - "image_input"
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "medium"
+        _reasoningLevels:
+          - "low"
+          - "medium"
+          - "high"
+          - "max"
+  - name: "Copilot: Claude Opus 4.7"
+    provider: "github-copilot"
+    model: "claude-opus-4.7"
+    apiBase: "https://api.githubcopilot.com/"
+    roles:
+      - "chat"
+      - "edit"
+      - "apply"
+      - "summarize"
+    capabilities:
+      - "tool_use"
+      - "image_input"
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "medium"
+        _reasoningLevels:
+          - "low"
+          - "medium"
+          - "high"
+          - "xhigh"
+          - "max"
+  - name: "Copilot: Claude Sonnet 4.6"
+    provider: "github-copilot"
+    model: "claude-sonnet-4.6"
+    apiBase: "https://api.githubcopilot.com/"
+    roles:
+      - "chat"
+      - "edit"
+      - "apply"
+      - "summarize"
+    capabilities:
+      - "tool_use"
+      - "image_input"
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "medium"
+        _reasoningLevels:
+          - "low"
+          - "medium"
+          - "high"
+          - "max"
+  - name: "Copilot: Gemini 3.1 Pro"
+    provider: "github-copilot"
+    model: "gemini-3.1-pro-preview"
+    apiBase: "https://api.githubcopilot.com/"
+    roles:
+      - "chat"
+      - "edit"
+      - "apply"
+      - "subagent"
+    capabilities:
+      - "tool_use"
+      - "image_input"
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "medium"
+        _reasoningLevels:
+          - "low"
+          - "medium"
+          - "high"
+  - name: "Copilot: GPT-5.3-Codex"
+    provider: "github-copilot"
+    model: "gpt-5.3-codex"
+    apiBase: "https://api.githubcopilot.com/"
+    roles:
+      - "chat"
+      - "edit"
+      - "apply"
+      - "summarize"
+    capabilities:
+      - "tool_use"
+      - "image_input"
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "medium"
+        _reasoningLevels:
+          - "low"
+          - "medium"
+          - "high"
+          - "xhigh"
+  - name: "Copilot: GPT-5.4 mini"
+    provider: "github-copilot"
+    model: "gpt-5.4-mini"
+    apiBase: "https://api.githubcopilot.com/"
+    roles:
+      - "chat"
+      - "edit"
+      - "apply"
+      - "subagent"
+    capabilities:
+      - "tool_use"
+      - "image_input"
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "medium"
+        _reasoningLevels:
+          - "none"
+          - "low"
+          - "medium"
+          - "high"
+          - "xhigh"
+  - name: "Copilot: GPT-5.4"
+    provider: "github-copilot"
+    model: "gpt-5.4"
+    apiBase: "https://api.githubcopilot.com/"
+    roles:
+      - "chat"
+      - "edit"
+      - "apply"
+      - "summarize"
+    capabilities:
+      - "tool_use"
+      - "image_input"
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "medium"
+        _reasoningLevels:
+          - "none"
+          - "low"
+          - "medium"
+          - "high"
+          - "xhigh"
+  - name: "Copilot: GPT-5.5"
+    provider: "github-copilot"
+    model: "gpt-5.5"
+    apiBase: "https://api.githubcopilot.com/"
+    roles:
+      - "chat"
+      - "edit"
+      - "apply"
+      - "summarize"
+    capabilities:
+      - "tool_use"
+      - "image_input"
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "medium"
+        _reasoningLevels:
+          - "none"
+          - "low"
+          - "medium"
+          - "high"
+          - "xhigh"
+  - name: "Copilot: GPT-5 mini"
+    provider: "github-copilot"
+    model: "gpt-5-mini"
+    apiBase: "https://api.githubcopilot.com/"
+    roles:
+      - "chat"
+      - "edit"
+      - "apply"
+      - "subagent"
+    capabilities:
+      - "tool_use"
+      - "image_input"
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "medium"
+        _reasoningLevels:
+          - "low"
+          - "medium"
+          - "high"
+  - name: "Copilot: Claude Sonnet 4.5"
+    provider: "github-copilot"
+    model: "claude-sonnet-4.5"
+    apiBase: "https://api.githubcopilot.com/"
+    roles:
+      - "chat"
+      - "edit"
+      - "apply"
+      - "summarize"
+    capabilities:
+      - "tool_use"
+      - "image_input"
+  - name: "Copilot: Claude Opus 4.5"
+    provider: "github-copilot"
+    model: "claude-opus-4.5"
+    apiBase: "https://api.githubcopilot.com/"
+    roles:
+      - "chat"
+      - "edit"
+      - "apply"
+      - "summarize"
+    capabilities:
+      - "tool_use"
+      - "image_input"
+  - name: "Copilot: Claude Haiku 4.5"
+    provider: "github-copilot"
+    model: "claude-haiku-4.5"
+    apiBase: "https://api.githubcopilot.com/"
+    roles:
+      - "chat"
+      - "edit"
+      - "apply"
+      - "subagent"
+    capabilities:
+      - "tool_use"
+      - "image_input"
+  - name: "Copilot: Gemini 3 Flash (Preview)"
+    provider: "github-copilot"
+    model: "gemini-3-flash-preview"
+    apiBase: "https://api.githubcopilot.com/"
+    roles:
+      - "chat"
+      - "edit"
+      - "apply"
+      - "subagent"
+    capabilities:
+      - "tool_use"
+      - "image_input"
+    requestOptions:
+      extraBodyProperties:
+        reasoning_effort: "medium"
+        _reasoningLevels:
+          - "low"
+          - "medium"
+          - "high"
+  - name: "Copilot: Gemini 2.5 Pro"
+    provider: "github-copilot"
+    model: "gemini-2.5-pro"
+    apiBase: "https://api.githubcopilot.com/"
+    roles:
+      - "chat"
+      - "edit"
+      - "apply"
+      - "subagent"
+    capabilities:
+      - "tool_use"
+      - "image_input"
+  - name: "Copilot Autocomplete"
+    provider: "github-copilot"
+    model: "gpt-5.4-mini"
+    apiBase: "https://api.githubcopilot.com/"
+    roles:
+      - "autocomplete"
+  - name: "OCA: gpt-5.3-codex"
+    provider: "oca"
+    model: "oca/gpt-5.3-codex"
+    apiBase: "https://code-internal.aiservice.us-chicago-1.oci.oraclecloud.com/20250206/app/litellm/v1/"
+    roles:
+      - "chat"
+      - "edit"
+      - "apply"
+    capabilities:
+      - "tool_use"
+  - name: "OCA: gpt-4.1"
+    provider: "oca"
+    model: "oca/gpt-4.1"
+    apiBase: "https://code-internal.aiservice.us-chicago-1.oci.oraclecloud.com/20250206/app/litellm/v1/"
+    roles:
+      - "chat"
+      - "edit"
+      - "apply"
+      - "summarize"
+    capabilities:
+      - "tool_use"
+  - name: "OCA: gpt-4o"
+    provider: "oca"
+    model: "oca/gpt-4o"
+    apiBase: "https://code-internal.aiservice.us-chicago-1.oci.oraclecloud.com/20250206/app/litellm/v1/"
+    roles:
+      - "chat"
+      - "edit"
+      - "apply"
+    capabilities:
+      - "tool_use"
+  - name: "OCA Autocomplete"
+    provider: "oca"
+    model: "oca/gpt-4o-mini"
+    apiBase: "https://code-internal.aiservice.us-chicago-1.oci.oraclecloud.com/20250206/app/litellm/v1/"
+    roles:
+      - "autocomplete"
+context:
+  - provider: "code"
+  - provider: "docs"
+  - provider: "diff"
+  - provider: "terminal"
+  - provider: "problems"
+  - provider: "folder"
+  - provider: "codebase"
+rules:
+  - "You are a precise software engineering assistant. Think carefully before making changes."
+  - "Prefer minimal, targeted edits. Always explain your reasoning concisely."
+  - "When using tools, be explicit about which file and line you are editing."
+env:
+  OCA_API_KEY: ""

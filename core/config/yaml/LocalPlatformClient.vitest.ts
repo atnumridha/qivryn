@@ -1,4 +1,4 @@
-import { FQSN, SecretResult, SecretType } from "@continuedev/config-yaml";
+import { FQSN, SecretResult, SecretType } from "@qivryn/config-yaml";
 import {
   afterEach,
   beforeEach,
@@ -21,7 +21,7 @@ describe("LocalPlatformClient", () => {
         packageSlug: "test-package-slug",
       },
     ],
-    secretName: "TEST_CONTINUE_SECRET_KEY",
+    secretName: "TEST_QIVRYN_SECRET_KEY",
   };
   const testFQSN2: FQSN = {
     packageSlugs: [
@@ -50,7 +50,7 @@ describe("LocalPlatformClient", () => {
     () => {
       secretValue = Math.floor(Math.random() * 100) + "";
       envKeyValues = {
-        TEST_CONTINUE_SECRET_KEY: secretValue,
+        TEST_QIVRYN_SECRET_KEY: secretValue,
         TEST_WORKSPACE_SECRET_KEY: secretValue + "-workspace",
       };
       envKeyValuesString = Object.entries(envKeyValues)
@@ -74,17 +74,17 @@ describe("LocalPlatformClient", () => {
   });
 
   describe("searches for secrets in local .env files", () => {
-    let getContinueDotEnv: Mock;
+    let getQivrynDotEnv: Mock;
     beforeEach(async () => {
       const utilPaths = await import("../../util/paths");
-      getContinueDotEnv = vi.fn(() => envKeyValues);
-      utilPaths.getContinueDotEnv = getContinueDotEnv;
+      getQivrynDotEnv = vi.fn(() => envKeyValues);
+      utilPaths.getQivrynDotEnv = getQivrynDotEnv;
     });
 
-    test("should be able to get secrets from ~/.continue/.env files", async () => {
+    test("should be able to get secrets from ~/.qivryn/.env files", async () => {
       const localPlatformClient = new LocalPlatformClient(testIde);
       const resolvedFQSNs = await localPlatformClient.resolveFQSNs([testFQSN]);
-      expect(getContinueDotEnv).toHaveBeenCalled();
+      expect(getQivrynDotEnv).toHaveBeenCalled();
       expect(resolvedFQSNs.length).toBe(1);
       expect(
         (resolvedFQSNs[0] as SecretResult & { value: unknown })?.value,
@@ -93,27 +93,27 @@ describe("LocalPlatformClient", () => {
   });
 
   describe("should be able to get secrets from workspace .env files", () => {
-    test("should get secrets from <workspace>/.continue/.env and <workspace>/.env", async () => {
+    test("should get secrets from <workspace>/.qivryn/.env and <workspace>/.env", async () => {
       const originalIdeFileExists = testIde.fileExists;
       testIde.fileExists = vi.fn(async (fileUri: string) =>
         fileUri.includes(".env") ? true : originalIdeFileExists(fileUri),
       );
 
       const originalIdeReadFile = testIde.readFile;
-      const randomValueForContinueDirDotEnv =
-        "continue-dir-" + Math.floor(Math.random() * 100);
+      const randomValueForQivrynDirDotEnv =
+        "qivryn-dir-" + Math.floor(Math.random() * 100);
       const randomValueForWorkspaceDotEnv =
         "dotenv-" + Math.floor(Math.random() * 100);
 
       testIde.readFile = vi.fn(async (fileUri: string) => {
-        // fileUri should contain .continue/.env and not .env
-        if (fileUri.match(/.*\.continue\/\.env.*/gi)?.length) {
+        // fileUri should contain .qivryn/.env and not .env
+        if (fileUri.match(/.*\.qivryn\/\.env.*/gi)?.length) {
           return (
-            envKeyValuesString.split("\n")[0] + randomValueForContinueDirDotEnv
+            envKeyValuesString.split("\n")[0] + randomValueForQivrynDirDotEnv
           );
         }
-        // filUri should contain .env and not .continue/.env
-        else if (fileUri.match(/.*(?<!\.continue\/)\.env.*/gi)?.length) {
+        // filUri should contain .env and not .qivryn/.env
+        else if (fileUri.match(/.*(?<!\.qivryn\/)\.env.*/gi)?.length) {
           return (
             envKeyValuesString.split("\n")[1] + randomValueForWorkspaceDotEnv
           );
@@ -131,39 +131,39 @@ describe("LocalPlatformClient", () => {
 
       expect(resolvedFQSNs.length).toBe(2);
 
-      const continueDirSecretValue = (
+      const qivrynDirSecretValue = (
         resolvedFQSNs[0] as SecretResult & { value: unknown }
       )?.value;
       const dotEnvSecretValue = (
         resolvedFQSNs[1] as SecretResult & { value: unknown }
       )?.value;
-      expect(continueDirSecretValue).toContain(secretValue);
-      expect(continueDirSecretValue).toContain(randomValueForContinueDirDotEnv);
+      expect(qivrynDirSecretValue).toContain(secretValue);
+      expect(qivrynDirSecretValue).toContain(randomValueForQivrynDirDotEnv);
       expect(dotEnvSecretValue).toContain(secretValue + "-workspace");
       expect(dotEnvSecretValue).toContain(randomValueForWorkspaceDotEnv);
     });
 
-    test("should first get secrets from <workspace>/.continue/.env and then <workspace>/.env", async () => {
+    test("should first get secrets from <workspace>/.qivryn/.env and then <workspace>/.env", async () => {
       const originalIdeFileExists = testIde.fileExists;
       testIde.fileExists = vi.fn(async (fileUri: string) =>
         fileUri.includes(".env") ? true : originalIdeFileExists(fileUri),
       );
 
-      const randomValueForContinueDirDotEnv =
-        "continue-dir-" + Math.floor(Math.random() * 100);
+      const randomValueForQivrynDirDotEnv =
+        "qivryn-dir-" + Math.floor(Math.random() * 100);
       const randomValueForWorkspaceDotEnv =
         "dotenv-" + Math.floor(Math.random() * 100);
 
       const originalIdeReadFile = testIde.readFile;
       testIde.readFile = vi.fn(async (fileUri: string) => {
-        // fileUri should contain .continue/.env and not .env
-        if (fileUri.match(/.*\.continue\/\.env.*/gi)?.length) {
+        // fileUri should contain .qivryn/.env and not .env
+        if (fileUri.match(/.*\.qivryn\/\.env.*/gi)?.length) {
           return (
-            envKeyValuesString.split("\n")[0] + randomValueForContinueDirDotEnv
+            envKeyValuesString.split("\n")[0] + randomValueForQivrynDirDotEnv
           );
         }
-        // filUri should contain .env and not .continue/.env
-        else if (fileUri.match(/.*(?<!\.continue\/)\.env.*/gi)?.length) {
+        // filUri should contain .env and not .qivryn/.env
+        else if (fileUri.match(/.*(?<!\.qivryn\/)\.env.*/gi)?.length) {
           return (
             envKeyValuesString.split("\n")[0] + randomValueForWorkspaceDotEnv
           );
@@ -178,10 +178,10 @@ describe("LocalPlatformClient", () => {
       expect(
         (resolvedFQSNs[0] as SecretResult & { value: unknown })?.value,
       ).toContain(secretValue);
-      // we check that workspace <workspace>.continue/.env does not override the <workspace>/.env secret
+      // we check that workspace <workspace>.qivryn/.env does not override the <workspace>/.env secret
       expect(
         (resolvedFQSNs[0] as SecretResult & { value: unknown })?.value,
-      ).toContain(randomValueForContinueDirDotEnv);
+      ).toContain(randomValueForQivrynDirDotEnv);
       expect(
         (resolvedFQSNs[0] as SecretResult & { value: unknown })?.value,
       ).not.toContain(randomValueForWorkspaceDotEnv);
@@ -194,7 +194,7 @@ describe("LocalPlatformClient", () => {
     beforeEach(async () => {
       // Ensure secrets are not found in local .env files
       const utilPaths = await import("../../util/paths");
-      utilPaths.getContinueDotEnv = vi.fn(() => ({}));
+      utilPaths.getQivrynDotEnv = vi.fn(() => ({}));
 
       // Ensure secrets are not found in workspace .env files
       testIde.fileExists = vi.fn(async () => false);
@@ -244,10 +244,10 @@ describe("LocalPlatformClient", () => {
       expect(resolvedFQSNs[0]).toBeUndefined();
     });
 
-    test("should prioritize local ~/.continue/.env file over process.env", async () => {
-      const localEnvFileValue = "secret-from-local-dot-continue-env";
+    test("should prioritize local ~/.qivryn/.env file over process.env", async () => {
+      const localEnvFileValue = "secret-from-local-dot-qivryn-env";
       const utilPaths = await import("../../util/paths");
-      utilPaths.getContinueDotEnv = vi.fn(() => ({
+      utilPaths.getQivrynDotEnv = vi.fn(() => ({
         [testFQSN.secretName]: localEnvFileValue,
       }));
 
@@ -267,14 +267,14 @@ describe("LocalPlatformClient", () => {
     });
 
     test("should prioritize workspace .env files over process.env", async () => {
-      const workspaceContinueEnvValue = "secret-from-workspace-continue-env";
+      const workspaceQivrynEnvValue = "secret-from-workspace-qivryn-env";
       testIde.fileExists = vi.fn(async (fileUri: string) =>
-        // Only mock existence for <workspace>/.continue/.env
-        fileUri.includes(".continue/.env"),
+        // Only mock existence for <workspace>/.qivryn/.env
+        fileUri.includes(".qivryn/.env"),
       );
       testIde.readFile = vi.fn(async (fileUri: string) => {
-        if (fileUri.includes(".continue/.env")) {
-          return `${testFQSN.secretName}=${workspaceContinueEnvValue}`;
+        if (fileUri.includes(".qivryn/.env")) {
+          return `${testFQSN.secretName}=${workspaceQivrynEnvValue}`;
         }
         return "";
       });
@@ -289,7 +289,7 @@ describe("LocalPlatformClient", () => {
       const result = resolvedFQSNs[0];
       expect(result?.found).toBe(true);
       expect((result as SecretResult & { value: unknown })?.value).toBe(
-        workspaceContinueEnvValue,
+        workspaceQivrynEnvValue,
       );
       // This should be LocalEnv because findSecretInEnvFiles returns LocalEnv for workspace files too
       expect(result?.secretLocation?.secretType).toBe(SecretType.LocalEnv);

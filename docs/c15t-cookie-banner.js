@@ -1,11 +1,11 @@
-// Cookie Banner Implementation for Continue Documentation
+// Cookie Banner Implementation for Qivryn Documentation
 // This script implements a cookie consent banner in offline mode
 
 (function () {
   "use strict";
 
   // Configuration
-  const COOKIE_NAME = "continue_cookie_consent";
+  const COOKIE_NAME = "qivryn_cookie_consent";
   const COOKIE_EXPIRY_DAYS = 365;
 
   // Default consent state

@@ -4,44 +4,44 @@ const path = require("path");
 const messages = {
   missing_api_key: `## Code Review Summary
 
-⚠️ AI review skipped: CONTINUE_API_KEY not configured.
+⚠️ AI review skipped: QIVRYN_API_KEY not configured.
 
 ### Configuration Required
-- Please set the CONTINUE_API_KEY secret in repository settings
+- Please set the QIVRYN_API_KEY secret in repository settings
 - Verify that the organization and config path are valid
 `,
   cli_install_failed: `## Code Review Summary
 
-⚠️ AI review skipped: Continue CLI installation failed.
+⚠️ AI review skipped: Qivryn CLI installation failed.
 
 ### Troubleshooting
 - Check that npm installation succeeded
-- Verify @continuedev/cli package is available
+- Verify @qivryn/cli package is available
 `,
   empty_output: `## Code Review Summary
 
-⚠️ Continue CLI returned an empty response. Please check the configuration.
+⚠️ Qivryn CLI returned an empty response. Please check the configuration.
 `,
   cli_not_found: `## Code Review Summary
 
-⚠️ Continue CLI is not properly installed. Please ensure @continuedev/cli is installed globally.
+⚠️ Qivryn CLI is not properly installed. Please ensure @qivryn/cli is installed globally.
 `,
   config_error: `## Code Review Summary
 
-⚠️ Continue configuration error. Please verify that the assistant exists in Continue Hub.
+⚠️ Qivryn configuration error. Please verify that the assistant exists in Qivryn Hub.
 `,
   auth_error: `## Code Review Summary
 
-⚠️ Continue API authentication failed. Please check your CONTINUE_API_KEY.
+⚠️ Qivryn API authentication failed. Please check your QIVRYN_API_KEY.
 `,
   generic_failure: `## Code Review Summary
 
-⚠️ AI review failed. Please check the Continue API key and configuration.
+⚠️ AI review failed. Please check the Qivryn API key and configuration.
 
 ### Troubleshooting
-- Verify the CONTINUE_API_KEY secret is set correctly
+- Verify the QIVRYN_API_KEY secret is set correctly
 - Check that the organization and config path are valid
-- Ensure the Continue service is accessible
+- Ensure the Qivryn service is accessible
 `,
 };
 
