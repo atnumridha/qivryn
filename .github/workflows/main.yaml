@@ -172,7 +172,7 @@ jobs:
 
       # 3. Publish the extension to Open VSX Registry
       - name: Publish (Open VSX Registry)
-        qivryn-on-error: true
+        continue-on-error: true
         run: |
           cd extensions/vscode
           npx ovsx publish -p ${{ secrets.VSX_REGISTRY_TOKEN }} --packagePath ../../vsix-artifacts/*.vsix
