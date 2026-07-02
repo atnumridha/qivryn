@@ -20,6 +20,8 @@ export type DatabaseConnection = Database<sqlite3.Database>;
 
 export class SqliteDb {
   static db: DatabaseConnection | null = null;
+  private static initializationPromise: Promise<DatabaseConnection> | null =
+    null;
 
   private static async createTables(db: DatabaseConnection) {
     await db.exec("PRAGMA journal_mode=WAL;");
@@ -89,22 +91,148 @@ export class SqliteDb {
 
   private static indexSqlitePath = getIndexSqlitePath();
 
-  static async get() {
-    if (SqliteDb.db && fs.existsSync(SqliteDb.indexSqlitePath)) {
-      return SqliteDb.db;
-    }
+  private static isRecoverableInitializationError(error: unknown) {
+    const code = (error as { code?: string })?.code ?? "";
+    const message = error instanceof Error ? error.message : String(error);
+    return /SQLITE_(?:CORRUPT|IOERR|NOTADB)/.test(`${code} ${message}`);
+  }
 
-    SqliteDb.indexSqlitePath = getIndexSqlitePath();
-    SqliteDb.db = await open({
+  private static async openAndInitialize() {
+    const db = await open({
       filename: SqliteDb.indexSqlitePath,
       driver: sqlite3.Database,
     });
 
-    await SqliteDb.db.exec("PRAGMA busy_timeout = 3000;");
+    try {
+      await db.exec("PRAGMA busy_timeout = 3000;");
+      await SqliteDb.createTables(db);
+      return db;
+    } catch (error) {
+      await db.close().catch(() => undefined);
+      throw error;
+    }
+  }
 
-    await SqliteDb.createTables(SqliteDb.db);
+  private static async recoverIndexDatabase() {
+    const recoveryLockPath = `${SqliteDb.indexSqlitePath}.recovery.lock`;
+    let recoveryLock: number | undefined;
 
-    return SqliteDb.db;
+    for (
+      let attempt = 0;
+      attempt < 20 && recoveryLock === undefined;
+      attempt++
+    ) {
+      try {
+        recoveryLock = fs.openSync(recoveryLockPath, "wx");
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
+          throw error;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    }
+
+    // Another extension host may have completed recovery while this one was
+    // waiting. Re-open the database instead of racing it with another reset.
+    if (recoveryLock === undefined) {
+      return await SqliteDb.openAndInitialize();
+    }
+
+    const quarantinedPaths: string[] = [];
+    try {
+      try {
+        return await SqliteDb.openAndInitialize();
+      } catch (error) {
+        if (!SqliteDb.isRecoverableInitializationError(error)) {
+          throw error;
+        }
+      }
+
+      const recoveryId = `${Date.now()}-${process.pid}`;
+      for (const suffix of ["", "-wal", "-shm"]) {
+        const filepath = `${SqliteDb.indexSqlitePath}${suffix}`;
+        if (!fs.existsSync(filepath)) {
+          continue;
+        }
+        const quarantinedPath = `${filepath}.corrupt-${recoveryId}`;
+        fs.renameSync(filepath, quarantinedPath);
+        quarantinedPaths.push(quarantinedPath);
+      }
+
+      const db = await SqliteDb.openAndInitialize();
+
+      // The index is a rebuildable cache. Once a replacement database is
+      // initialized, stale processes can finish using their open file handles
+      // without corrupting the well-known paths.
+      for (const filepath of quarantinedPaths) {
+        fs.rmSync(filepath, { force: true });
+      }
+      return db;
+    } finally {
+      fs.closeSync(recoveryLock);
+      fs.rmSync(recoveryLockPath, { force: true });
+    }
+  }
+
+  private static async initialize() {
+    SqliteDb.indexSqlitePath = getIndexSqlitePath();
+    try {
+      return await SqliteDb.openAndInitialize();
+    } catch (error) {
+      if (!SqliteDb.isRecoverableInitializationError(error)) {
+        throw error;
+      }
+      console.warn("Recovering the rebuildable codebase index database", error);
+      return await SqliteDb.recoverIndexDatabase();
+    }
+  }
+
+  static async get() {
+    if (SqliteDb.db) {
+      return SqliteDb.db;
+    }
+
+    SqliteDb.initializationPromise ??= SqliteDb.initialize();
+    try {
+      SqliteDb.db = await SqliteDb.initializationPromise;
+      return SqliteDb.db;
+    } finally {
+      SqliteDb.initializationPromise = null;
+    }
+  }
+
+  static async clear() {
+    const db = await SqliteDb.get();
+    const existingTables = new Set(
+      (
+        (await db.all(
+          "SELECT name FROM sqlite_master WHERE type IN ('table', 'view')",
+        )) as { name: string }[]
+      ).map(({ name }) => name),
+    );
+    const tablesToClear = [
+      "fts_metadata",
+      "fts",
+      "code_snippets_tags",
+      "code_snippets",
+      "chunk_tags",
+      "chunks",
+      "lance_db_cache",
+      "tag_catalog",
+      "global_cache",
+      "test_index",
+    ].filter((table) => existingTables.has(table));
+
+    await db.exec("BEGIN IMMEDIATE");
+    try {
+      for (const table of tablesToClear) {
+        await db.exec(`DELETE FROM "${table}"`);
+      }
+      await db.exec("COMMIT");
+    } catch (error) {
+      await db.exec("ROLLBACK").catch(() => undefined);
+      throw error;
+    }
   }
 }
 

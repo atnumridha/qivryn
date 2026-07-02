@@ -12,6 +12,10 @@ export function addCommonOptions(command: Command): Command {
       "Organization slug to use for this session (supported only in headless mode)",
     )
     .option("--readonly", "Start in plan mode (read-only tools)")
+    .option(
+      "--autonomous",
+      "Run tools autonomously while retaining dynamic command security",
+    )
     .option("--auto", "Start in auto mode (all tools allowed)")
     .option("--verbose", "Enable verbose logging")
     .option("--beta-status-tool", "Enable beta status tool")
@@ -88,6 +92,16 @@ export function addCommonOptions(command: Command): Command {
     .option(
       "--agent <slug>",
       "Load agent file from the hub (slug in format 'owner/package')",
+    )
+    .option(
+      "--image <path>",
+      "Attach an image to the initial message. Can be specified multiple times.",
+      (value: string, previous: string[] | undefined) => {
+        const array = Array.isArray(previous) ? previous : [];
+        array.push(value);
+        return array;
+      },
+      [] as string[],
     );
 }
 
@@ -101,6 +115,7 @@ export function mergeParentOptions(parentCommand: Command, options: any): any {
     "config",
     "org",
     "readonly",
+    "autonomous",
     "auto",
     "tools",
     "verbose",
@@ -112,6 +127,8 @@ export function mergeParentOptions(parentCommand: Command, options: any): any {
     "ask",
     "exclude",
     "agent",
+    "image",
+    "format",
   ];
 
   for (const optName of inheritableOptions) {

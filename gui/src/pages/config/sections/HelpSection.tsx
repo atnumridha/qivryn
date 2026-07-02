@@ -14,7 +14,7 @@ import { useAppDispatch, useAppSelector } from "../../../redux/hooks";
 import { setOnboardingCard } from "../../../redux/slices/uiSlice";
 import { saveCurrentSession } from "../../../redux/thunks/session";
 import { isJetBrains } from "../../../util";
-import { ROUTES } from "../../../util/navigation";
+import { CONFIG_ROUTES, ROUTES } from "../../../util/navigation";
 import { ConfigHeader } from "../components/ConfigHeader";
 import { ConfigRow } from "../components/ConfigRow";
 
@@ -218,7 +218,7 @@ export function HelpSection() {
                 description="Reopen the quickstart and tutorial file"
                 icon={DocumentArrowUpIcon}
                 onClick={async () => {
-                  navigate("/");
+                  navigate(CONFIG_ROUTES.SETTINGS);
                   // Used to clear the chat panel before showing onboarding card
                   await dispatch(
                     saveCurrentSession({

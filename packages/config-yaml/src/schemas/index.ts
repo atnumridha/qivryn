@@ -44,6 +44,10 @@ const ruleObjectSchema = z.object({
   regex: z.union([z.string(), z.array(z.string())]).optional(),
   alwaysApply: z.boolean().optional(),
   invokable: z.boolean().optional(),
+  environments: z.array(z.string()).optional(),
+  disabledEnvironments: z.array(z.string()).optional(),
+  scopedTo: z.string().optional(),
+  isRequired: z.boolean().optional(),
   sourceFile: z.string().optional(),
 });
 const ruleSchema = z.union([z.string(), ruleObjectSchema]);

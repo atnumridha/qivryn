@@ -8,6 +8,7 @@ import {
   setShowDialog,
 } from "../../../redux/slices/uiSlice";
 import { getLocalStorage, setLocalStorage } from "../../../util/localStorage";
+import { CONFIG_ROUTES } from "../../../util/navigation";
 
 export interface UseOnboardingCard {
   show: OnboardingCardState["show"];
@@ -38,7 +39,7 @@ export function useOnboardingCard(): UseOnboardingCard {
   }
 
   async function open(tab?: OnboardingModes) {
-    navigate("/");
+    navigate(CONFIG_ROUTES.SETTINGS);
     dispatch(
       setOnboardingCard({
         show: true,

@@ -442,6 +442,7 @@ describe("applyForEditTool", () => {
       expect(updateApplyState).toHaveBeenCalledWith({
         streamId: "test-stream",
         toolCallId: "test-tool-call",
+        filepath: "test.txt",
         status: "not-started",
       });
       expect(mockDispatch).toHaveBeenCalledWith(
@@ -699,6 +700,7 @@ describe("applyForEditTool", () => {
         expect(updateApplyState).toHaveBeenCalledWith({
           streamId: payload.streamId,
           toolCallId: payload.toolCallId,
+          filepath: payload.filepath,
           status: "not-started",
         });
       }

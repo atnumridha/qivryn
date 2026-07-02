@@ -3,7 +3,7 @@ import { act, render } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PropsWithChildren } from "react";
 import { Provider } from "react-redux";
-import { MemoryRouter, RouterProps } from "react-router-dom";
+import { MemoryRouter, MemoryRouterProps } from "react-router-dom";
 import { MainEditorProvider } from "../../components/mainInput/TipTapEditor";
 import { AuthProvider } from "../../context/Auth";
 import { IdeMessengerProvider } from "../../context/IdeMessenger";
@@ -16,7 +16,7 @@ import { setupStore } from "../../redux/store";
 // as allows the user to specify other things such as initialState, store.
 type ExtendedRenderOptions = Omit<RenderOptions, "queries"> & {
   store?: ReturnType<typeof setupStore>;
-  routerProps?: RouterProps;
+  routerProps?: MemoryRouterProps;
   mockIdeMessenger?: MockIdeMessenger;
 };
 

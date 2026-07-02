@@ -42,14 +42,48 @@ function splitGrepResultsByFile(content: string): ContextItem[] {
 export const grepSearchImpl: ToolImpl = async (args, extras) => {
   const rawQuery = getStringArg(args, "query");
 
-  const { query, warning } = prepareQueryForRipgrep(rawQuery);
+  const prepared = prepareQueryForRipgrep(rawQuery);
+  const query = args.fixed_strings === true ? rawQuery : prepared.query;
+  const warning = args.fixed_strings === true ? undefined : prepared.warning;
+
+  const outputMode = ["content", "files_with_matches", "count"].includes(
+    String(args.output_mode),
+  )
+    ? (String(args.output_mode) as "content" | "files_with_matches" | "count")
+    : "content";
+  const headLimit = Math.min(
+    1_000,
+    Math.max(1, Number(args.head_limit) || DEFAULT_GREP_SEARCH_RESULTS_LIMIT),
+  );
+  const optionalNumber = (value: unknown) =>
+    typeof value === "number" && Number.isFinite(value)
+      ? Math.max(0, Math.trunc(value))
+      : undefined;
 
   let results: string;
   try {
-    results = await extras.ide.getSearchResults(
-      query,
-      DEFAULT_GREP_SEARCH_RESULTS_LIMIT,
-    );
+    results = await extras.ide.getSearchResults(query, headLimit, {
+      path: typeof args.path === "string" ? args.path : undefined,
+      glob: typeof args.glob === "string" ? args.glob : undefined,
+      outputMode,
+      contextBefore: optionalNumber(args.context_before),
+      contextAfter: optionalNumber(args.context_after),
+      context: optionalNumber(args.context),
+      caseInsensitive:
+        typeof args.case_insensitive === "boolean"
+          ? args.case_insensitive
+          : true,
+      fixedStrings: args.fixed_strings === true,
+      fileType: typeof args.type === "string" ? args.type : undefined,
+      multiline: args.multiline === true,
+      sort:
+        typeof args.sort === "string"
+          ? (args.sort as "path" | "modified" | "accessed" | "created")
+          : undefined,
+      sortAscending:
+        typeof args.sort_ascending === "boolean" ? args.sort_ascending : true,
+      offset: optionalNumber(args.offset),
+    });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
@@ -70,6 +104,17 @@ export const grepSearchImpl: ToolImpl = async (args, extras) => {
     );
   }
 
+  if (outputMode !== "content") {
+    return [
+      {
+        name:
+          outputMode === "count" ? "Search result counts" : "Matching files",
+        description: `Results for ${rawQuery}`,
+        content: results.trim() || "The search returned no results.",
+      },
+    ];
+  }
+
   const { formatted, numResults, truncated } = formatGrepSearchResults(
     results,
     DEFAULT_GREP_SEARCH_CHAR_LIMIT,
@@ -86,10 +131,8 @@ export const grepSearchImpl: ToolImpl = async (args, extras) => {
   }
 
   const truncationReasons: string[] = [];
-  if (numResults === DEFAULT_GREP_SEARCH_RESULTS_LIMIT) {
-    truncationReasons.push(
-      `the number of results exceeded ${DEFAULT_GREP_SEARCH_RESULTS_LIMIT}`,
-    );
+  if (numResults === headLimit) {
+    truncationReasons.push(`the number of results reached ${headLimit}`);
   }
   if (truncated) {
     truncationReasons.push(

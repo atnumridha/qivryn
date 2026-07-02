@@ -141,7 +141,9 @@ describe("errorAnalysis", () => {
         const error = new Error(`Header\n\n${JSON.stringify(complexJson)}`);
         const result = analyzeError(error, null);
 
-        expect(result.parsedError).toBe(JSON.stringify(complexJson.error));
+        expect(result.parsedError).toBe(
+          JSON.stringify(complexJson.error, null, 2),
+        );
       });
     });
 
@@ -386,7 +388,9 @@ describe("errorAnalysis", () => {
         };
         const result = analyzeError(error, selectedModel);
 
-        expect(result.parsedError).toBe(JSON.stringify(errorObj.error));
+        expect(result.parsedError).toBe(
+          JSON.stringify(errorObj.error, null, 2),
+        );
         expect(result.statusCode).toBe(400);
       });
 

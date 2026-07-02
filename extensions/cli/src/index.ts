@@ -6,10 +6,17 @@ import "./init.js";
 import { Command } from "commander";
 
 import { chat } from "./commands/chat.js";
+import { agentsCommand } from "./commands/agents.js";
 import { checks } from "./commands/checks.js";
 import { listSessionsCommand } from "./commands/ls.js";
 import { review } from "./commands/review.js";
 import { serve } from "./commands/serve.js";
+import { terminalCommand } from "./commands/terminal.js";
+import { browserCommand } from "./commands/browser.js";
+import { slackCommand } from "./commands/slack.js";
+import { commitMessageCommand } from "./commands/commitMessage.js";
+import { shadowCheck } from "./commands/shadowCheck.js";
+import { skillsCommand } from "./commands/skills.js";
 import {
   handleValidationErrors,
   validateFlags,
@@ -194,7 +201,7 @@ addCommonOptions(program)
   .option("--fork <sessionId>", "Fork from an existing session ID")
   .option(
     "--beta-subagent-tool",
-    "Enable beta Subagent tool for invoking subagents",
+    "Deprecated: subagents are enabled by default",
   )
   .action(async (prompt, options) => {
     // Handle piped input - detect it early and decide on mode
@@ -230,6 +237,7 @@ addCommonOptions(program)
       format: options.format,
       silent: options.silent,
       readonly: options.readonly,
+      autonomous: options.autonomous,
       auto: options.auto,
       config: options.config,
       resume: options.resume,
@@ -307,6 +315,157 @@ program
     });
   });
 
+program
+  .command("agents [action] [run-id]")
+  .description("List and inspect local agent runs")
+  .option("--json", "Output in JSON format")
+  .option("--all", "Include archived runs")
+  .option("--events", "Include the event stream when showing a run")
+  .option("--title <title>", "New title for the rename action")
+  .option("--prompt <prompt>", "Follow-up prompt for the queue action")
+  .option("--item <item-id>", "Queue item for the queue-remove action")
+  .option("--behavior <behavior>", "Queue behavior: run-next or steer")
+  .option("--items <items...>", "Queue item IDs or quoted multitask prompts")
+  .option("--label <label>", "Checkpoint label")
+  .option("--repo <path>", "Repository for a new local agent")
+  .option("--model <model>", "Model for a new local agent")
+  .option("--name <name>", "Automation name")
+  .option("--skill <name>", "Use a discovered skill for the task")
+  .option(
+    "--interval-minutes <minutes>",
+    "Run an automation at a local interval",
+  )
+  .option("--runtime <runtime>", "Agent runtime: local, docker, or ssh")
+  .option("--image <image>", "Container image for the Docker runtime")
+  .option("--network <network>", "Docker network for writable modes")
+  .option(
+    "--privileged",
+    "Allow a privileged Docker container (fullAccess only)",
+  )
+  .option("--ssh-host <host>", "SSH host or user@host")
+  .option("--ssh-path <path>", "Absolute project path on the SSH host")
+  .option("--ssh-port <port>", "SSH port")
+  .option("--identity-file <path>", "SSH identity file")
+  .option(
+    "--file <path>",
+    "File for agent export, import, ingest, or diagnostics output",
+  )
+  .option("--branch <name>", "New branch name for worktree-rename")
+  .option(
+    "--permission-mode <mode>",
+    "Permission mode: ask, autonomous, fullAccess, or readOnly",
+  )
+  .option(
+    "--detach",
+    "Start the agent in the background and return immediately",
+  )
+  .option("--parent-run <run-id>", "Create the agent as a child of another run")
+  .option("--steps <steps...>", "Plan steps")
+  .option(
+    "--plan-status <status>",
+    "Plan status: draft, approved, rejected, or completed",
+  )
+  .action(async (action, runId, options, command) => {
+    const commandOptions =
+      typeof command?.opts === "function"
+        ? command.opts()
+        : typeof options?.opts === "function"
+          ? options.opts()
+          : options;
+    const mergedOptions = mergeParentOptions(program, commandOptions);
+    if (Array.isArray(mergedOptions.prompt)) {
+      mergedOptions.prompt = mergedOptions.prompt.at(-1);
+    }
+    if (Array.isArray(mergedOptions.model)) {
+      mergedOptions.model = mergedOptions.model.at(-1);
+    }
+    await agentsCommand(action, runId, mergedOptions);
+  });
+
+program
+  .command("skills [action] [name]")
+  .description("List, inspect, create, or edit local Markdown skills")
+  .option("--name <name>", "Skill name")
+  .option("--description <description>", "When the skill should be used")
+  .option("--instructions <markdown>", "Skill instruction Markdown")
+  .option("--file <path>", "Read skill instructions from a file")
+  .option("--workspace", "Create in this workspace instead of globally")
+  .option("--json", "Output structured results")
+  .action(async (action, name, options) =>
+    skillsCommand(action, name, options),
+  );
+
+program
+  .command("shadow-check <command> [args...]")
+  .description("Run validation in an isolated dirty-tree snapshot")
+  .option("--repo <path>", "Repository to validate")
+  .option("--json", "Output structured results")
+  .action(async (command, args, options) =>
+    shadowCheck(command, args, options),
+  );
+
+program
+  .command("commit-message")
+  .description("Generate an editable commit-message draft from Git changes")
+  .option("--unstaged", "Include staged and unstaged changes")
+  .option("--json", "Output JSON")
+  .option("--cwd <path>", "Working directory for a background job")
+  .action(async (options) => {
+    await commitMessageCommand(options);
+  });
+
+program
+  .command("terminal [action] [command]")
+  .description("Inspect terminal command policy and execution context")
+  .option(
+    "--policy <policy>",
+    "allowedWithoutPermission, allowedWithPermission, or disabled",
+  )
+  .option("--sandbox", "Preview sandboxed execution")
+  .option("--json", "Output JSON")
+  .action(async (action, command, options) => {
+    await terminalCommand(action, command, options);
+  });
+
+program
+  .command("browser [action] [session-id]")
+  .description("Control persistent local browser sessions")
+  .option("--url <url>", "URL for create or navigate")
+  .option("--visible", "Open a visible browser window")
+  .option("--output <path>", "Write a screenshot to a file")
+  .option("--width <pixels>", "Viewport width")
+  .option("--height <pixels>", "Viewport height")
+  .option("--recording <mode>", "Recording mode: off, events, or full")
+  .option(
+    "--permission <action>",
+    "Scoped permission action or grant ID for revoke",
+  )
+  .option("--origin <origin>", "Origin scope for a browser grant")
+  .option("--expires-at <iso-time>", "Optional browser grant expiry")
+  .option("--json", "Output JSON")
+  .action(async (action, sessionId, options) => {
+    await browserCommand(action, sessionId, options);
+  });
+
+program
+  .command("slack [action]")
+  .description("Use the optional explicitly-authorized Slack connector")
+  .option("--channels <ids>", "Comma-separated channel allowlist")
+  .option("--write", "Explicitly authorize posting messages")
+  .option(
+    "--token-env <name>",
+    "Environment variable containing the bot token",
+    "SLACK_BOT_TOKEN",
+  )
+  .option("--channel <id>", "Allowlisted channel ID")
+  .option("--text <text>", "Message text for post")
+  .option("--thread <timestamp>", "Thread timestamp for post")
+  .option("--limit <count>", "Message count", "50")
+  .option("--json", "Output JSON")
+  .action(async (action, options) => {
+    await slackCommand(action, options);
+  });
+
 // Serve subcommand
 program
   .command("serve [prompt]", { hidden: true })
@@ -355,9 +514,17 @@ program
   .option("--patch", "Show patches")
   .option("--fail-fast", "Stop on first failure")
   .option("--review-agents <agents...>", "Specific review agents to run")
+  .option("--local", "Use the shared local review engine used by the IDE")
+  .option(
+    "--target <target>",
+    "Local target: working-tree, staged, commit:<sha>, branch:<base>...<head>, files:<paths>, or pr:<url>",
+  )
+  .option("--mode <mode>", "Local review depth: fast, standard, or deep")
   .option("--verbose", "Enable verbose logging")
   .action(async (options) => {
-    await review(options);
+    const commandOptions =
+      typeof options?.opts === "function" ? options.opts() : options;
+    await review(mergeParentOptions(program, commandOptions));
   });
 
 // Handle unknown commands

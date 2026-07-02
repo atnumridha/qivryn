@@ -150,7 +150,11 @@ export class ReverseMessageIde {
     });
 
     this.on("getSearchResults", (data) => {
-      return this.ide.getSearchResults(data.query, data.maxResults);
+      return this.ide.getSearchResults(
+        data.query,
+        data.maxResults,
+        data.options,
+      );
     });
 
     this.on("getFileResults", (data) => {

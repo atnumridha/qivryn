@@ -8,7 +8,6 @@ import type {
   ChatCompletionTool,
 } from "openai/resources.mjs";
 
-import { pruneLastMessage } from "../compaction.js";
 import { services } from "../services/index.js";
 import { telemetryService } from "../telemetry/telemetryService.js";
 import { applyChatCompletionToolOverrides } from "../tools/applyToolOverrides.js";
@@ -213,37 +212,19 @@ export async function processStreamingResponse(
     systemMessage,
   } = options;
 
-  let chatHistory = options.chatHistory;
+  const chatHistory = options.chatHistory;
 
   // Safety buffer to account for tokenization estimation errors
   const SAFETY_BUFFER = 100;
 
   // Validate context length INCLUDING system message and tools
-  let validation = validateContextLength({
+  const validation = validateContextLength({
     chatHistory,
     model,
     safetyBuffer: SAFETY_BUFFER,
     systemMessage,
     tools,
   });
-
-  // Prune last messages until valid (excluding system message)
-  while (chatHistory.length > 1 && !validation.isValid) {
-    const prunedChatHistory = pruneLastMessage(chatHistory);
-    if (prunedChatHistory.length === chatHistory.length) {
-      break;
-    }
-    chatHistory = prunedChatHistory;
-
-    // Re-validate with system message and tools
-    validation = validateContextLength({
-      chatHistory,
-      model,
-      safetyBuffer: SAFETY_BUFFER,
-      systemMessage,
-      tools,
-    });
-  }
 
   if (!validation.isValid) {
     throw new Error(`Context length validation failed: ${validation.error}`);
@@ -269,7 +250,10 @@ export async function processStreamingResponse(
         messages: openaiChatHistory,
         stream: true,
         tools,
-        ...getDefaultCompletionOptions(model.defaultCompletionOptions),
+        ...getDefaultCompletionOptions(
+          model.defaultCompletionOptions,
+          validation.maxTokens,
+        ),
       },
       retryAbortSignal,
     );
@@ -477,18 +461,51 @@ export async function streamChatResponse(
       toolNames: tools.map((t) => t.function.name),
     });
 
-    // Get response from LLM
-    const { content, toolCalls, shouldContinue, usage } =
-      await processStreamingResponse({
+    // Get a response from the LLM. Provider-side tokenizers can disagree with
+    // our estimator, so recover once with forced compaction instead of failing
+    // an otherwise healthy durable run.
+    const requestOptions = {
+      isHeadless,
+      chatHistory,
+      model,
+      llmApi,
+      abortController,
+      callbacks,
+      tools,
+      systemMessage,
+    };
+    let streamingResult;
+    try {
+      streamingResult = await processStreamingResponse(requestOptions);
+    } catch (error) {
+      if (isCompacting || !isContextLengthError(error)) throw error;
+
+      logger.warn(
+        "Provider rejected estimated context size; forcing compaction and retrying once",
+      );
+      callbacks?.onSystemMessage?.(
+        "The provider reported a fuller context window than estimated. Compacting now and retrying automatically.",
+      );
+      const recovery = await handlePreApiCompaction(chatHistory, {
         isHeadless,
-        chatHistory,
         model,
         llmApi,
-        abortController,
+        isCompacting,
         callbacks,
-        tools,
         systemMessage,
+        tools,
+        force: true,
       });
+      if (!recovery.wasCompacted) throw error;
+
+      chatHistory = recovery.chatHistory;
+      compactionOccurredThisTurn = true;
+      streamingResult = await processStreamingResponse({
+        ...requestOptions,
+        chatHistory,
+      });
+    }
+    const { content, toolCalls, shouldContinue, usage } = streamingResult;
 
     if (abortController?.signal.aborted) {
       return finalResponse || content || fullResponse;

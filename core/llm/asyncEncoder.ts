@@ -8,12 +8,21 @@ export interface AsyncEncoder {
   close(): Promise<void>;
 }
 
+const TOKENIZER_WORKER_POOL_OPTIONS = {
+  // Indexing can submit hundreds of chunks at once. workerpool otherwise uses
+  // every available core, which starves VS Code's renderer and makes agent/chat
+  // controls appear unclickable on large or decompiled workspaces.
+  minWorkers: 1,
+  maxWorkers: 1,
+} as const;
+
 export class LlamaAsyncEncoder implements AsyncEncoder {
   private workerPool: workerpool.Pool;
 
   constructor() {
     this.workerPool = workerpool.pool(
       workerCodeFilePath("llamaTokenizerWorkerPool.mjs"),
+      TOKENIZER_WORKER_POOL_OPTIONS,
     );
   }
 
@@ -38,6 +47,7 @@ export class GPTAsyncEncoder implements AsyncEncoder {
   constructor() {
     this.workerPool = workerpool.pool(
       workerCodeFilePath("tiktokenWorkerPool.mjs"),
+      TOKENIZER_WORKER_POOL_OPTIONS,
     );
   }
 

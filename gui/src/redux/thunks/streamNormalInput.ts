@@ -12,14 +12,18 @@ import {
   setActive,
   setAppliedRulesAtIndex,
   setContextPercentage,
+  setContextUsage,
+  setCompactionLoading,
   setInactive,
   setInlineErrorMessage,
   setIsPruned,
   setToolGenerated,
   streamUpdate,
+  updateHistoryItemAtIndex,
 } from "../slices/sessionSlice";
 import { ThunkApiType } from "../store";
 import { constructMessages } from "../util/constructMessages";
+import { getAutoCompactionTarget } from "../../util/autoCompaction";
 
 import { modelSupportsNativeTools } from "core/llm/toolSupport";
 import { applyToolOverrides } from "core/tools/applyToolOverrides";
@@ -87,11 +91,54 @@ export const streamNormalInput = createAsyncThunk<
       console.error(message, JSON.stringify(getState(), null, 2));
       throw new Error(message);
     }
-    const state = getState();
+    let state = getState();
     const selectedChatModel = selectSelectedChatModel(state);
 
     if (!selectedChatModel) {
       throw new Error("No chat model selected");
+    }
+
+    const compactionTarget = getAutoCompactionTarget(
+      state.session.history,
+      state.session.contextPercentage,
+      state.session.isPruned,
+    );
+    if (compactionTarget !== undefined && state.session.id) {
+      dispatch(
+        setCompactionLoading({ index: compactionTarget, loading: true }),
+      );
+      try {
+        const compacted = await extra.ideMessenger.request(
+          "conversation/compact",
+          {
+            index: compactionTarget,
+            sessionId: state.session.id,
+            automatic: true,
+          },
+        );
+        if (compacted.status === "success" && compacted.content) {
+          dispatch(
+            updateHistoryItemAtIndex({
+              index: compactionTarget,
+              updates: {
+                conversationSummary: compacted.content,
+                conversationSummaryAutomatic: true,
+              },
+            }),
+          );
+          state = getState();
+        } else if (compacted.status === "error") {
+          console.warn("Automatic context compaction failed", compacted.error);
+        }
+      } catch (error) {
+        // Compaction is an optimization. Preserve the user's prompt and let the
+        // existing pruning/error path handle providers that cannot summarize.
+        console.warn("Automatic context compaction failed", error);
+      } finally {
+        dispatch(
+          setCompactionLoading({ index: compactionTarget, loading: false }),
+        );
+      }
     }
 
     // Get tools and apply model-level overrides (disabled, description, etc.)
@@ -197,11 +244,28 @@ export const streamNormalInput = createAsyncThunk<
       }
     }
 
-    const { compiledChatMessages, didPrune, contextPercentage } =
-      precompiledRes.content;
+    const {
+      compiledChatMessages,
+      didPrune,
+      contextPercentage,
+      inputTokens,
+      contextLength,
+      availableTokens,
+    } = precompiledRes.content;
 
     dispatch(setIsPruned(didPrune));
     dispatch(setContextPercentage(contextPercentage));
+    const configuredContextLength = selectedChatModel.contextLength ?? 32_768;
+    dispatch(
+      setContextUsage({
+        inputTokens:
+          inputTokens ??
+          Math.round(contextPercentage * configuredContextLength),
+        contextLength: contextLength ?? configuredContextLength,
+        availableTokens,
+        model: selectedChatModel.model,
+      }),
+    );
 
     const start = Date.now();
     const streamAborter = state.session.streamAborter;
@@ -331,6 +395,7 @@ export const streamNormalInput = createAsyncThunk<
       activeTools,
       generatedCalls3,
       toolPolicies,
+      state3.ui.agentAccessMode ?? "autonomous",
     );
     const autoApprovedPolicies = policies.filter(
       ({ policy }) => policy === "allowedWithoutPermission",

@@ -29,9 +29,9 @@ describe("ModeIndicator", () => {
       expect(lastFrame()).toContain("plan]");
     });
 
-    it("should display auto mode with green color", () => {
+    it("should label unrestricted auto mode as full access", () => {
       const { lastFrame } = render(<ModeIndicator mode="auto" />);
-      expect(lastFrame()).toContain("auto]");
+      expect(lastFrame()).toContain("full access]");
     });
 
     it("should use current mode from service when no mode prop provided", () => {
@@ -43,7 +43,7 @@ describe("ModeIndicator", () => {
     it("should prioritize mode prop over service mode", () => {
       toolPermissionService.switchMode("plan");
       const { lastFrame } = render(<ModeIndicator mode="auto" />);
-      expect(lastFrame()).toContain("auto]");
+      expect(lastFrame()).toContain("full access]");
     });
   });
 
@@ -62,7 +62,7 @@ describe("ModeIndicator", () => {
       // Switch to auto
       toolPermissionService.switchMode("auto");
       rerender(<ModeIndicator />);
-      expect(lastFrame()).toContain("auto]");
+      expect(lastFrame()).toContain("full access]");
 
       // Switch back to normal
       toolPermissionService.switchMode("normal");

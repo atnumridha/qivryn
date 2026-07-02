@@ -6,6 +6,8 @@ export enum BuiltInToolNames {
   MultiEdit = "multi_edit",
   ReadCurrentlyOpenFile = "read_currently_open_file",
   CreateNewFile = "create_new_file",
+  WriteFile = "write_file",
+  DeleteFile = "delete_file",
   RunTerminalCommand = "run_terminal_command",
   GrepSearch = "grep_search",
   FileGlobSearch = "file_glob_search",
@@ -17,6 +19,9 @@ export enum BuiltInToolNames {
   FetchUrlContent = "fetch_url_content",
   CodebaseTool = "codebase",
   ReadSkill = "read_skill",
+  ReadLints = "read_lints",
+  GoToDefinition = "go_to_definition",
+  SearchSymbols = "search_symbols",
 
   // excluded from allTools for now
   ViewRepoMap = "view_repo_map",

@@ -175,7 +175,10 @@ export class ContinueGUIWebviewViewProvider
             ? `<script>window.edits = ${JSON.stringify(edits)}</script>`
             : ""
         }
-        ${page ? `<script>window.location.pathname = "${page}"</script>` : ""}
+        <script>
+          window.initialRoute = ${JSON.stringify(page ?? "/")};
+          vscode.setState({ page: window.initialRoute });
+        </script>
       </body>
     </html>`;
   }

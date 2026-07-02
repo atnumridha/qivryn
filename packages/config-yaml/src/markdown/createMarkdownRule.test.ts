@@ -101,6 +101,7 @@ describe("createRuleMarkdown", () => {
 
     const parsed = markdownToRule(result, mockPackageId);
 
+    expect(parsed.name).toBe("Test Rule");
     expect(parsed.description).toBe("Test description");
     expect(parsed.globs).toEqual(["*.ts", "*.js"]);
     expect(parsed.alwaysApply).toBe(true);
@@ -112,6 +113,7 @@ describe("createRuleMarkdown", () => {
 
     const parsed = markdownToRule(result, mockPackageId);
 
+    expect(parsed.name).toBe("Simple Rule");
     expect(parsed.description).toBeUndefined();
     expect(parsed.globs).toBeUndefined();
     expect(parsed.alwaysApply).toBeUndefined();

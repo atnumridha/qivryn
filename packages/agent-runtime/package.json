@@ -1,0 +1,41 @@
+{
+  "name": "@continuedev/agent-runtime",
+  "version": "0.1.0",
+  "description": "Shared agent lifecycle, persistence, and local execution contracts for Continue",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./contracts": {
+      "types": "./dist/contracts.d.ts",
+      "default": "./dist/contracts.js"
+    },
+    "./deep-links": {
+      "types": "./dist/deepLinks.d.ts",
+      "default": "./dist/deepLinks.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "deep-links": [
+        "dist/deepLinks.d.ts"
+      ]
+    }
+  },
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "test": "vitest run"
+  },
+  "author": "Continue Dev, Inc",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@types/node": "^22.15.29",
+    "typescript": "^5.5.2",
+    "vitest": "^3.2.4"
+  }
+}

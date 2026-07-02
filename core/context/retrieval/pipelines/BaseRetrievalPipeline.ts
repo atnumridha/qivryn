@@ -198,6 +198,32 @@ export default class BaseRetrievalPipeline implements IRetrievalPipeline {
     );
   }
 
+  protected async retrieveGitRecentPaths(): Promise<string[]> {
+    const roots = new Set<string>();
+    for (const directory of await this.options.ide.getWorkspaceDirs()) {
+      const root = await this.options.ide.getGitRootPath(directory);
+      if (root) roots.add(root);
+    }
+    const paths: string[] = [];
+    for (const root of roots) {
+      try {
+        const [stdout] = await this.options.ide.subprocess(
+          "git log -n 40 --name-only --pretty=format:",
+          root,
+        );
+        paths.push(
+          ...stdout
+            .split(/\r?\n/)
+            .map((value) => value.trim().replace(/\\/g, "/"))
+            .filter(Boolean),
+        );
+      } catch {
+        // Non-Git and shallow workspaces simply omit history weighting.
+      }
+    }
+    return [...new Set(paths)];
+  }
+
   run(args: RetrievalPipelineRunArguments): Promise<Chunk[]> {
     throw new Error("Not implemented");
   }

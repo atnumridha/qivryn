@@ -19,6 +19,7 @@ export interface CompactionHelperOptions {
   callbacks?: StreamCallbacks;
   systemMessage: string;
   tools?: ChatCompletionTool[];
+  force?: boolean;
 }
 
 /**
@@ -36,10 +37,26 @@ export async function handlePreApiCompaction(
     callbacks,
     systemMessage,
     tools,
+    force: requestedForce = false,
   } = options;
 
   if (isCompacting) {
     return { chatHistory, wasCompacted: false };
+  }
+
+  const validation = validateContextLength({
+    chatHistory,
+    model,
+    safetyBuffer: 100,
+    systemMessage,
+    tools,
+  });
+  const force = requestedForce || !validation.isValid;
+  if (force && !validation.isValid) {
+    logger.warn("Preflight context validation requires forced compaction", {
+      inputTokens: validation.inputTokens,
+      contextLimit: validation.contextLimit,
+    });
   }
 
   const { wasCompacted, chatHistory: preCompactHistory } =
@@ -51,6 +68,7 @@ export async function handlePreApiCompaction(
       },
       systemMessage,
       tools,
+      force,
     });
 
   if (wasCompacted) {
@@ -119,6 +137,7 @@ export async function handlePostToolValidation(
         },
         systemMessage,
         tools,
+        force: true,
       });
 
     if (wasCompacted) {

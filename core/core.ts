@@ -1,4 +1,51 @@
 import { fetchwithRequestOptions } from "@continuedev/fetch";
+import {
+  AgentControlService,
+  connectAgentDaemon,
+  FileAgentAutomationStore,
+  FileAgentStore,
+  GitWorktreeWorkspaceProvider,
+  AgentHookRunner,
+  FileAgentHookRegistry,
+  runAgentAutomation,
+} from "@continuedev/agent-runtime";
+import {
+  DiffSafetyAnalyzer,
+  SemanticDiffAnalyzer,
+  FileReviewStore,
+  GitReviewTargetResolver,
+  GitPatchReviewFixer,
+  ReviewEngine,
+} from "@continuedev/review-engine";
+import {
+  classifyTerminalCommand,
+  TerminalJobService,
+} from "@continuedev/terminal-security";
+import {
+  BrowserSessionService,
+  FileBrowserStore,
+  PuppeteerBrowserAdapter,
+  FileBrowserPermissionPolicy,
+} from "@continuedev/browser-runtime";
+import {
+  FileSlackCredentialStore,
+  SlackConnectorService,
+  SlackWebApiClient,
+} from "@continuedev/slack-connector";
+import path from "node:path";
+import {
+  invalidateMarkdownSkillsCache,
+  loadMarkdownSkills,
+  saveMarkdownSkill,
+} from "./config/markdown/loadMarkdownSkills";
+import {
+  installLocalPlugin,
+  listLocalPlugins,
+  setLocalPluginEnabled,
+  uninstallLocalPlugin,
+} from "./config/plugins/localPluginManager";
+import { spawn } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import * as URI from "uri-js";
 import { v4 as uuidv4 } from "uuid";
 
@@ -24,7 +71,11 @@ import { ChatDescriber } from "./util/chatDescriber";
 import { compactConversation } from "./util/conversationCompaction";
 import { GlobalContext } from "./util/GlobalContext";
 import historyManager from "./util/history";
-import { editConfigFile, migrateV1DevDataFiles } from "./util/paths";
+import {
+  editConfigFile,
+  getContinueGlobalPath,
+  migrateV1DevDataFiles,
+} from "./util/paths";
 
 import {
   isProcessBackgrounded,
@@ -33,6 +84,12 @@ import {
 } from "./util/processTerminalStates";
 import { getSymbolsForManyFiles } from "./util/treeSitter";
 import { TTS } from "./util/tts";
+import { transcribeVoiceAudio } from "./util/voiceTranscription";
+import {
+  cancelHostVoiceCapture,
+  startHostVoiceCapture,
+  stopHostVoiceCapture,
+} from "./util/hostVoiceCapture";
 
 import {
   CompleteOnboardingPayload,
@@ -274,6 +331,152 @@ export class Core {
   /* eslint-disable max-lines-per-function */
   private registerMessageHandlers(ideSettingsPromise: Promise<IdeSettings>) {
     const on = this.messenger.on.bind(this.messenger);
+    const agentStore = new FileAgentStore(
+      path.join(getContinueGlobalPath(), "agents"),
+    );
+    const agentStoreReady = agentStore.initialize();
+    const agentAutomationStore = new FileAgentAutomationStore(
+      path.join(getContinueGlobalPath(), "agents"),
+    );
+    const agentAutomationStoreReady = agentAutomationStore.initialize();
+    const reviewEngine = new ReviewEngine(
+      new FileReviewStore(path.join(getContinueGlobalPath(), "reviews")),
+      new GitReviewTargetResolver(),
+      [
+        new DiffSafetyAnalyzer(),
+        new SemanticDiffAnalyzer(async (prompt, signal) => {
+          const { config } = await this.configHandler.loadConfig();
+          const model = config?.selectedModelByRole.chat;
+          if (!model) {
+            throw new Error(
+              "A chat model is required for standard and deep semantic review",
+            );
+          }
+          return model.complete(prompt, signal, {
+            temperature: 0,
+            maxTokens: 4_000,
+          });
+        }),
+      ],
+      new GitPatchReviewFixer(),
+      new AgentHookRunner(() =>
+        new FileAgentHookRegistry(
+          path.join(getContinueGlobalPath(), "hooks.json"),
+        ).list(),
+      ),
+    );
+    const reviewEngineReady = reviewEngine.initialize();
+    const browserService = new BrowserSessionService(
+      new FileBrowserStore(path.join(getContinueGlobalPath(), "browser")),
+      new PuppeteerBrowserAdapter(),
+      new FileBrowserPermissionPolicy(
+        path.join(getContinueGlobalPath(), "browser", "grants.json"),
+      ),
+    );
+    const browserServiceReady = browserService.initialize();
+    const terminalJobs = new TerminalJobService(
+      path.join(getContinueGlobalPath(), "terminal-jobs"),
+    );
+    const terminalJobsReady = terminalJobs.initialize();
+    const slackService = new SlackConnectorService(
+      new FileSlackCredentialStore(
+        path.join(getContinueGlobalPath(), "connectors", "slack"),
+      ),
+      new SlackWebApiClient(),
+    );
+    const slackServiceReady = slackService.initialize();
+    const agentDaemonPath = path.join(
+      getContinueGlobalPath(),
+      "agents",
+      "daemon.json",
+    );
+    let agentDaemonStart: Promise<
+      Awaited<ReturnType<typeof connectAgentDaemon>>
+    > | null = null;
+    let cachedAgentDaemon: Awaited<
+      ReturnType<typeof connectAgentDaemon>
+    > | null = null;
+    let cachedAgentDaemonUntil = 0;
+    let agentDaemonLastError: string | undefined;
+    let agentDaemonStarting = false;
+    const agentDaemonSource =
+      process.env.CONTINUE_CLI_SOURCE === "bundled"
+        ? ("bundled" as const)
+        : process.env.CONTINUE_CLI_PATH
+          ? ("external" as const)
+          : ("path" as const);
+    const getAgentDaemon = async () => {
+      if (cachedAgentDaemon && Date.now() < cachedAgentDaemonUntil) {
+        return cachedAgentDaemon;
+      }
+      const connected = await connectAgentDaemon(agentDaemonPath);
+      if (connected) {
+        cachedAgentDaemon = connected;
+        cachedAgentDaemonUntil = Date.now() + 2_000;
+        agentDaemonLastError = undefined;
+        return connected;
+      }
+      cachedAgentDaemon = null;
+      cachedAgentDaemonUntil = 0;
+      if (!agentDaemonStart) {
+        const start = (async () => {
+          agentDaemonStarting = true;
+          const token = randomBytes(32).toString("hex");
+          const cliPath = process.env.CONTINUE_CLI_PATH?.trim();
+          const command = cliPath ? process.execPath : "cn";
+          const args = cliPath
+            ? [cliPath, "agents", "daemon"]
+            : ["agents", "daemon"];
+          const child = spawn(command, args, {
+            detached: true,
+            stdio: "ignore",
+            env: {
+              ...process.env,
+              ...(cliPath ? { ELECTRON_RUN_AS_NODE: "1" } : {}),
+              CONTINUE_AGENT_DAEMON_TOKEN: token,
+              CONTINUE_GLOBAL_DIR: getContinueGlobalPath(),
+            },
+          });
+          child.unref();
+          await new Promise<void>((resolve, reject) => {
+            child.once("error", reject);
+            child.once("spawn", resolve);
+          });
+          for (let attempt = 0; attempt < 100; attempt++) {
+            const daemon = await connectAgentDaemon(agentDaemonPath);
+            if (daemon) return daemon;
+            await new Promise((resolve) => setTimeout(resolve, 50));
+          }
+          throw new Error(
+            "Timed out while starting the local agent runtime. Open Continue logs for details.",
+          );
+        })()
+          .catch((error) => {
+            agentDaemonLastError =
+              error instanceof Error ? error.message : String(error);
+            return undefined;
+          })
+          .finally(() => {
+            agentDaemonStarting = false;
+            if (agentDaemonStart === start) agentDaemonStart = null;
+          });
+        agentDaemonStart = start;
+      }
+      const daemon = await agentDaemonStart;
+      if (daemon) {
+        cachedAgentDaemon = daemon;
+        cachedAgentDaemonUntil = Date.now() + 2_000;
+        agentDaemonLastError = undefined;
+      }
+      return daemon;
+    };
+    const agentWorktrees = new GitWorktreeWorkspaceProvider();
+    const agentControls = new AgentControlService(agentStore, {
+      createCheckpoint: (run, checkpoint) =>
+        agentWorktrees.createCheckpoint(run, checkpoint),
+      restoreCheckpoint: (run, checkpoint) =>
+        agentWorktrees.restoreCheckpoint(run, checkpoint),
+    });
 
     // Note, VsCode's in-process messenger doesn't do anything with this
     // It will only show for jetbrains
@@ -331,6 +534,487 @@ export class Core {
       historyManager.clearAll();
     });
 
+    on("agents/list", async (msg) => {
+      await agentStoreReady;
+      const daemon = await getAgentDaemon();
+      return daemon ? daemon.listRuns(msg.data) : agentStore.listRuns(msg.data);
+    });
+
+    on("agents/events", async (msg) => {
+      await agentStoreReady;
+      const daemon = await getAgentDaemon();
+      return daemon
+        ? daemon.readEvents(msg.data.runId, msg.data.options)
+        : agentStore.readEvents(msg.data.runId, msg.data.options);
+    });
+
+    on("agents/stream", (msg) => {
+      const abortController = this.addMessageAbortController(msg.messageId);
+      const core = this;
+      const stream = async function* () {
+        await agentStoreReady;
+        const daemon = await getAgentDaemon();
+        const source = daemon ?? {
+          streamEvents: async function* () {
+            let cursor = msg.data.options?.afterSequence ?? 0;
+            while (!abortController.signal.aborted) {
+              const events = await agentStore.readEvents(msg.data.runId, {
+                ...msg.data.options,
+                afterSequence: cursor,
+              });
+              for (const event of events) {
+                cursor = event.sequence;
+                yield event;
+              }
+              const run = await agentStore.getRun(msg.data.runId);
+              if (
+                events.length === 0 &&
+                (!run ||
+                  ["completed", "failed", "canceled", "archived"].includes(
+                    run.status,
+                  ))
+              ) {
+                return;
+              }
+              await new Promise((resolve) => setTimeout(resolve, 150));
+            }
+          },
+        };
+        try {
+          for await (const event of source.streamEvents(msg.data.runId, {
+            ...msg.data.options,
+            signal: abortController.signal,
+          })) {
+            yield event;
+          }
+        } finally {
+          core.messageAbortControllers.delete(msg.messageId);
+        }
+      };
+      return stream();
+    });
+
+    on("agents/status", async () => {
+      const daemon = await getAgentDaemon();
+      return {
+        state: daemon
+          ? "ready"
+          : agentDaemonStarting
+            ? "starting"
+            : "unavailable",
+        checkedAt: new Date().toISOString(),
+        source: agentDaemonSource,
+        capabilities: daemon?.capabilities,
+        message: daemon
+          ? undefined
+          : (agentDaemonLastError ??
+            "The local agent runtime is unavailable. Install the Continue CLI or rebuild the extension with its bundled runtime."),
+      };
+    });
+
+    on("agents/queue", async (msg) => {
+      await agentStoreReady;
+      const daemon = await getAgentDaemon();
+      return daemon
+        ? daemon.listQueue(msg.data.runId)
+        : agentControls.listQueue(msg.data.runId);
+    });
+
+    on("agents/checkpoints", async (msg) => {
+      await agentStoreReady;
+      const daemon = await getAgentDaemon();
+      return daemon
+        ? daemon.listCheckpoints(msg.data.runId)
+        : agentControls.listCheckpoints(msg.data.runId);
+    });
+
+    on("agents/plans", async (msg) => {
+      await agentStoreReady;
+      const daemon = await getAgentDaemon();
+      return daemon
+        ? daemon.listPlans(msg.data.runId)
+        : agentControls.listPlans(msg.data.runId);
+    });
+
+    on("agents/export", async (msg) => {
+      await agentStoreReady;
+      const daemon = await getAgentDaemon();
+      if (!daemon) throw new Error("Local agent runtime is not running");
+      return daemon.exportRun(msg.data.runId);
+    });
+
+    on("agents/import", async (msg) => {
+      await agentStoreReady;
+      const daemon = await getAgentDaemon();
+      if (!daemon) throw new Error("Local agent runtime is not running");
+      return daemon.importRun(msg.data.snapshot, msg.data.workspace);
+    });
+
+    on("agents/automations", async () => {
+      await agentAutomationStoreReady;
+      return agentAutomationStore.list();
+    });
+
+    on("agents/automationControl", async (msg) => {
+      await agentAutomationStoreReady;
+      const request = msg.data;
+      switch (request.action) {
+        case "create":
+          return agentAutomationStore.create(request.request);
+        case "remove":
+          return agentAutomationStore.remove(request.automationId);
+        case "enabled":
+          return agentAutomationStore.setEnabled(
+            request.automationId,
+            request.enabled,
+          );
+        case "run": {
+          const automation = await agentAutomationStore.get(
+            request.automationId,
+          );
+          if (!automation) {
+            throw new Error(`Automation ${request.automationId} was not found`);
+          }
+          const daemon = await getAgentDaemon();
+          if (!daemon) throw new Error("Local agent runtime is not running");
+          const run = await runAgentAutomation(automation, daemon);
+          await agentAutomationStore.markRun(automation.id, run);
+          return run;
+        }
+      }
+    });
+
+    on("agents/control", async (msg) => {
+      await agentStoreReady;
+      const data = msg.data;
+      const daemon = await getAgentDaemon();
+      switch (data.action) {
+        case "run.create":
+          if (!daemon)
+            throw new Error(
+              "Local agent runtime is not running. Start it with `cn agents daemon`.",
+            );
+          return daemon.createRun(data.request);
+        case "run.cancel":
+          if (!daemon)
+            throw new Error(
+              "Local agent runtime is not running; the process cannot be canceled.",
+            );
+          return daemon.cancelRun(data.runId, data.reason);
+        case "run.resume":
+          if (!daemon)
+            throw new Error(
+              "Local agent runtime is not running. Start it with `cn agents daemon`.",
+            );
+          return daemon.resumeRun(data.runId);
+        case "run.duplicate":
+          if (!daemon)
+            throw new Error(
+              "Local agent runtime is not running. Start it with `cn agents daemon`.",
+            );
+          return daemon.duplicateRun(
+            data.runId,
+            data.title,
+            data.idempotencyKey,
+          );
+        case "run.cleanup":
+          if (!daemon)
+            throw new Error(
+              "Local agent runtime is not running; worktree cleanup is unavailable.",
+            );
+          return daemon.cleanupRun(data.runId);
+        case "rename":
+          return daemon
+            ? daemon.renameRun(data.runId, data.title)
+            : agentControls.renameRun(data.runId, data.title);
+        case "permission.set":
+          return daemon
+            ? daemon.setRunPermission(data.runId, data.permissionMode)
+            : agentControls.setRunPermission(data.runId, data.permissionMode);
+        case "pin":
+          return daemon
+            ? daemon.setRunPinned(data.runId, data.pinned)
+            : agentControls.setRunPinned(data.runId, data.pinned);
+        case "unread":
+          return daemon
+            ? daemon.setRunUnread(data.runId, data.unread)
+            : agentControls.setRunUnread(data.runId, data.unread);
+        case "archive":
+          return daemon
+            ? daemon.archiveRun(data.runId)
+            : agentControls.archiveRun(data.runId);
+        case "queue.add":
+          return daemon
+            ? daemon.enqueuePrompt(data.runId, data.prompt, data.behavior)
+            : agentControls.enqueuePrompt(
+                data.runId,
+                data.prompt,
+                data.behavior,
+              );
+        case "queue.update":
+          return daemon
+            ? daemon.updateQueueItem(data.runId, data.itemId, {
+                prompt: data.prompt,
+                behavior: data.behavior,
+              })
+            : agentControls.updateQueueItem(data.runId, data.itemId, {
+                prompt: data.prompt,
+                behavior: data.behavior,
+              });
+        case "queue.remove":
+          return daemon
+            ? daemon.removeQueueItem(data.runId, data.itemId)
+            : agentControls.removeQueueItem(data.runId, data.itemId);
+        case "queue.reorder":
+          return daemon
+            ? daemon.reorderQueue(data.runId, data.itemIds)
+            : agentControls.reorderQueue(data.runId, data.itemIds);
+        case "checkpoint.create":
+          return daemon
+            ? daemon.createCheckpoint(data.runId, data.label)
+            : agentControls.createCheckpoint(data.runId, data.label);
+        case "checkpoint.restore":
+          return daemon
+            ? daemon.restoreCheckpoint(data.runId, data.checkpointId)
+            : agentControls.restoreCheckpoint(data.runId, data.checkpointId);
+        case "plan.create":
+          return daemon
+            ? daemon.createPlan(data.runId, data.title, data.items)
+            : agentControls.createPlan(data.runId, data.title, data.items);
+        case "plan.update":
+          return daemon
+            ? daemon.updatePlan(
+                data.runId,
+                data.planId,
+                { title: data.title, items: data.items },
+                data.expectedRevision,
+              )
+            : agentControls.updatePlan(
+                data.runId,
+                data.planId,
+                { title: data.title, items: data.items },
+                data.expectedRevision,
+              );
+        case "plan.status":
+          return daemon
+            ? daemon.setPlanStatus(
+                data.runId,
+                data.planId,
+                data.status,
+                data.expectedRevision,
+              )
+            : agentControls.setPlanStatus(
+                data.runId,
+                data.planId,
+                data.status,
+                data.expectedRevision,
+              );
+      }
+    });
+
+    on("reviews/list", async () => {
+      await reviewEngineReady;
+      return reviewEngine.listReports();
+    });
+
+    on("reviews/get", async (msg) => {
+      await reviewEngineReady;
+      const report = await reviewEngine.getReport(msg.data.reportId);
+      return report ? reviewEngine.reanchorReport(report.id) : undefined;
+    });
+
+    on("reviews/run", async (msg) => {
+      await reviewEngineReady;
+      return reviewEngine.run(msg.data);
+    });
+
+    on("reviews/cancel", async (msg) => {
+      await reviewEngineReady;
+      return reviewEngine.cancel(msg.data.reportId);
+    });
+
+    on("reviews/comments", async (msg) => {
+      await reviewEngineReady;
+      return reviewEngine.listComments(msg.data.findingId);
+    });
+
+    on("reviews/action", async (msg) => {
+      await reviewEngineReady;
+      const action = msg.data;
+      switch (action.action) {
+        case "status":
+          return reviewEngine.setFindingStatus(
+            action.reportId,
+            action.findingId,
+            action.status,
+          );
+        case "comment":
+          return reviewEngine.addComment(action.findingId, action.body);
+        case "feedback":
+          return reviewEngine.setFeedback(action.findingId, action.value);
+        case "reanchor":
+          return reviewEngine.reanchor(action.reportId, action.findingId);
+        case "fix":
+          return reviewEngine.fixFinding(action.reportId, action.findingId);
+      }
+    });
+
+    on("terminal/classify", (msg) => {
+      return classifyTerminalCommand(msg.data.basePolicy, msg.data.command, {
+        sandboxed: msg.data.sandboxed,
+      });
+    });
+    on("terminal/jobs", async () => {
+      await terminalJobsReady;
+      return terminalJobs.list();
+    });
+    on("terminal/jobStart", async (msg) => {
+      await terminalJobsReady;
+      return terminalJobs.start(msg.data.command, msg.data.cwd);
+    });
+    on("terminal/jobOutput", async (msg) => {
+      await terminalJobsReady;
+      return terminalJobs.output(msg.data.jobId);
+    });
+    on("terminal/jobStop", async (msg) => {
+      await terminalJobsReady;
+      return terminalJobs.stop(msg.data.jobId);
+    });
+    on("extensions/skills", async () => loadMarkdownSkills(this.ide));
+    on("extensions/skillSave", async (msg) =>
+      saveMarkdownSkill(this.ide, msg.data),
+    );
+    on("extensions/plugins", async () => listLocalPlugins());
+    on("extensions/pluginInstall", async (msg) => {
+      const plugin = await installLocalPlugin(msg.data.sourcePath);
+      invalidateMarkdownSkillsCache();
+      await this.configHandler.reloadConfig("Local plugin installed");
+      return plugin;
+    });
+    on("extensions/pluginSetEnabled", async (msg) => {
+      const plugin = await setLocalPluginEnabled(msg.data.id, msg.data.enabled);
+      invalidateMarkdownSkillsCache();
+      await this.configHandler.reloadConfig(
+        plugin.enabled ? "Local plugin enabled" : "Local plugin disabled",
+      );
+      return plugin;
+    });
+    on("extensions/pluginUninstall", async (msg) => {
+      await uninstallLocalPlugin(msg.data.id);
+      invalidateMarkdownSkillsCache();
+      await this.configHandler.reloadConfig("Local plugin uninstalled");
+    });
+
+    on("browser/list", async () => {
+      await browserServiceReady;
+      return browserService.list();
+    });
+
+    on("browser/create", async (msg) => {
+      await browserServiceReady;
+      return browserService.create(msg.data);
+    });
+
+    on("browser/events", async (msg) => {
+      await browserServiceReady;
+      return browserService.events(msg.data.sessionId, msg.data.afterSequence);
+    });
+    on("browser/grants", async (msg) => {
+      await browserServiceReady;
+      return browserService.listGrants(msg.data.sessionId);
+    });
+    on("browser/grant", async (msg) => {
+      await browserServiceReady;
+      return browserService.grant(
+        msg.data.sessionId,
+        msg.data.action,
+        msg.data.origin,
+        msg.data.expiresAt,
+      );
+    });
+    on("browser/revokeGrant", async (msg) => {
+      await browserServiceReady;
+      return browserService.revokeGrant(msg.data.sessionId, msg.data.grantId);
+    });
+
+    on("browser/action", async (msg) => {
+      await browserServiceReady;
+      const action = msg.data;
+      const actor = action.actor ?? "user";
+      switch (action.action) {
+        case "close":
+          return browserService.close(action.sessionId, actor);
+        case "navigate":
+          return browserService.navigate(action.sessionId, action.url, actor);
+        case "back":
+          return browserService.back(action.sessionId, actor);
+        case "forward":
+          return browserService.forward(action.sessionId, actor);
+        case "reload":
+          return browserService.reload(action.sessionId, actor);
+        case "lock":
+          return browserService.lock(action.sessionId, actor);
+        case "takeover":
+          return browserService.takeover(action.sessionId, actor);
+        case "unlock":
+          return browserService.unlock(action.sessionId, actor);
+        case "screenshot":
+          return browserService.screenshot(action.sessionId, actor);
+        case "dom":
+          return browserService.dom(action.sessionId, actor);
+        case "console":
+          return browserService.console(action.sessionId, actor);
+        case "network":
+          return browserService.network(action.sessionId, actor);
+        case "viewport":
+          return browserService.viewport(
+            action.sessionId,
+            action.viewport,
+            actor,
+          );
+        case "recording":
+          return browserService.recording(
+            action.sessionId,
+            action.recording,
+            actor,
+          );
+      }
+    });
+
+    on("slack/status", async () => {
+      await slackServiceReady;
+      return slackService.status();
+    });
+
+    on("slack/authorize", async (msg) => {
+      await slackServiceReady;
+      return slackService.authorize(msg.data);
+    });
+
+    on("slack/revoke", async () => {
+      await slackServiceReady;
+      return slackService.revoke();
+    });
+
+    on("slack/channels", async () => {
+      await slackServiceReady;
+      return slackService.channels();
+    });
+
+    on("slack/messages", async (msg) => {
+      await slackServiceReady;
+      return slackService.messages(msg.data.channelId, msg.data.limit);
+    });
+
+    on("slack/post", async (msg) => {
+      await slackServiceReady;
+      return slackService.post(
+        msg.data.channelId,
+        msg.data.text,
+        msg.data.threadTimestamp,
+      );
+    });
+
     on("devdata/log", async (msg) => {
       void DataLogger.getInstance().logDevData(msg.data);
     });
@@ -379,11 +1063,7 @@ export class Core {
     });
 
     on("config/addLocalWorkspaceBlock", async (msg) => {
-      await createNewWorkspaceBlockFile(
-        this.ide,
-        msg.data.blockType,
-        msg.data.baseFilename,
-      );
+      await createNewWorkspaceBlockFile(this.ide, msg.data.blockType, msg.data);
       walkDirCache.invalidate();
       await this.configHandler.reloadConfig(
         "Local block created (config/addLocalWorkspaceBlock message)",
@@ -392,7 +1072,7 @@ export class Core {
 
     on("config/addGlobalRule", async (msg) => {
       try {
-        await createNewGlobalRuleFile(this.ide, msg.data?.baseFilename);
+        await createNewGlobalRuleFile(this.ide, msg.data);
         walkDirCache.invalidate();
         await this.configHandler.reloadConfig(
           "Global rule created (config/addGlobalRule message)",
@@ -628,18 +1308,50 @@ export class Core {
       }
 
       try {
-        await compactConversation({
+        return await compactConversation({
           sessionId: msg.data.sessionId,
           index: msg.data.index,
           historyManager,
           currentModel,
+          automatic: msg.data.automatic,
         });
-        return undefined;
       } catch (error) {
         Logger.error(`Error compacting conversation: ${error}`);
-        return undefined;
+        throw error;
       }
     });
+
+    const voiceTranscriptions = new Map<string, AbortController>();
+    on("voice/transcribe", async (msg) => {
+      const requestId = msg.data.requestId ?? uuidv4();
+      const controller = new AbortController();
+      voiceTranscriptions.set(requestId, controller);
+      try {
+        const currentModel = (await this.configHandler.loadConfig()).config
+          ?.selectedModelByRole.chat;
+        if (!currentModel) throw new Error("No chat model selected");
+        return await transcribeVoiceAudio(
+          msg.data,
+          currentModel,
+          controller.signal,
+        );
+      } finally {
+        if (voiceTranscriptions.get(requestId) === controller) {
+          voiceTranscriptions.delete(requestId);
+        }
+      }
+    });
+    on("voice/transcribeCancel", async (msg) => {
+      voiceTranscriptions.get(msg.data.requestId)?.abort();
+      voiceTranscriptions.delete(msg.data.requestId);
+    });
+    on("voice/captureStart", async () => startHostVoiceCapture());
+    on("voice/captureStop", async (msg) =>
+      stopHostVoiceCapture(msg.data.captureId),
+    );
+    on("voice/captureCancel", async (msg) =>
+      cancelHostVoiceCapture(msg.data.captureId),
+    );
 
     // Autocomplete
     on("autocomplete/complete", async (msg) => {

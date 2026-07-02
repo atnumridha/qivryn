@@ -6,6 +6,7 @@ import { ReusableCard } from "../ReusableCard";
 import { OnboardingCardTabs } from "./components/OnboardingCardTabs";
 import { OnboardingLocalTab } from "./components/OnboardingLocalTab";
 import { OnboardingProvidersTab } from "./components/OnboardingProvidersTab";
+import { OnboardingFeatureTour } from "./components/OnboardingFeatureTour";
 import { useOnboardingCard } from "./hooks/useOnboardingCard";
 
 export interface OnboardingCardState {
@@ -52,6 +53,7 @@ export function OnboardingCard({ isDialog }: OnboardingCardProps) {
     >
       <OnboardingCardTabs activeTab={currentTab} onTabClick={setActiveTab} />
       {renderTabContent()}
+      <OnboardingFeatureTour />
     </ReusableCard>
   );
 }

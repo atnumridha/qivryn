@@ -13,6 +13,7 @@ import { getMarkdownLanguageTagForFile } from "core/util";
 import { VerticalDiffManager } from "../diff/vertical/manager";
 import { VsCodeIde } from "../VsCodeIde";
 import { VsCodeWebviewProtocol } from "../webviewProtocol";
+import { materializeBackgroundEdit } from "./backgroundEdit";
 
 /**
  * Handles applying text/code to files including diff generation and streaming
@@ -31,7 +32,21 @@ export class ApplyManager {
     text,
     toolCallId,
     isSearchAndReplace,
+    background,
   }: ApplyToFilePayload) {
+    if (background) {
+      if (!filepath)
+        throw new Error("A filepath is required for background edits");
+      await this.applyToFileInBackground({
+        streamId,
+        filepath,
+        text,
+        toolCallId,
+        isSearchAndReplace,
+      });
+      return;
+    }
+
     if (filepath) {
       await this.ensureFileOpen(filepath);
     }
@@ -80,6 +95,98 @@ export class ApplyManager {
         toolCallId,
       );
     }
+  }
+
+  private async applyToFileInBackground({
+    streamId,
+    filepath,
+    text,
+    toolCallId,
+    isSearchAndReplace,
+  }: Required<Pick<ApplyToFilePayload, "streamId" | "filepath" | "text">> &
+    Pick<ApplyToFilePayload, "toolCallId" | "isSearchAndReplace">) {
+    const uri = vscode.Uri.parse(filepath);
+    const openDocument = vscode.workspace.textDocuments.find(
+      (document) => document.uri.toString() === uri.toString(),
+    );
+    const originalFileContent = openDocument
+      ? openDocument.getText()
+      : new TextDecoder().decode(await vscode.workspace.fs.readFile(uri));
+
+    await this.webviewProtocol.request("updateApplyState", {
+      streamId,
+      status: "streaming",
+      filepath,
+      fileContent: text,
+      originalFileContent,
+      toolCallId,
+    });
+
+    let finalContent = text;
+    let changedLines = 0;
+    if (!isSearchAndReplace && originalFileContent.trim()) {
+      const { config } = await this.configHandler.loadConfig();
+      const llm =
+        config?.selectedModelByRole.apply ?? config?.selectedModelByRole.chat;
+      if (!llm) {
+        throw new Error(
+          'No model with roles "apply" or "chat" found in config.',
+        );
+      }
+      const abortController = ApplyAbortManager.getInstance().get(filepath);
+      const { diffLinesGenerator } = await applyCodeBlock(
+        originalFileContent,
+        text,
+        getUriPathBasename(filepath),
+        llm,
+        abortController,
+      );
+      const materialized = await materializeBackgroundEdit(
+        originalFileContent,
+        diffLinesGenerator,
+      );
+      finalContent = materialized.content;
+      changedLines = materialized.changedLines;
+    } else if (originalFileContent !== finalContent) {
+      changedLines = Math.max(
+        originalFileContent.split(/\r?\n/).length,
+        finalContent.split(/\r?\n/).length,
+      );
+    }
+
+    if (openDocument) {
+      const edit = new vscode.WorkspaceEdit();
+      const lastLine = Math.max(0, openDocument.lineCount - 1);
+      edit.replace(
+        uri,
+        new vscode.Range(
+          new vscode.Position(0, 0),
+          new vscode.Position(
+            lastLine,
+            openDocument.lineAt(lastLine).text.length,
+          ),
+        ),
+        finalContent,
+      );
+      if (!(await vscode.workspace.applyEdit(edit))) {
+        throw new Error(`Failed to apply background edit to ${filepath}`);
+      }
+      if (!(await openDocument.save())) {
+        throw new Error(`Failed to save background edit to ${filepath}`);
+      }
+    } else {
+      await vscode.workspace.fs.writeFile(uri, Buffer.from(finalContent));
+    }
+
+    await this.webviewProtocol.request("updateApplyState", {
+      streamId,
+      status: "closed",
+      filepath,
+      numDiffs: changedLines,
+      fileContent: finalContent,
+      originalFileContent,
+      toolCallId,
+    });
   }
 
   private async ensureFileOpen(filepath: string): Promise<void> {

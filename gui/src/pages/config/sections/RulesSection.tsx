@@ -1,4 +1,10 @@
-import { parseConfigYaml } from "@continuedev/config-yaml";
+import {
+  RuleObject,
+  RuleType,
+  RuleTypeDescriptions,
+  getRuleType,
+  parseConfigYaml,
+} from "@continuedev/config-yaml";
 import {
   ArrowsPointingOutIcon,
   BookmarkIcon as BookmarkOutline,
@@ -130,9 +136,58 @@ function PromptRow({
 
 interface RuleCardProps {
   rule: RuleWithSource;
+  variant?: "rule" | "system";
 }
 
-const RuleCard: React.FC<RuleCardProps> = ({ rule }) => {
+const systemMessageSources = new Set<RuleSource>([
+  "default-chat",
+  "default-agent",
+  "default-plan",
+  "model-options-chat",
+  "model-options-agent",
+  "model-options-plan",
+]);
+
+function getRuleTypeTone(ruleType: RuleType) {
+  switch (ruleType) {
+    case RuleType.Always:
+      return "border-success text-success";
+    case RuleType.AutoAttached:
+      return "border-vsc-focusBorder text-vsc-foreground";
+    case RuleType.AgentRequested:
+      return "border-button text-vsc-foreground";
+    case RuleType.Manual:
+    default:
+      return "border-description text-description";
+  }
+}
+
+function formatPatternList(patterns: RuleObject["globs"]): string {
+  if (!patterns) {
+    return "";
+  }
+  return Array.isArray(patterns) ? patterns.join(", ") : patterns;
+}
+
+function getRuleTriggerText(rule: RuleWithSource, ruleType: RuleType): string {
+  if (ruleType === RuleType.AutoAttached) {
+    const globs = formatPatternList(rule.globs);
+    const regex = formatPatternList(rule.regex);
+    return [globs && `Files: ${globs}`, regex && `Regex: ${regex}`]
+      .filter(Boolean)
+      .join(" | ");
+  }
+
+  if (ruleType === RuleType.AgentRequested) {
+    return rule.description
+      ? `Agent uses when: ${rule.description}`
+      : RuleTypeDescriptions[ruleType];
+  }
+
+  return RuleTypeDescriptions[ruleType];
+}
+
+const RuleCard: React.FC<RuleCardProps> = ({ rule, variant = "rule" }) => {
   const dispatch = useAppDispatch();
   const ideMessenger = useContext(IdeMessengerContext);
   const policy = useAppSelector((state) =>
@@ -152,6 +207,16 @@ const RuleCard: React.FC<RuleCardProps> = ({ rule }) => {
   const title = useMemo(() => {
     return getRuleDisplayName(rule);
   }, [rule]);
+
+  const ruleType = useMemo(() => getRuleType(rule), [rule]);
+  const triggerText = getRuleTriggerText(rule, ruleType);
+  const isSystemMessage =
+    variant === "system" || systemMessageSources.has(rule.source);
+  const sourceLabel = isSystemMessage
+    ? "Built-in policy"
+    : rule.sourceFile
+      ? rule.sourceFile
+      : rule.source;
 
   function onClickExpand() {
     dispatch(setShowDialog(true));
@@ -192,27 +257,38 @@ const RuleCard: React.FC<RuleCardProps> = ({ rule }) => {
   };
 
   const canDeleteRule =
-    rule.sourceFile &&
-    !["default-chat", "default-agent", "default-plan"].includes(rule.source);
+    rule.sourceFile && !systemMessageSources.has(rule.source);
 
   const smallFont = fontSize(-2);
   const tinyFont = fontSize(-3);
   return (
     <div
-      className={`border-border flex flex-col rounded-sm px-2 py-1.5 transition-colors ${isDisabled ? "opacity-50" : ""}`}
+      className={`border-border bg-input flex flex-col rounded-md border px-3 py-2 transition-colors ${isDisabled ? "opacity-50" : ""}`}
     >
       <div className="flex flex-col">
-        <div className="flex flex-row justify-between gap-1">
-          <span
-            className={`line-clamp-2 ${isDisabled ? "text-gray-400" : "text-vsc-foreground"}`}
-            style={{
-              fontSize: smallFont,
-            }}
-          >
-            {title}
-          </span>
+        <div className="flex flex-row justify-between gap-2">
+          <div className="flex min-w-0 flex-col gap-1">
+            <span
+              className={`line-clamp-2 font-medium ${isDisabled ? "text-gray-400" : "text-vsc-foreground"}`}
+              style={{
+                fontSize: smallFont,
+              }}
+            >
+              {title}
+            </span>
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              <span
+                className={`rounded border px-1.5 py-0.5 text-[10px] ${getRuleTypeTone(ruleType)}`}
+              >
+                {ruleType}
+              </span>
+              <span className="text-description-muted max-w-full truncate text-[10px]">
+                {sourceLabel}
+              </span>
+            </div>
+          </div>
           <div className="flex flex-row items-center gap-2">
-            {rule.name && policy && (
+            {!isSystemMessage && rule.name && policy && (
               <div className="flex cursor-pointer flex-row items-center justify-end gap-1 px-2 py-0.5">
                 <Switch
                   isToggled={policy === "on"}
@@ -226,8 +302,7 @@ const RuleCard: React.FC<RuleCardProps> = ({ rule }) => {
               <HeaderButtonWithToolTip onClick={onClickExpand} text="Expand">
                 <ArrowsPointingOutIcon className="h-3 w-3 text-gray-400" />
               </HeaderButtonWithToolTip>{" "}
-              {rule.source === "default-chat" ||
-              rule.source === "default-agent" ? (
+              {isSystemMessage ? (
                 <HeaderButtonWithToolTip
                   onClick={() => openRule(rule)}
                   text="View"
@@ -255,23 +330,20 @@ const RuleCard: React.FC<RuleCardProps> = ({ rule }) => {
           style={{
             fontSize: tinyFont,
           }}
-          className={`mt-1 line-clamp-3 ${isDisabled ? "text-gray-500" : "text-gray-400"}`}
+          className={`mt-2 line-clamp-3 whitespace-pre-wrap ${isDisabled ? "text-gray-500" : "text-gray-400"}`}
         >
           {rule.rule}
         </span>
-        {rule.globs ? (
+        {triggerText ? (
           <div
             style={{
               fontSize: tinyFont,
             }}
-            className="mt-1.5 flex flex-col gap-1"
+            className="mt-2 flex flex-col gap-1"
           >
-            <span className="italic">Applies to files</span>
-            <code
-              className={`line-clamp-1 px-1 py-0.5 ${isDisabled ? "text-gray-500" : "text-gray-400"}`}
-            >
-              {rule.globs}
-            </code>
+            <span className={isDisabled ? "text-gray-500" : "text-gray-400"}>
+              {triggerText}
+            </span>
           </div>
         ) : null}
       </div>
@@ -483,6 +555,26 @@ function RulesSubSection() {
     return rules;
   }, [config, selectedProfile, mode]);
 
+  const systemRules = useMemo(
+    () => sortedRules.filter((rule) => systemMessageSources.has(rule.source)),
+    [sortedRules],
+  );
+  const configuredRules = useMemo(
+    () => sortedRules.filter((rule) => !systemMessageSources.has(rule.source)),
+    [sortedRules],
+  );
+
+  const typeSummary = useMemo(() => {
+    const counts = new Map<RuleType, number>();
+    for (const rule of configuredRules) {
+      const ruleType = getRuleType(rule);
+      counts.set(ruleType, (counts.get(ruleType) ?? 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .map(([ruleType, count]) => `${ruleType}: ${count}`)
+      .join(" | ");
+  }, [configuredRules]);
+
   return (
     <div>
       <DropdownButton
@@ -493,22 +585,63 @@ function RulesSubSection() {
         addButtonTooltip="Add rules"
       />
 
-      <Card>
-        {sortedRules.length > 0 ? (
-          <div className="flex flex-col gap-3">
-            {sortedRules.map((rule, index) => (
-              <RuleCard key={index} rule={rule} />
-            ))}
-            {configLoading && (
-              <div className="px-2 py-1.5 text-xs opacity-65">
-                Reloading rules from your config...
+      <div className="flex flex-col gap-4">
+        {systemRules.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between px-0.5">
+              <span className="text-xs font-medium">Built-in behavior</span>
+              <span className="text-description-muted text-2xs">
+                Current {mode} mode policy
+              </span>
+            </div>
+            <Card>
+              <div className="flex flex-col gap-3">
+                {systemRules.map((rule, index) => (
+                  <RuleCard
+                    key={
+                      rule.sourceFile ?? rule.name ?? `${rule.source}-${index}`
+                    }
+                    rule={rule}
+                    variant="system"
+                  />
+                ))}
               </div>
+            </Card>
+          </div>
+        )}
+
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between gap-2 px-0.5">
+            <span className="text-xs font-medium">Configured rules</span>
+            {typeSummary && (
+              <span className="text-description-muted text-2xs truncate">
+                {typeSummary}
+              </span>
             )}
           </div>
-        ) : (
-          <EmptyState message="No rules configured. Click the + button to add your first rule." />
-        )}
-      </Card>
+          <Card>
+            {configuredRules.length > 0 ? (
+              <div className="flex flex-col gap-3">
+                {configuredRules.map((rule, index) => (
+                  <RuleCard
+                    key={
+                      rule.sourceFile ?? rule.name ?? `${rule.source}-${index}`
+                    }
+                    rule={rule}
+                  />
+                ))}
+                {configLoading && (
+                  <div className="px-2 py-1.5 text-xs opacity-65">
+                    Reloading rules from your config...
+                  </div>
+                )}
+              </div>
+            ) : (
+              <EmptyState message="No rules configured. Click the + button to add your first rule." />
+            )}
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

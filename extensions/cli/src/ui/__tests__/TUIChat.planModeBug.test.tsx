@@ -75,7 +75,7 @@ describe("TUIChat - Plan Mode Bug Reproduction", () => {
       // Start in normal mode
       let frame = lastFrame();
       expect(frame!).not.toContain("plan]");
-      expect(frame!).not.toContain("auto]");
+      expect(frame!).not.toContain("full access]");
 
       // Switch to plan mode
       stdin.write("\x1b[Z");
@@ -84,13 +84,24 @@ describe("TUIChat - Plan Mode Bug Reproduction", () => {
       frame = lastFrame();
       expect(frame!).toContain("plan]");
 
-      // Switch to auto mode
+      // Switch to sandbox mode
       stdin.write("\x1b[Z");
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       frame = lastFrame();
-      expect(frame!).toContain("auto]");
+      expect(frame!).toContain("sandbox]");
       expect(frame!).not.toContain("plan]");
+
+      // Continue through autonomous and full-access modes
+      stdin.write("\x1b[Z");
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      frame = lastFrame();
+      expect(frame!).toContain("autonomous]");
+
+      stdin.write("\x1b[Z");
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      frame = lastFrame();
+      expect(frame!).toContain("full access]");
 
       // Switch back to normal mode
       stdin.write("\x1b[Z");
@@ -98,7 +109,9 @@ describe("TUIChat - Plan Mode Bug Reproduction", () => {
 
       frame = lastFrame();
       expect(frame!).not.toContain("plan]");
-      expect(frame!).not.toContain("auto]");
+      expect(frame!).not.toContain("sandbox]");
+      expect(frame!).not.toContain("autonomous]");
+      expect(frame!).not.toContain("full access]");
     } finally {
       unmount();
     }
@@ -123,13 +136,13 @@ describe("TUIChat - Plan Mode Bug Reproduction", () => {
       frame = lastFrame();
 
       // Try to switch to another mode - this is where the bug might occur
-      stdin.write("\x1b[Z]"); // Should go to auto mode
+      stdin.write("\x1b[Z]"); // Should move from plan to sandbox mode
       await new Promise((resolve) => setTimeout(resolve, 200));
 
       frame = lastFrame();
 
       // This should work - if it fails, we've reproduced the "can't switch back" bug
-      expect(frame!).toContain("auto]");
+      expect(frame!).toContain("sandbox]");
       expect(frame!).not.toContain("plan]");
     } finally {
       unmount();

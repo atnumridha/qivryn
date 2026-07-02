@@ -7,6 +7,7 @@ import {
   PencilIcon,
   QuestionMarkCircleIcon,
   WrenchScrewdriverIcon,
+  SquaresPlusIcon,
 } from "@heroicons/react/24/outline";
 import { ConfigSection } from "./components/ConfigSection";
 import { ConfigsSection } from "./sections/ConfigsSection";
@@ -16,6 +17,7 @@ import { ModelsSection } from "./sections/ModelsSection";
 import { RulesSection } from "./sections/RulesSection";
 import { ToolsSection } from "./sections/ToolsSection";
 import { UserSettingsSection } from "./sections/UserSettingsSection";
+import { ExtensionsSection } from "./sections/ExtensionsSection";
 
 interface TabOption {
   id: string;
@@ -78,6 +80,18 @@ export const topTabSections: TabSection[] = [
         ),
         icon: (
           <WrenchScrewdriverIcon className="xs:h-4 xs:w-4 h-3 w-3 flex-shrink-0" />
+        ),
+      },
+      {
+        id: "extensions",
+        label: "Skills",
+        component: (
+          <ConfigSection>
+            <ExtensionsSection />
+          </ConfigSection>
+        ),
+        icon: (
+          <SquaresPlusIcon className="xs:h-4 xs:w-4 h-3 w-3 flex-shrink-0" />
         ),
       },
     ],

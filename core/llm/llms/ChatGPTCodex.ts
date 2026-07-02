@@ -20,24 +20,88 @@
  * Setup: sign in to Codex Desktop or Codex CLI once. Auth is written to
  *   ~/.codex/auth.json automatically. No extra steps needed.
  */
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+
 import { LLMOptions } from "../../index.js";
 import { osModelsEditPrompt } from "../templates/edit.js";
 import OpenAI from "./OpenAI.js";
+
+interface CodexModelMetadata {
+  slug?: string;
+  id?: string;
+  context_window?: number;
+  effective_context_window_percent?: number;
+}
+
+interface CodexModelsCache {
+  models?: CodexModelMetadata[];
+}
+
+const CODEX_MODELS_CACHE = path.join(
+  os.homedir(),
+  ".codex",
+  "models_cache.json",
+);
+const FALLBACK_EFFECTIVE_CONTEXT_LENGTHS: Record<string, number> = {
+  // Codex metadata: 372,000 raw tokens with a 95% effective allowance.
+  "gpt-5.6-sol": 353_400,
+};
+
+export function effectiveCodexContextLength(
+  model: string,
+  cache: CodexModelsCache,
+): number | undefined {
+  const metadata = cache.models?.find(
+    (candidate) => (candidate.slug ?? candidate.id) === model,
+  );
+  const rawWindow = metadata?.context_window;
+  if (!rawWindow || !Number.isFinite(rawWindow) || rawWindow <= 0) {
+    return undefined;
+  }
+
+  const effectivePercent = metadata?.effective_context_window_percent ?? 100;
+  if (!Number.isFinite(effectivePercent) || effectivePercent <= 0) {
+    return undefined;
+  }
+  return Math.floor((rawWindow * effectivePercent) / 100);
+}
+
+function resolveCodexContextLength(model: string): number | undefined {
+  try {
+    const cache = JSON.parse(
+      fs.readFileSync(CODEX_MODELS_CACHE, "utf8"),
+    ) as CodexModelsCache;
+    const cachedLength = effectiveCodexContextLength(model, cache);
+    if (cachedLength) {
+      return cachedLength;
+    }
+  } catch {
+    // A missing or stale cache should not prevent the provider from loading.
+  }
+  return FALLBACK_EFFECTIVE_CONTEXT_LENGTHS[model];
+}
 
 class ChatGPTCodex extends OpenAI {
   static providerName = "chatgpt-codex";
 
   static defaultOptions: Partial<LLMOptions> = {
-    // The chatgpt-codex provider is handled by ChatGPTCodexApi in openai-adapters,
-    // which calls chatgpt.com/backend-api/codex/responses directly.
-    // apiBase here is informational; the adapter overrides it.
     apiBase: "https://chatgpt.com/backend-api/codex/",
-    model: "gpt-5.5",
+    model: "gpt-5.6-sol",
     useLegacyCompletionsEndpoint: false,
     promptTemplates: {
       edit: osModelsEditPrompt,
     },
   };
+
+  constructor(options: LLMOptions) {
+    const model = options.model || ChatGPTCodex.defaultOptions.model!;
+    super({
+      ...options,
+      contextLength: options.contextLength ?? resolveCodexContextLength(model),
+    });
+  }
 
   // Auth token is managed by ChatGPTCodexApi via ~/.codex/auth.json.
   // No apiKey in config needed.

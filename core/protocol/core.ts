@@ -49,6 +49,15 @@ import { ProcessedItem } from "../nextEdit/NextEditPrefetchQueue";
 import { NextEditOutcome } from "../nextEdit/types";
 import { ContinueErrorReason } from "../util/errors";
 
+export type RuleApplicationMode = "always" | "auto" | "agent" | "manual";
+
+export interface NewRuleFileOptions {
+  baseFilename?: string;
+  ruleType?: RuleApplicationMode;
+  description?: string;
+  globs?: string;
+}
+
 export enum OnboardingModes {
   API_KEY = "API Key",
   LOCAL = "Local",
@@ -83,10 +92,10 @@ export type ToCoreFromIdeOrWebviewProtocol = {
     void,
   ];
   "config/addLocalWorkspaceBlock": [
-    { blockType: BlockType; baseFilename?: string },
+    { blockType: BlockType } & NewRuleFileOptions,
     void,
   ];
-  "config/addGlobalRule": [undefined | { baseFilename?: string }, void];
+  "config/addGlobalRule": [undefined | NewRuleFileOptions, void];
   "config/deleteRule": [{ filepath: string }, void];
   "config/newPromptFile": [undefined, void];
   "config/newAssistantFile": [undefined, void];
@@ -250,9 +259,26 @@ export type ToCoreFromIdeOrWebviewProtocol = {
     {
       index: number;
       sessionId: string;
+      automatic?: boolean;
     },
     string | undefined,
   ];
+  "voice/transcribe": [
+    {
+      audioBase64: string;
+      mimeType: string;
+      language?: string;
+      requestId?: string;
+    },
+    { text: string },
+  ];
+  "voice/transcribeCancel": [{ requestId: string }, void];
+  "voice/captureStart": [undefined, { captureId: string; recorder: "ffmpeg" }];
+  "voice/captureStop": [
+    { captureId: string },
+    { audioBase64: string; mimeType: "audio/wav" },
+  ];
+  "voice/captureCancel": [{ captureId: string }, void];
   "stats/getTokensPerDay": [
     undefined,
     { day: string; promptTokens: number; generatedTokens: number }[],

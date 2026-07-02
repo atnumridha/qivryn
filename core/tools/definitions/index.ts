@@ -1,6 +1,13 @@
 export { codebaseTool } from "./codebaseTool";
 export { createNewFileTool } from "./createNewFile";
 export { createRuleBlock } from "./createRuleBlock";
+export {
+  deleteFileTool,
+  goToDefinitionTool,
+  readLintsTool,
+  searchSymbolsTool,
+  writeFileTool,
+} from "./cursorLocalTools";
 export { editFileTool } from "./editFile";
 export { fetchUrlContentTool } from "./fetchUrlContent";
 export { globSearchTool } from "./globSearch";

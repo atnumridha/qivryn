@@ -43,6 +43,7 @@ export const editToolImpl: ClientToolImpl = async (
       text: args.changes,
       toolCallId,
       filepath: firstUriMatch,
+      background: true,
     }),
   );
 

@@ -10,6 +10,7 @@ import {
 import * as JSONC from "comment-json";
 import ignore from "ignore";
 import { IDE, InternalMcpOptions } from "../../..";
+import { getEnabledLocalPluginContributionPaths } from "../../../config/plugins/localPluginManager";
 import { convertYamlMcpConfigToInternalMcpOptions } from "../../../config/yaml/yamlToContinueConfig";
 import {
   DEFAULT_IGNORE_DIRS,
@@ -41,6 +42,9 @@ export async function loadJsonMcpConfigs(
   );
   if (includeGlobal) {
     mcpDirs.push(localPathToUri(getGlobalFolderWithName("mcpServers")));
+    const { mcp: pluginMcpDirs } =
+      await getEnabledLocalPluginContributionPaths();
+    mcpDirs.push(...pluginMcpDirs.map((dir) => localPathToUri(dir)));
   }
 
   // Get json files and their contents

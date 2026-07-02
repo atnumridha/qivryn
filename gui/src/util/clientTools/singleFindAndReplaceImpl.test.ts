@@ -204,6 +204,7 @@ describe("singleFindAndReplaceImpl", () => {
         text: "Hi there\nThis is a test file\nGoodbye world",
         filepath: "/test/file.txt",
         isSearchAndReplace: true,
+        background: true,
       });
     });
 
@@ -248,6 +249,7 @@ describe("singleFindAndReplaceImpl", () => {
         text: "Hello universe\nThis is a test file\nGoodbye universe",
         filepath: "/test/file.txt",
         isSearchAndReplace: true,
+        background: true,
       });
     });
 
@@ -270,6 +272,7 @@ describe("singleFindAndReplaceImpl", () => {
         text: "world\nThis is a test file",
         filepath: "/test/file.txt",
         isSearchAndReplace: true,
+        background: true,
       });
     });
 
@@ -294,6 +297,7 @@ describe("singleFindAndReplaceImpl", () => {
         text: 'const regex = /[a-z]+/g;\nconst text = "Hi $universe"',
         filepath: "/test/file.txt",
         isSearchAndReplace: true,
+        background: true,
       });
     });
 
@@ -318,6 +322,7 @@ describe("singleFindAndReplaceImpl", () => {
         text: "function test() {\n    const value = 'new';\n    return value;\n}",
         filepath: "/test/file.txt",
         isSearchAndReplace: true,
+        background: true,
       });
     });
   });

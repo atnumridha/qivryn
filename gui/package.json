@@ -16,6 +16,10 @@
     "lint": "eslint --ext ts"
   },
   "dependencies": {
+    "@continuedev/agent-runtime": "file:../packages/agent-runtime",
+    "@continuedev/browser-runtime": "file:../packages/browser-runtime",
+    "@continuedev/slack-connector": "file:../packages/slack-connector",
+    "@continuedev/review-engine": "file:../packages/review-engine",
     "@continuedev/config-yaml": "file:../packages/config-yaml",
     "@continuedev/terminal-security": "file:../packages/terminal-security",
     "@headlessui/react": "^2.2.0",

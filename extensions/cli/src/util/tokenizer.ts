@@ -8,6 +8,9 @@ import { logger } from "./logger.js";
 
 const DEFAULT_MAX_TOKENS_RATIO = 0.35;
 const MAX_MAX_TOKENS = 64_000;
+const MAX_REQUEST_HEADROOM_TOKENS = 4_000;
+const MIN_REQUEST_HEADROOM_TOKENS = 256;
+const MIN_USEFUL_OUTPUT_TOKENS = 4_096;
 // Default context length when model config doesn't specify one
 export const DEFAULT_CONTEXT_LENGTH = 200_000;
 
@@ -26,11 +29,52 @@ export function getModelMaxTokens(model: ModelConfig): number {
   const contextLimit = getModelContextLimit(model);
   const maxTokens = model.defaultCompletionOptions?.maxTokens;
 
-  return maxTokens === undefined
-    ? Math.ceil(
-        Math.min(contextLimit * DEFAULT_MAX_TOKENS_RATIO, MAX_MAX_TOKENS),
-      )
-    : maxTokens;
+  const requested =
+    maxTokens === undefined
+      ? Math.ceil(contextLimit * DEFAULT_MAX_TOKENS_RATIO)
+      : maxTokens;
+
+  // Keep validation, compaction, and the outgoing request on the same bounded
+  // reservation. Some provider metadata advertises completion limits larger
+  // than the usable response budget of an agent turn.
+  return Math.max(
+    1,
+    Math.min(requested, MAX_MAX_TOKENS, Math.max(1, contextLimit - 1)),
+  );
+}
+
+/**
+ * Choose the completion budget for one concrete request. Model metadata often
+ * advertises a large maximum completion size, but reserving that maximum on
+ * every turn can reject an otherwise valid prompt. Keep a provider-accounting
+ * margin and shrink only the output allowance when the input is already large.
+ * A zero return value means there is not enough room for a useful response.
+ */
+export function getRequestMaxTokens(
+  model: ModelConfig,
+  inputTokens: number,
+  safetyBuffer = 0,
+): number {
+  const contextLimit = getModelContextLimit(model);
+  const requestedMaxTokens = getModelMaxTokens(model);
+  const providerHeadroom = Math.min(
+    MAX_REQUEST_HEADROOM_TOKENS,
+    Math.max(MIN_REQUEST_HEADROOM_TOKENS, Math.ceil(contextLimit * 0.01)),
+  );
+  const minimumUsefulOutput = Math.min(
+    requestedMaxTokens,
+    Math.max(
+      MIN_REQUEST_HEADROOM_TOKENS,
+      Math.min(MIN_USEFUL_OUTPUT_TOKENS, Math.ceil(contextLimit * 0.02)),
+    ),
+  );
+  const availableForOutput =
+    contextLimit - inputTokens - safetyBuffer - providerHeadroom;
+  const requestMaxTokens = Math.floor(
+    Math.min(requestedMaxTokens, availableForOutput),
+  );
+
+  return requestMaxTokens >= minimumUsefulOutput ? requestMaxTokens : 0;
 }
 
 /**
@@ -367,20 +411,21 @@ export function validateContextLength(params: ValidateContextLengthParams): {
     model,
   });
   const contextLimit = getModelContextLimit(model);
-  const maxTokens = model.defaultCompletionOptions?.maxTokens || 0;
-
-  // If maxTokens is not set, use 35% default reservation for output
-  const reservedForOutput =
-    maxTokens > 0 ? maxTokens : Math.ceil(contextLimit * 0.35);
+  const requestedMaxTokens = getModelMaxTokens(model);
+  const reservedForOutput = getRequestMaxTokens(
+    model,
+    inputTokens,
+    safetyBuffer,
+  );
   const totalRequired = inputTokens + reservedForOutput + safetyBuffer;
 
-  if (totalRequired > contextLimit) {
+  if (reservedForOutput <= 0 || totalRequired > contextLimit) {
     return {
       isValid: false,
-      error: `Context length exceeded: input (${inputTokens.toLocaleString()}) + max_tokens (${reservedForOutput.toLocaleString()})${safetyBuffer > 0 ? ` + buffer (${safetyBuffer})` : ""} = ${totalRequired.toLocaleString()} > context_limit (${contextLimit.toLocaleString()})`,
+      error: `Context length exceeded: input (${inputTokens.toLocaleString()}) leaves too little room for a useful response (requested max_tokens: ${requestedMaxTokens.toLocaleString()})${safetyBuffer > 0 ? ` with buffer (${safetyBuffer})` : ""} within context_limit (${contextLimit.toLocaleString()})`,
       inputTokens,
       contextLimit,
-      maxTokens: reservedForOutput,
+      maxTokens: 0,
     };
   }
 

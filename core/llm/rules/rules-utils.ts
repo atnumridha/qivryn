@@ -1,9 +1,58 @@
 import { RuleMetadata } from "../..";
 import { getLastNPathParts } from "../../util/uri";
 
+function cleanMarkdownTitle(title: string): string {
+  return title
+    .replace(/[`*_#>\-[\]]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function truncateTitle(title: string): string {
+  return title.length > 64 ? `${title.slice(0, 61).trim()}...` : title;
+}
+
+function getTitleFromRuleContent(
+  rule: RuleMetadata & { rule?: string },
+): string | undefined {
+  const markdown = rule.rule?.trim();
+  if (!markdown) {
+    return undefined;
+  }
+
+  const heading = markdown.match(/^#{1,6}\s+(.+)$/m)?.[1];
+  if (heading) {
+    return truncateTitle(cleanMarkdownTitle(heading));
+  }
+
+  const firstMeaningfulLine = markdown
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find((line) => line.length > 0);
+
+  if (!firstMeaningfulLine) {
+    return undefined;
+  }
+
+  const sentence = firstMeaningfulLine.match(/^(.+?[.!?])\s/)?.[1];
+  return truncateTitle(cleanMarkdownTitle(sentence ?? firstMeaningfulLine));
+}
+
 export function getRuleDisplayName(rule: RuleMetadata): string {
   if (rule.name) {
     return rule.name;
+  }
+  if (
+    ["rules-block", "colocated-markdown", "agentFile"].includes(rule.source)
+  ) {
+    const contentTitle = getTitleFromRuleContent(
+      rule as RuleMetadata & {
+        rule?: string;
+      },
+    );
+    if (contentTitle) {
+      return contentTitle;
+    }
   }
   return getRuleSourceDisplayName(rule);
 }
@@ -39,7 +88,7 @@ export function getRuleSourceDisplayName(rule: RuleMetadata): string {
         return "rules.md";
       }
     case "rules-block":
-      return "Rules Block";
+      return "Inline rule";
     default:
       return rule.source;
   }

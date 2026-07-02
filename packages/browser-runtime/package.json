@@ -1,0 +1,22 @@
+{
+  "name": "@continuedev/browser-runtime",
+  "version": "0.1.0",
+  "description": "Shared local-first browser sessions, automation, locking, and audit events",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@continuedev/agent-runtime": "file:../agent-runtime",
+    "puppeteer": "^24.43.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.29",
+    "typescript": "^5.5.2",
+    "vitest": "^3.2.4"
+  },
+  "license": "Apache-2.0"
+}

@@ -79,6 +79,11 @@ const StyledTerminalContainer = styled.div<{
   font-size: ${(props) => props.fontSize || getFontSize()}px;
   color: var(--foreground);
   line-height: 1.5;
+  box-sizing: border-box;
+  width: calc(100% - 1rem);
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 
   > *:last-child {
     margin-bottom: 0;
@@ -88,8 +93,9 @@ const StyledTerminalContainer = styled.div<{
 const TerminalContent = styled.div`
   pre {
     white-space: pre-wrap;
-    max-width: calc(100vw - 24px);
-    overflow-x: scroll;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
     overflow-y: hidden;
     padding: 8px;
     margin: 0;
@@ -442,7 +448,7 @@ export function UnifiedTerminalCommand({
             <span className="text-description ml-2 select-none">Terminal</span>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex min-w-0 flex-shrink items-center gap-2.5">
             {!isRunning && (
               <div className="xs:flex hidden items-center gap-2.5">
                 <CopyButton text={copyContent} />
@@ -458,7 +464,9 @@ export function UnifiedTerminalCommand({
             <pre className="bg-editor">
               <code>
                 {/* Command is always visible */}
-                <div className="text-terminal pb-2">{command}</div>
+                <div className="text-terminal whitespace-pre-wrap break-words pb-2">
+                  {command}
+                </div>
 
                 {/* Running state with cursor */}
                 {isRunning && !hasOutput && (

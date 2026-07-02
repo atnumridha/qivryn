@@ -1016,8 +1016,24 @@ function isSafeCommand(baseCommand: string, args: string[]): boolean {
   }
 
   // Safe text processing
-  if (baseCommand === "echo") {
+  if (baseCommand === "echo" || baseCommand === "printf") {
     return true;
+  }
+
+  // Changing into a normal relative child path only affects the short-lived
+  // tool shell. Keep traversal, home expansion, and absolute paths gated.
+  if (baseCommand === "cd") {
+    const target = args[0];
+    return (
+      args.length === 1 &&
+      !!target &&
+      target !== "-" &&
+      target !== ".." &&
+      !target.startsWith("../") &&
+      !target.includes("/../") &&
+      !target.startsWith("/") &&
+      !target.startsWith("~")
+    );
   }
 
   if (baseCommand === "grep" && !args.includes("--exec")) {
@@ -1034,10 +1050,30 @@ function isSafeCommand(baseCommand: string, args: string[]): boolean {
 
   // Safe git operations
   if (baseCommand === "git") {
-    const safeGitOps = ["status", "log", "diff", "show", "branch", "remote"];
-    if (args.length > 0 && safeGitOps.includes(args[0])) {
+    const safeGitOps = [
+      "status",
+      "log",
+      "diff",
+      "show",
+      "branch",
+      "remote",
+      "rev-parse",
+    ];
+    let operationIndex = 0;
+    while (args[operationIndex] === "-C" && args[operationIndex + 1]) {
+      operationIndex += 2;
+    }
+    if (safeGitOps.includes(args[operationIndex])) {
       return true;
     }
+  }
+
+  if (
+    baseCommand === "flutter" &&
+    args.length > 0 &&
+    ["analyze", "test"].includes(args[0])
+  ) {
+    return true;
   }
 
   // Safe npm/yarn commands
@@ -1220,7 +1256,10 @@ function hasObfuscationPatterns(command: string): boolean {
   }
 
   // Suspicious use of printf
-  if (command.includes("printf") && command.match(/\\[xnu0-7]/)) {
+  if (
+    command.includes("printf") &&
+    command.match(/\\(?:x[0-9a-f]{2}|u[0-9a-f]{4}|[0-7]{3})/i)
+  ) {
     return true;
   }
 

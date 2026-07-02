@@ -3,6 +3,7 @@ import { AssistantUnrolled, ModelConfig } from "@continuedev/config-yaml";
 import { AuthConfig, getModelName } from "../auth/workos.js";
 import { createLlmApi, getLlmApi } from "../config.js";
 import { logger } from "../util/logger.js";
+import { loadPortableSubagents } from "../subagent/load-agents.js";
 
 import { BaseService, ServiceWithDependencies } from "./BaseService.js";
 import { AgentFileServiceState, ModelServiceState } from "./types.js";
@@ -316,14 +317,35 @@ export class ModelService
       .filter((model) => model.roles?.includes("subagent")) // filter with role subagent
       .filter((model) => !!model.chatOptions?.baseSystemMessage); // filter those with a system message
 
-    if (!subagentModels) {
-      return [];
-    }
-    return subagentModels?.map((model) => ({
+    const configured = (subagentModels ?? []).map((model) => ({
       llmApi: createLlmApi(model, modelState.authConfig),
       model,
       assistant: modelState.assistant,
       authConfig: modelState.authConfig,
     }));
+    const configuredNames = new Set(configured.map(({ model }) => model.name));
+    const baseModel = modelState.model;
+    if (!baseModel || !modelState.llmApi) return configured;
+
+    const portable = loadPortableSubagents()
+      .filter((agent) => !configuredNames.has(agent.name))
+      .map((agent) => ({
+        llmApi: modelState.llmApi,
+        model: {
+          ...baseModel,
+          name: agent.name,
+          roles: ["subagent" as const],
+          chatOptions: {
+            ...baseModel.chatOptions,
+            baseSystemMessage: [agent.description, agent.prompt]
+              .filter(Boolean)
+              .join("\n\n"),
+          },
+          portableSubagent: agent,
+        } as ModelConfig,
+        assistant: modelState.assistant,
+        authConfig: modelState.authConfig,
+      }));
+    return [...configured, ...portable];
   }
 }

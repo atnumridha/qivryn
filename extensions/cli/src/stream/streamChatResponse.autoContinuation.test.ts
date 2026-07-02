@@ -22,6 +22,7 @@ vi.mock("../session.js", () => ({
 
 vi.mock("../util/tokenizer.js", () => ({
   countChatHistoryItemTokens: vi.fn(() => 100),
+  getModelMaxTokens: vi.fn(() => 2048),
   validateContextLength: vi.fn(() => ({ isValid: true })),
 }));
 
@@ -130,6 +131,51 @@ describe("streamChatResponse - auto-continuation after compaction", () => {
       signal: { aborted: false },
       abort: vi.fn(),
     } as unknown as AbortController;
+  });
+
+  it("forces compaction and retries once when provider token accounting rejects the request", async () => {
+    const { services } = await import("../services/index.js");
+    const { handlePreApiCompaction } = await import(
+      "./streamChatResponse.compactionHelpers.js"
+    );
+    let apiCalls = 0;
+    mockLlmApi = {
+      chatCompletionStream: vi.fn().mockImplementation(async function* () {
+        apiCalls++;
+        if (apiCalls === 1) {
+          throw new Error("maximum context length exceeded");
+        }
+        yield contentChunk(apiCalls === 2 ? "Recovered" : "Continued");
+      }),
+    } as unknown as BaseLlmApi;
+    vi.mocked(handlePreApiCompaction).mockImplementation(
+      async (history, options) => ({
+        chatHistory: history,
+        wasCompacted: options.force === true,
+      }),
+    );
+    const onSystemMessage = vi.fn();
+
+    const response = await streamChatResponse(
+      chatHistory,
+      mockModel,
+      mockLlmApi,
+      mockAbortController,
+      { onSystemMessage },
+    );
+
+    expect(apiCalls).toBe(3);
+    expect(handlePreApiCompaction).toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.objectContaining({ force: true }),
+    );
+    expect(onSystemMessage).toHaveBeenCalledWith(
+      expect.stringContaining("retrying automatically"),
+    );
+    expect(services.chatHistory.addUserMessage).toHaveBeenCalledWith(
+      "continue",
+    );
+    expect(response).toContain("Recovered");
   });
 
   it("should automatically continue after compaction when no tool calls remain", async () => {

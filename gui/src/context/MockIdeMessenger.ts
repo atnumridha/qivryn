@@ -37,6 +37,55 @@ const DEFAULT_MOCK_CORE_RESPONSES: MockResponses = {
     "file:///Users/user/workspace2",
   ],
   "history/list": [],
+  "session/openInMain": false,
+  "agents/selectRepository": undefined,
+  "agents/list": [],
+  "agents/automations": [],
+  "agents/queue": [],
+  "agents/checkpoints": [],
+  "agents/plans": [],
+  "agents/events": [],
+  "agents/status": {
+    state: "ready",
+    checkedAt: "2026-06-30T00:00:00.000Z",
+    source: "bundled",
+    capabilities: {
+      local: true,
+      remote: false,
+      persistent: true,
+      worktrees: true,
+      checkpoints: true,
+      browser: false,
+      review: false,
+      maxConcurrency: 4,
+    },
+  },
+  "reviews/list": [],
+  "reviews/get": undefined,
+  "reviews/comments": [],
+  getTerminalContents: "npm test\nError: expected 1 to equal 2",
+  runCommand: undefined,
+  "terminal/jobs": [],
+  "extensions/skills": { skills: [], errors: [] },
+  "extensions/plugins": [],
+  "extensions/skillSave": {
+    name: "Example skill",
+    description: "Example skill",
+    path: ".continue/skills/example-skill/SKILL.md",
+    sourceFile: "file:///workspace/.continue/skills/example-skill/SKILL.md",
+    provenance: "Continue",
+    readOnly: false,
+    scope: "workspace",
+    content: "Example instructions",
+    files: [],
+  },
+  "browser/list": [],
+  "browser/events": [],
+  "browser/grants": [],
+  "slack/status": undefined,
+  "slack/channels": [],
+  "slack/messages": [],
+  "slack/revoke": undefined,
   "docs/getIndexedPages": [],
   "history/save": undefined,
   "config/getSerializedProfileInfo": {
@@ -75,6 +124,14 @@ const DEFAULT_MOCK_CORE_RESPONSES: MockResponses = {
     },
   },
   "chatDescriber/describe": "Session summary",
+  "voice/transcribe": { text: "Transcribed voice input" },
+  "voice/transcribeCancel": undefined,
+  "voice/captureStart": { captureId: "host-capture", recorder: "ffmpeg" },
+  "voice/captureStop": {
+    audioBase64: "UklGRg==",
+    mimeType: "audio/wav",
+  },
+  "voice/captureCancel": undefined,
   applyToFile: undefined,
   acceptDiff: undefined,
   readFile: "File contents",
@@ -178,6 +235,7 @@ export class MockIdeMessenger implements IIdeMessenger {
   };
   chatResponse: ChatMessage[] = DEFAULT_CHAT_RESPONSE;
   chatStreamDelay: number = 0;
+  streamChunks: Partial<Record<string, unknown[][]>> = {};
   setChatResponseText(text: string): void {
     this.chatResponse = [
       {
@@ -258,6 +316,14 @@ export class MockIdeMessenger implements IIdeMessenger {
     GeneratorYieldType<FromWebviewProtocol[T][1]>[],
     GeneratorReturnType<FromWebviewProtocol[T][1]> | undefined
   > {
+    const chunks = this.streamChunks[String(messageType)] ?? [];
+    for (const chunk of chunks) {
+      if (cancelToken?.aborted) return undefined;
+      yield chunk as GeneratorYieldType<FromWebviewProtocol[T][1]>[];
+    }
+    while (chunks.length > 0 && cancelToken && !cancelToken.aborted) {
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
     return undefined;
   }
 
@@ -266,5 +332,6 @@ export class MockIdeMessenger implements IIdeMessenger {
     this.responseHandlers = { ...DEFAULT_MOCK_CORE_RESPONSE_HANDLERS };
     this.chatResponse = DEFAULT_CHAT_RESPONSE;
     this.chatStreamDelay = 0;
+    this.streamChunks = {};
   }
 }

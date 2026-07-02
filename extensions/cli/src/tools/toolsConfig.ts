@@ -4,7 +4,9 @@
  */
 
 let betaUploadArtifactToolEnabled = false;
-let betaSubagentToolEnabled = false;
+// Local subagents are a stable capability and are available on every surface.
+// Keep the legacy flag setter for backwards compatibility with older scripts.
+let betaSubagentToolEnabled = true;
 
 export function setBetaUploadArtifactToolEnabled(enabled: boolean): void {
   betaUploadArtifactToolEnabled = enabled;

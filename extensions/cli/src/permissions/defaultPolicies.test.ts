@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { getDefaultToolPolicies } from "./defaultPolicies.js";
+import {
+  AUTONOMOUS_MODE_POLICIES,
+  AUTO_MODE_POLICIES,
+  getDefaultToolPolicies,
+  SANDBOX_MODE_POLICIES,
+} from "./defaultPolicies.js";
 const DEFAULT_TOOL_POLICIES = getDefaultToolPolicies();
 
 describe("defaultPolicies", () => {
@@ -61,5 +66,20 @@ describe("defaultPolicies", () => {
       (p) => p.tool === "*",
     );
     expect(catchAllIndex).toBe(DEFAULT_TOOL_POLICIES.length - 1);
+  });
+
+  it("should keep sandbox read-only and expose autonomous/full profiles", () => {
+    expect(SANDBOX_MODE_POLICIES).toContainEqual({
+      tool: "Bash",
+      permission: "exclude",
+    });
+    expect(SANDBOX_MODE_POLICIES.at(-1)).toEqual({
+      tool: "*",
+      permission: "exclude",
+    });
+    expect(AUTONOMOUS_MODE_POLICIES).toEqual([
+      { tool: "*", permission: "allow" },
+    ]);
+    expect(AUTO_MODE_POLICIES).toEqual([{ tool: "*", permission: "allow" }]);
   });
 });

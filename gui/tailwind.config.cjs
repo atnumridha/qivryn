@@ -47,6 +47,13 @@ module.exports = {
           foreground: varWithFallback("primary-foreground"),
           hover: varWithFallback("primary-hover"),
         },
+        // Compatibility alias used by legacy and shared agent surfaces.
+        // Keep it mapped to the same tokens as the canonical primary button.
+        button: {
+          DEFAULT: varWithFallback("primary-background"),
+          foreground: varWithFallback("primary-foreground"),
+          hover: varWithFallback("primary-hover"),
+        },
         secondary: {
           DEFAULT: varWithFallback("secondary-background"),
           foreground: varWithFallback("secondary-foreground"),

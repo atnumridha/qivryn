@@ -6,7 +6,12 @@
     {
       "title": "TEST LLM",
       "provider": "test",
-      "model": "this field is not used"
+      "model": "this field is not used",
+      "requestOptions": {
+        "extraBodyProperties": {
+          "_reasoningLevels": ["low", "medium", "high"]
+        }
+      }
     },
     {
       "title": "Mock",

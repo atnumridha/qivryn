@@ -1,19 +1,28 @@
 /* eslint-disable @typescript-eslint/naming-convention */
+import {
+  createAgentDiagnosticReport,
+  FileAgentStore,
+  generateCommitMessage,
+} from "@continuedev/agent-runtime";
 import * as fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { classifyTerminalCommand } from "../../../packages/terminal-security/dist/index.js";
 
 import { ContextMenuConfig, ILLM, ModelInstaller } from "core";
 import { CompletionProvider } from "core/autocomplete/CompletionProvider";
 import { ConfigHandler } from "core/config/ConfigHandler";
-import { EXTENSION_NAME } from "core/util/constants";
 import { Core } from "core/core";
 import { walkDirAsync } from "core/indexing/walkDir";
 import { isModelInstaller } from "core/llm";
 import { NextEditLoggingService } from "core/nextEdit/NextEditLoggingService";
+import { EXTENSION_NAME } from "core/util/constants";
 import { startLocalLemonade } from "core/util/lemonadeHelper";
 import { startLocalOllama } from "core/util/ollamaHelper";
 import {
   getConfigJsonPath,
   getConfigYamlPath,
+  getContinueGlobalPath,
   setConfigFilePermissions,
 } from "core/util/paths";
 import * as vscode from "vscode";
@@ -21,6 +30,12 @@ import * as YAML from "yaml";
 
 import { convertJsonToYamlConfig } from "../../../packages/config-yaml/dist";
 
+import { AgentScmGraphManager } from "./AgentScmGraphManager";
+import {
+  recoverClosedAgentWindow,
+  releaseAgentWindowEditState,
+} from "./agentWindowRecovery";
+import { openAgentAttribution } from "./AiAttributionCodeLensProvider";
 import {
   getAutocompleteStatusBarDescription,
   getAutocompleteStatusBarTitle,
@@ -35,8 +50,10 @@ import {
 } from "./autocomplete/statusBar";
 import { ContinueConsoleWebviewViewProvider } from "./ContinueConsoleWebviewViewProvider";
 import { ContinueGUIWebviewViewProvider } from "./ContinueGUIWebviewViewProvider";
+import { ContinueLayoutManager } from "./ContinueLayoutManager";
 import { processDiff } from "./diff/processDiff";
 import { VerticalDiffManager } from "./diff/vertical/manager";
+import { partialSuggestionCommand } from "./partialSuggestionAcceptance";
 import EditDecorationManager from "./quickEdit/EditDecorationManager";
 import { QuickEdit, QuickEditShowParams } from "./quickEdit/QuickEditQuickPick";
 import {
@@ -50,6 +67,7 @@ import { openEditorAndRevealRange } from "./util/vscode";
 import { VsCodeIde } from "./VsCodeIde";
 
 let fullScreenPanel: vscode.WebviewPanel | undefined;
+let fullScreenRecoverySessionId: string | undefined;
 
 function getFullScreenTab() {
   const tabs = vscode.window.tabGroups.all.flatMap((tabGroup) => tabGroup.tabs);
@@ -116,6 +134,8 @@ const getCommandsMap: (
   quickEdit: QuickEdit,
   core: Core,
   editDecorationManager: EditDecorationManager,
+  layoutManager: ContinueLayoutManager,
+  agentScmGraphManager: AgentScmGraphManager,
 ) => { [command: string]: (...args: any) => any } = (
   ide,
   extensionContext,
@@ -127,6 +147,8 @@ const getCommandsMap: (
   quickEdit,
   core,
   editDecorationManager,
+  layoutManager,
+  agentScmGraphManager,
 ) => {
   /**
    * Streams an inline edit to the vertical diff manager.
@@ -637,6 +659,205 @@ const getCommandsMap: (
       sidebar.webviewProtocol?.request("navigateTo", { path, toggle });
       focusGUI();
     },
+    "continue.openAgentsWindow": () => {
+      return vscode.commands.executeCommand(
+        "continue.openInNewWindow",
+        "/agents",
+      );
+    },
+    "continue.reloadAgentsWindow": async () => {
+      if (!fullScreenPanel) {
+        await vscode.commands.executeCommand("workbench.action.reloadWindow");
+        return;
+      }
+
+      await releaseAgentWindowEditState({
+        cancelApply: async () => {
+          await core.invoke("cancelApply", undefined);
+        },
+        getCurrentFile: () => ide.getCurrentFile(),
+        getStreamId: (filepath) =>
+          verticalDiffManager.getStreamIdForFile(filepath),
+        clearDiff: (filepath) =>
+          verticalDiffManager.clearForfileUri(filepath, false),
+      });
+
+      fullScreenPanel.webview.html = sidebar.getSidebarContent(
+        extensionContext,
+        fullScreenPanel,
+        "/agents",
+        undefined,
+        true,
+      );
+      fullScreenPanel.reveal();
+    },
+    "continue.openAgentReview": () => {
+      return vscode.commands.executeCommand(
+        "continue.navigateTo",
+        "/review",
+        false,
+      );
+    },
+    "continue.openTerminalAssistant": () => {
+      return vscode.commands.executeCommand(
+        "continue.navigateTo",
+        "/terminal",
+        false,
+      );
+    },
+    "continue.openTerminalPromptBar": async () => {
+      const command = await vscode.window.showInputBox({
+        title: "Continue Terminal Prompt",
+        prompt: "Generate, inspect, or run a shell command",
+        placeHolder: "Enter a shell command",
+        ignoreFocusOut: true,
+      });
+      if (!command?.trim()) return;
+      const classification = classifyTerminalCommand(
+        "allowedWithoutPermission",
+        command,
+        { sandboxed: false },
+      );
+      const risky =
+        classification.elevated ||
+        classification.requiresNetwork ||
+        classification.mutatesFilesystem ||
+        classification.policy === "allowedWithPermission";
+      if (classification.policy === "disabled") {
+        void vscode.window.showErrorMessage(
+          `Continue blocked this command: ${classification.reasons.join("; ")}`,
+        );
+        return;
+      }
+      if (risky) {
+        const decision = await vscode.window.showWarningMessage(
+          `${classification.elevated ? "Elevated · " : ""}${classification.requiresNetwork ? "Network · " : ""}${classification.reasons.join("; ")}`,
+          { modal: true, detail: command },
+          "Run",
+          "Open Terminal Assistant",
+        );
+        if (decision === "Open Terminal Assistant") {
+          return vscode.commands.executeCommand(
+            "continue.openTerminalAssistant",
+          );
+        }
+        if (decision !== "Run") return;
+      }
+      const terminal =
+        vscode.window.activeTerminal ??
+        vscode.window.createTerminal({ name: "Continue Agent" });
+      terminal.show();
+      terminal.sendText(command, true);
+    },
+    "continue.openBrowserWorkspace": () => {
+      return vscode.commands.executeCommand(
+        "continue.navigateTo",
+        "/browser",
+        false,
+      );
+    },
+    "continue.openAgentAttribution": openAgentAttribution,
+    "continue.chooseLayout": () => layoutManager.chooseAndApply(),
+    "continue.saveLayout": () => layoutManager.saveCurrent(),
+    "continue.openAgentGraph": () => agentScmGraphManager.openGraph(),
+    "continue.acceptNextSuggestionToken": () =>
+      vscode.commands.executeCommand(partialSuggestionCommand("token")),
+    "continue.acceptNextSuggestionWord": () =>
+      vscode.commands.executeCommand(partialSuggestionCommand("word")),
+    "continue.acceptNextSuggestionLine": () =>
+      vscode.commands.executeCommand(partialSuggestionCommand("line")),
+    "continue.generateCommitMessage": async () => {
+      const staged = await ide.getDiff(false);
+      const changes = staged.length > 0 ? staged : await ide.getDiff(true);
+      if (changes.length === 0) {
+        void vscode.window.showInformationMessage("No Git changes found.");
+        return;
+      }
+      const { config } = await configHandler.loadConfig();
+      const llm = config?.selectedModelByRole.chat;
+      const message = await generateCommitMessage(
+        changes.join("\n"),
+        llm
+          ? (prompt) => llm.complete(prompt, new AbortController().signal)
+          : undefined,
+      );
+      const git = vscode.extensions
+        .getExtension("vscode.git")
+        ?.exports?.getAPI?.(1);
+      const repository =
+        git?.repositories?.find((candidate: any) => {
+          const folder = vscode.workspace.getWorkspaceFolder(candidate.rootUri);
+          return Boolean(folder);
+        }) ?? git?.repositories?.[0];
+      if (!repository?.inputBox) {
+        await vscode.env.clipboard.writeText(message);
+        void vscode.window.showInformationMessage(
+          "Commit message copied to the clipboard.",
+        );
+        return;
+      }
+      repository.inputBox.value = message;
+      await vscode.commands.executeCommand("workbench.view.scm");
+    },
+    "continue.openSlackConnector": () =>
+      vscode.commands.executeCommand(
+        "continue.navigateTo",
+        "/connectors/slack",
+        false,
+      ),
+    "continue.exportAgentDiagnostics": async () => {
+      const store = new FileAgentStore(
+        path.join(getContinueGlobalPath(), "agents"),
+      );
+      const report = await createAgentDiagnosticReport(store);
+      const destination = await vscode.window.showSaveDialog({
+        defaultUri: vscode.Uri.file(
+          path.join(
+            os.homedir(),
+            `continue-agent-diagnostics-${Date.now()}.json`,
+          ),
+        ),
+        filters: { JSON: ["json"] },
+        saveLabel: "Export redacted diagnostics",
+        title: "Export Continue Agent Diagnostics",
+      });
+      if (!destination) return;
+      await vscode.workspace.fs.writeFile(
+        destination,
+        Buffer.from(`${JSON.stringify(report, null, 2)}\n`, "utf8"),
+      );
+      void vscode.window.showInformationMessage(
+        "Exported redacted agent diagnostics. Nothing was uploaded.",
+      );
+    },
+    "continue.switchAgent": async () => {
+      const store = new FileAgentStore(
+        path.join(getContinueGlobalPath(), "agents"),
+      );
+      await store.initialize();
+      const runs = await store.listRuns({ limit: 100 });
+      const selected = await vscode.window.showQuickPick(
+        runs.map((run) => ({
+          label: run.title,
+          description: `${run.status} · ${run.workspace.branch ?? run.workspace.location}`,
+          detail: run.workspace.worktreePath ?? run.workspace.repositoryPath,
+          runId: run.id,
+        })),
+        {
+          title: "Switch Agent",
+          placeHolder: "Search recent agents",
+          matchOnDescription: true,
+          matchOnDetail: true,
+        },
+      );
+      if (selected) {
+        await vscode.commands.executeCommand(
+          "continue.navigateTo",
+          `/agents?runId=${encodeURIComponent(selected.runId)}`,
+          false,
+        );
+      }
+    },
     "continue.startLocalOllama": () => {
       startLocalOllama(ide);
     },
@@ -748,13 +969,23 @@ const getCommandsMap: (
         vscode.ConfigurationTarget.Global,
       );
     },
-    "continue.openInNewWindow": async () => {
+    "continue.openSessionFromAgents": async (sessionId: string) => {
+      fullScreenRecoverySessionId = sessionId;
+      await vscode.commands.executeCommand("continue.navigateTo", "/", false);
+      await vscode.commands.executeCommand(
+        "continue.focusContinueSessionId",
+        sessionId,
+      );
+      fullScreenPanel?.reveal();
+    },
+    "continue.openInNewWindow": async (initialPath?: string) => {
       focusGUI();
 
       const sessionId = await sidebar.webviewProtocol.request(
         "getCurrentSessionId",
         undefined,
       );
+      fullScreenRecoverySessionId = sessionId;
       // Check if full screen is already open by checking open tabs
       const fullScreenTab = getFullScreenTab();
 
@@ -771,7 +1002,7 @@ const getCommandsMap: (
       // Create the full screen panel
       let panel = vscode.window.createWebviewPanel(
         "continue.continueGUIView",
-        "Continue",
+        initialPath === "/agents" ? "Continue Agents" : "Continue",
         vscode.ViewColumn.One,
         {
           retainContextWhenHidden: true,
@@ -784,7 +1015,7 @@ const getCommandsMap: (
       panel.webview.html = sidebar.getSidebarContent(
         extensionContext,
         panel,
-        undefined,
+        initialPath,
         undefined,
         true,
       );
@@ -797,6 +1028,12 @@ const getCommandsMap: (
             sessionId,
           );
         }
+        if (initialPath) {
+          sidebar.webviewProtocol?.request("navigateTo", {
+            path: initialPath,
+            toggle: false,
+          });
+        }
         panel.reveal();
         sessionLoader.dispose();
       });
@@ -804,14 +1041,46 @@ const getCommandsMap: (
       // When panel closes, reset the webview and focus
       panel.onDidDispose(
         () => {
+          const recoverySessionId = fullScreenRecoverySessionId;
+          fullScreenRecoverySessionId = undefined;
+          if (fullScreenPanel === panel) fullScreenPanel = undefined;
           sidebar.resetWebviewProtocolWebview();
-          vscode.commands.executeCommand("continue.focusContinueInput");
+          void recoverClosedAgentWindow({
+            cancelApply: async () => {
+              await core.invoke("cancelApply", undefined);
+            },
+            getCurrentFile: () => ide.getCurrentFile(),
+            getStreamId: (filepath) =>
+              verticalDiffManager.getStreamIdForFile(filepath),
+            clearDiff: (filepath) =>
+              verticalDiffManager.clearForfileUri(filepath, false),
+            restoreSession: async () => {
+              await vscode.commands.executeCommand(
+                "continue.continueGUIView.focus",
+              );
+              await vscode.commands.executeCommand(
+                "continue.navigateTo",
+                "/",
+                false,
+              );
+              if (recoverySessionId) {
+                await vscode.commands.executeCommand(
+                  "continue.focusContinueSessionId",
+                  recoverySessionId,
+                );
+              }
+            },
+          });
         },
         null,
         extensionContext.subscriptions,
       );
 
-      vscode.commands.executeCommand("workbench.action.copyEditorToNewWindow");
+      // Moving preserves the original WebviewPanel and its message channel.
+      // Copying creates a second visual webview whose buttons are no longer
+      // connected to `fullScreenPanel`, which is why the Agents window could
+      // render normally while every click appeared to hang.
+      vscode.commands.executeCommand("workbench.action.moveEditorToNewWindow");
       vscode.commands.executeCommand("workbench.action.closeAuxiliaryBar");
     },
     "continue.forceNextEdit": async () => {
@@ -878,7 +1147,40 @@ export function registerAllCommands(
   quickEdit: QuickEdit,
   core: Core,
   editDecorationManager: EditDecorationManager,
+  layoutManager: ContinueLayoutManager,
+  agentScmGraphManager: AgentScmGraphManager,
 ) {
+  context.subscriptions.push(
+    vscode.window.registerWebviewPanelSerializer("continue.continueGUIView", {
+      async deserializeWebviewPanel(panel, state) {
+        fullScreenPanel = panel;
+        const restoredState = state as { page?: unknown } | undefined;
+        const restoredPath =
+          typeof restoredState?.page === "string"
+            ? restoredState.page
+            : undefined;
+        const isAgentsWindow =
+          restoredPath === "/agents" || panel.title.includes("Agents");
+        panel.title = isAgentsWindow ? "Continue Agents" : "Continue";
+        panel.webview.html = sidebar.getSidebarContent(
+          extensionContext,
+          panel,
+          restoredPath ?? (isAgentsWindow ? "/agents" : "/"),
+          undefined,
+          true,
+        );
+        panel.onDidDispose(
+          () => {
+            if (fullScreenPanel === panel) fullScreenPanel = undefined;
+            sidebar.resetWebviewProtocolWebview();
+          },
+          null,
+          context.subscriptions,
+        );
+      },
+    }),
+  );
+
   for (const [command, callback] of Object.entries(
     getCommandsMap(
       ide,
@@ -891,6 +1193,8 @@ export function registerAllCommands(
       quickEdit,
       core,
       editDecorationManager,
+      layoutManager,
+      agentScmGraphManager,
     ),
   )) {
     context.subscriptions.push(

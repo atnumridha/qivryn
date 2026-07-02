@@ -279,6 +279,13 @@ function TipTapEditorInner(props: TipTapEditorProps) {
           activeKey={activeKey}
           hidden={shouldHideToolbar && !props.isMainInput}
           onAddContextItem={() => insertCharacterWithWhitespace("@")}
+          onSkillChange={(name) => {
+            if (!name || !editor) return;
+            editor.commands.insertContent(
+              `Use the ${JSON.stringify(name)} skill for this task. `,
+            );
+            editor.commands.focus();
+          }}
           onEnter={onEnter}
           onImageFileSelected={(file) => {
             void handleImageFile(ideMessenger, file).then((result) => {

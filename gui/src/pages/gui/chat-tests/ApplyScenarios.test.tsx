@@ -64,7 +64,10 @@ test("Chat apply scenarios: show apply cancellation", async () => {
   });
 
   // Verify that rejectDiff message has been posted to ideMessenger
-  expect(messengerPostSpy).toHaveBeenCalledWith("rejectDiff", {});
+  expect(messengerPostSpy).toHaveBeenCalledWith("rejectDiff", {
+    filepath: undefined,
+    streamId: "12345",
+  });
 
   // Now simulate the IDE sending back a message that the apply state is closed
   ideMessenger.mockMessageToWebview("updateApplyState", {

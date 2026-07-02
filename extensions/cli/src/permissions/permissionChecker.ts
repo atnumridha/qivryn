@@ -166,6 +166,18 @@ export function checkToolPermission(
       };
     }
 
+    if (
+      evaluatedPolicy === "allowedWithPermission" &&
+      basePermission === "allow" &&
+      permissions.respectDynamicSecurity &&
+      !permissions.bypassSecurity
+    ) {
+      return {
+        permission: "ask",
+        matchedPolicy,
+      };
+    }
+
     // Otherwise, user preference wins - return the original base permission
     return {
       permission: basePermission,

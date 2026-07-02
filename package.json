@@ -1,6 +1,15 @@
 {
   "name": "continue",
   "scripts": {
+    "validate:cursor-parity": "node scripts/validate-cursor-parity.mjs",
+    "build:agent-runtime": "npm --prefix packages/agent-runtime run build",
+    "test:agent-runtime": "npm --prefix packages/agent-runtime test",
+    "build:review-engine": "npm --prefix packages/review-engine run build",
+    "test:review-engine": "npm --prefix packages/review-engine test",
+    "build:browser-runtime": "npm --prefix packages/browser-runtime run build",
+    "test:browser-runtime": "npm --prefix packages/browser-runtime test",
+    "build:slack-connector": "npm --prefix packages/slack-connector run build",
+    "test:slack-connector": "npm --prefix packages/slack-connector test",
     "tsc:watch": "concurrently -n gui,vscode,core,binary -c cyan,magenta,yellow,green \"npm run tsc:watch:gui\" \"npm run tsc:watch:vscode\" \"npm run tsc:watch:core\" \"npm run tsc:watch:binary\"",
     "tsc:watch:gui": "tsc --project gui/tsconfig.json --watch --noEmit --pretty",
     "tsc:watch:vscode": "tsc --project extensions/vscode/tsconfig.json --watch --noEmit --pretty",

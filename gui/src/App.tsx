@@ -9,10 +9,15 @@ import ErrorPage from "./pages/error";
 import Chat from "./pages/gui";
 import History from "./pages/history";
 import Stats from "./pages/stats";
+import Agents from "./pages/agents";
+import Review from "./pages/review";
+import TerminalAssistant from "./pages/terminal";
+import BrowserWorkspace from "./pages/browser";
+import SlackConnector from "./pages/slack";
 import ThemePage from "./styles/ThemePage";
 import { ROUTES } from "./util/navigation";
 
-const router = createMemoryRouter([
+const routes = [
   {
     path: ROUTES.HOME,
     element: <Layout />,
@@ -35,6 +40,26 @@ const router = createMemoryRouter([
         element: <Stats />,
       },
       {
+        path: ROUTES.AGENTS,
+        element: <Agents />,
+      },
+      {
+        path: ROUTES.REVIEW,
+        element: <Review />,
+      },
+      {
+        path: ROUTES.TERMINAL,
+        element: <TerminalAssistant />,
+      },
+      {
+        path: ROUTES.BROWSER,
+        element: <BrowserWorkspace />,
+      },
+      {
+        path: ROUTES.SLACK,
+        element: <SlackConnector />,
+      },
+      {
         path: ROUTES.CONFIG,
         element: <ConfigPage />,
       },
@@ -44,7 +69,17 @@ const router = createMemoryRouter([
       },
     ],
   },
-]);
+];
+
+const initialRoute =
+  (window as any).initialRoute ||
+  (import.meta.env.DEV
+    ? window.location.pathname + window.location.search
+    : "") ||
+  ROUTES.HOME;
+const router = createMemoryRouter(routes, {
+  initialEntries: [initialRoute],
+});
 
 /*
   ParallelListeners prevents entire app from rerendering on any change in the listeners,

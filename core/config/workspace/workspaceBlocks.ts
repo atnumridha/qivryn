@@ -24,6 +24,93 @@ const BLOCK_TYPE_CONFIG: Record<
   data: { singular: "data", filename: "data" },
 };
 
+export type RuleApplicationMode = "always" | "auto" | "agent" | "manual";
+
+export interface NewRuleFileOptions {
+  baseFilename?: string;
+  ruleType?: RuleApplicationMode;
+  description?: string;
+  globs?: string;
+}
+
+function humanizeRuleName(baseFilename?: string): string {
+  const trimmed = baseFilename?.trim();
+  if (!trimmed) {
+    return "New Rule";
+  }
+
+  const withoutExtension = trimmed.replace(/\.[^./\\]+$/, "");
+  return withoutExtension
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function parseRulePatterns(patterns?: string): string | string[] | undefined {
+  const parts = patterns
+    ?.split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (!parts || parts.length === 0) {
+    return undefined;
+  }
+
+  return parts.length === 1 ? parts[0] : parts;
+}
+
+function getRuleFileContent(options?: NewRuleFileOptions): string {
+  const name = humanizeRuleName(options?.baseFilename);
+  const ruleType = options?.ruleType ?? "always";
+  const description = options?.description?.trim();
+  const globs = parseRulePatterns(options?.globs);
+
+  switch (ruleType) {
+    case "auto":
+      return createRuleMarkdown(
+        name,
+        `# ${name}\n\n- Describe the guidance that should apply when the matched files are in context.\n- Include project-specific conventions, pitfalls, and validation expectations.`,
+        {
+          description:
+            description ||
+            "Guidance that applies when matching files are referenced.",
+          globs: globs || "**/*.{ts,tsx,js,jsx}",
+          alwaysApply: false,
+        },
+      );
+    case "agent":
+      return createRuleMarkdown(
+        name,
+        `# ${name}\n\n- Describe when the agent should request this rule.\n- Include the workflow, evidence, and validation standard for that situation.`,
+        {
+          description:
+            description || "Use when this topic or workflow is relevant.",
+          alwaysApply: false,
+        },
+      );
+    case "manual":
+      return createRuleMarkdown(
+        name,
+        `# ${name}\n\n- Add guidance that should only be used when this rule is explicitly mentioned.`,
+        {
+          alwaysApply: false,
+        },
+      );
+    case "always":
+    default:
+      return createRuleMarkdown(
+        name,
+        `# ${name}\n\n- Add durable project guidance that should be included in every chat and agent request.\n- Prefer concrete constraints, conventions, and verification expectations over vague preferences.`,
+        {
+          description:
+            description || "Always included in model context for this scope.",
+          alwaysApply: true,
+        },
+      );
+  }
+}
+
 function getContentsForNewBlock(blockType: BlockType): ConfigYaml {
   const configYaml: ConfigYaml = {
     name: `New ${BLOCK_TYPE_CONFIG[blockType]?.singular}`,
@@ -92,11 +179,12 @@ function getFileExtension(blockType: BlockType): string {
   return "yaml";
 }
 
-export function getFileContent(blockType: BlockType): string {
+export function getFileContent(
+  blockType: BlockType,
+  options?: NewRuleFileOptions,
+): string {
   if (blockType === "rules") {
-    return createRuleMarkdown("New Rule", "Your rule content", {
-      description: "A description of your rule",
-    });
+    return getRuleFileContent(options);
   } else if (blockType === "prompts") {
     return createPromptMarkdown(
       "New prompt",
@@ -157,8 +245,11 @@ export async function findAvailableFilename(
 export async function createNewWorkspaceBlockFile(
   ide: IDE,
   blockType: BlockType,
-  baseFilename?: string,
+  options?: string | NewRuleFileOptions,
 ): Promise<void> {
+  const normalizedOptions: NewRuleFileOptions =
+    typeof options === "string" ? { baseFilename: options } : (options ?? {});
+
   const workspaceDirs = await ide.getWorkspaceDirs();
   if (workspaceDirs.length === 0) {
     throw new Error(
@@ -174,10 +265,10 @@ export async function createNewWorkspaceBlockFile(
     ide.fileExists.bind(ide),
     undefined,
     false,
-    baseFilename,
+    normalizedOptions.baseFilename,
   );
 
-  const fileContent = getFileContent(blockType);
+  const fileContent = getFileContent(blockType, normalizedOptions);
 
   await ide.writeFile(fileUri, fileContent);
   await ide.openFile(fileUri);
@@ -185,8 +276,11 @@ export async function createNewWorkspaceBlockFile(
 
 export async function createNewGlobalRuleFile(
   ide: IDE,
-  baseFilename?: string,
+  options?: string | NewRuleFileOptions,
 ): Promise<void> {
+  const normalizedOptions: NewRuleFileOptions =
+    typeof options === "string" ? { baseFilename: options } : (options ?? {});
+
   try {
     const globalDir = localPathToUri(getContinueGlobalPath());
 
@@ -199,10 +293,10 @@ export async function createNewGlobalRuleFile(
       ide.fileExists.bind(ide),
       undefined,
       true, // isGlobal = true for global rules
-      baseFilename,
+      normalizedOptions.baseFilename,
     );
 
-    const fileContent = getFileContent("rules");
+    const fileContent = getFileContent("rules", normalizedOptions);
 
     await ide.writeFile(fileUri, fileContent);
 

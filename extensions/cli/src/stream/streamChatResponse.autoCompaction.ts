@@ -6,6 +6,7 @@ import React from "react";
 
 import {
   compactChatHistory,
+  createLocalCompactionFallback,
   getAutoCompactMessage,
   shouldAutoCompact,
 } from "../compaction.js";
@@ -32,6 +33,8 @@ interface AutoCompactionOptions {
   callbacks?: AutoCompactionCallbacks;
   systemMessage?: string;
   tools?: ChatCompletionTool[];
+  /** Compact even when the local estimator has not crossed its threshold. */
+  force?: boolean;
 }
 
 /**
@@ -42,11 +45,9 @@ function notifyCompactionStart(
   isHeadless: boolean,
   callbacks?: AutoCompactionCallbacks,
 ) {
-  if (isHeadless) return;
-
   if (callbacks?.onSystemMessage) {
     callbacks.onSystemMessage(message);
-  } else if (callbacks?.setMessages) {
+  } else if (!isHeadless && callbacks?.setMessages) {
     // TUI mode - handled by caller
   }
 }
@@ -59,13 +60,12 @@ function handleCompactionSuccess(
   isHeadless: boolean,
   callbacks?: AutoCompactionCallbacks,
 ) {
-  if (isHeadless) return;
-
   const successMessage = "Chat history auto-compacted successfully.";
 
   if (callbacks?.onSystemMessage) {
     callbacks.onSystemMessage(successMessage);
   } else if (
+    !isHeadless &&
     callbacks?.setMessages &&
     callbacks?.setChatHistory &&
     callbacks?.setCompactionIndex
@@ -96,13 +96,11 @@ function handleCompactionError(
   const errorMessage = `Auto-compaction error: ${formatError(error)}`;
   logger.error(errorMessage);
 
-  if (isHeadless) return;
-
   const warningMessage = `Warning: ${errorMessage}. Continuing without compaction...`;
 
   if (callbacks?.onSystemMessage) {
     callbacks.onSystemMessage(warningMessage);
-  } else if (callbacks?.setMessages) {
+  } else if (!isHeadless && callbacks?.setMessages) {
     callbacks.setMessages((prev: ChatHistoryItem[]) => [
       ...prev,
       {
@@ -139,10 +137,15 @@ export async function handleAutoCompaction(
     callbacks,
     systemMessage: providedSystemMessage,
     tools,
+    force = false,
   } = options;
 
+  if (!model) {
+    return { chatHistory, compactionIndex: null, wasCompacted: false };
+  }
+
   if (
-    !model ||
+    !force &&
     !shouldAutoCompact({
       chatHistory,
       model,
@@ -154,7 +157,7 @@ export async function handleAutoCompaction(
   }
 
   logger.info(
-    `Auto-compaction triggered${isHeadless ? " in headless mode" : ""}`,
+    `${force ? "Forced c" : "Auto-c"}ompaction triggered${isHeadless ? " in headless mode" : ""}`,
   );
 
   // Notify about compaction start
@@ -209,7 +212,23 @@ export async function handleAutoCompaction(
       wasCompacted: true,
     };
   } catch (error: any) {
-    // Handle error notification
+    if (force) {
+      logger.warn(
+        "Model-based compaction failed; using bounded local recovery summary",
+        error,
+      );
+      const fallback = createLocalCompactionFallback(chatHistory);
+      updateSessionHistory(fallback.compactedHistory);
+      callbacks?.onSystemMessage?.(
+        "Model-based compaction could not complete. Recovered with a bounded local summary and will continue from the workspace state.",
+      );
+      return {
+        chatHistory: fallback.compactedHistory,
+        compactionIndex: fallback.compactionIndex,
+        wasCompacted: true,
+      };
+    }
+
     handleCompactionError(error, isHeadless, callbacks);
 
     // Continue without compaction on error

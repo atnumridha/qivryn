@@ -7,6 +7,7 @@ import { handleAutoCompaction } from "./streamChatResponse.autoCompaction.js";
 // Mock dependencies
 vi.mock("../compaction.js", () => ({
   compactChatHistory: vi.fn(),
+  createLocalCompactionFallback: vi.fn(),
   shouldAutoCompact: vi.fn(),
   getAutoCompactMessage: vi.fn(),
 }));
@@ -222,7 +223,7 @@ describe("handleAutoCompaction", () => {
     });
   });
 
-  it("should not call system message callback in headless mode", async () => {
+  it("should emit compaction lifecycle notices in headless agent mode", async () => {
     const { compactChatHistory, shouldAutoCompact, getAutoCompactMessage } =
       await import("../compaction.js");
 
@@ -249,7 +250,61 @@ describe("handleAutoCompaction", () => {
       callbacks: mockCallbacks,
     });
 
-    expect(mockCallbacks.onSystemMessage).not.toHaveBeenCalled();
+    expect(mockCallbacks.onSystemMessage).toHaveBeenCalledWith(
+      "Auto-compacting...",
+    );
+    expect(mockCallbacks.onSystemMessage).toHaveBeenCalledWith(
+      "Chat history auto-compacted successfully.",
+    );
+  });
+
+  it("should force compaction when provider token accounting disagrees", async () => {
+    const { compactChatHistory, shouldAutoCompact } = await import(
+      "../compaction.js"
+    );
+    vi.mocked(shouldAutoCompact).mockReturnValue(false);
+    vi.mocked(compactChatHistory).mockResolvedValue({
+      compactedHistory: mockChatHistory.slice(-1),
+      compactionIndex: 0,
+      compactionContent: "Recovered summary",
+    });
+
+    const result = await handleAutoCompaction(
+      mockChatHistory,
+      mockModel,
+      mockLlmApi,
+      { force: true, isHeadless: true },
+    );
+
+    expect(shouldAutoCompact).not.toHaveBeenCalled();
+    expect(compactChatHistory).toHaveBeenCalled();
+    expect(result.wasCompacted).toBe(true);
+  });
+
+  it("should fall back to a bounded local summary if forced model compaction fails", async () => {
+    const { compactChatHistory, createLocalCompactionFallback } = await import(
+      "../compaction.js"
+    );
+    vi.mocked(compactChatHistory).mockRejectedValue(new Error("still too big"));
+    vi.mocked(createLocalCompactionFallback).mockReturnValue({
+      compactedHistory: mockChatHistory.slice(-1),
+      compactionIndex: 0,
+      compactionContent: "Local recovery",
+    });
+    const callbacks = { onSystemMessage: vi.fn() };
+
+    const result = await handleAutoCompaction(
+      mockChatHistory,
+      mockModel,
+      mockLlmApi,
+      { force: true, isHeadless: true, callbacks },
+    );
+
+    expect(result.wasCompacted).toBe(true);
+    expect(createLocalCompactionFallback).toHaveBeenCalledWith(mockChatHistory);
+    expect(callbacks.onSystemMessage).toHaveBeenCalledWith(
+      expect.stringContaining("bounded local summary"),
+    );
   });
 
   it("should handle missing model gracefully", async () => {

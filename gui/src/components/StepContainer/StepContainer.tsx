@@ -5,6 +5,7 @@ import { useDispatch } from "react-redux";
 import { useAppSelector } from "../../redux/hooks";
 import { selectUIConfig } from "../../redux/slices/configSlice";
 import { deleteMessage } from "../../redux/slices/sessionSlice";
+import { hasActiveToolCalls } from "../../util/toolCallRecovery";
 import ThinkingBlockPeek from "../mainInput/belowMainInput/ThinkingBlockPeek";
 import StyledMarkdownPreview from "../StyledMarkdownPreview";
 import ConversationSummary from "./ConversationSummary";
@@ -36,7 +37,7 @@ export default function StepContainer(props: StepContainerProps) {
   );
   const showResponseActions =
     (props.isLast || historyItemAfterThis?.message.role === "user") &&
-    !(props.isLast && (isStreaming || props.item.toolCallStates));
+    !(props.isLast && (isStreaming || hasActiveToolCalls(props.item)));
 
   useEffect(() => {
     if (!isStreaming) {

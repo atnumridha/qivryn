@@ -5,12 +5,20 @@ import {
 import { IDE, RuleWithSource } from "../..";
 import { PROMPTS_DIR_NAME, RULES_DIR_NAME } from "../../promptFiles";
 import { joinPathsToUri } from "../../util/uri";
+import { walkDir } from "../../indexing/walkDir";
+import { localPathToUri } from "../../util/pathToUri";
 import { getAllDotContinueDefinitionFiles } from "../loadLocalAssistants";
+import { getEnabledLocalPluginContributionPaths } from "../plugins/localPluginManager";
 
-export const SUPPORTED_AGENT_FILES = ["AGENTS.md", "AGENT.md", "CLAUDE.md"];
+export const SUPPORTED_AGENT_FILES = [
+  "AGENTS.md",
+  "AGENT.md",
+  "CLAUDE.md",
+  "CODEX.md",
+];
 /**
  * Loads rules from markdown files in the .continue/rules and .continue/prompts directories
- * and agent files (AGENTS.md, AGENT.md, CLAUDE.md) at workspace root
+ * and agent files (AGENTS.md, AGENT.md, CLAUDE.md, CODEX.md) at workspace root
  */
 export async function loadMarkdownRules(ide: IDE): Promise<{
   rules: RuleWithSource[];
@@ -42,9 +50,8 @@ export async function loadMarkdownRules(ide: IDE): Promise<{
             alwaysApply: true,
           });
           agentFileFound = true;
+          break; // Use the first found agent file in this workspace
         }
-
-        break; // Use the first found agent file in this workspace
       } catch (e) {
         // File doesn't exist or can't be read, continue to next file
       }
@@ -52,6 +59,46 @@ export async function loadMarkdownRules(ide: IDE): Promise<{
     if (agentFileFound) {
       break; // Use agent file from first workspace that has one
     }
+  }
+
+  // Enabled managed-plugin rules are read-only and loaded after workspace agent files.
+  try {
+    const { rules: pluginRuleDirs } =
+      await getEnabledLocalPluginContributionPaths();
+    for (const directory of pluginRuleDirs) {
+      const directoryUri = localPathToUri(directory);
+      if (!(await ide.fileExists(directoryUri))) continue;
+      const files = (
+        await walkDir(directoryUri, ide, {
+          source: "get local plugin rule files",
+        })
+      ).filter((file) => file.endsWith(".md"));
+      for (const fileUri of files) {
+        try {
+          const rule = markdownToRule(await ide.readFile(fileUri), {
+            uriType: "file",
+            fileUri,
+          });
+          if (!rule.invokable) {
+            rules.push({
+              ...rule,
+              source: "rules-block",
+              sourceFile: fileUri,
+            });
+          }
+        } catch (e) {
+          errors.push({
+            fatal: false,
+            message: `Failed to parse plugin rule file ${fileUri}: ${e instanceof Error ? e.message : e}`,
+          });
+        }
+      }
+    }
+  } catch (e) {
+    errors.push({
+      fatal: false,
+      message: `Error loading local plugin rules: ${e instanceof Error ? e.message : e}`,
+    });
   }
 
   // Load markdown files from both .continue/rules and .continue/prompts

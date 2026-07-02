@@ -40,6 +40,7 @@ export const singleFindAndReplaceImpl: ClientToolImpl = async (
       text: newFileContents,
       filepath: fileUri,
       isSearchAndReplace: true,
+      background: true,
     }),
   );
 

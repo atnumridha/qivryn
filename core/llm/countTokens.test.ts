@@ -182,6 +182,42 @@ describe.skip("compileChatMessages", () => {
   });
 });
 
+describe("compileChatMessages context usage", () => {
+  it("returns exact input and context-window token counts", () => {
+    const compiled = compileChatMessages({
+      modelName: "gpt-4",
+      msgs: [{ role: "user", content: "Review this implementation" }],
+      knownContextLength: 200_000,
+      maxTokens: 64_000,
+      supportsImages: true,
+    });
+
+    expect(compiled.inputTokens).toBeGreaterThan(0);
+    expect(compiled.contextLength).toBe(200_000);
+    expect(compiled.availableTokens).toBeLessThan(200_000);
+  });
+
+  it("repairs a compacted system-only request with a user anchor", () => {
+    const compiled = compileChatMessages({
+      modelName: "gpt-4",
+      msgs: [
+        {
+          role: "system",
+          content:
+            "Agent instructions\n\nPrevious conversation summary:\n\nFinished setup",
+        },
+      ],
+      knownContextLength: 200_000,
+      maxTokens: 64_000,
+      supportsImages: true,
+    });
+
+    expect(
+      compiled.compiledChatMessages.map((message) => message.role),
+    ).toEqual(["system", "user"]);
+  });
+});
+
 describe("extractToolSequence", () => {
   // Helper function to create mock messages
   const createUserMessage = (content: string): ChatMessage => ({

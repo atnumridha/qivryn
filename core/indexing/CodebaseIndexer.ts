@@ -12,7 +12,7 @@ import type { FromCoreProtocol, ToCoreProtocol } from "../protocol";
 import type { IMessenger } from "../protocol/messenger";
 import { extractMinimalStackTraceInfo } from "../util/extractMinimalStackTraceInfo.js";
 import { Logger } from "../util/Logger.js";
-import { getIndexSqlitePath, getLanceDbPath } from "../util/paths.js";
+import { getLanceDbPath } from "../util/paths.js";
 import { findUriInDirs, getUriPathBasename } from "../util/uri.js";
 
 import { ConfigResult } from "@continuedev/config-yaml";
@@ -24,7 +24,11 @@ import { CodeSnippetsCodebaseIndex } from "./CodeSnippetsIndex.js";
 import { embedModelsAreEqual } from "./docs/DocsService.js";
 import { FullTextSearchCodebaseIndex } from "./FullTextSearchCodebaseIndex.js";
 import { LanceDbIndex } from "./LanceDbIndex.js";
-import { getComputeDeleteAddRemove, IndexLock } from "./refreshIndex.js";
+import {
+  getComputeDeleteAddRemove,
+  IndexLock,
+  SqliteDb,
+} from "./refreshIndex.js";
 import {
   CodebaseIndex,
   IndexResultType,
@@ -121,25 +125,28 @@ export class CodebaseIndexer {
   }
 
   async clearIndexes() {
-    const sqliteFilepath = getIndexSqlitePath();
     const lanceDbFolder = getLanceDbPath();
 
-    try {
-      await fs.unlink(sqliteFilepath);
-    } catch (error) {
-      Logger.error(error, {
-        filepath: sqliteFilepath,
-      });
-      console.error(`Error deleting ${sqliteFilepath} folder: ${error}`);
+    for await (const update of this.waitForDBIndex()) {
+      this.updateProgress(update);
     }
-
+    await IndexLock.lock("Clearing codebase indexes");
     try {
-      await fs.rm(lanceDbFolder, { recursive: true, force: true });
-    } catch (error) {
-      Logger.error(error, {
-        folderPath: lanceDbFolder,
-      });
-      console.error(`Error deleting ${lanceDbFolder}: ${error}`);
+      // Do not unlink a WAL-mode SQLite database while another VS Code window
+      // may still hold it open. Clear its data transactionally and preserve the
+      // schema and shared lock table instead.
+      await SqliteDb.clear();
+
+      try {
+        await fs.rm(lanceDbFolder, { recursive: true, force: true });
+      } catch (error) {
+        Logger.error(error, {
+          folderPath: lanceDbFolder,
+        });
+        console.error(`Error deleting ${lanceDbFolder}: ${error}`);
+      }
+    } finally {
+      await IndexLock.unlock();
     }
   }
 
@@ -728,17 +735,21 @@ export class CodebaseIndexer {
     const localController = new AbortController();
     this.indexingCancellationController = localController;
 
-    for await (const update of this.waitForDBIndex()) {
-      this.updateProgress(update);
-    }
-
-    await IndexLock.lock(paths.join(", ")); // acquire the index lock to prevent multiple windows to begin indexing
-    const indexLockTimestampUpdateInterval = setInterval(
-      () => void IndexLock.updateTimestamp(),
-      5_000,
-    );
-
+    let lockAcquired = false;
+    let indexLockTimestampUpdateInterval: NodeJS.Timeout | undefined;
     try {
+      for await (const update of this.waitForDBIndex()) {
+        this.updateProgress(update);
+      }
+
+      await IndexLock.lock(paths.join(", "));
+      lockAcquired = true;
+      indexLockTimestampUpdateInterval = setInterval(() => {
+        void IndexLock.updateTimestamp().catch((error) => {
+          console.warn("Failed to refresh the codebase index lock", error);
+        });
+      }, 5_000);
+
       for await (const update of this.refreshDirs(
         paths,
         localController.signal,
@@ -752,19 +763,25 @@ export class CodebaseIndexer {
     } catch (e: any) {
       console.log(`Failed refreshing codebase index directories: ${e}`);
       await this.handleIndexingError(e);
+    } finally {
+      if (indexLockTimestampUpdateInterval) {
+        clearInterval(indexLockTimestampUpdateInterval);
+      }
+      if (lockAcquired) {
+        await IndexLock.unlock().catch((error) => {
+          console.warn("Failed to release the codebase index lock", error);
+        });
+      }
+      if (this.indexingCancellationController === localController) {
+        this.indexingCancellationController.abort();
+      }
     }
-
-    clearInterval(indexLockTimestampUpdateInterval); // interval will also be cleared when window closes before indexing is finished
-    await IndexLock.unlock();
 
     // Directly refresh submenu items
     if (this.messenger) {
       this.messenger.send("refreshSubmenuItems", {
         providers: "all",
       });
-    }
-    if (this.indexingCancellationController === localController) {
-      this.indexingCancellationController.abort();
     }
   }
 

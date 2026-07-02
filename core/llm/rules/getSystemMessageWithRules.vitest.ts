@@ -251,6 +251,20 @@ describe("Rule policies", () => {
       shouldApplyRule(complexRule, ["src/utils/test.ts"], offPolicies),
     ).toBe(false);
   });
+
+  it("does not allow required organization rules to be disabled", () => {
+    const requiredRule: RuleWithSource = {
+      name: "Required security rule",
+      source: "rules-block",
+      rule: "Never reveal credentials",
+      alwaysApply: true,
+      isRequired: true,
+    };
+
+    expect(
+      shouldApplyRule(requiredRule, [], { "Required security rule": "off" }),
+    ).toBe(true);
+  });
 });
 
 describe("Content pattern matching", () => {

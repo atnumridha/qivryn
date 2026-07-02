@@ -39,7 +39,7 @@ async function handleHelp(_args: string[], _assistant: AssistantConfig) {
     `  ${chalk.cyan("Ctrl+C")}     Clear input`,
     `  ${chalk.cyan("Ctrl+D")}     Exit application`,
     `  ${chalk.cyan("Ctrl+L")}     Clear screen`,
-    `  ${chalk.cyan("Shift+Tab")}  Cycle permission modes (normal/plan/auto)`,
+    `  ${chalk.cyan("Shift+Tab")}  Cycle access modes (normal/plan/sandbox/autonomous/full access)`,
     `  ${chalk.cyan("Esc")}        Cancel streaming or close suggestions`,
     "",
     chalk.white("Special Characters:"),
@@ -116,7 +116,7 @@ async function handleSkills(): Promise<SlashCommandResult> {
     return {
       exit: false,
       output: chalk.yellow(
-        "No skills found. Add skills under .continue/skills or .claude/skills.",
+        "No skills found in Continue, Claude, Codex, Copilot, or agent skill directories.",
       ),
     };
   }

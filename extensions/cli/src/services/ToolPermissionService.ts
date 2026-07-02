@@ -1,6 +1,8 @@
 import {
+  AUTONOMOUS_MODE_POLICIES,
   AUTO_MODE_POLICIES,
   PLAN_MODE_POLICIES,
+  SANDBOX_MODE_POLICIES,
 } from "src/permissions/defaultPolicies.js";
 
 import { ensurePermissionsYamlExists } from "../permissions/permissionsYamlLoader.js";
@@ -175,6 +177,10 @@ export class ToolPermissionService
         return [...PLAN_MODE_POLICIES];
       case "auto":
         return [...AUTO_MODE_POLICIES];
+      case "autonomous":
+        return [...AUTONOMOUS_MODE_POLICIES];
+      case "sandbox":
+        return [...SANDBOX_MODE_POLICIES];
       case "normal":
       default:
         // Normal mode uses the more nuanced policy loading
@@ -214,6 +220,8 @@ export class ToolPermissionService
       );
     } else if (
       this.currentState.currentMode === "plan" ||
+      this.currentState.currentMode === "sandbox" ||
+      this.currentState.currentMode === "autonomous" ||
       this.currentState.currentMode === "auto"
     ) {
       // For plan and auto modes, use ONLY mode policies (absolute override)
@@ -230,7 +238,15 @@ export class ToolPermissionService
     }
 
     this.setState({
-      permissions: { policies: allPolicies },
+      permissions: {
+        policies: allPolicies,
+        ...(this.currentState.currentMode === "autonomous"
+          ? { respectDynamicSecurity: true }
+          : {}),
+        ...(this.currentState.currentMode === "auto"
+          ? { bypassSecurity: true }
+          : {}),
+      },
       currentMode: this.currentState.currentMode,
       isHeadless: this.currentState.isHeadless,
       modePolicyCount: modePolicies.length,
@@ -313,7 +329,12 @@ export class ToolPermissionService
     // For plan and auto modes, use ONLY mode policies (absolute override)
     // For normal mode, restore original policies if available
     let allPolicies: ToolPermissionPolicy[];
-    if (newMode === "plan" || newMode === "auto") {
+    if (
+      newMode === "plan" ||
+      newMode === "sandbox" ||
+      newMode === "autonomous" ||
+      newMode === "auto"
+    ) {
       // Absolute override: ignore all user configuration
       allPolicies = [...modePolicies];
     } else {
@@ -344,7 +365,11 @@ export class ToolPermissionService
     }
 
     this.setState({
-      permissions: { policies: allPolicies },
+      permissions: {
+        policies: allPolicies,
+        ...(newMode === "autonomous" ? { respectDynamicSecurity: true } : {}),
+        ...(newMode === "auto" ? { bypassSecurity: true } : {}),
+      },
       currentMode: newMode,
       modePolicyCount: modePolicies.length,
     });

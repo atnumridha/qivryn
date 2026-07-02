@@ -153,6 +153,39 @@ async function copyOnnxRuntimeFromNodeModules(target) {
   console.log("[info] Copied onnxruntime-node");
 }
 
+function copyOnnxWasmFromNodeModules() {
+  const sourceDir = path.join(
+    continueDir,
+    "core",
+    "node_modules",
+    "onnxruntime-web",
+    "dist",
+  );
+  const destinationDir = path.join(
+    continueDir,
+    "extensions",
+    "vscode",
+    "out",
+    "dist",
+  );
+  const wasmFiles = fs
+    .readdirSync(sourceDir)
+    .filter((filename) => /^ort-wasm.*\.wasm$/.test(filename));
+
+  if (wasmFiles.length === 0) {
+    throw new Error(`No ONNX Runtime WASM files found in ${sourceDir}`);
+  }
+
+  fs.mkdirSync(destinationDir, { recursive: true });
+  for (const filename of wasmFiles) {
+    fs.copyFileSync(
+      path.join(sourceDir, filename),
+      path.join(destinationDir, filename),
+    );
+  }
+  console.log(`[info] Copied ${wasmFiles.length} onnxruntime-web WASM files`);
+}
+
 async function copyTreeSitterWasms() {
   process.chdir(path.join(continueDir, "extensions", "vscode"));
   fs.mkdirSync("out", { recursive: true });
@@ -381,6 +414,7 @@ module.exports = {
   continueDir,
   buildGui,
   copyOnnxRuntimeFromNodeModules,
+  copyOnnxWasmFromNodeModules,
   copyTreeSitterWasms,
   copyNodeModules,
   copySqliteBinary,

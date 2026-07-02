@@ -18,6 +18,8 @@ import {
 // Buffer cap/ratio for auto-compaction threshold calculation
 export const AUTO_COMPACT_BUFFER_CAP = 15_000;
 export const AUTO_COMPACT_BUFFER_RATIO = 0.8;
+export const AUTO_COMPACT_MIN_NEW_TOKENS = 12_000;
+const COMPACTION_MAX_OUTPUT_TOKENS = 8_192;
 
 export interface CompactionResult {
   compactedHistory: ChatHistoryItem[];
@@ -35,6 +37,79 @@ export interface CompactionOptions {
   callbacks?: CompactionCallbacks;
   abortController?: AbortController;
   systemMessageTokens?: number;
+}
+
+const LOCAL_COMPACTION_MAX_CHARS = 24_000;
+const LOCAL_COMPACTION_ITEM_MAX_CHARS = 4_000;
+
+function historyItemExcerpt(item: ChatHistoryItem): string {
+  const content =
+    typeof item.message.content === "string"
+      ? item.message.content
+      : JSON.stringify(item.message.content);
+  const toolState = (item.toolCallStates ?? [])
+    .map((state) => {
+      const name = state.toolCall?.function?.name ?? "tool";
+      const output = (state.output ?? [])
+        .map((entry) => entry.content ?? "")
+        .join("\n");
+      return `${name} (${state.status})${output ? `: ${output}` : ""}`;
+    })
+    .join("\n");
+  const combined = [content, toolState].filter(Boolean).join("\n");
+  if (combined.length <= LOCAL_COMPACTION_ITEM_MAX_CHARS) return combined;
+  const half = Math.floor((LOCAL_COMPACTION_ITEM_MAX_CHARS - 120) / 2);
+  return `${combined.slice(0, half)}\n[excerpt compacted]\n${combined.slice(-half)}`;
+}
+
+/**
+ * Last-resort compaction used when a provider rejects the summarization
+ * request itself. It preserves the newest actionable transcript excerpts and
+ * explicitly directs the agent back to the workspace as the source of truth.
+ */
+export function createLocalCompactionFallback(
+  chatHistory: ChatHistoryItem[],
+): CompactionResult {
+  const systemMessage = chatHistory.find(
+    (item) => item.message.role === "system",
+  );
+  const selected: string[] = [];
+  let usedChars = 0;
+
+  for (let index = chatHistory.length - 1; index >= 0; index--) {
+    const item = chatHistory[index];
+    if (item.message.role === "system") continue;
+    const excerpt = `[${item.message.role}]\n${historyItemExcerpt(item)}`;
+    if (
+      selected.length > 0 &&
+      usedChars + excerpt.length > LOCAL_COMPACTION_MAX_CHARS
+    ) {
+      break;
+    }
+    selected.push(excerpt);
+    usedChars += excerpt.length;
+  }
+
+  const compactionContent = [
+    "Automatic local context recovery was used because model-based summarization could not fit in the context window.",
+    "Treat the workspace, current diff, tests, and task artifacts as authoritative. Re-inspect them before changing code; omitted transcript details must not be guessed.",
+    "Recent transcript excerpts (oldest to newest):",
+    ...selected.reverse(),
+  ].join("\n\n");
+  const compactionMessage: ChatHistoryItem = {
+    message: { role: "assistant", content: compactionContent },
+    contextItems: [],
+    conversationSummary: compactionContent,
+  };
+  const compactedHistory = systemMessage
+    ? [systemMessage, compactionMessage]
+    : [compactionMessage];
+
+  return {
+    compactedHistory,
+    compactionContent,
+    compactionIndex: systemMessage ? 1 : 0,
+  };
 }
 
 const COMPACTION_PROMPT =
@@ -57,6 +132,16 @@ export async function compactChatHistory(
   options?: CompactionOptions,
 ): Promise<CompactionResult> {
   const { callbacks, abortController, systemMessageTokens = 0 } = options || {};
+  const compactionModel: ModelConfig = {
+    ...model,
+    defaultCompletionOptions: {
+      ...model.defaultCompletionOptions,
+      maxTokens: Math.min(
+        getModelMaxTokens(model),
+        COMPACTION_MAX_OUTPUT_TOKENS,
+      ),
+    },
+  };
   // Create a prompt to summarize the conversation
   const compactionPrompt: ChatHistoryItem = {
     message: {
@@ -70,8 +155,8 @@ export async function compactChatHistory(
   let historyToUse = chatHistory;
   let historyForCompaction = [...historyToUse, compactionPrompt];
 
-  const contextLimit = getModelContextLimit(model);
-  const maxTokens = getModelMaxTokens(model);
+  const contextLimit = getModelContextLimit(compactionModel);
+  const maxTokens = getModelMaxTokens(compactionModel);
 
   // Check if system message is already in the history to avoid double-counting
   const hasSystemMessageInHistory = chatHistory.some(
@@ -91,11 +176,12 @@ export async function compactChatHistory(
 
   // Check if we need to prune to fit within context
   while (
-    countChatHistoryTokens(historyForCompaction, model) > availableForInput &&
+    countChatHistoryTokens(historyForCompaction, compactionModel) >
+      availableForInput &&
     historyToUse.length > 0
   ) {
     logger.debug("Compaction history too long, pruning last message", {
-      tokenCount: countChatHistoryTokens(historyForCompaction, model),
+      tokenCount: countChatHistoryTokens(historyForCompaction, compactionModel),
       availableForInput,
       historyLength: historyToUse.length,
     });
@@ -130,7 +216,7 @@ export async function compactChatHistory(
   try {
     await streamChatResponse(
       historyForCompaction,
-      model,
+      compactionModel,
       llmApi,
       controller,
       streamCallbacks,
@@ -296,7 +382,21 @@ export function shouldAutoCompact(params: AutoCompactParams): boolean {
 
   const toolTokens = tools ? countToolDefinitionTokens(tools) : 0;
   const systemTokens = systemMessage ? encode(systemMessage).length : 0;
-  const shouldCompact = inputTokens >= compactionThreshold;
+  const latestCompactionIndex = chatHistory.findLastIndex(
+    (item) => item.conversationSummary !== undefined,
+  );
+  const newTokensSinceCompaction =
+    latestCompactionIndex < 0
+      ? Number.POSITIVE_INFINITY
+      : countChatHistoryTokens(
+          chatHistory.slice(latestCompactionIndex + 1),
+          model,
+        );
+  const hasFreshCompaction =
+    latestCompactionIndex >= 0 &&
+    newTokensSinceCompaction < AUTO_COMPACT_MIN_NEW_TOKENS;
+  const shouldCompact =
+    inputTokens >= compactionThreshold && !hasFreshCompaction;
 
   logger.debug("Context usage check", {
     inputTokens,

@@ -76,6 +76,22 @@ try {
         __dirname,
         "../../packages/terminal-security/dist/index.js",
       ),
+      "@continuedev/agent-runtime": resolve(
+        __dirname,
+        "../../packages/agent-runtime/dist/index.js",
+      ),
+      "@continuedev/review-engine": resolve(
+        __dirname,
+        "../../packages/review-engine/dist/index.js",
+      ),
+      "@continuedev/browser-runtime": resolve(
+        __dirname,
+        "../../packages/browser-runtime/dist/index.js",
+      ),
+      "@continuedev/slack-connector": resolve(
+        __dirname,
+        "../../packages/slack-connector/dist/index.js",
+      ),
     },
 
     // Add banner to create require for CommonJS packages

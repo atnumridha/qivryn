@@ -3,6 +3,8 @@ import { ChevronDownIcon, ChevronUpIcon } from "@heroicons/react/24/solid";
 import { ChatHistoryItem } from "core";
 import { useState } from "react";
 import { useAppSelector } from "../../redux/hooks";
+import { selectSelectedChatModelContextLength } from "../../redux/slices/configSlice";
+import { contextUsagePresentation } from "../../util/contextUsage";
 import { useDeleteCompaction } from "../../util/compactConversation";
 import { AnimatedEllipsis } from "../AnimatedEllipsis";
 import HeaderButtonWithToolTip from "../gui/HeaderButtonWithToolTip";
@@ -18,6 +20,14 @@ export default function ConversationSummary(props: ConversationSummaryProps) {
   const isLoading = useAppSelector(
     (state) => state.session.compactionLoading[props.index] || false,
   );
+  const contextUsage = useAppSelector((state) => state.session.contextUsage);
+  const configuredContextLength = useAppSelector(
+    selectSelectedChatModelContextLength,
+  );
+  const usagePresentation = contextUsagePresentation(
+    contextUsage,
+    configuredContextLength,
+  );
   const deleteCompaction = useDeleteCompaction();
 
   if (!props.item.conversationSummary && !isLoading) {
@@ -29,9 +39,17 @@ export default function ConversationSummary(props: ConversationSummaryProps) {
     return (
       <div className="mx-1.5 mb-4 mt-2">
         <div className="bg-vsc-input-background rounded-md shadow-sm">
-          <div className="text-description flex items-center justify-start px-3 py-2 text-xs">
-            <span>Generating conversation summary</span>
-            <AnimatedEllipsis />
+          <div className="text-description flex items-center justify-between gap-3 px-3 py-2 text-xs">
+            <span className="min-w-0 flex-1">
+              Automatically compacting context
+              <AnimatedEllipsis />
+            </span>
+            <span
+              title={usagePresentation.accessible}
+              className="flex-shrink-0 font-mono text-[10px]"
+            >
+              {usagePresentation.short}
+            </span>
           </div>
         </div>
       </div>
@@ -51,7 +69,11 @@ export default function ConversationSummary(props: ConversationSummaryProps) {
           ) : (
             <ChevronDownIcon className="h-3 w-3" />
           )}
-          <span className="flex-1">Conversation Summary</span>
+          <span className="flex-1">
+            {props.item.conversationSummaryAutomatic
+              ? "Context automatically compacted"
+              : "Conversation Summary"}
+          </span>
           <HeaderButtonWithToolTip
             text="Delete summary"
             onClick={(e) => {

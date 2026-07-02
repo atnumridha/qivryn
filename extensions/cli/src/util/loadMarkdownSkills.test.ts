@@ -47,6 +47,15 @@ describe("loadMarkdownSkills", () => {
     expect(result.errors).toEqual([]);
   });
 
+  it("discovers global Cursor skill and plugin roots", async () => {
+    const { getGlobalCrossAgentSkillPaths } = await import(
+      "./loadMarkdownSkills.js"
+    );
+    const roots = getGlobalCrossAgentSkillPaths("/mock/home/.continue");
+    expect(roots).toContain(path.join("/mock/home", ".cursor", "skills"));
+    expect(roots).toContain(path.join("/mock/home", ".cursor", "plugins"));
+  });
+
   it("loads a valid skill with files from .continue/skills", async () => {
     const skillDir = path.join(tmpDir, ".continue", "skills", "my-skill");
     fs.mkdirSync(skillDir, { recursive: true });
@@ -120,5 +129,39 @@ Content
     expect(result.skills).toHaveLength(2);
     const names = result.skills.map((s) => s.name).sort();
     expect(names).toEqual(["Skill One", "Skill Two"]);
+  });
+
+  it("loads nested cross-agent skills and keeps workspace precedence", async () => {
+    const codexSkillDir = path.join(
+      tmpDir,
+      ".codex",
+      "skills",
+      ".system",
+      "review",
+    );
+    const continueSkillDir = path.join(tmpDir, ".continue", "skills", "review");
+    fs.mkdirSync(codexSkillDir, { recursive: true });
+    fs.mkdirSync(continueSkillDir, { recursive: true });
+
+    const skillContent = (description: string) => `---
+name: code-review
+description: ${description}
+---
+Review instructions
+`;
+    fs.writeFileSync(
+      path.join(codexSkillDir, "SKILL.md"),
+      skillContent("Codex review"),
+    );
+    fs.writeFileSync(
+      path.join(continueSkillDir, "SKILL.md"),
+      skillContent("Workspace review"),
+    );
+
+    const result = await loadMarkdownSkills();
+    expect(result.errors).toEqual([]);
+    expect(
+      result.skills.filter((skill) => skill.name === "code-review"),
+    ).toEqual([expect.objectContaining({ description: "Workspace review" })]);
   });
 });

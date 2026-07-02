@@ -240,7 +240,7 @@ function readModelsCache(): { client_version?: string; models?: any[] } {
  *   - `instructions`: plain text string (from system/developer messages)
  *   - `input`: list of {role, content: [{type:"input_text", text}]} objects
  */
-function chatMessagesToCodexBody(
+export function chatMessagesToCodexBody(
   model: string,
   messages: any[],
   options: Record<string, any> = {},
@@ -260,7 +260,7 @@ function chatMessagesToCodexBody(
               .join("\n");
       if (text) systemParts.push(text);
     } else {
-      inputMessages.push(convertMessage(msg));
+      inputMessages.push(msg);
     }
   }
 
@@ -275,57 +275,9 @@ function chatMessagesToCodexBody(
   }
 
   // Codex backend requires input to be a list (not a string)
-  body.input = inputMessages;
+  body.input = toResponsesInput(inputMessages);
 
   return body;
-}
-
-function convertMessage(msg: any): any {
-  if (msg.role === "tool") {
-    return {
-      type: "function_call_output",
-      call_id: msg.tool_call_id ?? "unknown",
-      output:
-        typeof msg.content === "string"
-          ? msg.content
-          : JSON.stringify(msg.content),
-    };
-  }
-
-  const contentParts = buildContentParts(msg.content, msg.role);
-  const converted: any = { role: msg.role, content: contentParts };
-
-  if (msg.role === "assistant" && msg.tool_calls?.length) {
-    converted.tool_calls = msg.tool_calls;
-  }
-
-  return { role: msg.role, content: contentParts };
-}
-
-function buildContentParts(content: any, role: string): any[] {
-  if (typeof content === "string") {
-    return [
-      { type: role === "user" ? "input_text" : "output_text", text: content },
-    ];
-  }
-  if (Array.isArray(content)) {
-    return content.map((part: any) => {
-      if (part.type === "text") {
-        return {
-          type: role === "user" ? "input_text" : "output_text",
-          text: part.text,
-        };
-      }
-      if (part.type === "image_url") {
-        return {
-          type: "input_image",
-          image_url: part.image_url?.url ?? part.image_url,
-        };
-      }
-      return part;
-    });
-  }
-  return [{ type: "input_text", text: String(content ?? "") }];
 }
 
 // ── Tool format conversion ───────────────────────────────────────────────────
@@ -352,6 +304,25 @@ function convertTools(tools: any[] | undefined): any[] | undefined {
       return tool;
     })
     .filter((t) => t.name); // drop any entry without a name (would cause 400)
+}
+
+/**
+ * Build the subset of Responses options accepted by the private ChatGPT Codex
+ * backend. Unlike the public Responses API, this endpoint rejects
+ * `max_output_tokens`; output limits are controlled by the service.
+ */
+export function chatCompletionToCodexOptions(
+  body: Record<string, any>,
+): Record<string, any> {
+  const reasoningEffort = body.reasoning_effort || body.reasoningEffort;
+  return {
+    stream: true,
+    ...(body.temperature !== undefined
+      ? { temperature: body.temperature }
+      : {}),
+    ...(body.tools ? { tools: convertTools(body.tools) } : {}),
+    ...(reasoningEffort ? { reasoning: { effort: reasoningEffort } } : {}),
+  };
 }
 
 // ── API class ─────────────────────────────────────────────────────────────────
@@ -392,23 +363,7 @@ export class ChatGPTCodexApi implements BaseLlmApi {
     const codexBody = chatMessagesToCodexBody(
       body.model,
       body.messages as any[],
-      {
-        stream: true,
-        ...(body.temperature !== undefined
-          ? { temperature: body.temperature }
-          : {}),
-        ...(body.max_tokens ? { max_output_tokens: body.max_tokens } : {}),
-        ...(body.tools ? { tools: convertTools(body.tools as any[]) } : {}),
-        ...((body as any).reasoning_effort || (body as any).reasoningEffort
-          ? {
-              reasoning: {
-                effort:
-                  (body as any).reasoning_effort ||
-                  (body as any).reasoningEffort,
-              },
-            }
-          : {}),
-      },
+      chatCompletionToCodexOptions(body),
     );
 
     const res = await fetch(`${CODEX_BASE}/responses`, {
@@ -468,23 +423,7 @@ export class ChatGPTCodexApi implements BaseLlmApi {
     const codexBody = chatMessagesToCodexBody(
       body.model,
       body.messages as any[],
-      {
-        stream: true,
-        ...(body.temperature !== undefined
-          ? { temperature: body.temperature }
-          : {}),
-        ...(body.max_tokens ? { max_output_tokens: body.max_tokens } : {}),
-        ...(body.tools ? { tools: convertTools(body.tools as any[]) } : {}),
-        ...((body as any).reasoning_effort || (body as any).reasoningEffort
-          ? {
-              reasoning: {
-                effort:
-                  (body as any).reasoning_effort ||
-                  (body as any).reasoningEffort,
-              },
-            }
-          : {}),
-      },
+      chatCompletionToCodexOptions(body),
     );
 
     const res = await fetch(`${CODEX_BASE}/responses`, {

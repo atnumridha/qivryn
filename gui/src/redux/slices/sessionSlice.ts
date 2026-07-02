@@ -25,6 +25,7 @@ import {
   ToolCallDelta,
   ToolCallState,
 } from "core";
+import type { ContextUsageSnapshot } from "../../util/contextUsage";
 import { mergeReasoningDetails } from "core/llm/openaiTypeConverters";
 import { NEW_SESSION_TITLE } from "core/util/constants";
 import {
@@ -36,6 +37,7 @@ import { findLastIndex } from "lodash";
 import { v4 as uuidv4 } from "uuid";
 import { type InlineErrorMessageType } from "../../components/mainInput/InlineErrorMessage";
 import { toolCallCtxItemToCtxItemWithId } from "../../pages/gui/ToolCallDiv/utils";
+import { recoverInterruptedHistory } from "../../util/toolCallRecovery";
 import { addToolCallDeltaToState, isEditTool } from "../../util/toolCallState";
 import { RootState } from "../store";
 import { streamResponseThunk } from "../thunks/streamResponse";
@@ -221,6 +223,7 @@ type SessionState = {
   hasReasoningEnabled?: boolean;
   isPruned?: boolean;
   contextPercentage?: number;
+  contextUsage?: ContextUsageSnapshot;
   inlineErrorMessage?: InlineErrorMessageType;
   compactionLoading: Record<number, boolean>; // Track compaction loading by message index
 };
@@ -434,6 +437,7 @@ export const sessionSlice = createSlice({
         state.inlineErrorMessage = undefined;
         state.isPruned = false;
         state.contextPercentage = undefined;
+        state.contextUsage = undefined;
       }
     },
     deleteMessage: (state, action: PayloadAction<number>) => {
@@ -442,6 +446,7 @@ export const sessionSlice = createSlice({
       state.inlineErrorMessage = undefined;
       state.isPruned = false;
       state.contextPercentage = undefined;
+      state.contextUsage = undefined;
     },
     deleteCompaction: (state, action: PayloadAction<number>) => {
       // Removes the conversation summary from the specified message
@@ -450,6 +455,7 @@ export const sessionSlice = createSlice({
         state.history[action.payload] = {
           ...historyItem,
           conversationSummary: undefined,
+          conversationSummaryAutomatic: undefined,
         };
       }
     },
@@ -695,9 +701,10 @@ export const sessionSlice = createSlice({
       state.inlineErrorMessage = undefined;
       state.isPruned = false;
       state.contextPercentage = undefined;
+      state.contextUsage = undefined;
 
       if (payload) {
-        state.history = payload.history as any;
+        state.history = recoverInterruptedHistory(payload.history) as any;
         state.title = payload.title;
         state.id = payload.sessionId;
         if (payload.mode) {
@@ -812,7 +819,11 @@ export const sessionSlice = createSlice({
       if (!applyState) {
         state.codeBlockApplyStates.states.push(payload);
       } else {
-        applyState.status = payload.status ?? applyState.status;
+        // Closed is terminal. Late streaming updates can arrive while the
+        // extension host is unwinding an aborted apply and must not reopen UI.
+        if (applyState.status !== "closed" || payload.status === "closed") {
+          applyState.status = payload.status ?? applyState.status;
+        }
         applyState.numDiffs = payload.numDiffs ?? applyState.numDiffs;
         applyState.filepath = payload.filepath ?? applyState.filepath;
         applyState.fileContent = payload.fileContent ?? applyState.fileContent;
@@ -1001,6 +1012,12 @@ export const sessionSlice = createSlice({
     setContextPercentage: (state, action: PayloadAction<number>) => {
       state.contextPercentage = action.payload;
     },
+    setContextUsage: (
+      state,
+      action: PayloadAction<ContextUsageSnapshot | undefined>,
+    ) => {
+      state.contextUsage = action.payload;
+    },
   },
   selectors: {
     selectIsGatheringContext: (state) => {
@@ -1089,6 +1106,7 @@ export const {
   setInlineErrorMessage,
   setIsPruned,
   setContextPercentage,
+  setContextUsage,
   setCompactionLoading,
 } = sessionSlice.actions;
 

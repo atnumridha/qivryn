@@ -16,6 +16,7 @@ import { ReviewProgress } from "./review/ReviewProgress.js";
 import type { ReviewState } from "./review/ReviewProgress.js";
 import type { WorkerConfig, WorkerResult } from "./review/reviewWorker.js";
 import { createWorktree, cleanupWorktree } from "./review/worktree.js";
+import { renderSharedReview, runSharedReview } from "./review/sharedReview.js";
 
 export interface ReviewOptions extends ExtendedCommandOptions {
   base?: string;
@@ -24,6 +25,9 @@ export interface ReviewOptions extends ExtendedCommandOptions {
   patch?: boolean;
   failFast?: boolean;
   reviewAgents?: string[];
+  local?: boolean;
+  target?: string;
+  mode?: "fast" | "standard" | "deep";
 }
 
 /**
@@ -260,6 +264,24 @@ function outputResultsAndExit(
  */
 export async function review(options: ReviewOptions = {}): Promise<void> {
   configureConsoleForHeadless(false);
+
+  if (options.local) {
+    if (options.mode && !["fast", "standard", "deep"].includes(options.mode)) {
+      throw new Error(`Unknown review mode: ${options.mode}`);
+    }
+    const report = await runSharedReview({
+      target: options.target,
+      mode: options.mode,
+      fix: options.fix,
+    });
+    console.log(renderSharedReview(report, options.format));
+    process.exitCode = report.findings.some(
+      (finding) => finding.severity === "error",
+    )
+      ? 1
+      : 0;
+    return;
+  }
 
   if (options.verbose) {
     logger.setLevel("debug");

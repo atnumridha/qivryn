@@ -2,6 +2,7 @@ import {
   CubeIcon,
   ExclamationTriangleIcon,
   PencilIcon,
+  RectangleStackIcon,
   WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline";
 import { useContext } from "react";
@@ -17,7 +18,7 @@ import { ToolTip } from "../../../gui/Tooltip";
 import HoverItem from "../../InputToolbar/HoverItem";
 
 import { useAuth } from "../../../../context/Auth";
-import { CONFIG_ROUTES } from "../../../../util/navigation";
+import { CONFIG_ROUTES, ROUTES } from "../../../../util/navigation";
 import { AssistantAndOrgListbox } from "../../../AssistantAndOrgListbox";
 
 export function BlockSettingsTopToolbar() {
@@ -95,6 +96,24 @@ export function BlockSettingsTopToolbar() {
 
         {!hasActiveContent && (
           <div className="flex items-center gap-1.5">
+            <ToolTip content="Open agents">
+              <HoverItem
+                role="button"
+                tabIndex={0}
+                aria-label="Open agents"
+                onClick={() => navigate(ROUTES.AGENTS)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    navigate(ROUTES.AGENTS);
+                  }
+                }}
+                px={2}
+              >
+                <RectangleStackIcon className="text-description-muted h-3 w-3 hover:brightness-125" />
+              </HoverItem>
+            </ToolTip>
+
             <ToolTip content="Configure rules">
               <HoverItem onClick={handleRulesClick} px={2}>
                 <PencilIcon className="text-description-muted h-3 w-3 hover:brightness-125" />

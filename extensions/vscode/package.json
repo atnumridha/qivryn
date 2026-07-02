@@ -53,10 +53,33 @@
   "activationEvents": [
     "onUri",
     "onStartupFinished",
+    "onWebviewPanel:continue.continueGUIView",
     "onView:continueGUIView"
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "themes": [
+      {
+        "label": "Continue Dark",
+        "uiTheme": "vs-dark",
+        "path": "./themes/continue-dark.json"
+      },
+      {
+        "label": "Continue Midnight",
+        "uiTheme": "vs-dark",
+        "path": "./themes/continue-midnight.json"
+      },
+      {
+        "label": "Continue Light",
+        "uiTheme": "vs",
+        "path": "./themes/continue-light.json"
+      },
+      {
+        "label": "Continue High Contrast",
+        "uiTheme": "hc-black",
+        "path": "./themes/continue-high-contrast.json"
+      }
+    ],
     "languages": [
       {
         "filenames": [
@@ -132,6 +155,31 @@
           "type": "boolean",
           "default": false,
           "markdownDescription": "Enable a console to log and explore model inputs and outputs. It can be found in the bottom panel."
+        },
+        "continue.agentCompletionNotifications": {
+          "type": "string",
+          "enum": [
+            "off",
+            "whenUnfocused",
+            "always"
+          ],
+          "enumDescriptions": [
+            "Do not show completion notifications.",
+            "Notify only when the editor window is not focused.",
+            "Notify whenever an agent completes, fails, or needs attention."
+          ],
+          "default": "whenUnfocused",
+          "description": "Controls native notifications for background agent completion."
+        },
+        "continue.agentNotificationIncludeTaskTitle": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include the agent task title in native notifications. Disabled by default to avoid exposing project details."
+        },
+        "continue.enableAiAttribution": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show CodeLens links from agent-generated lines to their originating conversation."
         },
         "continue.remoteConfigServerUrl": {
           "type": "string",
@@ -228,6 +276,21 @@
       {
         "command": "continue.forceAutocomplete",
         "title": "Continue: Force Autocomplete",
+        "category": "Continue"
+      },
+      {
+        "command": "continue.acceptNextSuggestionToken",
+        "title": "Continue: Accept Next Suggestion Token",
+        "category": "Continue"
+      },
+      {
+        "command": "continue.acceptNextSuggestionWord",
+        "title": "Continue: Accept Next Suggestion Word",
+        "category": "Continue"
+      },
+      {
+        "command": "continue.acceptNextSuggestionLine",
+        "title": "Continue: Accept Next Suggestion Line",
         "category": "Continue"
       },
       {
@@ -375,9 +438,115 @@
         "category": "Continue",
         "title": "Open in new window",
         "group": "Continue"
+      },
+      {
+        "command": "continue.openAgentsWindow",
+        "category": "Continue",
+        "title": "Open Agents Window",
+        "group": "Continue"
+      },
+      {
+        "command": "continue.reloadAgentsWindow",
+        "category": "Continue",
+        "title": "Reload Agents Window",
+        "icon": "$(refresh)",
+        "group": "Continue"
+      },
+      {
+        "command": "continue.switchAgent",
+        "category": "Continue",
+        "title": "Switch Agent",
+        "group": "Continue"
+      },
+      {
+        "command": "continue.openAgentReview",
+        "category": "Continue",
+        "title": "Open Agent Review",
+        "icon": "$(search-fuzzy)",
+        "group": "Continue"
+      },
+      {
+        "command": "continue.openTerminalAssistant",
+        "category": "Continue",
+        "title": "Open Terminal Assistant",
+        "icon": "$(terminal)",
+        "group": "Continue"
+      },
+      {
+        "command": "continue.openTerminalPromptBar",
+        "category": "Continue",
+        "title": "Open Native Terminal Prompt",
+        "icon": "$(sparkle)",
+        "group": "Continue"
+      },
+      {
+        "command": "continue.openBrowserWorkspace",
+        "category": "Continue",
+        "title": "Open Browser Workspace",
+        "icon": "$(globe)",
+        "group": "Continue"
+      },
+      {
+        "command": "continue.openAgentAttribution",
+        "category": "Continue",
+        "title": "Open Agent Attribution for Current Line",
+        "group": "Continue"
+      },
+      {
+        "command": "continue.chooseLayout",
+        "category": "Continue",
+        "title": "Choose Layout",
+        "icon": "$(layout)",
+        "group": "Continue"
+      },
+      {
+        "command": "continue.saveLayout",
+        "category": "Continue",
+        "title": "Save Current Layout",
+        "group": "Continue"
+      },
+      {
+        "command": "continue.openAgentGraph",
+        "category": "Continue",
+        "title": "Open Agent Branches in Source Control Graph",
+        "icon": "$(git-branch)",
+        "group": "Continue"
+      },
+      {
+        "command": "continue.generateCommitMessage",
+        "category": "Continue",
+        "title": "Generate Commit Message",
+        "icon": "$(sparkle)",
+        "group": "Continue"
+      },
+      {
+        "command": "continue.openSlackConnector",
+        "category": "Continue",
+        "title": "Open Slack Connector",
+        "icon": "$(comment-discussion)",
+        "group": "Continue"
+      },
+      {
+        "command": "continue.exportAgentDiagnostics",
+        "category": "Continue",
+        "title": "Export Redacted Agent Diagnostics",
+        "icon": "$(export)",
+        "group": "Continue"
       }
     ],
     "keybindings": [
+      {
+        "command": "continue.acceptNextSuggestionWord",
+        "key": "alt+right",
+        "mac": "alt+right",
+        "when": "inlineSuggestionVisible"
+      },
+      {
+        "command": "continue.acceptNextSuggestionLine",
+        "key": "shift+alt+right",
+        "mac": "shift+alt+right",
+        "when": "inlineSuggestionVisible"
+      },
       {
         "command": "continue.focusContinueInput",
         "mac": "cmd+l",
@@ -520,6 +689,42 @@
         },
         {
           "command": "continue.openInNewWindow"
+        },
+        {
+          "command": "continue.openAgentsWindow"
+        },
+        {
+          "command": "continue.switchAgent"
+        },
+        {
+          "command": "continue.openAgentReview"
+        },
+        {
+          "command": "continue.openTerminalAssistant"
+        },
+        {
+          "command": "continue.openBrowserWorkspace"
+        },
+        {
+          "command": "continue.openAgentAttribution"
+        },
+        {
+          "command": "continue.chooseLayout"
+        },
+        {
+          "command": "continue.saveLayout"
+        },
+        {
+          "command": "continue.openAgentGraph"
+        },
+        {
+          "command": "continue.generateCommitMessage"
+        },
+        {
+          "command": "continue.openSlackConnector"
+        },
+        {
+          "command": "continue.exportAgentDiagnostics"
         }
       ],
       "editor/context": [
@@ -564,8 +769,18 @@
           "when": "view == continue.continueGUIView"
         },
         {
-          "command": "continue.openConfigPage",
+          "command": "continue.openAgentsWindow",
+          "group": "navigation@3",
+          "when": "view == continue.continueGUIView"
+        },
+        {
+          "command": "continue.openAgentReview",
           "group": "navigation@4",
+          "when": "view == continue.continueGUIView"
+        },
+        {
+          "command": "continue.openConfigPage",
+          "group": "navigation@5",
           "when": "view == continue.continueGUIView"
         },
         {
@@ -576,6 +791,11 @@
       ],
       "editor/title": [
         {
+          "command": "continue.reloadAgentsWindow",
+          "group": "navigation@0",
+          "when": "activeWebviewPanelId == continue.continueGUIView"
+        },
+        {
           "command": "continue.newSession",
           "group": "navigation@1",
           "when": "activeWebviewPanelId == continue.continueGUIView"
@@ -584,11 +804,35 @@
           "command": "continue.viewHistory",
           "group": "navigation@2",
           "when": "activeWebviewPanelId == continue.continueGUIView"
+        },
+        {
+          "command": "continue.openAgentsWindow",
+          "group": "navigation@3",
+          "when": "activeWebviewPanelId == continue.continueGUIView"
+        },
+        {
+          "command": "continue.openAgentReview",
+          "group": "navigation@4",
+          "when": "activeWebviewPanelId == continue.continueGUIView"
         }
       ],
       "terminal/context": [
         {
+          "command": "continue.openTerminalPromptBar",
+          "group": "navigation@top"
+        },
+        {
+          "command": "continue.openTerminalAssistant",
+          "group": "navigation@1"
+        },
+        {
           "command": "continue.debugTerminal",
+          "group": "navigation@2"
+        }
+      ],
+      "terminal/title/context": [
+        {
+          "command": "continue.openTerminalPromptBar",
           "group": "navigation@top"
         }
       ]
@@ -719,6 +963,7 @@
     "vscode-extension-tester": "^8.14.1"
   },
   "dependencies": {
+    "@continuedev/agent-runtime": "file:../../packages/agent-runtime",
     "@continuedev/config-types": "file:../../packages/config-types",
     "@continuedev/fetch": "file:../../packages/fetch",
     "@electron/rebuild": "^4.0.3",

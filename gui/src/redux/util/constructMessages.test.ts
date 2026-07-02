@@ -111,6 +111,125 @@ describe("constructMessages", () => {
     mockHistory = [];
   });
 
+  test("resumes after a summary at the next user boundary", () => {
+    mockHistory = [
+      {
+        message: {
+          role: "assistant",
+          content: "summarized response",
+          toolCalls: [
+            {
+              id: "old-call",
+              type: "function",
+              function: { name: "read_file", arguments: "{}" },
+            },
+          ],
+        },
+        contextItems: [],
+        conversationSummary: "Existing summary",
+      },
+      {
+        message: {
+          role: "tool",
+          content: "orphaned old result",
+          toolCallId: "old-call",
+        },
+        contextItems: [],
+      },
+      {
+        message: { role: "assistant", content: "old continuation" },
+        contextItems: [],
+      },
+      {
+        message: { role: "user", content: "new prompt" },
+        contextItems: [],
+      },
+    ];
+
+    const { messages } = constructMessages(
+      mockHistory,
+      "Base System Message",
+      [],
+      {},
+    );
+
+    expect(messages.map((message) => message.role)).toEqual(["system", "user"]);
+    expect(renderChatMessage(messages[0])).toContain("Existing summary");
+    expect(renderChatMessage(messages[1])).toBe("new prompt");
+  });
+
+  test("uses the summary as a user anchor when a tool loop continues", () => {
+    mockHistory = [
+      {
+        message: { role: "assistant", content: "summarized response" },
+        contextItems: [],
+        conversationSummary: "Existing summary",
+      },
+      {
+        message: {
+          role: "assistant",
+          content: "",
+          toolCalls: [
+            {
+              id: "active-call",
+              type: "function",
+              function: { name: "read_file", arguments: "{}" },
+            },
+          ],
+        },
+        contextItems: [],
+        toolCallStates: [
+          {
+            status: "done",
+            toolCallId: "active-call",
+            toolCall: {
+              id: "active-call",
+              type: "function",
+              function: { name: "read_file", arguments: "{}" },
+            },
+            parsedArgs: {},
+            output: [{ name: "File", description: "", content: "contents" }],
+          },
+        ],
+      },
+    ];
+
+    const { messages } = constructMessages(
+      mockHistory,
+      "Base System Message",
+      [],
+      {},
+    );
+
+    expect(messages.map((message) => message.role)).toEqual([
+      "system",
+      "user",
+      "assistant",
+      "tool",
+    ]);
+    expect(renderChatMessage(messages[1])).toContain("Existing summary");
+  });
+
+  test("never emits a system-only request for a summarized session", () => {
+    mockHistory = [
+      {
+        message: { role: "assistant", content: "done" },
+        contextItems: [],
+        conversationSummary: "Resume this work",
+      },
+    ];
+
+    const { messages } = constructMessages(
+      mockHistory,
+      "Base System Message",
+      [],
+      {},
+    );
+
+    expect(messages.map((message) => message.role)).toEqual(["system", "user"]);
+    expect(renderChatMessage(messages[1])).toContain("Resume this work");
+  });
+
   test("should ignore empty, tool, and system messages that go in", () => {
     // Setup history with various message types including ones to be ignored
     mockHistory = [

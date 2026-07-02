@@ -452,3 +452,69 @@ describe("sessionSlice streamUpdate", () => {
     });
   });
 });
+
+describe("sessionSlice apply state lifecycle", () => {
+  it("does not reopen a closed apply from a late streaming update", () => {
+    let state = sessionSlice.reducer(
+      sessionSlice.getInitialState(),
+      sessionSlice.actions.updateApplyState({
+        streamId: "stream-1",
+        status: "closed",
+      }),
+    );
+
+    state = sessionSlice.reducer(
+      state,
+      sessionSlice.actions.updateApplyState({
+        streamId: "stream-1",
+        status: "streaming",
+      }),
+    );
+
+    expect(state.codeBlockApplyStates.states[0].status).toBe("closed");
+  });
+});
+
+describe("sessionSlice restart recovery", () => {
+  it("loads an interrupted edit as canceled instead of active", () => {
+    const state = sessionSlice.reducer(
+      undefined,
+      sessionSlice.actions.newSession({
+        sessionId: "restarted-session",
+        title: "Restarted",
+        workspaceDirectory: "",
+        history: [
+          {
+            message: {
+              role: "assistant",
+              content: "",
+              toolCalls: [
+                {
+                  id: "edit-1",
+                  type: "function",
+                  function: { name: "edit_file", arguments: "{}" },
+                },
+              ],
+            },
+            contextItems: [],
+            toolCallStates: [
+              {
+                toolCallId: "edit-1",
+                toolCall: {
+                  id: "edit-1",
+                  type: "function",
+                  function: { name: "edit_file", arguments: "{}" },
+                },
+                parsedArgs: {},
+                status: "calling",
+              },
+            ],
+          },
+        ],
+      }),
+    );
+
+    expect(state.isStreaming).toBe(false);
+    expect(state.history[0].toolCallStates?.[0].status).toBe("canceled");
+  });
+});

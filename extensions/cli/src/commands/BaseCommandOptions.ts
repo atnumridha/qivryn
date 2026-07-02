@@ -23,6 +23,8 @@ export interface BaseCommandOptions {
   exclude?: string[];
   /** Agent file slug from the hub (--agent) */
   agent?: string;
+  /** Image paths for a multimodal headless message (--image) */
+  image?: string[];
   /** Enable beta UploadArtifact tool */
   betaUploadArtifactTool?: boolean;
   /** Enable beta Subagent tool */
@@ -37,6 +39,8 @@ export interface ExtendedCommandOptions extends BaseCommandOptions {
   verbose?: boolean;
   /** Start in plan mode (backward compatibility) */
   readonly?: boolean;
+  /** Start in autonomous mode with dynamic security */
+  autonomous?: boolean;
   /** Start in auto mode (all tools allowed) */
   auto?: boolean;
 }

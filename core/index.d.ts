@@ -492,7 +492,7 @@ export interface PromptLog {
   completion: string;
 }
 
-export type MessageModes = "chat" | "agent" | "plan" | "background";
+export type MessageModes = "chat" | "agent" | "plan" | "debug" | "background";
 
 export type ToolStatus =
   | "generating" // Tool call arguments are being streamed from the LLM
@@ -542,6 +542,7 @@ export interface ChatHistoryItem {
   reasoning?: Reasoning;
   appliedRules?: RuleMetadata[];
   conversationSummary?: string;
+  conversationSummaryAutomatic?: boolean;
 }
 
 export interface LLMFullCompletionOptions extends BaseCompletionOptions {
@@ -893,7 +894,11 @@ export interface IDE {
 
   getPinnedFiles(): Promise<string[]>;
 
-  getSearchResults(query: string, maxResults?: number): Promise<string>;
+  getSearchResults(
+    query: string,
+    maxResults?: number,
+    options?: SearchOptions,
+  ): Promise<string>;
 
   getFileResults(pattern: string, maxResults?: number): Promise<string[]>;
 
@@ -933,6 +938,22 @@ export interface IDE {
 
   // Callbacks
   onDidChangeActiveTextEditor(callback: (fileUri: string) => void): void;
+}
+
+export interface SearchOptions {
+  path?: string;
+  glob?: string;
+  outputMode?: "content" | "files_with_matches" | "count";
+  contextBefore?: number;
+  contextAfter?: number;
+  context?: number;
+  caseInsensitive?: boolean;
+  fixedStrings?: boolean;
+  fileType?: string;
+  multiline?: boolean;
+  sort?: "path" | "modified" | "accessed" | "created";
+  sortAscending?: boolean;
+  offset?: number;
 }
 
 // Slash Commands
@@ -1541,6 +1562,8 @@ export interface ApplyToFilePayload {
   text: string;
   toolCallId?: string;
   isSearchAndReplace?: boolean;
+  /** Apply without focusing or opening the target in a visible editor. */
+  background?: boolean;
 }
 
 export interface RangeInFileWithContents {
@@ -1693,6 +1716,9 @@ export interface ExperimentalConfig {
    * instead of embeddings, FTS, recently edited files, etc.
    */
   codebaseToolCallingOnly?: boolean;
+
+  /** Block all non-loopback retrieval and inference providers. */
+  localOnly?: boolean;
 
   /**
    * If enabled, static contextualization will be used to
@@ -1930,6 +1956,10 @@ export interface RuleMetadata {
   sourceFile?: string;
   alwaysApply?: boolean;
   invokable?: boolean;
+  environments?: string[];
+  disabledEnvironments?: string[];
+  scopedTo?: string;
+  isRequired?: boolean;
 }
 export interface RuleWithSource extends RuleMetadata {
   rule: string;
@@ -1939,6 +1969,13 @@ export interface Skill {
   name: string;
   description: string;
   path: string;
+  /** Canonical URI for opening or updating the SKILL.md file. */
+  sourceFile?: string;
+  /** Client that contributed the skill, such as Continue, Codex, or Cursor. */
+  provenance?: string;
+  /** Plugin cache skills are immutable; user and workspace skills are editable. */
+  readOnly?: boolean;
+  scope?: "workspace" | "global";
   content: string;
   files: string[];
   license?: string;
@@ -1954,6 +1991,12 @@ export interface CompiledMessagesResult {
   compiledChatMessages: ChatMessage[];
   didPrune: boolean;
   contextPercentage: number;
+  /** Exact compiled input size before the model request. */
+  inputTokens?: number;
+  /** Full context window reported by the selected model. */
+  contextLength?: number;
+  /** Input budget after reserving safety and response tokens. */
+  availableTokens?: number;
 }
 
 export interface AddToChatPayload {

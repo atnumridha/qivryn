@@ -114,10 +114,9 @@ const StreamErrorDialog = ({ error }: StreamErrorProps) => {
       onClick={() => {
         let index = -1;
         for (let i = history.length - 1; i >= 0; i--) {
-          if (
-            history[i].message.role === "user" ||
-            history[i].message.role === "tool"
-          ) {
+          // Resubmission replaces a prompt slot. Treating a tool result as a
+          // prompt corrupts role ordering and can orphan its function call.
+          if (history[i].message.role === "user") {
             index = i;
             break;
           }

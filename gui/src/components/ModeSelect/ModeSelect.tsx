@@ -38,6 +38,8 @@ export function ModeSelect() {
       dispatch(setMode("plan"));
     } else if (mode === "plan") {
       dispatch(setMode("agent"));
+    } else if (mode === "agent") {
+      dispatch(setMode("debug"));
     } else {
       dispatch(setMode("chat"));
     }
@@ -95,7 +97,13 @@ export function ModeSelect() {
         >
           <ModeIcon mode={mode} />
           <span className="hidden sm:block">
-            {mode === "chat" ? "Chat" : mode === "agent" ? "Agent" : "Plan"}
+            {mode === "chat"
+              ? "Ask"
+              : mode === "agent"
+                ? "Agent"
+                : mode === "debug"
+                  ? "Debug"
+                  : "Plan"}
           </span>
           <ChevronDownIcon
             className="h-2 w-2 flex-shrink-0"
@@ -106,7 +114,7 @@ export function ModeSelect() {
           <ListboxOption value="chat">
             <div className="flex flex-row items-center gap-1.5">
               <ModeIcon mode="chat" />
-              <span className="">Chat</span>
+              <span className="">Ask</span>
               <ToolTip
                 style={{
                   zIndex: 200001,
@@ -161,6 +169,23 @@ export function ModeSelect() {
             {!isGoodAtAgentMode && notGreatAtAgent("Agent")}
             <CheckIcon
               className={`ml-auto h-3 w-3 ${mode === "agent" ? "" : "opacity-0"}`}
+            />
+          </ListboxOption>
+
+          <ListboxOption value="debug" className={"gap-1"}>
+            <div className="flex flex-row items-center gap-1.5">
+              <ModeIcon mode="debug" />
+              <span>Debug</span>
+              <ToolTip
+                style={{ zIndex: 200001 }}
+                content="Reproduce, diagnose, fix, and validate"
+              >
+                <InformationCircleIcon className="h-2.5 w-2.5 flex-shrink-0" />
+              </ToolTip>
+            </div>
+            {!isGoodAtAgentMode && notGreatAtAgent("Debug")}
+            <CheckIcon
+              className={`ml-auto h-3 w-3 ${mode === "debug" ? "" : "opacity-0"}`}
             />
           </ListboxOption>
 

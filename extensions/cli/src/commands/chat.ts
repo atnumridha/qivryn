@@ -21,7 +21,12 @@ import {
   updateSessionHistory,
   updateSessionTitle,
 } from "../session.js";
+import {
+  createAgentEventStreamCallbacks,
+  isAgentEventStreamEnabled,
+} from "../stream/agentEventStream.js";
 import { streamChatResponse } from "../stream/streamChatResponse.js";
+import type { StreamCallbacks } from "../stream/streamChatResponse.types.js";
 import { telemetryService } from "../telemetry/telemetryService.js";
 import { startTUIChat } from "../ui/index.js";
 import { gracefulExit } from "../util/exit.js";
@@ -35,6 +40,7 @@ import {
 } from "../util/tokenizer.js";
 
 import { ExtendedCommandOptions } from "./BaseCommandOptions.js";
+import { formatHeadlessMessageWithImages } from "./headlessImages.js";
 
 /**
  * Processes and validates JSON output for headless mode
@@ -168,6 +174,7 @@ async function getStreamingResponse(
   compactionIndex: number | null | undefined,
   model: ModelConfig,
   llmApi: BaseLlmApi,
+  callbacks?: StreamCallbacks,
 ): Promise<string> {
   const abortController = new AbortController();
 
@@ -181,6 +188,7 @@ async function getStreamingResponse(
       model,
       llmApi,
       abortController,
+      callbacks,
     );
   } else {
     // No compaction - get full history from service
@@ -189,6 +197,7 @@ async function getStreamingResponse(
       model,
       llmApi,
       abortController,
+      callbacks,
     );
   }
 }
@@ -337,6 +346,7 @@ interface ProcessMessageOptions {
   silent?: boolean;
   compactionIndex?: number | null;
   firstAssistantResponse?: boolean;
+  imagePaths?: string[];
 }
 
 async function processMessage(
@@ -352,6 +362,7 @@ async function processMessage(
     silent,
     compactionIndex: initialCompactionIndex,
     firstAssistantResponse = false,
+    imagePaths = [],
   } = options;
   let compactionIndex = initialCompactionIndex;
   // Check for slash commands in headless mode
@@ -377,7 +388,13 @@ async function processMessage(
   }
 
   // Add user message to history AFTER potential compaction
-  services.chatHistory.addUserMessage(userInput);
+  if (imagePaths.length > 0) {
+    services.chatHistory.addHistoryItem(
+      await formatHeadlessMessageWithImages(userInput, imagePaths),
+    );
+  } else {
+    services.chatHistory.addUserMessage(userInput);
+  }
 
   // Get AI response with potential tool usage
   if (!isHeadless) {
@@ -385,11 +402,16 @@ async function processMessage(
   }
 
   try {
+    const agentEventStream =
+      isHeadless && isAgentEventStreamEnabled()
+        ? createAgentEventStreamCallbacks()
+        : undefined;
     // Get AI response with potential tool usage
     const finalResponse = await getStreamingResponse(
       compactionIndex,
       model,
       llmApi,
+      agentEventStream,
     );
 
     // Generate session title after first assistant response
@@ -398,7 +420,9 @@ async function processMessage(
     }
 
     // Process and output response in headless mode
-    processAndOutputResponse(finalResponse, isHeadless, silent, format);
+    if (!agentEventStream) {
+      processAndOutputResponse(finalResponse, isHeadless, silent, format);
+    }
 
     // Save session after each successful response
     updateSessionHistory(services.chatHistory.getHistory());
@@ -514,8 +538,9 @@ async function runHeadlessMode(
     }
 
     // Get user input
+    const processingFirstMessage = isFirstMessage;
     const userInput =
-      isFirstMessage && initialUserInput
+      processingFirstMessage && initialUserInput
         ? initialUserInput
         : await question(`\n${chalk.bold.green("You:")} `);
 
@@ -530,7 +555,8 @@ async function runHeadlessMode(
       format: options.format,
       silent: options.silent,
       compactionIndex,
-      firstAssistantResponse: isFirstMessage && !options.resume, // Only generate title for new conversations
+      firstAssistantResponse: processingFirstMessage && !options.resume,
+      imagePaths: processingFirstMessage ? options.image : [],
     });
 
     // Update compaction index if compaction occurred

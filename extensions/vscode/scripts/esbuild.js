@@ -27,6 +27,31 @@ const esbuildConfig = {
   metafile: true,
   plugins: [
     {
+      name: "onnxruntime-native-binding",
+      setup(build) {
+        build.onLoad(
+          { filter: /onnxruntime_binding\.node$/ },
+          ({ path: bindingPath }) => {
+            const normalizedPath = bindingPath.replaceAll("\\\\", "/");
+            const match = normalizedPath.match(
+              /\/bin\/napi-v3\/([^/]+)\/([^/]+)\/onnxruntime_binding\.node$/,
+            );
+            if (!match) {
+              throw new Error(
+                `Could not determine the ONNX Runtime target for ${bindingPath}`,
+              );
+            }
+
+            const [, platform, arch] = match;
+            return {
+              contents: `module.exports = require(require("path").join(__dirname, "..", "bin", "napi-v3", ${JSON.stringify(platform)}, ${JSON.stringify(arch)}, "onnxruntime_binding.node"));`,
+              loader: "js",
+            };
+          },
+        );
+      },
+    },
+    {
       name: "on-end-plugin",
       setup(build) {
         build.onEnd((result) => {

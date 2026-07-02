@@ -211,7 +211,7 @@ export const shouldApplyRule = (
   const policy = rulePolicies[rule.name || ""];
 
   // Never apply if policy is "off"
-  if (policy === "off") {
+  if (policy === "off" && !rule.isRequired) {
     return false;
   }
 

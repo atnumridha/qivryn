@@ -79,6 +79,7 @@ export function ReasoningEffortSelect() {
         }}
       >
         <ListboxButton
+          data-testid="reasoning-effort-select-button"
           fontSizeModifier={-4}
           className="flex items-center gap-0.5 border-0 bg-transparent px-0.5 py-0"
         >

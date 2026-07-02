@@ -2,6 +2,11 @@ import type { ChatHistoryItem, ToolStatus } from "core/index.js";
 import { createHistoryItem } from "core/util/messageConversion.js";
 
 import { loadSessionById, updateSessionHistory } from "../session.js";
+import {
+  compactParsedToolArgumentsForContext,
+  compactToolArgumentsForContext,
+  truncateTextForContext,
+} from "../util/contextBudget.js";
 import { logger } from "../util/logger.js";
 
 import { BaseService } from "./BaseService.js";
@@ -274,12 +279,43 @@ export class ChatHistoryService extends BaseService<ChatHistoryState> {
       return;
     }
 
-    // Create a new message with updated tool state (immutable)
+    const isCompleted =
+      updates.status !== undefined && updates.status !== "calling";
+
+    // Create a new message with updated tool state (immutable). Completed
+    // calls no longer need their full edit/command payload in the model
+    // transcript, and streamed output is always bounded.
     newHistory[messageIndex] = {
       ...message,
-      toolCallStates: message.toolCallStates.map((ts) =>
-        ts.toolCallId === toolCallId ? { ...ts, ...updates } : ts,
-      ),
+      toolCallStates: message.toolCallStates.map((ts) => {
+        if (ts.toolCallId !== toolCallId) return ts;
+
+        const output = updates.output?.map((item) => ({
+          ...item,
+          content:
+            typeof item.content === "string"
+              ? truncateTextForContext(item.content)
+              : item.content,
+        }));
+        const updated = { ...ts, ...updates, ...(output ? { output } : {}) };
+        if (!isCompleted) return updated;
+
+        return {
+          ...updated,
+          parsedArgs: compactParsedToolArgumentsForContext(updated.parsedArgs),
+          toolCall: updated.toolCall
+            ? {
+                ...updated.toolCall,
+                function: {
+                  ...updated.toolCall.function,
+                  arguments: compactToolArgumentsForContext(
+                    updated.toolCall.function.arguments ?? "{}",
+                  ),
+                },
+              }
+            : updated.toolCall,
+        };
+      }),
     };
 
     this.setHistoryInternal(newHistory);
@@ -319,7 +355,7 @@ export class ChatHistoryService extends BaseService<ChatHistoryState> {
         status,
         output: [
           {
-            content: result,
+            content: truncateTextForContext(result),
             name: "Tool Result",
             description: "Tool execution result",
           },

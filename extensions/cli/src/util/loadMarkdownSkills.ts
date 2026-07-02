@@ -57,32 +57,39 @@ function getFilePathsInSkillDirectory(
     .map((filePath) => getRelativePath(cwd, filePath));
 }
 
-/**get the SKILL.md files from the given directory */
+/** Get SKILL.md files recursively from a skill root. */
 async function getSkillFilesFromDir(dirPath: string): Promise<string[]> {
-  // check if dirPath exists
   try {
     await fsPromises.stat(dirPath);
   } catch {
     return [];
   }
 
-  const skillDirs = (await fsPromises.readdir(dirPath, { withFileTypes: true }))
-    .filter((dir) => dir.isDirectory())
-    .map((dir) => path.join(dirPath, dir.name));
+  const walker = new WalkerSync({
+    path: dirPath,
+    includeEmpty: false,
+    follow: false,
+  });
+  const files = walker.start().result as string[];
+  return files
+    .filter((filePath) => path.basename(filePath) === "SKILL.md")
+    .map((filePath) => path.join(dirPath, filePath));
+}
 
-  return (
-    await Promise.all(
-      skillDirs.map(async (skillDir) => {
-        try {
-          const skillFilePath = path.join(skillDir, "SKILL.md");
-          await fsPromises.stat(skillFilePath);
-          return skillFilePath;
-        } catch {
-          return null;
-        }
-      }),
-    )
-  ).filter((path) => typeof path === "string");
+export function getGlobalCrossAgentSkillPaths(
+  continueHome = env.continueHome,
+): string[] {
+  const homeDir = path.dirname(continueHome);
+  return [
+    path.join(homeDir, ".cursor", SKILLS_DIR),
+    path.join(homeDir, ".cursor", "plugins"),
+    path.join(homeDir, ".claude", SKILLS_DIR),
+    path.join(homeDir, ".codex", SKILLS_DIR),
+    path.join(homeDir, ".codex", "plugins", "cache"),
+    path.join(homeDir, ".copilot", SKILLS_DIR),
+    path.join(homeDir, ".agents", SKILLS_DIR),
+    path.join(homeDir, ".config", "github-copilot", SKILLS_DIR),
+  ];
 }
 
 export async function loadMarkdownSkills(): Promise<LoadSkillsResult> {
@@ -95,46 +102,57 @@ export async function loadMarkdownSkills(): Promise<LoadSkillsResult> {
     const skillsDirs = [
       path.join(cwd, ".continue", SKILLS_DIR),
       path.join(cwd, ".claude", SKILLS_DIR),
+      path.join(cwd, ".codex", SKILLS_DIR),
+      path.join(cwd, ".github", SKILLS_DIR),
+      path.join(cwd, ".copilot", SKILLS_DIR),
+      path.join(cwd, ".agents", SKILLS_DIR),
       path.join(env.continueHome, SKILLS_DIR),
+      ...getGlobalCrossAgentSkillPaths(),
     ];
 
-    const skillFilePaths = (
-      await Promise.all(
-        skillsDirs.map((skillDir) => getSkillFilesFromDir(skillDir)),
-      )
-    ).flat();
+    const skillFilePaths = [
+      ...new Set(
+        (
+          await Promise.all(
+            skillsDirs.map((skillDir) => getSkillFilesFromDir(skillDir)),
+          )
+        ).flat(),
+      ),
+    ];
 
-    await Promise.all(
-      skillFilePaths.map(async (skillFilePath) => {
-        try {
-          const content = await fsPromises.readFile(skillFilePath, "utf-8");
-          const { frontmatter, markdown } = parseMarkdownRule(content) as {
-            frontmatter: { name?: string; description?: string };
-            markdown: string;
-          };
+    const seenSkillNames = new Set<string>();
+    for (const skillFilePath of skillFilePaths) {
+      try {
+        const content = await fsPromises.readFile(skillFilePath, "utf-8");
+        const { frontmatter, markdown } = parseMarkdownRule(content) as {
+          frontmatter: { name?: string; description?: string };
+          markdown: string;
+        };
 
-          const validatedFrontmatter =
-            skillFrontmatterSchema.parse(frontmatter);
-
-          const filesInSkillsDirectory = getFilePathsInSkillDirectory(
-            cwd,
-            skillFilePath,
-          );
-
-          skills.push({
-            ...validatedFrontmatter,
-            content: markdown,
-            path: getRelativePath(cwd, skillFilePath),
-            files: filesInSkillsDirectory,
-          });
-        } catch (error) {
-          errors.push({
-            fatal: false,
-            message: `Failed to parse markdown skill file: ${error instanceof Error ? error.message : error}`,
-          });
+        const validatedFrontmatter = skillFrontmatterSchema.parse(frontmatter);
+        if (seenSkillNames.has(validatedFrontmatter.name)) {
+          continue;
         }
-      }),
-    );
+        seenSkillNames.add(validatedFrontmatter.name);
+
+        const filesInSkillsDirectory = getFilePathsInSkillDirectory(
+          cwd,
+          skillFilePath,
+        );
+
+        skills.push({
+          ...validatedFrontmatter,
+          content: markdown,
+          path: getRelativePath(cwd, skillFilePath),
+          files: filesInSkillsDirectory,
+        });
+      } catch (error) {
+        errors.push({
+          fatal: false,
+          message: `Failed to parse markdown skill file: ${error instanceof Error ? error.message : error}`,
+        });
+      }
+    }
   } catch (err) {
     errors.push({
       fatal: false,

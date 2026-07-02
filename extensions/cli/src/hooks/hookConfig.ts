@@ -77,14 +77,17 @@ function getSettingsFilePaths(cwd: string, homeDir?: string): string[] {
 
   return [
     // User-global (lowest precedence)
+    path.join(home, ".cursor", "settings.json"),
     path.join(home, ".claude", "settings.json"),
     path.join(continueHome, "settings.json"),
 
     // Project-level
+    path.join(cwd, ".cursor", "settings.json"),
     path.join(cwd, ".claude", "settings.json"),
     path.join(cwd, ".continue", "settings.json"),
 
     // Project-local (highest precedence)
+    path.join(cwd, ".cursor", "settings.local.json"),
     path.join(cwd, ".claude", "settings.local.json"),
     path.join(cwd, ".continue", "settings.local.json"),
   ];

@@ -39,7 +39,7 @@ describe("validateContextLength", () => {
 
   it("should fail validation when input + maxTokens exceeds context limit", () => {
     const model = createMockModel(1000, 800);
-    const chatHistory = createMockHistory(20, 100); // ~500+ tokens
+    const chatHistory = createMockHistory(20, 400); // Input itself nearly fills the context
 
     const result = validateContextLength({ chatHistory, model });
 

@@ -1,11 +1,17 @@
 import { ConfigDependentToolParams, Tool } from "..";
 import { isRecommendedAgentModel } from "../llm/toolSupport";
 import * as toolDefinitions from "./definitions";
+export {
+  CURSOR_LOCAL_CAPABILITIES,
+  resolveCursorLocalCapability,
+} from "./cursorLocalCapabilities";
 
 // I'm writing these as functions because we've messed up 3 TIMES by pushing to const, causing duplicate tool definitions on subsequent config loads.
 export const getBaseToolDefinitions = () => [
   toolDefinitions.readFileTool,
   toolDefinitions.createNewFileTool,
+  toolDefinitions.writeFileTool,
+  toolDefinitions.deleteFileTool,
   toolDefinitions.runTerminalCommandTool,
   toolDefinitions.globSearchTool,
   toolDefinitions.viewDiffTool,
@@ -13,6 +19,9 @@ export const getBaseToolDefinitions = () => [
   toolDefinitions.lsTool,
   toolDefinitions.createRuleBlock,
   toolDefinitions.fetchUrlContentTool,
+  toolDefinitions.readLintsTool,
+  toolDefinitions.goToDefinitionTool,
+  toolDefinitions.searchSymbolsTool,
 ];
 
 export const getConfigDependentToolDefinitions = async (

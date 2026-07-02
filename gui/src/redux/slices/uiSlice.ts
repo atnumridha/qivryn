@@ -18,6 +18,7 @@ export type ToolGroupPolicies = { [toolGroupName: string]: ToolGroupPolicy };
 export type ReasoningSettings = { [modelTitle: string]: boolean };
 /** Maps model title → selected reasoning effort level (e.g. "low" | "medium" | "high" | "xhigh" | "max" | "ultra") */
 export type ReasoningEffortSettings = { [modelTitle: string]: string };
+export type AgentAccessMode = "ask" | "autonomous" | "fullAccess" | "readOnly";
 
 type UIState = {
   showDialog: boolean;
@@ -31,6 +32,7 @@ type UIState = {
   ruleSettings: RulePolicies;
   reasoningSettings: ReasoningSettings;
   reasoningEffortSettings: ReasoningEffortSettings;
+  agentAccessMode: AgentAccessMode;
   ttsActive: boolean;
 };
 
@@ -53,6 +55,9 @@ export const DEFAULT_UI_SLICE: UIState = {
   ruleSettings: {},
   reasoningSettings: {},
   reasoningEffortSettings: {},
+  // Agent edits are applied in the background and safe terminal commands can
+  // run immediately. Dynamic terminal policy still escalates risky commands.
+  agentAccessMode: "autonomous",
 };
 
 export const uiSlice = createSlice({
@@ -146,6 +151,9 @@ export const uiSlice = createSlice({
     setTTSActive: (state, { payload }: PayloadAction<boolean>) => {
       state.ttsActive = payload;
     },
+    setAgentAccessMode: (state, action: PayloadAction<AgentAccessMode>) => {
+      state.agentAccessMode = action.payload;
+    },
     setReasoningSetting: (
       state,
       action: PayloadAction<{ modelTitle: string; enabled: boolean }>,
@@ -171,6 +179,7 @@ export const {
   toggleToolSetting,
   setToolPolicy,
   clearToolPolicy,
+  setAgentAccessMode,
   toggleToolGroupSetting,
   addTool,
   addRule,

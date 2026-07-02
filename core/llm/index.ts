@@ -37,6 +37,12 @@ import { Logger } from "../util/Logger.js";
 import mergeJson from "../util/merge.js";
 import { renderChatMessage } from "../util/messageContent.js";
 import { isOllamaInstalled } from "../util/ollamaHelper.js";
+import {
+  RetryOptions,
+  retryOperation,
+  retryStreamBeforeFirstOutput,
+  retryStreamWithEvents,
+} from "../util/retryStream.js";
 import { withExponentialBackoff } from "../util/withExponentialBackoff.js";
 
 import {
@@ -1029,26 +1035,69 @@ export abstract class BaseLLM implements ILLM {
     );
   }
 
+  private automaticRetryOptions(): RetryOptions {
+    return {
+      onRetry: ({ attempt, maxAttempts, delayMs, error }) => {
+        console.warn(
+          `Transient LLM connection failure. Retrying automatically ` +
+            `(attempt ${attempt}/${maxAttempts}) in ${delayMs}ms: ` +
+            `${error instanceof Error ? error.message : String(error)}`,
+        );
+      },
+    };
+  }
+
+  private async *retryChatStream(
+    createStream: () => AsyncIterable<ChatMessage>,
+    signal: AbortSignal,
+  ): AsyncGenerator<ChatMessage> {
+    for await (const event of retryStreamWithEvents(
+      createStream,
+      signal,
+      this.automaticRetryOptions(),
+    )) {
+      if (event.type === "retry") {
+        yield {
+          role: "thinking",
+          content:
+            `Connection failed. Retrying automatically ` +
+            `(attempt ${event.retry.attempt}/${event.retry.maxAttempts}) ` +
+            `in ${event.retry.delayMs}ms…\n`,
+        };
+      } else {
+        yield event.value;
+      }
+    }
+  }
+
   private async *openAIAdapterStream(
     body: ChatCompletionCreateParams,
     signal: AbortSignal,
     onCitations: (c: string[]) => void,
   ): AsyncGenerator<ChatMessage> {
-    const stream = this.openaiAdapter!.chatCompletionStream(
-      { ...body, stream: true },
-      signal,
-    );
-    for await (const chunk of stream) {
-      if (!this.lastRequestId && typeof (chunk as any).id === "string") {
-        this.lastRequestId = (chunk as any).id;
+    const createStream = async function* (this: BaseLLM) {
+      const stream = this.openaiAdapter!.chatCompletionStream(
+        { ...body, stream: true },
+        signal,
+      );
+      for await (const chunk of stream) {
+        if (!this.lastRequestId && typeof (chunk as any).id === "string") {
+          this.lastRequestId = (chunk as any).id;
+        }
+        const chatChunk = fromChatCompletionChunk(chunk as any);
+        if (chatChunk) {
+          yield chatChunk;
+        }
+        if (
+          (chunk as any).citations &&
+          Array.isArray((chunk as any).citations)
+        ) {
+          onCitations((chunk as any).citations);
+        }
       }
-      const chatChunk = fromChatCompletionChunk(chunk as any);
-      if (chatChunk) {
-        yield chatChunk;
-      }
-      if ((chunk as any).citations && Array.isArray((chunk as any).citations)) {
-        onCitations((chunk as any).citations);
-      }
+    }.bind(this);
+    for await (const chunk of this.retryChatStream(createStream, signal)) {
+      yield chunk;
     }
   }
 
@@ -1056,9 +1105,14 @@ export abstract class BaseLLM implements ILLM {
     body: ChatCompletionCreateParams,
     signal: AbortSignal,
   ): AsyncGenerator<ChatMessage> {
-    const response = await this.openaiAdapter!.chatCompletionNonStream(
-      { ...body, stream: false },
+    const response = await retryOperation(
+      () =>
+        this.openaiAdapter!.chatCompletionNonStream(
+          { ...body, stream: false },
+          signal,
+        ),
       signal,
+      this.automaticRetryOptions(),
     );
     this.lastRequestId = response.id ?? this.lastRequestId;
     const messages = fromChatResponse(response as any);
@@ -1072,12 +1126,13 @@ export abstract class BaseLLM implements ILLM {
     signal: AbortSignal,
     options: CompletionOptions,
   ): AsyncGenerator<ChatMessage> {
-    const g = (this as any)._streamResponses(
-      messages,
-      signal,
-      options,
-    ) as AsyncGenerator<ChatMessage>;
-    for await (const m of g) {
+    const createStream = () =>
+      (this as any)._streamResponses(
+        messages,
+        signal,
+        options,
+      ) as AsyncGenerator<ChatMessage>;
+    for await (const m of this.retryChatStream(createStream, signal)) {
       yield m;
     }
   }
@@ -1087,7 +1142,11 @@ export abstract class BaseLLM implements ILLM {
     signal: AbortSignal,
     options: CompletionOptions,
   ): AsyncGenerator<ChatMessage> {
-    const msg = await (this as any)._responses(messages, signal, options);
+    const msg = await retryOperation(
+      () => (this as any)._responses(messages, signal, options),
+      signal,
+      this.automaticRetryOptions(),
+    );
     yield msg as ChatMessage;
   }
 
@@ -1173,10 +1232,10 @@ export abstract class BaseLLM implements ILLM {
 
     try {
       if (this.templateMessages) {
-        for await (const chunk of this._streamComplete(
-          prompt,
+        for await (const chunk of retryStreamBeforeFirstOutput(
+          () => this._streamComplete(prompt, signal, completionOptions),
           signal,
-          completionOptions,
+          this.automaticRetryOptions(),
         )) {
           completion.push(chunk);
           interaction?.logItem({
@@ -1255,10 +1314,9 @@ export abstract class BaseLLM implements ILLM {
             }
           }
 
-          for await (const chunk of this._streamChat(
-            messages,
+          for await (const chunk of this.retryChatStream(
+            () => this._streamChat(messages, signal, completionOptions),
             signal,
-            completionOptions,
           )) {
             const result = this.processChatChunk(chunk, interaction);
             completion.push(...result.completion);

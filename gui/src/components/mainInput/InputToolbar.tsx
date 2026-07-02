@@ -16,6 +16,7 @@ import { selectUseActiveFile } from "../../redux/selectors";
 import { selectSelectedChatModel } from "../../redux/slices/configSlice";
 import { setHasReasoningEnabled } from "../../redux/slices/sessionSlice";
 import { setReasoningSetting } from "../../redux/slices/uiSlice";
+import type { AgentAccessMode } from "../../redux/slices/uiSlice";
 import { exitEdit } from "../../redux/thunks/edit";
 import { getMetaKeyLabel, isMetaEquivalentKeyPressed } from "../../util";
 import { ToolTip } from "../gui/Tooltip";
@@ -26,6 +27,9 @@ import { Button } from "../ui";
 import { useFontSize } from "../ui/font";
 import ContextStatus from "./ContextStatus";
 import HoverItem from "./InputToolbar/HoverItem";
+import { VoiceInputButton } from "./VoiceInputButton";
+import { AgentAccessModeSelect } from "./Lump/LumpToolbar/AgentAccessModeSelect";
+import { SkillSelect } from "../skills/SkillSelect";
 
 export interface ToolbarOptions {
   hideUseCodebase?: boolean;
@@ -45,6 +49,10 @@ interface InputToolbarProps {
   toolbarOptions?: ToolbarOptions;
   disabled?: boolean;
   isMainInput?: boolean;
+  agentAccessMode?: AgentAccessMode;
+  onAgentAccessModeChange?: (mode: AgentAccessMode) => void;
+  skillName?: string;
+  onSkillChange?: (name: string | undefined) => void;
 }
 
 function InputToolbar(props: InputToolbarProps) {
@@ -54,6 +62,7 @@ function InputToolbar(props: InputToolbarProps) {
   const defaultModel = useAppSelector(selectSelectedChatModel);
   const useActiveFile = useAppSelector(selectUseActiveFile);
   const isInEdit = useAppSelector((store) => store.session.isInEdit);
+  const mode = useAppSelector((store) => store.session.mode);
   const codeToEdit = useAppSelector((store) => store.editModeState.codeToEdit);
   const hasReasoningEnabled = useAppSelector(
     (store) => store.session.hasReasoningEnabled,
@@ -81,7 +90,11 @@ function InputToolbar(props: InputToolbarProps) {
         onClick={(e) => {
           // Don't steal focus from child dropdowns (e.g. ReasoningEffortSelect)
           const target = e.target as HTMLElement;
-          if (target.closest("[data-headlessui-state]") || target.closest("ul"))
+          if (
+            target.closest(
+              "button, select, input, label, [role='button'], [role='option'], [data-headlessui-state], ul",
+            )
+          )
             return;
           props.onClick?.();
         }}
@@ -90,7 +103,7 @@ function InputToolbar(props: InputToolbarProps) {
           fontSize: smallFont,
         }}
       >
-        <div className="xs:gap-1.5 flex flex-row items-center gap-1">
+        <div className="xs:gap-1.5 flex min-w-0 flex-1 flex-row items-center gap-1 overflow-hidden">
           {!isInEdit && (
             <ToolTip place="top" content="Select Mode">
               <HoverItem className="!p-0">
@@ -98,11 +111,26 @@ function InputToolbar(props: InputToolbarProps) {
               </HoverItem>
             </ToolTip>
           )}
-          <ToolTip place="top" content="Select Model">
-            <HoverItem className="!p-0">
-              <ModelSelect />
-            </HoverItem>
-          </ToolTip>
+          {!isInEdit && (mode === "agent" || mode === "debug") && (
+            <AgentAccessModeSelect
+              value={props.agentAccessMode}
+              onChange={props.onAgentAccessModeChange}
+            />
+          )}
+          {!isInEdit && (
+            <SkillSelect
+              value={props.skillName}
+              onChange={(skill) => props.onSkillChange?.(skill?.name)}
+              compact
+            />
+          )}
+          {!props.toolbarOptions?.hideSelectModel && (
+            <ToolTip place="top" content="Select Model">
+              <HoverItem className="min-w-0 !p-0">
+                <ModelSelect />
+              </HoverItem>
+            </ToolTip>
+          )}
           <div className="xs:flex text-description -mb-1 hidden items-center transition-colors duration-200">
             {props.toolbarOptions?.hideImageUpload ||
               (supportsImages && (
@@ -152,14 +180,15 @@ function InputToolbar(props: InputToolbarProps) {
         </div>
 
         <div
-          className="text-description flex items-center gap-2 whitespace-nowrap"
+          className="text-description flex flex-shrink-0 items-center gap-1 whitespace-nowrap"
           style={{
             fontSize: tinyFont,
           }}
         >
+          {props.isMainInput && <VoiceInputButton />}
           {!isInEdit && <ContextStatus />}
           {!props.toolbarOptions?.hideUseCodebase && !isInEdit && (
-            <div className="hidden transition-colors duration-200 hover:underline md:flex">
+            <div className="hidden transition-colors duration-200 hover:underline min-[560px]:flex">
               <HoverItem
                 className={
                   props.activeKey === "Meta" ||
@@ -209,6 +238,7 @@ function InputToolbar(props: InputToolbarProps) {
               variant={props.isMainInput ? "primary" : "secondary"}
               size="sm"
               data-testid="submit-input-button"
+              aria-label={props.toolbarOptions?.enterText ?? "Enter"}
               onClick={async (e) => {
                 if (props.onEnter) {
                   props.onEnter({
@@ -252,5 +282,7 @@ export default memo(
     prev.disabled === next.disabled &&
     prev.isMainInput === next.isMainInput &&
     prev.activeKey === next.activeKey &&
+    prev.agentAccessMode === next.agentAccessMode &&
+    prev.onAgentAccessModeChange === next.onAgentAccessModeChange &&
     shallowToolbarOptionsEqual(prev.toolbarOptions, next.toolbarOptions),
 );

@@ -5,6 +5,7 @@ import { cancelToolCallThunk } from "../../../../redux/thunks/cancelToolCall";
 import { getAltKeyLabel, getMetaKeyLabel, isJetBrains } from "../../../../util";
 import { Button } from "../../../ui";
 import { useMainEditor } from "../../TipTapEditor";
+import { AgentAccessModeSelect } from "./AgentAccessModeSelect";
 
 export const generateToolCallButtonTestId = (
   action: "accept" | "reject",
@@ -35,18 +36,39 @@ export function PendingToolCallToolbar() {
     void dispatch(cancelToolCallThunk({ toolCallId }));
   };
 
+  const handleAcceptAll = () => {
+    pendingToolCalls.forEach((toolCall) => handleAccept(toolCall.toolCallId));
+  };
+
+  const handleRejectAll = () => {
+    pendingToolCalls.forEach((toolCall) => handleReject(toolCall.toolCallId));
+  };
+
   return (
-    <div className="flex w-full flex-col pb-0.5">
+    <div className="flex w-full min-w-0 flex-col pb-0.5">
+      <div className="flex min-w-0 items-center justify-between gap-2 px-1 py-0.5">
+        <AgentAccessModeSelect />
+        {pendingToolCalls.length > 1 && (
+          <div className="flex flex-shrink-0 items-center gap-1">
+            <Button variant="ghost" size="sm" onClick={handleRejectAll}>
+              Reject all
+            </Button>
+            <Button variant="primary" size="sm" onClick={handleAcceptAll}>
+              Accept all
+            </Button>
+          </div>
+        )}
+      </div>
       {pendingToolCalls.map((toolCall, index) => (
         <div
           key={toolCall.toolCallId}
-          className="border-input bg-input flex items-center gap-2 rounded border"
+          className="border-input bg-input flex min-w-0 items-center gap-2 rounded border px-1.5"
         >
           <span className="text-description flex-1 truncate text-xs italic">
             {toolCall.tool?.displayTitle ?? toolCall.toolCall.function.name}
           </span>
 
-          <div className="flex items-center gap-1">
+          <div className="flex flex-shrink-0 items-center gap-1">
             <Button
               variant="ghost"
               size="sm"

@@ -108,6 +108,7 @@ describe("multiEditImpl GUI specific", () => {
         text: "Hi world",
         filepath: "file:///dir/test/file.txt",
         isSearchAndReplace: true,
+        background: true,
       });
     });
 

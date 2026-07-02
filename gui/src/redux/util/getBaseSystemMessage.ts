@@ -15,8 +15,12 @@ export function getBaseSystemMessage(
 ): string {
   let baseMessage: string;
 
-  if (messageMode === "agent") {
+  if (messageMode === "agent" || messageMode === "debug") {
     baseMessage = model.baseAgentSystemMessage ?? DEFAULT_AGENT_SYSTEM_MESSAGE;
+    if (messageMode === "debug") {
+      baseMessage +=
+        "\n\nDEBUG MODE: Reproduce and isolate the failure before editing. Form hypotheses, gather concrete evidence, apply the smallest safe fix, and validate the original failure path plus relevant regressions.";
+    }
   } else if (messageMode === "plan") {
     baseMessage = model.basePlanSystemMessage ?? DEFAULT_PLAN_SYSTEM_MESSAGE;
   } else {

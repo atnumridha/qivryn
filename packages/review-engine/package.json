@@ -1,0 +1,21 @@
+{
+  "name": "@continuedev/review-engine",
+  "version": "0.1.0",
+  "description": "Shared local-first review engine for Continue editor, extensions, JetBrains, and CLI",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@continuedev/agent-runtime": "file:../agent-runtime"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.29",
+    "typescript": "^5.5.2",
+    "vitest": "^3.2.4"
+  },
+  "license": "Apache-2.0"
+}

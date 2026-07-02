@@ -457,6 +457,21 @@ function compileChatMessages({
 
   msgsCopy = addSpaceToAnyEmptyMessages(msgsCopy);
 
+  // Automatic compaction can resume a tool loop after the summarized user
+  // boundary. Older persisted sessions may therefore reach this shared
+  // compiler with only a system message containing the summary. Repair that
+  // recoverable shape instead of surfacing a recurring history parse error.
+  if (
+    msgsCopy.length === 0 &&
+    systemMsg &&
+    renderChatMessage(systemMsg).includes("Previous conversation summary:")
+  ) {
+    msgsCopy.push({
+      role: "user",
+      content: "Continue from the previous conversation summary.",
+    });
+  }
+
   // Extract the tool sequence from the end of the message array
   const toolSequence = extractToolSequence(msgsCopy);
 
@@ -547,6 +562,9 @@ function compileChatMessages({
     compiledChatMessages: reassembled,
     didPrune,
     contextPercentage,
+    inputTokens,
+    contextLength,
+    availableTokens,
   };
 }
 

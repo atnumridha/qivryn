@@ -18,6 +18,13 @@ export async function processDiff(
   streamId?: string,
   toolCallId?: string,
 ) {
+  // Reject must always abort apply generation, even if there is no active
+  // editor or the caller only has a stream id. Previously the early returns
+  // below could leave the UI permanently stuck in "Applying".
+  if (action === "reject") {
+    await core.invoke("cancelApply", undefined);
+  }
+
   let newOrCurrentUri = newFileUri;
   if (!newOrCurrentUri) {
     const currentFile = await ide.getCurrentFile();
@@ -39,10 +46,6 @@ export async function processDiff(
 
   // Clear vertical diffs depending on action
   verticalDiffManager.clearForfileUri(newOrCurrentUri, action === "accept");
-  if (action === "reject") {
-    // this is so that IDE reject diff command can also cancel apply
-    core.invoke("cancelApply", undefined);
-  }
 
   if (streamId) {
     // Capture file content before save to detect autoformatting

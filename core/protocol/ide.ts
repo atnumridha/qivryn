@@ -10,6 +10,7 @@ import type {
   Problem,
   Range,
   RangeInFile,
+  SearchOptions,
   SignatureHelp,
   TerminalOptions,
   Thread,
@@ -28,7 +29,10 @@ export type ToIdeFromWebviewOrCoreProtocol = {
   openFile: [{ path: string }, void];
   openUrl: [string, void];
   runCommand: [{ command: string; options?: TerminalOptions }, void];
-  getSearchResults: [{ query: string; maxResults?: number }, string];
+  getSearchResults: [
+    { query: string; maxResults?: number; options?: SearchOptions },
+    string,
+  ];
   getFileResults: [{ pattern: string; maxResults?: number }, string[]];
   subprocess: [{ command: string; cwd?: string }, [string, string]];
   saveFile: [{ filepath: string }, void];

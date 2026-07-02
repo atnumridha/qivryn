@@ -745,6 +745,47 @@ describe("evaluateTerminalCommandSecurity", () => {
       expect(result).toBe("allowedWithoutPermission");
     });
 
+    it("should allow read-only compound commands with formatted printf output", () => {
+      expect(
+        evaluateTerminalCommandSecurity(
+          "allowedWithoutPermission",
+          "git status --short && printf '\\n--- recent commits ---\\n' && git log -5 --oneline --decorate",
+        ),
+      ).toBe("allowedWithoutPermission");
+    });
+
+    it("should allow common read-only project review commands", () => {
+      const commands = [
+        "git -C youtube_clean_tv diff --check",
+        "git -C youtube_clean_tv status --short --branch",
+        "git -C youtube_clean_tv rev-parse --show-toplevel",
+        "cd youtube_clean_tv && flutter analyze",
+        "cd youtube_clean_tv && flutter test",
+      ];
+
+      for (const command of commands) {
+        expect(
+          evaluateTerminalCommandSecurity("allowedWithoutPermission", command),
+        ).toBe("allowedWithoutPermission");
+      }
+    });
+
+    it("should keep directory traversal and non-workspace cd targets gated", () => {
+      const commands = [
+        "cd ..",
+        "cd ../../../etc && cat passwd",
+        "cd /etc && cat passwd",
+        "cd ~",
+        "cd -",
+      ];
+
+      for (const command of commands) {
+        expect(
+          evaluateTerminalCommandSecurity("allowedWithoutPermission", command),
+        ).toBe("allowedWithPermission");
+      }
+    });
+
     it("should allow echo with dangerous-looking but quoted strings", () => {
       const result = evaluateTerminalCommandSecurity(
         "allowedWithPermission",

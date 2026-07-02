@@ -3,8 +3,7 @@ import {
   modifyAnyConfigWithSharedConfig,
 } from "core/config/sharedConfig";
 import { useContext } from "react";
-import Alert from "../../../components/gui/Alert";
-import { Card, Divider } from "../../../components/ui";
+import { Card } from "../../../components/ui";
 import { IdeMessengerContext } from "../../../context/IdeMessenger";
 import { useAppDispatch, useAppSelector } from "../../../redux/hooks";
 import { updateConfig } from "../../../redux/slices/configSlice";
@@ -80,30 +79,17 @@ export function IndexingSettingsSection() {
 
   return (
     <>
-      <ConfigHeader title="Indexing" />
+      <ConfigHeader
+        title="Codebase & documentation"
+        subtext="Manage the local search index used for code-aware chat, retrieval, and agents."
+      />
 
-      <Alert type="warning" className="mb-6">
-        <div className="space-y-4">
-          <div>
-            <div className="-mt-0.5 text-sm font-medium">
-              Indexing has been deprecated
-            </div>
-            <div className="mt-1 text-xs">
-              Learn how to{" "}
-              <a
-                href="https://docs.continue.dev/guides/codebase-documentation-awareness"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-inherit underline hover:brightness-125"
-              >
-                make your agent aware of your codebase and documentation
-              </a>
-            </div>
-          </div>
-          <Divider className="border-inherit" />
+      <div className="mb-6">
+        <ConfigHeader title="Local code intelligence" variant="sm" />
+        <Card>
           <EnableIndexingSetting />
-        </div>
-      </Alert>
+        </Card>
+      </div>
 
       {!disableIndexing && (
         <div className="space-y-8">

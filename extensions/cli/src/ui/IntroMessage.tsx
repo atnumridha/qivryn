@@ -1,4 +1,10 @@
-import { AssistantUnrolled, ModelConfig } from "@continuedev/config-yaml";
+import {
+  AssistantUnrolled,
+  ModelConfig,
+  RuleObject,
+  RuleType,
+  getRuleType,
+} from "@continuedev/config-yaml";
 import { Box, Text } from "ink";
 import React, { useMemo } from "react";
 
@@ -16,12 +22,86 @@ interface IntroMessageProps {
   organizationName?: string;
 }
 
-// Helper function to extract rule names
-const extractRuleNames = (rules: any[] = []): string[] => {
-  return rules.map((rule: any) =>
-    typeof rule === "string" ? rule : rule?.name || "Unknown",
-  );
-};
+type ConfigRule = string | Partial<RuleObject> | undefined;
+
+export interface RuleSummary {
+  title: string;
+  type: RuleType;
+}
+
+function cleanRuleTitle(title: string): string {
+  return title
+    .replace(/[`*_#>\-[\]]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function truncateRuleTitle(title: string): string {
+  return title.length > 64 ? `${title.slice(0, 61).trim()}...` : title;
+}
+
+function titleFromRuleContent(content?: string): string | undefined {
+  const trimmed = content?.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const heading = trimmed.match(/^#{1,6}\s+(.+)$/m)?.[1];
+  if (heading) {
+    return truncateRuleTitle(cleanRuleTitle(heading));
+  }
+
+  const firstLine = trimmed
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find(Boolean);
+
+  if (!firstLine) {
+    return undefined;
+  }
+
+  const sentence = firstLine.match(/^(.+?[.!?])\s/)?.[1];
+  return truncateRuleTitle(cleanRuleTitle(sentence ?? firstLine));
+}
+
+export function summarizeRulesForIntro(
+  rules: ConfigRule[] = [],
+): RuleSummary[] {
+  return rules
+    .map((rule) => {
+      if (!rule) {
+        return undefined;
+      }
+
+      if (typeof rule === "string") {
+        return {
+          title: titleFromRuleContent(rule) ?? "Inline rule",
+          type: RuleType.Always,
+        };
+      }
+
+      return {
+        title:
+          rule.name ??
+          titleFromRuleContent(rule.rule) ??
+          rule.description ??
+          "Unnamed rule",
+        type: getRuleType(rule),
+      };
+    })
+    .filter((summary): summary is RuleSummary => !!summary);
+}
+
+function getRuleTypeLabel(type: RuleType): string {
+  switch (type) {
+    case RuleType.AutoAttached:
+      return "File scoped";
+    case RuleType.AgentRequested:
+      return "Agent requested";
+    default:
+      return type;
+  }
+}
 
 const IntroMessage: React.FC<IntroMessageProps> = ({
   config,
@@ -37,7 +117,7 @@ const IntroMessage: React.FC<IntroMessageProps> = ({
 
   // Memoize expensive operations to avoid running on every resize
   const { allRules, modelCapable } = useMemo(() => {
-    const allRules = extractRuleNames(config?.rules);
+    const allRules = summarizeRulesForIntro(config?.rules as ConfigRule[]);
 
     // Check if model is capable - now checking both name and model properties
     const modelCapable = model
@@ -61,20 +141,45 @@ const IntroMessage: React.FC<IntroMessageProps> = ({
       </>
     ) : null;
 
-  const renderRules = () =>
-    allRules.length > 0 ? (
+  const renderRules = () => {
+    const groupedRules = Object.values(RuleType)
+      .map((ruleType) => ({
+        ruleType,
+        rules: allRules.filter((rule) => rule.type === ruleType),
+      }))
+      .filter((group) => group.rules.length > 0);
+
+    if (groupedRules.length === 0) {
+      return null;
+    }
+
+    return (
       <>
         <Text bold color="blue">
           Rules:
         </Text>
-        {allRules.map((rule, index) => (
-          <Text key={index}>
-            - <Text color="white">{rule}</Text>
+        <Text>
+          - <Text color="white">{allRules.length} configured</Text>
+        </Text>
+        {groupedRules.map((group) => (
+          <Text key={group.ruleType}>
+            - <Text color="white">{getRuleTypeLabel(group.ruleType)}</Text>{" "}
+            <Text color="dim">({group.rules.length})</Text>
           </Text>
         ))}
+        {allRules.slice(0, 8).map((rule, index) => (
+          <Text key={`${rule.type}-${index}`}>
+            <Text color="dim"> - </Text>
+            <Text color="white">{rule.title}</Text>
+          </Text>
+        ))}
+        {allRules.length > 8 && (
+          <Text color="dim"> - +{allRules.length - 8} more</Text>
+        )}
         <Text> </Text>
       </>
-    ) : null;
+    );
+  };
 
   const renderMcpServers = () =>
     (config?.mcpServers?.length ?? 0) > 0 ? (

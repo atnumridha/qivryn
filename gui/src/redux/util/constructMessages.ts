@@ -48,13 +48,35 @@ export function constructMessages(
   // Find the most recent conversation summary and filter history accordingly
   let summaryContent = "";
   let filteredHistory = history;
+  let summaryNeedsUserAnchor = false;
 
   for (let i = history.length - 1; i >= 0; i--) {
     const summary = history[i].conversationSummary;
     if (summary) {
       summaryContent = summary;
-      // Only include messages that come AFTER the message with the summary
-      filteredHistory = history.slice(i + 1);
+      // Resume at a real user boundary. Tool/thinking/assistant items directly
+      // after a summary belong to the summarized turn and cannot safely be
+      // replayed on their own.
+      const historyAfterSummary = history.slice(i + 1);
+      const nextUserIndex = historyAfterSummary.findIndex(
+        (item) => item.message.role === "user",
+      );
+      if (nextUserIndex === -1) {
+        // Tool loops can continue after automatic compaction without a second
+        // user message. Keep the first structurally complete assistant turn,
+        // drop any leading orphaned tool output, and use the summary as the
+        // user anchor for the continued turn.
+        const firstAssistantIndex = historyAfterSummary.findIndex(
+          (item) => item.message.role === "assistant",
+        );
+        filteredHistory =
+          firstAssistantIndex === -1
+            ? []
+            : historyAfterSummary.slice(firstAssistantIndex);
+        summaryNeedsUserAnchor = true;
+      } else {
+        filteredHistory = historyAfterSummary.slice(nextUserIndex);
+      }
       break;
     }
   }
@@ -203,9 +225,19 @@ export function constructMessages(
     rulePolicies,
   });
 
+  if (summaryContent && summaryNeedsUserAnchor) {
+    msgs.unshift({
+      ctxItems: [],
+      message: {
+        role: "user",
+        content: `Previous conversation summary:\n\n${summaryContent}`,
+      },
+    });
+  }
+
   // Append conversation summary to system message if it exists
   let finalSystemMessage = systemMessage;
-  if (summaryContent) {
+  if (summaryContent && !summaryNeedsUserAnchor) {
     finalSystemMessage = systemMessage
       ? `${systemMessage}\n\nPrevious conversation summary:\n\n ${summaryContent}`
       : `Previous conversation summary:\n\n ${summaryContent}`;

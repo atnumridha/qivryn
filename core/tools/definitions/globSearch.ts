@@ -22,6 +22,14 @@ export const globSearchTool: Tool = {
           type: "string",
           description: "Glob pattern for file path matching",
         },
+        path: {
+          type: "string",
+          description: "Optional workspace-relative directory to search within",
+        },
+        head_limit: {
+          type: "number",
+          description: "Maximum number of files to return (default 100)",
+        },
       },
     },
   },

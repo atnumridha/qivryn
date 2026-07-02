@@ -21,7 +21,6 @@ import TimelineItem from "../../components/gui/TimelineItem";
 import { NewSessionButton } from "../../components/mainInput/belowMainInput/NewSessionButton";
 import ThinkingBlockPeek from "../../components/mainInput/belowMainInput/ThinkingBlockPeek";
 import ContinueInputBox from "../../components/mainInput/ContinueInputBox";
-import { useOnboardingCard } from "../../components/OnboardingCard";
 import StepContainer from "../../components/StepContainer";
 import { TabBar } from "../../components/TabBar/TabBar";
 import { IdeMessengerContext } from "../../context/IdeMessenger";
@@ -48,11 +47,13 @@ import FeedbackDialog from "../../components/dialogs/FeedbackDialog";
 
 import { DeprecationBanner } from "../../components/DeprecationBanner";
 import { FatalErrorIndicator } from "../../components/config/FatalErrorNotice";
+import { RuntimeRecoveryActions } from "../../components/RuntimeRecoveryActions";
 import InlineErrorMessage from "../../components/mainInput/InlineErrorMessage";
 import { resolveEditorContent } from "../../components/mainInput/TipTapEditor/utils/resolveEditorContent";
 import { setDialogMessage, setShowDialog } from "../../redux/slices/uiSlice";
 import { RootState } from "../../redux/store";
 import { cancelStream } from "../../redux/thunks/cancelStream";
+import { cancelActiveApply } from "../../redux/thunks/cancelActiveApply";
 import { getLocalStorage, setLocalStorage } from "../../util/localStorage";
 import { EmptyChatBody } from "./EmptyChatBody";
 import { ExploreDialogWatcher } from "./ExploreDialogWatcher";
@@ -71,6 +72,11 @@ function findLatestSummaryIndex(history: ChatHistoryItem[]): number {
 const StepsDiv = styled.div`
   position: relative;
   background-color: transparent;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
 
   & > * {
     position: relative;
@@ -82,6 +88,7 @@ const StepsDiv = styled.div`
 `;
 
 export const MAIN_EDITOR_INPUT_ID = "main-editor-input";
+const INITIAL_RENDERED_HISTORY_ITEMS = 60;
 
 function fallbackRender({ error, resetErrorBoundary }: any) {
   // Call resetErrorBoundary() to reset the error boundary and retry the render.
@@ -96,9 +103,7 @@ function fallbackRender({ error, resetErrorBoundary }: any) {
       <pre style={{ color: "red" }}>{error.message}</pre>
       <pre style={{ color: lightGray }}>{error.stack}</pre>
 
-      <div className="text-center">
-        <Button onClick={resetErrorBoundary}>Restart</Button>
-      </div>
+      <RuntimeRecoveryActions onRetry={resetErrorBoundary} />
     </div>
   );
 }
@@ -107,7 +112,6 @@ export function Chat() {
   const dispatch = useAppDispatch();
   const ideMessenger = useContext(IdeMessengerContext);
   const reduxStore = useStore<RootState>();
-  const onboardingCard = useOnboardingCard();
   const showSessionTabs = useAppSelector(
     (store) => store.config.config.ui?.showSessionTabs,
   );
@@ -117,6 +121,10 @@ export function Chat() {
   const stepsDivRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
   const history = useAppSelector((state) => state.session.history);
+  const sessionId = useAppSelector((state) => state.session.id);
+  const [visibleHistoryLimit, setVisibleHistoryLimit] = useState(
+    INITIAL_RENDERED_HISTORY_ITEMS,
+  );
   const showChatScrollbar = useAppSelector(
     (state) => state.config.config.ui?.showChatScrollbar,
   );
@@ -134,6 +142,30 @@ export function Chat() {
   useAutoScroll(stepsDivRef, history);
 
   useEffect(() => {
+    setVisibleHistoryLimit(INITIAL_RENDERED_HISTORY_ITEMS);
+  }, [sessionId]);
+
+  const latestSummaryIndex = useMemo(
+    () => findLatestSummaryIndex(history),
+    [history],
+  );
+  const lastUserInputIndex = useMemo(() => {
+    for (let index = history.length - 1; index >= 0; index--) {
+      if (history[index].message.role === "user") return index;
+    }
+    return -1;
+  }, [history]);
+  const renderableHistory = useMemo(() => {
+    const entries = history
+      .map((item, index) => ({ item, index }))
+      .filter(({ item }) => item.message.role !== "system");
+    return {
+      hiddenCount: Math.max(0, entries.length - visibleHistoryLimit),
+      entries: entries.slice(-visibleHistoryLimit),
+    };
+  }, [history, visibleHistoryLimit]);
+
+  useEffect(() => {
     // Cmd + Backspace to delete current step
     const listener = (e: KeyboardEvent) => {
       if (
@@ -141,7 +173,7 @@ export function Chat() {
         (jetbrains ? e.altKey : isMetaEquivalentKeyPressed(e)) &&
         !e.shiftKey
       ) {
-        void dispatch(cancelStream());
+        void dispatch(cancelActiveApply());
       }
     };
     window.addEventListener("keydown", listener);
@@ -255,12 +287,8 @@ export function Chat() {
   );
 
   const isLastUserInput = useCallback(
-    (index: number): boolean => {
-      return !history
-        .slice(index + 1)
-        .some((entry) => entry.message.role === "user");
-    },
-    [history],
+    (index: number): boolean => index === lastUserInputIndex,
+    [lastUserInputIndex],
   );
 
   const renderChatHistoryItem = useCallback(
@@ -273,8 +301,6 @@ export function Chat() {
         toolCallStates,
       } = item;
 
-      // Calculate once for the entire function
-      const latestSummaryIndex = findLatestSummaryIndex(history);
       const isBeforeLatestSummary =
         latestSummaryIndex !== -1 && index < latestSummaryIndex;
 
@@ -374,7 +400,14 @@ export function Chat() {
         </div>
       );
     },
-    [sendInput, isLastUserInput, history, stepsOpen, isStreaming],
+    [
+      sendInput,
+      isLastUserInput,
+      history,
+      stepsOpen,
+      isStreaming,
+      latestSummaryIndex,
+    ],
   );
 
   const showScrollbar = showChatScrollbar ?? window.innerHeight > 5000;
@@ -390,28 +423,50 @@ export function Chat() {
       >
         <DeprecationBanner dismissable={true} />
         {highlights}
-        {history
-          .filter((item) => item.message.role !== "system")
-          .map((item, index: number) => (
-            <div
-              key={item.message.id}
-              style={{
-                minHeight: index === history.length - 1 ? "200px" : 0,
+        {renderableHistory.hiddenCount > 0 && (
+          <div className="flex justify-center py-3">
+            <button
+              type="button"
+              data-testid="show-earlier-history"
+              className="border-input bg-input hover:bg-list-hover rounded-md border px-3 py-1.5 text-xs"
+              onClick={() =>
+                setVisibleHistoryLimit((current) =>
+                  Math.min(
+                    history.length,
+                    current + INITIAL_RENDERED_HISTORY_ITEMS,
+                  ),
+                )
+              }
+            >
+              Show{" "}
+              {Math.min(
+                INITIAL_RENDERED_HISTORY_ITEMS,
+                renderableHistory.hiddenCount,
+              )}{" "}
+              earlier items
+            </button>
+          </div>
+        )}
+        {renderableHistory.entries.map(({ item, index }) => (
+          <div
+            key={item.message.id}
+            style={{
+              minHeight: index === history.length - 1 ? "200px" : 0,
+            }}
+          >
+            <ErrorBoundary
+              FallbackComponent={fallbackRender}
+              onReset={() => {
+                dispatch(newSession());
               }}
             >
-              <ErrorBoundary
-                FallbackComponent={fallbackRender}
-                onReset={() => {
-                  dispatch(newSession());
-                }}
-              >
-                {renderChatHistoryItem(item, index)}
-              </ErrorBoundary>
-              {index === history.length - 1 && <InlineErrorMessage />}
-            </div>
-          ))}
+              {renderChatHistoryItem(item, index)}
+            </ErrorBoundary>
+            {index === history.length - 1 && <InlineErrorMessage />}
+          </div>
+        ))}
       </StepsDiv>
-      <div className={"relative shrink-0"}>
+      <div className="relative min-w-0 max-w-full shrink-0 overflow-x-hidden">
         <ContinueInputBox
           isMainInput
           isLastUserInput={false}
@@ -443,9 +498,7 @@ export function Chat() {
           </div>
           <FatalErrorIndicator />
           {!hasDismissedExploreDialog && <ExploreDialogWatcher />}
-          {history.length === 0 && (
-            <EmptyChatBody showOnboardingCard={onboardingCard.show} />
-          )}
+          {history.length === 0 && <EmptyChatBody />}
         </div>
       </div>
     </>

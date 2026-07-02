@@ -4,6 +4,10 @@ import {
 } from "core/config/sharedConfig";
 import { useContext, useEffect, useState } from "react";
 import { Card, Toggle, useFontSize } from "../../../components/ui";
+import {
+  OnboardingCard,
+  useOnboardingCard,
+} from "../../../components/OnboardingCard";
 import { IdeMessengerContext } from "../../../context/IdeMessenger";
 import { useAppDispatch, useAppSelector } from "../../../redux/hooks";
 import { updateConfig } from "../../../redux/slices/configSlice";
@@ -16,6 +20,7 @@ export function UserSettingsSection() {
   const dispatch = useAppDispatch();
   const ideMessenger = useContext(IdeMessengerContext);
   const config = useAppSelector((state) => state.config.config);
+  const onboardingCard = useOnboardingCard();
 
   const [showExperimental, setShowExperimental] = useState(false);
 
@@ -90,6 +95,33 @@ export function UserSettingsSection() {
       <div className="flex flex-col">
         <ConfigHeader title="User Settings" />
         <div className="space-y-6">
+          <div>
+            <ConfigHeader title="Providers and local models" variant="sm" />
+            {onboardingCard.show ? (
+              <OnboardingCard />
+            ) : (
+              <Card>
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium">
+                      Model provider setup
+                    </div>
+                    <div className="text-description text-xs">
+                      Configure API keys or connect a local model. Credentials
+                      are managed from Settings only.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void onboardingCard.open()}
+                    className="bg-button text-button-foreground cursor-pointer rounded border-none px-3 py-1.5 text-xs"
+                  >
+                    Configure
+                  </button>
+                </div>
+              </Card>
+            )}
+          </div>
           {/* Chat Interface Settings */}
           <div>
             <ConfigHeader title="Chat" variant="sm" />

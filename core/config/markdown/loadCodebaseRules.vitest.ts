@@ -1,11 +1,17 @@
 import { markdownToRule } from "@continuedev/config-yaml";
+import path from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { IDE } from "../..";
 import { walkDirs } from "../../indexing/walkDir";
-import { loadCodebaseRules } from "./loadCodebaseRules";
+import {
+  getGlobalCrossAgentRulePaths,
+  isCrossAgentRuleFile,
+  loadCodebaseRules,
+} from "./loadCodebaseRules";
 
 // Mock dependencies
 vi.mock("../../indexing/walkDir", () => ({
+  walkDir: vi.fn(),
   walkDirs: vi.fn(),
 }));
 
@@ -14,6 +20,42 @@ vi.mock("@continuedev/config-yaml", () => ({
 }));
 
 describe("loadCodebaseRules", () => {
+  it("includes global Cursor and cross-agent rule roots", () => {
+    const home = path.parse(process.cwd()).root + "home/test-user";
+    expect(getGlobalCrossAgentRulePaths(home)).toEqual([
+      path.join(home, ".cursorrules"),
+      path.join(home, ".cursor", "rules"),
+      path.join(home, ".claude", "rules"),
+      path.join(home, ".codex", "rules"),
+      path.join(home, ".agents", "rules"),
+    ]);
+  });
+  it("recognizes portable Cursor, Claude, Codex, Copilot and Continue rules", () => {
+    expect(isCrossAgentRuleFile("file:///repo/.cursorrules")).toBe(true);
+    expect(isCrossAgentRuleFile("file:///repo/.cursor/rules/react.mdc")).toBe(
+      true,
+    );
+    expect(isCrossAgentRuleFile("file:///repo/.codex/rules/review.md")).toBe(
+      true,
+    );
+    expect(isCrossAgentRuleFile("file:///repo/.claude/rules/testing.md")).toBe(
+      true,
+    );
+    expect(isCrossAgentRuleFile("file:///repo/.agents/rules/style.md")).toBe(
+      true,
+    );
+    expect(
+      isCrossAgentRuleFile("file:///repo/.github/instructions/security.md"),
+    ).toBe(true);
+    expect(
+      isCrossAgentRuleFile("file:///repo/.github/copilot-instructions.md"),
+    ).toBe(true);
+    expect(isCrossAgentRuleFile("file:///repo/AGENTS.md")).toBe(true);
+    expect(isCrossAgentRuleFile("file:///repo/CLAUDE.md")).toBe(true);
+    expect(isCrossAgentRuleFile("file:///repo/CODEX.md")).toBe(true);
+    expect(isCrossAgentRuleFile("file:///repo/src/rules.md")).toBe(true);
+    expect(isCrossAgentRuleFile("file:///repo/README.md")).toBe(false);
+  });
   // Mock IDE with properly typed mock functions
   const mockIde = {
     fileExists: vi.fn().mockImplementation(() => true),

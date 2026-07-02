@@ -104,6 +104,9 @@ export function isContextLengthError(error: unknown): boolean {
     "use a shorter prompt",
     // Generic patterns
     "context_length_exceeded",
+    "context length exceeded",
+    "context length validation failed",
+    "context limit exceeded",
   ];
 
   return contextLengthPatterns.some((pattern) =>

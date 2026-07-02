@@ -7,6 +7,7 @@ export interface CompactionParams {
   index: number;
   historyManager: HistoryManager;
   currentModel: ILLM;
+  automatic?: boolean;
 }
 
 /**
@@ -14,16 +15,26 @@ export interface CompactionParams {
  * This helper function extracts the compaction logic from the main core handler.
  *
  * @param params - Object containing sessionId, index, historyManager, and currentModel
- * @returns Promise<void> - Updates the session with the conversation summary
+ * @returns The generated summary after updating the persisted session.
  */
 export async function compactConversation({
   sessionId,
   index,
   historyManager,
   currentModel,
-}: CompactionParams): Promise<void> {
+  automatic = false,
+}: CompactionParams): Promise<string> {
   // Get the current session
   const session = historyManager.load(sessionId);
+  if (
+    !Number.isInteger(index) ||
+    index < 0 ||
+    index >= session.history.length
+  ) {
+    throw new Error(
+      `Cannot compact conversation: history index ${index} is no longer available`,
+    );
+  }
   const historyUpToIndex = session.history.slice(0, index + 1);
 
   // Apply the same filtering logic as in constructMessages, but exclude the target message
@@ -42,8 +53,15 @@ export async function compactConversation({
     const summary = searchHistory[i].conversationSummary;
     if (summary) {
       summaryContent = summary;
-      // Only include messages that come AFTER the message with the summary
-      filteredHistory = historyUpToIndex.slice(i + 1);
+      // A summary can be attached to an assistant response whose tool results
+      // are stored in later history items. Resume at the next user boundary so
+      // those results are never sent without their original function call.
+      const historyAfterSummary = historyUpToIndex.slice(i + 1);
+      const nextUserIndex = historyAfterSummary.findIndex(
+        (item) => item.message.role === "user",
+      );
+      filteredHistory =
+        nextUserIndex === -1 ? [] : historyAfterSummary.slice(nextUserIndex);
       break;
     }
   }
@@ -100,6 +118,7 @@ export async function compactConversation({
   updatedHistory[index] = {
     ...updatedHistory[index],
     conversationSummary: stripImages(response.content),
+    conversationSummaryAutomatic: automatic,
   };
 
   // Update the session with the new history
@@ -109,4 +128,5 @@ export async function compactConversation({
   };
 
   historyManager.save(updatedSession);
+  return updatedHistory[index].conversationSummary ?? "";
 }

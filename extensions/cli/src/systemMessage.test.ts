@@ -1,8 +1,16 @@
-import { describe, expect, it, vi } from "vitest";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 // Use the actual implementation instead of the mocked one
 vi.unmock("./systemMessage.js");
-const { constructSystemMessage } = await import("./systemMessage.js");
+const {
+  buildBudgetedUserRulesContext,
+  constructSystemMessage,
+  isAlwaysAppliedRule,
+  loadMarkdownRulesWithMetadata,
+} = await import("./systemMessage.js");
 
 // Mock the service container to avoid "No factory registered for service 'config'" error
 vi.mock("./services/ServiceContainer.js", () => ({
@@ -21,7 +29,27 @@ vi.mock("./hubLoader.js", () => ({
 
 const PLAN_MODE_STRING = "You are operating in _Plan Mode_";
 
+const tempDirs: string[] = [];
+
+afterEach(() => {
+  for (const tempDir of tempDirs.splice(0)) {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 describe("constructSystemMessage", () => {
+  it("budgets oversized always-applied rules without dropping all later rules", () => {
+    const result = buildBudgetedUserRulesContext("Agent guidance", [
+      "A".repeat(100_000),
+      "Keep this later rule",
+      "Keep this later rule",
+    ]);
+
+    expect(result.length).toBeLessThanOrEqual(60_000);
+    expect(result).toContain("Rule compacted");
+    expect(result).toContain("Keep this later rule");
+    expect(result.match(/Keep this later rule/g)).toHaveLength(1);
+  });
   it("should return base system message with rules when additionalRules is provided", async () => {
     const rules = ["These are the rules for the assistant."];
     const result = await constructSystemMessage("normal", rules);
@@ -258,5 +286,67 @@ Rule 3: Third rule`;
     expect(result).toContain(
       "which means that your goal is to help the user investigate their ideas",
     );
+  });
+});
+
+describe("loadMarkdownRulesWithMetadata", () => {
+  it("loads portable rules across rule application modes", () => {
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "continue-rules-"));
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), "continue-home-"));
+    tempDirs.push(cwd, home);
+
+    const rulesDir = path.join(cwd, ".continue", "rules");
+    fs.mkdirSync(rulesDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(rulesDir, "always.md"),
+      "---\nname: Always Rule\nalwaysApply: true\n---\n\nAlways content",
+    );
+    fs.writeFileSync(
+      path.join(rulesDir, "auto.md"),
+      "---\nname: Auto Rule\nglobs: '**/*.ts'\nalwaysApply: false\n---\n\nAuto content",
+    );
+    fs.writeFileSync(
+      path.join(rulesDir, "agent.md"),
+      "---\nname: Agent Rule\ndescription: Use for migrations\nalwaysApply: false\n---\n\nAgent content",
+    );
+    fs.writeFileSync(
+      path.join(rulesDir, "manual.md"),
+      "---\nname: Manual Rule\nalwaysApply: false\n---\n\nManual content",
+    );
+    fs.writeFileSync(
+      path.join(rulesDir, "prompt.md"),
+      "---\nname: Prompt Rule\ninvokable: true\n---\n\nPrompt content",
+    );
+
+    const loadedRules = loadMarkdownRulesWithMetadata(cwd, home).filter(
+      (rule) => rule.sourceFile?.startsWith(rulesDir),
+    );
+
+    expect(loadedRules.map((rule) => rule.name).sort()).toEqual([
+      "Agent Rule",
+      "Always Rule",
+      "Auto Rule",
+      "Manual Rule",
+    ]);
+    expect(
+      isAlwaysAppliedRule(
+        loadedRules.find((rule) => rule.name === "Always Rule")!,
+      ),
+    ).toBe(true);
+    expect(
+      isAlwaysAppliedRule(
+        loadedRules.find((rule) => rule.name === "Auto Rule")!,
+      ),
+    ).toBe(false);
+    expect(
+      isAlwaysAppliedRule(
+        loadedRules.find((rule) => rule.name === "Agent Rule")!,
+      ),
+    ).toBe(false);
+    expect(
+      isAlwaysAppliedRule(
+        loadedRules.find((rule) => rule.name === "Manual Rule")!,
+      ),
+    ).toBe(false);
   });
 });

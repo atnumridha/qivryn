@@ -612,6 +612,17 @@ describe("Permission Checker", () => {
         );
       });
 
+      it("should escalate risky commands in autonomous mode", () => {
+        mockEvaluateToolCallPolicy.mockReturnValue("allowedWithPermission");
+
+        const result = checkToolPermission(
+          { name: "Bash", arguments: { command: "curl https://example.com" } },
+          { ...permissions, respectDynamicSecurity: true },
+        );
+
+        expect(result.permission).toBe("ask");
+      });
+
       it("should block dangerous commands despite user preference (eval)", () => {
         mockEvaluateToolCallPolicy.mockReturnValue("disabled");
 

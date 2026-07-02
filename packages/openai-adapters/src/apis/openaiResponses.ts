@@ -374,7 +374,22 @@ export function toResponsesInput(
     }
   }
 
-  return inputItems;
+  // A persisted or compacted history can begin after the assistant message
+  // that issued a tool call. The Responses API rejects the remaining tool
+  // result with "No tool call found for function call output". Enforce the
+  // pairing invariant at the final payload boundary so every caller is safe,
+  // including providers that bypass the core Responses converters.
+  const seenFunctionCalls = new Set<string>();
+  return inputItems.filter((item) => {
+    if (item.type === "function_call") {
+      seenFunctionCalls.add(item.call_id);
+      return true;
+    }
+    if (item.type === "function_call_output") {
+      return seenFunctionCalls.has(item.call_id);
+    }
+    return true;
+  });
 }
 
 export function toResponsesParams(

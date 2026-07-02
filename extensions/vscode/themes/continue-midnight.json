@@ -1,0 +1,34 @@
+{
+  "$schema": "vscode://schemas/color-theme",
+  "name": "Continue Midnight",
+  "type": "dark",
+  "colors": {
+    "editor.background": "#090B12",
+    "editor.foreground": "#E8ECF5",
+    "sideBar.background": "#070910",
+    "activityBar.background": "#05070C",
+    "panel.background": "#070910",
+    "input.background": "#111522",
+    "input.foreground": "#F4F7FF",
+    "focusBorder": "#9B8CFF",
+    "button.background": "#705FE5",
+    "button.foreground": "#FFFFFF",
+    "list.activeSelectionBackground": "#242044",
+    "terminal.background": "#070910"
+  },
+  "tokenColors": [
+    {
+      "scope": ["comment"],
+      "settings": { "foreground": "#949DB0", "fontStyle": "italic" }
+    },
+    {
+      "scope": ["keyword", "storage"],
+      "settings": { "foreground": "#C9A7FF" }
+    },
+    { "scope": ["string"], "settings": { "foreground": "#8ED9A5" } },
+    {
+      "scope": ["entity.name.function"],
+      "settings": { "foreground": "#82B7FF" }
+    }
+  ]
+}

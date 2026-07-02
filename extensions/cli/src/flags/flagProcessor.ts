@@ -23,9 +23,12 @@ export interface ProcessedFlags {
 export function convertLegacyModeFlags(
   readonly?: boolean,
   auto?: boolean,
+  autonomous?: boolean,
 ): PermissionMode | undefined {
-  if (readonly && auto) {
-    throw new Error("Cannot use both --readonly and --auto flags together");
+  if ([readonly, auto, autonomous].filter(Boolean).length > 1) {
+    throw new Error(
+      "Cannot combine --readonly, --autonomous, and --auto mode flags",
+    );
   }
 
   if (readonly) {
@@ -34,6 +37,10 @@ export function convertLegacyModeFlags(
 
   if (auto) {
     return "auto";
+  }
+
+  if (autonomous) {
+    return "autonomous";
   }
 
   return undefined;
@@ -64,12 +71,17 @@ export function buildPermissionOverrides(
 export function processCommandFlags(options: {
   readonly?: boolean;
   auto?: boolean;
+  autonomous?: boolean;
   allow?: string[];
   ask?: string[];
   exclude?: string[];
 }): ProcessedFlags {
   // Convert legacy flags to mode
-  const mode = convertLegacyModeFlags(options.readonly, options.auto);
+  const mode = convertLegacyModeFlags(
+    options.readonly,
+    options.auto,
+    options.autonomous,
+  );
 
   // Build permission overrides
   const permissionOverrides = buildPermissionOverrides(

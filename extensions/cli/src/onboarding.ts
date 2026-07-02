@@ -26,7 +26,15 @@ export async function checkHasAcceptableModel(
     }
 
     const content = fs.readFileSync(configPath, "utf8");
-    return content.includes("claude");
+    // Accept any config that already has at least one model defined,
+    // regardless of provider (copilot, oca, anthropic, openai, etc.)
+    return (
+      content.includes("claude") ||
+      content.includes("github-copilot") ||
+      content.includes("openai") ||
+      content.includes("oca") ||
+      content.includes("provider:")
+    );
   } catch {
     return false;
   }
@@ -85,7 +93,18 @@ export async function runOnboardingFlow(
     return false;
   }
 
-  // Step 4: Prompt for API key
+  // Step 4: Check if config already has models configured (no Anthropic key needed)
+  const hasModels = await checkHasAcceptableModel(CONFIG_PATH);
+  if (hasModels) {
+    console.log(
+      chalk.blue(
+        "✓ Config already has models configured. Skipping API key setup.",
+      ),
+    );
+    return true;
+  }
+
+  // Step 5: Prompt for Anthropic API key (only when no models are configured)
   console.log(chalk.yellow("To get started, enter your Anthropic API key."));
 
   const apiKey = await question(

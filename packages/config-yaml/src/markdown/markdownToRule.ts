@@ -12,6 +12,13 @@ export interface RuleFrontmatter {
   description?: RuleObject["description"];
   alwaysApply?: RuleObject["alwaysApply"];
   invokable?: RuleObject["invokable"];
+  environments?: RuleObject["environments"];
+  disabledEnvironments?: RuleObject["disabledEnvironments"];
+  disabled_environments?: RuleObject["disabledEnvironments"];
+  scopedTo?: RuleObject["scopedTo"];
+  scoped_to?: RuleObject["scopedTo"];
+  isRequired?: RuleObject["isRequired"];
+  is_required?: RuleObject["isRequired"];
 }
 
 /**
@@ -110,6 +117,11 @@ export function markdownToRule(
     description: frontmatter.description,
     alwaysApply: frontmatter.alwaysApply,
     invokable: frontmatter.invokable,
+    environments: frontmatter.environments,
+    disabledEnvironments:
+      frontmatter.disabledEnvironments ?? frontmatter.disabled_environments,
+    scopedTo: frontmatter.scopedTo ?? frontmatter.scoped_to,
+    isRequired: frontmatter.isRequired ?? frontmatter.is_required,
     sourceFile: id.uriType === "file" ? id.fileUri : undefined,
   };
 }

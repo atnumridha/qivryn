@@ -8,6 +8,13 @@ import { BuiltInToolNames } from "./builtIn";
 import { codebaseToolImpl } from "./implementations/codebaseTool";
 import { createNewFileImpl } from "./implementations/createNewFile";
 import { createRuleBlockImpl } from "./implementations/createRuleBlock";
+import {
+  deleteFileImpl,
+  goToDefinitionImpl,
+  readLintsImpl,
+  searchSymbolsImpl,
+  writeFileImpl,
+} from "./implementations/cursorLocalTools";
 import { fetchUrlContentImpl } from "./implementations/fetchUrlContent";
 import { fileGlobSearchImpl } from "./implementations/globSearch";
 import { grepSearchImpl } from "./implementations/grepSearch";
@@ -196,6 +203,10 @@ export async function callBuiltInTool(
       return await readFileRangeImpl(args, extras);
     case BuiltInToolNames.CreateNewFile:
       return await createNewFileImpl(args, extras);
+    case BuiltInToolNames.WriteFile:
+      return await writeFileImpl(args, extras);
+    case BuiltInToolNames.DeleteFile:
+      return await deleteFileImpl(args, extras);
     case BuiltInToolNames.GrepSearch:
       return await grepSearchImpl(args, extras);
     case BuiltInToolNames.FileGlobSearch:
@@ -220,6 +231,12 @@ export async function callBuiltInTool(
       return await codebaseToolImpl(args, extras);
     case BuiltInToolNames.ReadSkill:
       return await readSkillImpl(args, extras);
+    case BuiltInToolNames.ReadLints:
+      return await readLintsImpl(args, extras);
+    case BuiltInToolNames.GoToDefinition:
+      return await goToDefinitionImpl(args, extras);
+    case BuiltInToolNames.SearchSymbols:
+      return await searchSymbolsImpl(args, extras);
     case BuiltInToolNames.ViewRepoMap:
       return await viewRepoMapImpl(args, extras);
     case BuiltInToolNames.ViewSubdirectory:

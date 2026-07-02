@@ -1,6 +1,5 @@
 import { ToIdeFromWebviewOrCoreProtocol } from "./ide";
 import { ToWebviewFromIdeOrCoreProtocol } from "./webview";
-
 import {
   AcceptOrRejectDiffPayload,
   AddToChatPayload,
@@ -21,8 +20,10 @@ export type ToIdeFromWebviewProtocol = ToIdeFromWebviewOrCoreProtocol & {
   showFile: [ShowFilePayload, void];
   toggleDevTools: [undefined, void];
   reloadWindow: [undefined, void];
+  reloadAgentWindow: [undefined, void];
+  "onboarding/importVsCode": [undefined, void];
   focusEditor: [undefined, void];
-  toggleFullScreen: [{ newWindow?: boolean } | undefined, void];
+  toggleFullScreen: [{ newWindow?: boolean; path?: string } | undefined, void];
   insertAtCursor: [{ text: string }, void];
   copyText: [{ text: string }, void];
   "jetbrains/isOSREnabled": [undefined, boolean];
@@ -50,6 +51,8 @@ export type ToIdeFromWebviewProtocol = ToIdeFromWebviewOrCoreProtocol & {
   "edit/addCurrentSelection": [undefined, void];
   "edit/clearDecorations": [undefined, void];
   "session/share": [{ sessionId: string }, void];
+  "session/openInMain": [{ sessionId: string }, boolean];
+  "agents/selectRepository": [undefined, string | undefined];
 };
 
 export type ToWebviewFromIdeProtocol = ToWebviewFromIdeOrCoreProtocol & {

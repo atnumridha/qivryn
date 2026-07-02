@@ -88,6 +88,11 @@ describe("validateFlags", () => {
       expect(result.errors).toHaveLength(0);
     });
 
+    test("should pass with autonomous only", () => {
+      const result = validateFlags({ autonomous: true });
+      expect(result.isValid).toBe(true);
+    });
+
     test("should fail when both readonly and auto are used", () => {
       const result = validateFlags({
         readonly: true,
@@ -98,8 +103,14 @@ describe("validateFlags", () => {
       expect(result.errors).toHaveLength(1);
       expect(result.errors[0].code).toBe("CONFLICTING_MODE_FLAGS");
       expect(result.errors[0].message).toContain(
-        "Cannot use both --readonly and --auto",
+        "Cannot combine --readonly, --autonomous, and --auto",
       );
+    });
+
+    test("should reject autonomous combined with another mode", () => {
+      const result = validateFlags({ autonomous: true, auto: true });
+      expect(result.isValid).toBe(false);
+      expect(result.errors[0].code).toBe("CONFLICTING_MODE_FLAGS");
     });
   });
 

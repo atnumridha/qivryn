@@ -30,6 +30,7 @@ import type {
   Location,
   Problem,
   RangeInFile,
+  SearchOptions,
   SignatureHelp,
   TerminalOptions,
   Thread,
@@ -584,35 +585,86 @@ class VsCodeIde implements IDE {
     }
   }
 
-  async getSearchResults(query: string, maxResults?: number): Promise<string> {
+  async getSearchResults(
+    query: string,
+    maxResults?: number,
+    options: SearchOptions = {},
+  ): Promise<string> {
     if (vscode.env.remoteName) {
       throw new Error("Ripgrep not supported, this workspace is remote");
     }
     const results: string[] = [];
 
+    const target = (options.path || ".").replace(/\\/g, "/");
+    if (
+      target.startsWith("/") ||
+      /^[a-zA-Z]:\//.test(target) ||
+      target.split("/").includes("..")
+    ) {
+      throw new Error("Search path must stay within the workspace");
+    }
+    const outputMode = options.outputMode ?? "content";
+    const contextArgs =
+      options.context !== undefined
+        ? ["-C", String(Math.max(0, options.context))]
+        : options.contextBefore !== undefined ||
+            options.contextAfter !== undefined
+          ? [
+              ...(options.contextBefore !== undefined
+                ? ["-B", String(Math.max(0, options.contextBefore))]
+                : []),
+              ...(options.contextAfter !== undefined
+                ? ["-A", String(Math.max(0, options.contextAfter))]
+                : []),
+            ]
+          : ["-C", "2"];
+    const sort = options.sort;
+    const sortArgs = sort
+      ? [options.sortAscending === false ? "--sortr" : "--sort", sort]
+      : [];
+
     for (const dir of await this.getWorkspaceDirs()) {
       const dirResults = await this.runRipgrepQuery(dir, [
-        "-i", // Case-insensitive search
+        ...(options.caseInsensitive === false ? [] : ["-i"]),
+        ...(options.fixedStrings ? ["-F"] : []),
+        ...(options.multiline ? ["-U", "--multiline-dotall"] : []),
         "--ignore-file",
         ".continueignore",
         "--ignore-file",
         ".gitignore",
-        "-C",
-        "2", // Show 2 lines of context
-        "--heading", // Only show filepath once per result
+        ...(outputMode === "content" ? [...contextArgs, "--heading"] : []),
+        ...(outputMode === "files_with_matches"
+          ? ["--files-with-matches"]
+          : outputMode === "count"
+            ? ["--count"]
+            : []),
         // Use a single glob with all default ignores
         "--glob",
         defaultIgnoresGlob,
-        ...(maxResults ? ["-m", maxResults.toString()] : []),
+        ...(options.glob ? ["--glob", options.glob] : []),
+        ...(options.fileType ? ["--type", options.fileType] : []),
+        ...sortArgs,
+        ...(maxResults && outputMode === "content"
+          ? ["-m", maxResults.toString()]
+          : []),
         "-e",
         query, // Pattern to search for
-        ".", // Directory to search in
+        target,
       ]);
 
       results.push(dirResults);
     }
 
-    const allResults = results.join("\n");
+    let allResults = results.join("\n");
+    if (outputMode !== "content") {
+      const offset = Math.max(0, options.offset ?? 0);
+      allResults = allResults
+        .split(/\r?\n/)
+        .filter(Boolean)
+        .slice(offset, maxResults ? offset + maxResults : undefined)
+        .join("\n");
+      return allResults;
+    }
     if (maxResults) {
       // In case of multiple workspaces, do max results per workspace and then truncate to maxResults
       // Will prioritize first workspace results, fine for now

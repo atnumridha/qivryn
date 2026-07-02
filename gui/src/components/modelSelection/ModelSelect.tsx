@@ -39,6 +39,17 @@ interface Option {
   isAutoDetected?: boolean;
 }
 
+const MODEL_CACHE_KEY = "continue.models.catalog.v1";
+
+function readModelCache(): { options: Option[]; selected?: string } {
+  try {
+    const raw = window.localStorage.getItem(MODEL_CACHE_KEY);
+    return raw ? JSON.parse(raw) : { options: [] };
+  } catch {
+    return { options: [] };
+  }
+}
+
 function modelSelectTitle(model: any): string {
   if (model?.title) return model?.title;
   if (model?.model !== undefined && model?.model.trim() !== "") {
@@ -125,8 +136,12 @@ function ModelSelect() {
   const config = useAppSelector((state) => state.config.config);
   const isConfigLoading = useAppSelector((state) => state.config.loading);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const [options, setOptions] = useState<Option[]>([]);
+  const cachedModels = useRef(readModelCache());
+  const [options, setOptions] = useState<Option[]>(
+    cachedModels.current.options,
+  );
   const [sortedOptions, setSortedOptions] = useState<Option[]>([]);
+  const [pendingModelTitle, setPendingModelTitle] = useState<string>();
   const { selectedProfile } = useAuth();
   const tinyFont = useFontSize(-4);
 
@@ -145,7 +160,9 @@ function ModelSelect() {
 
   // Sort so that options without an API key are at the end
   useEffect(() => {
-    const alphaSort = options.sort((a, b) => a.title.localeCompare(b.title));
+    const alphaSort = [...options].sort((a, b) =>
+      a.title.localeCompare(b.title),
+    );
     const enabledOptions = alphaSort.filter((option) => option.apiKey !== "");
     const disabledOptions = alphaSort.filter((option) => option.apiKey === "");
 
@@ -155,18 +172,47 @@ function ModelSelect() {
   }, [options]);
 
   useEffect(() => {
-    setOptions(
-      allModels.map((model) => {
-        return {
-          value: model.title,
-          title: modelSelectTitle(model),
-          apiKey: model.apiKey,
-          sourceFile: model.sourceFile,
-          isAutoDetected: model.isFromAutoDetect,
-        };
+    if (!allModels.length) return;
+    const nextOptions = allModels.map((model) => {
+      return {
+        value: model.title,
+        title: modelSelectTitle(model),
+        // The picker only needs to know whether configuration is missing.
+        // Never persist provider credentials in the webview model cache.
+        apiKey: model.apiKey === "" ? "" : undefined,
+        sourceFile: model.sourceFile,
+        isAutoDetected: model.isFromAutoDetect,
+      };
+    });
+    setOptions(nextOptions);
+    try {
+      window.localStorage.setItem(
+        MODEL_CACHE_KEY,
+        JSON.stringify({
+          options: nextOptions,
+          selected: selectedModel?.title ?? cachedModels.current.selected,
+        }),
+      );
+    } catch {
+      // A hardened webview may disable storage; the live catalog still works.
+    }
+  }, [allModels]);
+
+  useEffect(() => {
+    if (
+      !pendingModelTitle ||
+      !allModels.some((model) => model.title === pendingModelTitle)
+    )
+      return;
+    void dispatch(
+      updateSelectedModelByRole({
+        selectedProfile,
+        role: isInEdit ? "edit" : "chat",
+        modelTitle: pendingModelTitle,
       }),
     );
-  }, [allModels]);
+    setPendingModelTitle(undefined);
+  }, [allModels, pendingModelTitle, selectedProfile, isInEdit, dispatch]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -236,6 +282,10 @@ function ModelSelect() {
     <Listbox
       onChange={async (val: string) => {
         if (val === selectedModel?.title) return;
+        if (!allModels.some((model) => model.title === val)) {
+          setPendingModelTitle(val);
+          return;
+        }
         void dispatch(
           updateSelectedModelByRole({
             selectedProfile,
@@ -249,10 +299,13 @@ function ModelSelect() {
         <ListboxButton
           data-testid="model-select-button"
           ref={buttonRef}
-          className="text-description h-[18px] gap-1 border-none"
+          className="text-description h-[18px] min-w-0 max-w-[96px] gap-1 border-none"
         >
           <span className="line-clamp-1 break-all hover:brightness-110">
-            {modelSelectTitle(selectedModel) || "Select model"}
+            {modelSelectTitle(selectedModel) ||
+              pendingModelTitle ||
+              cachedModels.current.selected ||
+              "Select model"}
           </span>
           <ChevronDownIcon
             className="hidden h-2 w-2 flex-shrink-0 hover:brightness-110 min-[200px]:flex"
@@ -278,12 +331,12 @@ function ModelSelect() {
           </div>
 
           <div className="no-scrollbar max-h-[300px] overflow-y-auto">
-            {isConfigLoading ? (
+            {isConfigLoading && sortedOptions.length === 0 ? (
               <div className="text-description flex items-center gap-2 px-2 pb-2 pt-1 text-xs">
                 <ArrowPathIcon className="animate-spin-slow h-3 w-3" />
                 <span>Loading config</span>
               </div>
-            ) : hasNoModels ? (
+            ) : hasNoModels && sortedOptions.length === 0 ? (
               <div className="text-description-muted px-2 py-4 text-center text-sm">
                 No models configured
               </div>
@@ -297,6 +350,12 @@ function ModelSelect() {
                   isSelected={option.value === selectedModel?.title}
                 />
               ))
+            )}
+            {isConfigLoading && sortedOptions.length > 0 && (
+              <div className="text-description-muted flex items-center gap-1 px-2 py-1 text-[10px]">
+                <ArrowPathIcon className="h-2.5 w-2.5 animate-spin" />
+                Refreshing in background
+              </div>
             )}
           </div>
 

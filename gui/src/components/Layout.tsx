@@ -17,11 +17,7 @@ import { ROUTES } from "../util/navigation";
 import { FatalErrorIndicator } from "./config/FatalErrorNotice";
 import TextDialog from "./dialogs";
 import { useMainEditor } from "./mainInput/TipTapEditor";
-import {
-  isNewUserOnboarding,
-  OnboardingCard,
-  useOnboardingCard,
-} from "./OnboardingCard";
+import { useOnboardingCard } from "./OnboardingCard";
 import OSRContextMenu from "./OSRContextMenu";
 
 const LayoutTopDiv = styled(CustomScrollbarDiv)`
@@ -34,7 +30,9 @@ const GridDiv = styled.div`
   display: grid;
   grid-template-rows: 1fr auto;
   height: 100vh;
-  overflow-x: visible;
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
 `;
 
 const Layout = () => {
@@ -187,12 +185,6 @@ const Layout = () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
-
-  useEffect(() => {
-    if (isNewUserOnboarding() && isHome) {
-      onboardingCard.open();
-    }
-  }, [isHome]);
 
   return (
     <LocalStorageProvider>

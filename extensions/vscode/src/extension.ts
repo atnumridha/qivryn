@@ -20,13 +20,17 @@ export function activate(context: vscode.ExtensionContext) {
       .showWarningMessage(
         "Error activating the Continue extension.",
         "View Logs",
-        "Retry",
+        "Retry Extension Host",
+        "Reload Window",
       )
       .then((selection) => {
         if (selection === "View Logs") {
           vscode.commands.executeCommand("continue.viewLogs");
-        } else if (selection === "Retry") {
-          // Reload VS Code window
+        } else if (selection === "Retry Extension Host") {
+          vscode.commands.executeCommand(
+            "workbench.action.restartExtensionHost",
+          );
+        } else if (selection === "Reload Window") {
           vscode.commands.executeCommand("workbench.action.reloadWindow");
         }
       });

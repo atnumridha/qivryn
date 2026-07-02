@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const { execFileSync } = require("child_process");
 
 const ncp = require("ncp").ncp;
 const { rimrafSync } = require("rimraf");
@@ -14,7 +15,40 @@ const { copySqlite } = require("./download-copy-sqlite");
 const { generateAndCopyConfigYamlSchema } = require("./generate-copy-config");
 const { installAndCopyNodeModules } = require("./install-copy-nodemodule");
 const { npmInstall } = require("./npm-install");
-const { writeBuildTimestamp, continueDir } = require("./utils");
+const {
+  writeBuildTimestamp,
+  continueDir,
+  copyOnnxWasmFromNodeModules,
+} = require("./utils");
+
+function bundleAgentCli() {
+  const cliRoot = path.join(continueDir, "extensions", "cli");
+  const cliDist = path.join(cliRoot, "dist");
+  const required = ["cn.js", "index.js", "xhr-sync-worker.js"];
+  const npm = process.platform === "win32" ? "npm.cmd" : "npm";
+  console.log("[info] Building self-contained agent CLI for the VSIX");
+  execFileSync(npm, ["run", "build"], {
+    cwd: cliRoot,
+    env: process.env,
+    stdio: "inherit",
+  });
+  const destination = path.join(
+    continueDir,
+    "extensions",
+    "vscode",
+    "out",
+    "cli",
+  );
+  fs.mkdirSync(destination, { recursive: true });
+  for (const filename of required) {
+    fs.copyFileSync(
+      path.join(cliDist, filename),
+      path.join(destination, filename),
+    );
+  }
+  fs.chmodSync(path.join(destination, "cn.js"), 0o755);
+  console.log("[info] Bundled the Continue agent CLI runtime");
+}
 
 // Clear folders that will be packaged to ensure clean slate
 rimrafSync(path.join(__dirname, "..", "bin"));
@@ -165,6 +199,8 @@ void (async () => {
   // Copy over native / wasm modules //
   process.chdir("../extensions/vscode");
 
+  bundleAgentCli();
+
   fs.mkdirSync("bin", { recursive: true });
 
   // onnxruntime-node
@@ -227,6 +263,10 @@ void (async () => {
     }
   }
   console.log("[info] Copied onnxruntime-node");
+
+  // Keep the web runtime available as a genuine fallback if the native
+  // binding cannot be loaded on a supported host.
+  copyOnnxWasmFromNodeModules();
 
   // tree-sitter-wasm
   fs.mkdirSync("out", { recursive: true });
@@ -456,6 +496,7 @@ void (async () => {
           ? "libonnxruntime.so.1.14.0"
           : "onnxruntime.dll"
     }`,
+    "out/dist/ort-wasm-simd-threaded.wasm",
 
     // Code/styling for the sidebar
     "gui/assets/index.js",
@@ -483,6 +524,10 @@ void (async () => {
     "out/tree-sitter.wasm",
     // Worker required by jsdom
     "out/xhr-sync-worker.js",
+    // Self-contained runtime used by the Agents workspace
+    "out/cli/cn.js",
+    "out/cli/index.js",
+    "out/cli/xhr-sync-worker.js",
     // SQLite3 Node native module
     "out/build/Release/node_sqlite3.node",
 

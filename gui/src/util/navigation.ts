@@ -6,7 +6,8 @@ export type ConfigTab =
   | "configs"
   | "indexing"
   | "settings"
-  | "help";
+  | "help"
+  | "extensions";
 
 // TODO: Move all the routes here
 export const ROUTES = {
@@ -15,6 +16,11 @@ export const ROUTES = {
   CONFIG: "/config",
   THEME: "/theme",
   STATS: "/stats",
+  AGENTS: "/agents",
+  REVIEW: "/review",
+  TERMINAL: "/terminal",
+  BROWSER: "/browser",
+  SLACK: "/connectors/slack",
   // EXAMPLE_ROUTE_WITH_PARAMS: (params: ParamsType) => `/route/${params}`,
 };
 
@@ -32,4 +38,5 @@ export const CONFIG_ROUTES = {
   INDEXING: buildConfigRoute("indexing"),
   SETTINGS: buildConfigRoute("settings"),
   HELP: buildConfigRoute("help"),
+  EXTENSIONS: buildConfigRoute("extensions"),
 } as const;

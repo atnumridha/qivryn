@@ -14,6 +14,7 @@ export interface ValidationOptions {
   // Common flags
   readonly?: boolean;
   auto?: boolean;
+  autonomous?: boolean;
   config?: string;
 
   // Session flags
@@ -89,16 +90,20 @@ function validateFormatValue(options: ValidationOptions): ValidationError[] {
 }
 
 /**
- * Validate that --readonly and --auto are mutually exclusive
+ * Validate that permission mode flags are mutually exclusive.
  * This validation is now handled in flagProcessor.ts, but we keep it here for completeness
  */
 function validateModeFlags(options: ValidationOptions): ValidationError[] {
   const errors: ValidationError[] = [];
 
-  if (options.readonly && options.auto) {
+  if (
+    [options.readonly, options.autonomous, options.auto].filter(Boolean)
+      .length > 1
+  ) {
     errors.push({
       code: "CONFLICTING_MODE_FLAGS",
-      message: "Error: Cannot use both --readonly and --auto flags together",
+      message:
+        "Error: Cannot combine --readonly, --autonomous, and --auto mode flags",
     });
   }
 

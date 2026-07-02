@@ -6,14 +6,17 @@ import {
   deleteCompaction,
 } from "../redux/slices/sessionSlice";
 import { loadSession, saveCurrentSession } from "../redux/thunks/session";
+import { getManualCompactionTarget } from "./autoCompaction";
 
 export const useCompactConversation = () => {
   const dispatch = useAppDispatch();
   const ideMessenger = useContext(IdeMessengerContext);
   const currentSessionId = useAppSelector((state) => state.session.id);
+  const history = useAppSelector((state) => state.session.history);
 
-  return async (index: number) => {
-    if (!currentSessionId) {
+  return async (requestedIndex?: number) => {
+    const index = getManualCompactionTarget(history, requestedIndex);
+    if (!currentSessionId || index === undefined) {
       return;
     }
 

@@ -162,6 +162,7 @@ export const applyForEditTool = createAsyncThunk<
     updateApplyState({
       streamId,
       toolCallId,
+      filepath: payload.filepath,
       status: "not-started",
     }),
   );

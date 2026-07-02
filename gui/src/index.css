@@ -48,6 +48,22 @@ body {
   height: 100%;
 }
 
+/* Keep native controls aligned with the active IDE theme. Chromium otherwise
+   applies dark text to buttons in some VS Code themes, producing dark-on-dark
+   controls that look disabled even when they are interactive. */
+button,
+input,
+textarea,
+select {
+  color: inherit;
+  font: inherit;
+}
+
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]) {
+  cursor: pointer;
+}
+
 /* To override the default `-webkit-focus-ring-color` that is an ugly orange */
 *:focus {
   outline: none;

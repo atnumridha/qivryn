@@ -3,7 +3,11 @@ import { Tool, ToolCallState } from "core";
 import { IIdeMessenger } from "../../context/IdeMessenger";
 import { isEditTool } from "../../util/toolCallState";
 import { errorToolCall, updateToolCallOutput } from "../slices/sessionSlice";
-import { DEFAULT_TOOL_SETTING, ToolPolicies } from "../slices/uiSlice";
+import {
+  AgentAccessMode,
+  DEFAULT_TOOL_SETTING,
+  ToolPolicies,
+} from "../slices/uiSlice";
 import { AppThunkDispatch } from "../store";
 
 interface EvaluatedPolicy {
@@ -21,20 +25,42 @@ async function evaluateToolPolicy(
   activeTools: Tool[],
   toolCallState: ToolCallState,
   toolPolicies: ToolPolicies,
+  accessMode: AgentAccessMode,
 ): Promise<EvaluatedPolicy> {
-  // allow edit tool calls without permission
-  if (isEditTool(toolCallState.toolCall.function.name)) {
+  const toolName = toolCallState.toolCall.function.name;
+  const tool = activeTools.find(
+    (candidate) => candidate.function.name === toolName,
+  );
+  const configuredPolicy =
+    toolPolicies[toolName] ?? tool?.defaultToolPolicy ?? DEFAULT_TOOL_SETTING;
+
+  // An explicitly disabled tool stays disabled in every access mode.
+  if (configuredPolicy === "disabled") {
+    return { policy: "disabled", toolCallState };
+  }
+
+  if (accessMode === "readOnly") {
+    return {
+      policy: tool?.readonly ? "allowedWithoutPermission" : "disabled",
+      toolCallState,
+    };
+  }
+
+  // Full access bypasses Continue approval and command classification. OS-level
+  // permissions still apply to the extension host process.
+  if (accessMode === "fullAccess") {
+    return { policy: "allowedWithoutPermission", toolCallState };
+  }
+
+  // Preserve the existing edit UX in Ask mode. Autonomous mode also permits
+  // edits, while dynamic terminal/file policies can still escalate risky args.
+  if (isEditTool(toolName)) {
     return { policy: "allowedWithoutPermission", toolCallState };
   }
 
   const basePolicy =
-    toolPolicies[toolCallState.toolCall.function.name] ??
-    activeTools.find(
-      (tool) => tool.function.name === toolCallState.toolCall.function.name,
-    )?.defaultToolPolicy ??
-    DEFAULT_TOOL_SETTING;
+    accessMode === "autonomous" ? "allowedWithoutPermission" : configuredPolicy;
 
-  const toolName = toolCallState.toolCall.function.name;
   const result = await ideMessenger.request("tools/evaluatePolicy", {
     toolName,
     basePolicy,
@@ -53,9 +79,6 @@ async function evaluateToolPolicy(
 
   // Ensure dynamic policy cannot be more lenient than base policy
   // Policy hierarchy (most restrictive to least): disabled > allowedWithPermission > allowedWithoutPermission
-  if (basePolicy === "disabled") {
-    return { policy: "disabled", displayValue, toolCallState }; // Cannot override disabled
-  }
   if (
     basePolicy === "allowedWithPermission" &&
     dynamicPolicy === "allowedWithoutPermission"
@@ -77,6 +100,7 @@ export async function evaluateToolPolicies(
   activeTools: Tool[],
   generatedToolCalls: ToolCallState[],
   toolPolicies: ToolPolicies,
+  accessMode: AgentAccessMode,
 ): Promise<EvaluatedPolicy[]> {
   // Check if ALL tool calls are auto-approved using dynamic evaluation
   const policyResults = await Promise.all(
@@ -86,6 +110,7 @@ export async function evaluateToolPolicies(
         activeTools,
         toolCallState,
         toolPolicies,
+        accessMode,
       ),
     ),
   );

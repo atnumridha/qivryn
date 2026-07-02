@@ -39,13 +39,12 @@ export function getDefaultToolPolicies(
   return policies;
 }
 
-// Plan mode: Complete override - exclude all write operations, allow only reads and bash
+// Plan mode: exclude direct write tools while permitting exploration.
 export const PLAN_MODE_POLICIES: ToolPermissionPolicy[] = [
   { tool: "Edit", permission: "exclude" },
   { tool: "MultiEdit", permission: "exclude" },
   { tool: "Write", permission: "exclude" },
 
-  // TODO address bash read only concerns, maybe make permissions more granular
   { tool: "Bash", permission: "allow" },
   { tool: "CheckBackgroundJob", permission: "allow" },
   { tool: "AskQuestion", permission: "allow" },
@@ -61,11 +60,26 @@ export const PLAN_MODE_POLICIES: ToolPermissionPolicy[] = [
   { tool: "Status", permission: "allow" },
   { tool: "UploadArtifact", permission: "allow" },
 
-  // Allow MCP tools
   { tool: "*", permission: "allow" },
 ];
 
-// Auto mode: Complete override - allow everything without asking
+// Sandbox mode: strict read-only override. Terminal and unknown/MCP tools are
+// excluded because their effects cannot be proven read-only ahead of time.
+export const SANDBOX_MODE_POLICIES: ToolPermissionPolicy[] = [
+  ...PLAN_MODE_POLICIES.filter(
+    (policy) => policy.tool !== "Bash" && policy.tool !== "*",
+  ),
+  { tool: "Bash", permission: "exclude" },
+  { tool: "*", permission: "exclude" },
+];
+
+// Autonomous mode: allow tools by default, while dynamic security evaluation
+// can still escalate risky terminal commands to an approval prompt.
+export const AUTONOMOUS_MODE_POLICIES: ToolPermissionPolicy[] = [
+  { tool: "*", permission: "allow" },
+];
+
+// Auto mode is explicit full access: allow everything without Continue prompts.
 export const AUTO_MODE_POLICIES: ToolPermissionPolicy[] = [
   { tool: "*", permission: "allow" },
 ];

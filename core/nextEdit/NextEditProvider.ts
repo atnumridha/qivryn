@@ -225,16 +225,20 @@ export class NextEditProvider {
     this.currentEditChainId = null;
     this.previousCompletions = [];
 
-    if (this.previousRequest) {
+    // Clear before awaiting so repeated editor-visibility events cannot replay
+    // the same cleanup concurrently.
+    const previousRequest = this.previousRequest;
+    this.previousRequest = null;
+    if (previousRequest) {
       const fileContent = (
-        await this.ide.readFile(this.previousRequest.filepath)
+        await this.ide.readFile(previousRequest.filepath)
       ).toString();
 
-      const ast = await getAst(this.previousRequest.filepath, fileContent);
+      const ast = await getAst(previousRequest.filepath, fileContent);
 
       if (ast) {
         DocumentHistoryTracker.getInstance().push(
-          localPathOrUriToPath(this.previousRequest.filepath),
+          localPathOrUriToPath(previousRequest.filepath),
           fileContent,
           ast,
         );

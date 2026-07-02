@@ -105,11 +105,39 @@ export class VsCodeMessenger {
     this.onWebview("reloadWindow", (msg) => {
       vscode.commands.executeCommand("workbench.action.reloadWindow");
     });
+    this.onWebview("reloadAgentWindow", () => {
+      vscode.commands.executeCommand("continue.reloadAgentsWindow");
+    });
+    this.onWebview("onboarding/importVsCode", () => {
+      vscode.commands.executeCommand(
+        "workbench.profiles.actions.importProfile",
+      );
+    });
     this.onWebview("focusEditor", (msg) => {
       vscode.commands.executeCommand("workbench.action.focusActiveEditorGroup");
     });
     this.onWebview("toggleFullScreen", (msg) => {
-      vscode.commands.executeCommand("continue.openInNewWindow");
+      vscode.commands.executeCommand(
+        "continue.openInNewWindow",
+        msg.data?.path,
+      );
+    });
+    this.onWebview("session/openInMain", async (msg) => {
+      await vscode.commands.executeCommand(
+        "continue.openSessionFromAgents",
+        msg.data.sessionId,
+      );
+      return true;
+    });
+    this.onWebview("agents/selectRepository", async () => {
+      const selected = await vscode.window.showOpenDialog({
+        canSelectFiles: false,
+        canSelectFolders: true,
+        canSelectMany: false,
+        openLabel: "Use repository",
+        title: "Choose a repository for the agent",
+      });
+      return selected?.[0]?.fsPath;
     });
 
     this.onWebview("acceptDiff", async ({ data: { filepath, streamId } }) => {
@@ -330,7 +358,11 @@ export class VsCodeMessenger {
       await ide.runCommand(msg.data.command);
     });
     this.onWebviewOrCore("getSearchResults", async (msg) => {
-      return ide.getSearchResults(msg.data.query, msg.data.maxResults);
+      return ide.getSearchResults(
+        msg.data.query,
+        msg.data.maxResults,
+        msg.data.options,
+      );
     });
     this.onWebviewOrCore("getFileResults", async (msg) => {
       return ide.getFileResults(msg.data.pattern, msg.data.maxResults);

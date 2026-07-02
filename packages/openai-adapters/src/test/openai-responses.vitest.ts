@@ -107,7 +107,7 @@ describe("toResponsesInput", () => {
         role: "assistant",
         tool_calls: [
           {
-            id: "fc_call_1",
+            id: "call_1",
             type: "function",
             function: {
               name: "searchDocs",
@@ -146,8 +146,7 @@ describe("toResponsesInput", () => {
       },
       {
         type: "function_call",
-        call_id: "fc_call_1",
-        id: "fc_call_1",
+        call_id: "call_1",
         name: "searchDocs",
         arguments: '{"query":"vitest expectations"}',
       },

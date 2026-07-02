@@ -17,13 +17,17 @@ describe("convertLegacyModeFlags", () => {
     expect(convertLegacyModeFlags(false, false)).toBeUndefined();
   });
 
+  test("should return autonomous when the autonomous flag is true", () => {
+    expect(convertLegacyModeFlags(false, false, true)).toBe("autonomous");
+  });
+
   test("should return undefined when no flags provided", () => {
     expect(convertLegacyModeFlags()).toBeUndefined();
   });
 
   test("should throw error when both readonly and auto are true", () => {
     expect(() => convertLegacyModeFlags(true, true)).toThrow(
-      "Cannot use both --readonly and --auto flags together",
+      "Cannot combine --readonly, --autonomous, and --auto mode flags",
     );
   });
 });
@@ -104,6 +108,12 @@ describe("processCommandFlags", () => {
     });
   });
 
+  test("should process autonomous mode without bypassing security", () => {
+    const result = processCommandFlags({ autonomous: true });
+    expect(result.mode).toBe("autonomous");
+    expect(result.permissionOverrides.mode).toBe("autonomous");
+  });
+
   test("should handle no mode flags", () => {
     const result = processCommandFlags({
       allow: ["readFile", "searchCode"],
@@ -126,7 +136,7 @@ describe("processCommandFlags", () => {
         readonly: true,
         auto: true,
       }),
-    ).toThrow("Cannot use both --readonly and --auto flags together");
+    ).toThrow("Cannot combine --readonly, --autonomous, and --auto mode flags");
   });
 
   test("should handle empty options", () => {

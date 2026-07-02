@@ -1,4 +1,5 @@
 import {
+  BugAntIcon,
   ChatBubbleLeftIcon,
   RocketLaunchIcon,
   SparklesIcon,
@@ -20,6 +21,8 @@ export function ModeIcon({
       return <SparklesIcon className={className} />;
     case "plan":
       return <SwatchIcon className={className} />;
+    case "debug":
+      return <BugAntIcon className={className} />;
     case "chat":
       return <ChatBubbleLeftIcon className={className} />;
     case "background":

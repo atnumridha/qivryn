@@ -1,5 +1,5 @@
+import { getUrlContextItems } from "core/context/providers/URLContextProvider.js";
 import type { ContextItem } from "core/index.js";
-import { fetchUrlContentImpl } from "core/tools/implementations/fetchUrlContent.js";
 import { ContinueError, ContinueErrorReason } from "core/util/errors.js";
 
 import {
@@ -55,8 +55,8 @@ export const fetchTool: Tool = {
       const originalConsoleError = console.error;
       console.error = () => {};
 
-      // Use the core fetchUrlContent implementation
-      const contextItems = await fetchUrlContentImpl({ url }, { fetch });
+      // Reuse the core URL parsing implementation with the CLI fetch function.
+      const contextItems = await getUrlContextItems(url, fetch);
 
       // Restore console.error
       console.error = originalConsoleError;

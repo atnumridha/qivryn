@@ -4,6 +4,7 @@ import { RETRIEVAL_PARAMS } from "../../../util/parameters";
 import { findUriInDirs } from "../../../util/uri";
 import { requestFilesFromRepoMap } from "../repoMapRequest";
 import { deduplicateChunks } from "../util";
+import { assertLocalOnlyRetrieval, rankHybridChunks } from "../hybridRank";
 
 import BaseRetrievalPipeline, {
   RetrievalPipelineRunArguments,
@@ -14,8 +15,10 @@ export default class RerankerRetrievalPipeline extends BaseRetrievalPipeline {
     args: RetrievalPipelineRunArguments,
   ): Promise<Chunk[]> {
     const { input, nRetrieve, filterDirectory, config } = this.options;
+    assertLocalOnlyRetrieval(config);
 
     let retrievalResults: Chunk[] = [];
+    let toolBasedChunks: Chunk[] = [];
 
     let ftsChunks: Chunk[] = [];
     try {
@@ -55,7 +58,6 @@ export default class RerankerRetrievalPipeline extends BaseRetrievalPipeline {
     }
 
     if (config.experimental?.codebaseToolCallingOnly) {
-      let toolBasedChunks: Chunk[] = [];
       try {
         toolBasedChunks = await this.retrieveWithTools(input);
       } catch (error) {
@@ -79,10 +81,20 @@ export default class RerankerRetrievalPipeline extends BaseRetrievalPipeline {
       );
     }
 
-    const deduplicatedRetrievalResults: Chunk[] =
-      deduplicateChunks(retrievalResults);
-
-    return deduplicatedRetrievalResults;
+    return deduplicateChunks(
+      rankHybridChunks(
+        args.query,
+        {
+          lexical: ftsChunks,
+          semantic: embeddingsChunks,
+          recent: recentlyEditedFilesChunks,
+          symbols: repoMapChunks,
+          tools: toolBasedChunks,
+        },
+        await this.retrieveGitRecentPaths(),
+        nRetrieve,
+      ),
+    );
   }
 
   private async _rerank(input: string, chunks: Chunk[]): Promise<Chunk[]> {

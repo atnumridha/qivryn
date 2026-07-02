@@ -325,6 +325,23 @@ This is a rule without invokable property.`;
     const result = markdownToRule(content, mockId);
     expect(result.invokable).toBeUndefined();
   });
+
+  it("preserves Cursor rule environment and scope metadata", () => {
+    const content = `---
+name: Scoped rule
+environments: [agent, plan]
+disabled_environments: [ask]
+scoped_to: workspace
+is_required: true
+---
+Keep this rule.`;
+
+    const result = markdownToRule(content, mockId);
+    expect(result.environments).toEqual(["agent", "plan"]);
+    expect(result.disabledEnvironments).toEqual(["ask"]);
+    expect(result.scopedTo).toBe("workspace");
+    expect(result.isRequired).toBe(true);
+  });
 });
 
 describe("getRuleName", () => {

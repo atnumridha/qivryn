@@ -19,6 +19,7 @@ const { npmInstall } = require("./npm-install");
 const {
   buildGui,
   copyOnnxRuntimeFromNodeModules,
+  copyOnnxWasmFromNodeModules,
   copyTreeSitterWasms,
   copyNodeModules,
   downloadRipgrepBinary,
@@ -91,6 +92,7 @@ async function package(target, os, arch, exe) {
   // Install and copy over native modules
   // *** onnxruntime-node ***
   await copyOnnxRuntimeFromNodeModules(target);
+  copyOnnxWasmFromNodeModules();
 
   // copy llama tokenizers to out
   copyTokenizers();
@@ -144,6 +146,7 @@ async function package(target, os, arch, exe) {
           ? "libonnxruntime.so.1.14.0"
           : "onnxruntime.dll"
     }`,
+    "out/dist/ort-wasm-simd-threaded.wasm",
 
     // Code/styling for the sidebar
     "gui/assets/index.js",

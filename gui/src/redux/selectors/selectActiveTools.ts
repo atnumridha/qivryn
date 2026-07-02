@@ -10,8 +10,9 @@ export const selectActiveTools = createSelector(
     (store: RootState) => store.config.config.tools,
     (store: RootState) => store.ui.toolSettings,
     (store: RootState) => store.ui.toolGroupSettings,
+    (store: RootState) => store.ui.agentAccessMode,
   ],
-  (mode, tools, policies, groupPolicies): Tool[] => {
+  (mode, tools, policies, groupPolicies, accessMode): Tool[] => {
     if (mode === "chat") {
       return [];
     } else {
@@ -28,6 +29,9 @@ export const selectActiveTools = createSelector(
         return enabledTools.filter(
           (t) => t.group !== BUILT_IN_GROUP_NAME || t.readonly,
         );
+      }
+      if (accessMode === "readOnly") {
+        return enabledTools.filter((tool) => tool.readonly);
       }
       return enabledTools;
     }

@@ -21,10 +21,15 @@ export interface StreamCallbacks {
 
 export function getDefaultCompletionOptions(
   opts?: CompletionOptions,
+  maxTokensOverride?: number,
 ): Partial<ChatCompletionCreateParamsStreaming> {
-  if (!opts) return {};
+  if (!opts) {
+    return maxTokensOverride === undefined
+      ? {}
+      : { max_tokens: maxTokensOverride };
+  }
   return {
-    max_tokens: opts.maxTokens,
+    max_tokens: maxTokensOverride ?? opts.maxTokens,
     temperature: opts.temperature,
     frequency_penalty: opts.frequencyPenalty,
     presence_penalty: opts.presencePenalty,

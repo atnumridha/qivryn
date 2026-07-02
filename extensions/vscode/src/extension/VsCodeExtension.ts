@@ -1,12 +1,13 @@
 import fs from "fs";
 import path from "path";
 
+import { parseContinueDeepLink } from "@continuedev/agent-runtime";
 import { IContextProvider } from "core";
 import { ConfigHandler } from "core/config/ConfigHandler";
-import { EXTENSION_NAME } from "core/util/constants";
 import { Core } from "core/core";
 import { FromCoreProtocol, ToCoreProtocol } from "core/protocol";
 import { InProcessMessenger } from "core/protocol/messenger";
+import { EXTENSION_NAME } from "core/util/constants";
 import {
   getConfigJsonPath,
   getConfigTsPath,
@@ -51,8 +52,14 @@ import {
   HandlerPriority,
   SelectionChangeManager,
 } from "../activation/SelectionChangeManager";
+import { resolveAgentCliPath } from "../agentCliPath";
+import { AgentNotificationManager } from "../AgentNotificationManager";
+import { AgentScmGraphManager } from "../AgentScmGraphManager";
+import { AgentWorktreeDecorationProvider } from "../AgentWorktreeDecorationProvider";
+import { AiAttributionCodeLensProvider } from "../AiAttributionCodeLensProvider";
 import { GhostTextAcceptanceTracker } from "../autocomplete/GhostTextAcceptanceTracker";
 import { getDefinitionsFromLsp } from "../autocomplete/lsp";
+import { ContinueLayoutManager } from "../ContinueLayoutManager";
 import {
   clearDocumentContentCache,
   handleTextDocumentChange,
@@ -170,6 +177,11 @@ export class VsCodeExtension {
   }
 
   constructor(context: vscode.ExtensionContext) {
+    const bundledAgentCli = resolveAgentCliPath(context.extensionPath);
+    if (bundledAgentCli) {
+      process.env.CONTINUE_CLI_PATH = bundledAgentCli;
+      process.env.CONTINUE_CLI_SOURCE = "bundled";
+    }
     this.editDecorationManager = new EditDecorationManager(context);
 
     let resolveWebviewProtocol: any = undefined;
@@ -260,6 +272,14 @@ export class VsCodeExtension {
         },
       ),
     );
+    const worktreeDecorations = new AgentWorktreeDecorationProvider();
+    context.subscriptions.push(
+      worktreeDecorations,
+      vscode.window.registerFileDecorationProvider(worktreeDecorations),
+    );
+    const agentScmGraphManager = new AgentScmGraphManager();
+    const layoutManager = new ContinueLayoutManager(context);
+    context.subscriptions.push(agentScmGraphManager);
     resolveWebviewProtocol(this.sidebar.webviewProtocol);
 
     const inProcessMessenger = new InProcessMessenger<
@@ -279,6 +299,13 @@ export class VsCodeExtension {
     );
 
     this.core = new Core(inProcessMessenger, this.ide);
+    context.subscriptions.push(new AgentNotificationManager(context));
+    context.subscriptions.push(
+      vscode.languages.registerCodeLensProvider(
+        { scheme: "file" },
+        new AiAttributionCodeLensProvider(),
+      ),
+    );
     this.configHandler = this.core.configHandler;
     resolveConfigHandler?.(this.configHandler);
 
@@ -351,7 +378,53 @@ export class VsCodeExtension {
     );
 
     // Handle uri events
-    this.uriHandler.event((uri) => {
+    this.uriHandler.event(async (uri) => {
+      const deepLink = parseContinueDeepLink(uri.toString());
+      if (deepLink) {
+        switch (deepLink.type) {
+          case "agent":
+            await vscode.commands.executeCommand(
+              "continue.navigateTo",
+              `/agents?runId=${encodeURIComponent(deepLink.runId)}`,
+              false,
+            );
+            return;
+          case "checkpoint":
+            await vscode.commands.executeCommand(
+              "continue.navigateTo",
+              `/agents?runId=${encodeURIComponent(deepLink.runId)}&checkpointId=${encodeURIComponent(deepLink.checkpointId)}`,
+              false,
+            );
+            return;
+          case "review":
+            await vscode.commands.executeCommand(
+              "continue.navigateTo",
+              `/review?reviewId=${encodeURIComponent(deepLink.reviewId)}`,
+              false,
+            );
+            return;
+          case "settings":
+            await vscode.commands.executeCommand(
+              "continue.navigateTo",
+              deepLink.section
+                ? `/config?tab=${encodeURIComponent(deepLink.section)}`
+                : "/config",
+              false,
+            );
+            return;
+          case "file":
+            if (deepLink.line) {
+              await this.ide.showLines(
+                deepLink.path,
+                deepLink.line - 1,
+                deepLink.line - 1,
+              );
+            } else {
+              await this.ide.openFile(deepLink.path);
+            }
+            return;
+        }
+      }
       const queryParams = new URLSearchParams(uri.query);
       let profileId = queryParams.get("profile_id");
 
@@ -411,7 +484,10 @@ export class VsCodeExtension {
       quickEdit,
       this.core,
       this.editDecorationManager,
+      layoutManager,
+      agentScmGraphManager,
     );
+    void layoutManager.restoreActive();
 
     // Disabled due to performance issues
     // registerDebugTracker(this.sidebar.webviewProtocol, this.ide);
@@ -546,9 +622,10 @@ export class VsCodeExtension {
 
     // Listen for editor changes to clean up decorations when editor closes.
     vscode.window.onDidChangeVisibleTextEditors(async () => {
-      // If our active editor is no longer visible, clear decorations.
-      console.log("deleteChain called from onDidChangeVisibleTextEditors");
-      await NextEditProvider.getInstance().deleteChain();
+      const nextEditProvider = NextEditProvider.getInstance();
+      if (nextEditProvider.chainExists()) {
+        await nextEditProvider.deleteChain();
+      }
     });
 
     // Listen for selection changes to hide tooltip when cursor moves.

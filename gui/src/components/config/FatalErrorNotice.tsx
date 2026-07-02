@@ -5,6 +5,7 @@ import { IdeMessengerContext } from "../../context/IdeMessenger";
 import { useAppSelector } from "../../redux/hooks";
 import { CONFIG_ROUTES } from "../../util/navigation";
 import Alert from "../gui/Alert";
+import { RuntimeRecoveryActions } from "../RuntimeRecoveryActions";
 
 export const FatalErrorIndicator = () => {
   const { refreshProfiles } = useAuth();
@@ -70,6 +71,9 @@ export const FatalErrorIndicator = () => {
           </div>
         )}
       </div>
+      <RuntimeRecoveryActions
+        onRetry={() => refreshProfiles("Clicked retry in fatal indicator")}
+      />
     </Alert>
   );
 };

@@ -16,6 +16,8 @@ import {
   countChatHistoryTokens,
   countToolDefinitionTokens,
   getModelContextLimit,
+  getModelMaxTokens,
+  getRequestMaxTokens,
 } from "./tokenizer.js";
 
 // Mock the logger
@@ -60,6 +62,66 @@ describe("tokenizer", () => {
       };
 
       expect(getModelContextLimit(model)).toBe(DEFAULT_CONTEXT_LENGTH);
+    });
+  });
+
+  describe("getModelMaxTokens", () => {
+    it("caps oversized configured completion budgets", () => {
+      const model = {
+        name: "large-output-model",
+        model: "test",
+        provider: "openai",
+        defaultCompletionOptions: {
+          contextLength: 200_000,
+          maxTokens: 70_000,
+        },
+      } as ModelConfig;
+
+      expect(getModelMaxTokens(model)).toBe(64_000);
+    });
+
+    it("never reserves the entire context window", () => {
+      const model = {
+        name: "small-context-model",
+        model: "test",
+        provider: "openai",
+        defaultCompletionOptions: {
+          contextLength: 8_192,
+          maxTokens: 20_000,
+        },
+      } as ModelConfig;
+
+      expect(getModelMaxTokens(model)).toBe(8_191);
+    });
+  });
+
+  describe("getRequestMaxTokens", () => {
+    it("shrinks the completion budget when a large prompt still fits", () => {
+      const model = {
+        name: "large-context-model",
+        model: "test",
+        provider: "openai",
+        defaultCompletionOptions: {
+          contextLength: 200_000,
+          maxTokens: 64_000,
+        },
+      } as ModelConfig;
+
+      expect(getRequestMaxTokens(model, 160_759, 100)).toBe(37_141);
+    });
+
+    it("returns zero when too little room remains for a useful response", () => {
+      const model = {
+        name: "large-context-model",
+        model: "test",
+        provider: "openai",
+        defaultCompletionOptions: {
+          contextLength: 200_000,
+          maxTokens: 64_000,
+        },
+      } as ModelConfig;
+
+      expect(getRequestMaxTokens(model, 195_000, 100)).toBe(0);
     });
   });
 
@@ -284,6 +346,14 @@ describe("tokenizer", () => {
       const model = createModel(1000, 200); // 1000 context, 200 max output
       const threshold = calculateThreshold(1000, 200);
       const chatHistory = createChatHistory(threshold - 100); // Below threshold
+
+      expect(shouldAutoCompact({ chatHistory, model })).toBe(false);
+    });
+
+    it("does not immediately compact a fresh recovery summary again", () => {
+      const model = createModel(200_000, 64_000);
+      const chatHistory = createChatHistory(160_000);
+      chatHistory[0].conversationSummary = "Recovered summary";
 
       expect(shouldAutoCompact({ chatHistory, model })).toBe(false);
     });

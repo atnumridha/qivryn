@@ -3,7 +3,7 @@ import { render } from "ink-testing-library";
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { IntroMessage } from "./IntroMessage.js";
+import { IntroMessage, summarizeRulesForIntro } from "./IntroMessage.js";
 
 // Mock the TipsDisplay module
 vi.mock("./TipsDisplay.js", () => ({
@@ -95,5 +95,44 @@ describe("IntroMessage", () => {
     const { lastFrame } = render(<IntroMessage />);
 
     expect(lastFrame()).not.toContain("Org:");
+  });
+
+  it("groups configured rules by application mode", () => {
+    const config = {
+      name: "Test Agent",
+      version: "1.0.0",
+      rules: [
+        "You are a precise software engineering assistant.",
+        {
+          name: "React files",
+          rule: "Use component conventions",
+          globs: "**/*.tsx",
+          alwaysApply: false,
+        },
+        {
+          name: "Migration workflow",
+          rule: "Plan migrations carefully",
+          description: "Use when changing database schema",
+          alwaysApply: false,
+        },
+      ],
+    };
+
+    const { lastFrame } = render(<IntroMessage config={config} />);
+
+    expect(lastFrame()).toContain("Rules:");
+    expect(lastFrame()).toContain("3 configured");
+    expect(lastFrame()).toContain("Always");
+    expect(lastFrame()).toContain("File scoped");
+    expect(lastFrame()).toContain("Agent requested");
+    expect(lastFrame()).toContain("React files");
+  });
+
+  it("derives concise titles for inline rules", () => {
+    expect(
+      summarizeRulesForIntro([
+        "# Engineering\n\nUse direct evidence and run tests when possible.",
+      ])[0].title,
+    ).toBe("Engineering");
   });
 });

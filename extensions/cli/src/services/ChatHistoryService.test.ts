@@ -279,6 +279,31 @@ describe("ChatHistoryService", () => {
         "Search results: found 5 items",
       );
     });
+
+    it("bounds large results and completed arguments in durable history", () => {
+      const largeArgument = "a".repeat(30_000);
+      const largeResult = "r".repeat(60_000);
+      service.addAssistantMessage("Using tool", [
+        {
+          id: "tool-large",
+          name: "MultiEdit",
+          arguments: { patch: largeArgument },
+        },
+      ]);
+
+      service.addToolResult("tool-large", largeResult);
+
+      const toolState = service.getHistory()[0].toolCallStates![0];
+      expect(toolState.output![0].content.length).toBeLessThanOrEqual(48_000);
+      expect(toolState.output![0].content).toContain("Context compacted");
+      expect(toolState.toolCall.function.arguments.length).toBeLessThanOrEqual(
+        24_000,
+      );
+      expect(JSON.parse(toolState.toolCall.function.arguments)).toMatchObject({
+        context_compacted: true,
+      });
+      expect(toolState.parsedArgs).toMatchObject({ context_compacted: true });
+    });
   });
 
   describe("compact", () => {
