@@ -1,0 +1,125 @@
+{
+  "$schema": "vscode://schemas/color-theme",
+  "name": "Qivryn Dark",
+  "type": "dark",
+  "semanticHighlighting": true,
+  "colors": {
+    "activityBar.background": "#0B0D12",
+    "activityBar.foreground": "#F4F2FF",
+    "activityBar.inactiveForeground": "#858B98",
+    "activityBarBadge.background": "#7C5CFF",
+    "activityBarBadge.foreground": "#FFFFFF",
+    "badge.background": "#7C5CFF",
+    "badge.foreground": "#FFFFFF",
+    "button.background": "#7257E8",
+    "button.foreground": "#FFFFFF",
+    "button.hoverBackground": "#846BFF",
+    "commandCenter.background": "#151923",
+    "commandCenter.border": "#2A3040",
+    "commandCenter.foreground": "#F4F2FF",
+    "descriptionForeground": "#9299A8",
+    "editor.background": "#0E1118",
+    "editor.foreground": "#DDE2EE",
+    "editor.findMatchBackground": "#7C5CFF66",
+    "editor.findMatchHighlightBackground": "#2DE2E633",
+    "editor.lineHighlightBackground": "#171C26",
+    "editor.selectionBackground": "#6247D866",
+    "editorCursor.foreground": "#2DE2E6",
+    "editorGroup.border": "#232936",
+    "editorGroupHeader.tabsBackground": "#0B0D12",
+    "editorIndentGuide.activeBackground1": "#4B5366",
+    "editorIndentGuide.background1": "#252B38",
+    "editorLineNumber.activeForeground": "#DDE2EE",
+    "editorLineNumber.foreground": "#596174",
+    "editorSuggestWidget.background": "#151923",
+    "editorSuggestWidget.border": "#2A3040",
+    "editorWidget.background": "#151923",
+    "editorWidget.border": "#2A3040",
+    "focusBorder": "#7C5CFF",
+    "input.background": "#151923",
+    "input.border": "#2A3040",
+    "input.foreground": "#F4F2FF",
+    "list.activeSelectionBackground": "#292344",
+    "list.activeSelectionForeground": "#FFFFFF",
+    "list.hoverBackground": "#1B202B",
+    "menu.background": "#151923",
+    "menu.foreground": "#DDE2EE",
+    "panel.background": "#0B0D12",
+    "panel.border": "#232936",
+    "panelTitle.activeBorder": "#7C5CFF",
+    "panelTitle.activeForeground": "#F4F2FF",
+    "peekView.border": "#7C5CFF",
+    "peekViewEditor.background": "#10141C",
+    "peekViewResult.background": "#0B0D12",
+    "progressBar.background": "#2DE2E6",
+    "sideBar.background": "#10131A",
+    "sideBar.border": "#232936",
+    "sideBar.foreground": "#DDE2EE",
+    "sideBarSectionHeader.background": "#151923",
+    "statusBar.background": "#0B0D12",
+    "statusBar.border": "#232936",
+    "statusBar.foreground": "#B8C0D0",
+    "tab.activeBackground": "#0E1118",
+    "tab.activeBorderTop": "#7C5CFF",
+    "tab.activeForeground": "#F4F2FF",
+    "tab.border": "#232936",
+    "tab.inactiveBackground": "#0B0D12",
+    "tab.inactiveForeground": "#858B98",
+    "terminal.background": "#0B0D12",
+    "terminal.foreground": "#DDE2EE",
+    "terminal.ansiBlue": "#7C9CFF",
+    "terminal.ansiCyan": "#2DE2E6",
+    "terminal.ansiGreen": "#57D18C",
+    "terminal.ansiMagenta": "#C792EA",
+    "terminal.ansiRed": "#FF6B81",
+    "terminal.ansiYellow": "#FFD166",
+    "titleBar.activeBackground": "#0B0D12",
+    "titleBar.activeForeground": "#F4F2FF",
+    "titleBar.border": "#232936"
+  },
+  "tokenColors": [
+    {
+      "scope": ["comment", "punctuation.definition.comment"],
+      "settings": {
+        "foreground": "#697386",
+        "fontStyle": "italic"
+      }
+    },
+    {
+      "scope": ["keyword", "storage.type", "storage.modifier"],
+      "settings": {
+        "foreground": "#C792EA"
+      }
+    },
+    {
+      "scope": ["string", "constant.other.symbol"],
+      "settings": {
+        "foreground": "#A8E6A3"
+      }
+    },
+    {
+      "scope": ["entity.name.function", "support.function"],
+      "settings": {
+        "foreground": "#82AAFF"
+      }
+    },
+    {
+      "scope": ["variable", "meta.definition.variable.name"],
+      "settings": {
+        "foreground": "#DDE2EE"
+      }
+    },
+    {
+      "scope": ["constant.numeric", "constant.language"],
+      "settings": {
+        "foreground": "#FFD166"
+      }
+    },
+    {
+      "scope": ["entity.name.type", "entity.name.class", "support.type"],
+      "settings": {
+        "foreground": "#2DE2E6"
+      }
+    }
+  ]
+}
