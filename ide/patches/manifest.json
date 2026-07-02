@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "upstreamRef": "1.127.0",
+  "patches": [
+    {
+      "id": "qivryn-product-and-inbox-extension",
+      "status": "implemented",
+      "layer": "distribution",
+      "acceptance": "The prepared Code - OSS tree uses Qivryn product identity, theme, data directories, URL protocol, and an in-box Qivryn extension."
+    },
+    {
+      "id": "agent-first-workbench-layout",
+      "status": "next",
+      "layer": "workbench",
+      "acceptance": "Agents, editor, terminal, and review surfaces restore as one native workspace layout."
+    },
+    {
+      "id": "native-worktree-tabs",
+      "status": "planned",
+      "layer": "editor",
+      "acceptance": "Editor tabs display repository, branch, worktree, and run identity without extension-only decorations."
+    },
+    {
+      "id": "agent-scm-graph",
+      "status": "planned",
+      "layer": "scm",
+      "acceptance": "Agent branches and checkpoints appear as first-class nodes in the native source-control graph."
+    },
+    {
+      "id": "embedded-browser-canvas",
+      "status": "planned",
+      "layer": "workbench",
+      "acceptance": "Browser sessions render in a native editor surface with navigation, inspection, screenshots, and agent takeover."
+    }
+  ]
+}
