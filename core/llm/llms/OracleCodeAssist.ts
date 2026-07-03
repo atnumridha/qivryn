@@ -52,9 +52,9 @@ function readOcaToken(): string {
  * Auth is managed automatically:
  *  - Reads `~/.codex/oca-secrets.json` for the JWT access token.
  *  - Falls back to the `OCA_API_KEY` environment variable (or ~/.qivryn/.env).
- *  - Token is re-read from the secrets file on each provider construction,
- *    so a `codex-oca-temp.sh refresh` + VS Code reload always picks up the
- *    new token without any config change.
+ *  - Token is resolved when an OCA request is made. This keeps an unavailable
+ *    optional provider from preventing other configured providers from loading,
+ *    and picks up refreshed tokens without a config reload.
  *
  * Setup (one time):
  *   bash ~/Documents/codex-oca-tool/codex-oca-temp.sh login
@@ -75,18 +75,15 @@ class OracleCodeAssist extends OpenAI {
     },
   };
 
-  constructor(options: LLMOptions) {
-    // Resolve apiKey at construction time:
-    // explicit config value  →  secrets file  →  env var
-    if (!options.apiKey) {
-      options = { ...options, apiKey: readOcaToken() };
-    }
-    super(options);
-  }
-
   protected override _getHeaders() {
+    // Resolve auth lazily so a missing OCA credential does not invalidate the
+    // entire config or hide models from providers that are authenticated.
+    const apiKey = this.apiKey?.trim() || readOcaToken();
+
     return {
       ...super._getHeaders(),
+      Authorization: `Bearer ${apiKey}`,
+      "api-key": apiKey,
       // Required Oracle Cloud Infrastructure headers
       client: "Qivryn",
       "client-version": CLIENT_VERSION,
