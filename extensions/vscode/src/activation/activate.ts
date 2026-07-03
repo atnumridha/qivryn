@@ -1,12 +1,13 @@
+import { GlobalContext } from "core/util/GlobalContext";
 import { getQivrynRcPath, getTsConfigPath } from "core/util/paths";
 import * as vscode from "vscode";
 
 import { VsCodeExtension } from "../extension/VsCodeExtension";
 import { isUnsupportedPlatform } from "../util/util";
 
-import { GlobalContext } from "core/util/GlobalContext";
 import { VsCodeQivrynApi } from "./api";
 import setupInlineTips from "./InlineTipManager";
+import { installBundledConfig } from "./installBundledConfig";
 import { registerConfigYamlSchema } from "./registerConfigYamlSchema";
 
 export async function activateExtension(context: vscode.ExtensionContext) {
@@ -23,6 +24,15 @@ export async function activateExtension(context: vscode.ExtensionContext) {
     void vscode.window.showInformationMessage(
       `Qivryn detected that you are using ${platformTarget}. Due to native dependencies, Qivryn may not be able to start`,
     );
+  }
+
+  // Install the packaged provider configuration before Core loads config.yaml.
+  // Existing user configuration is always preserved.
+  const configInstallResult = installBundledConfig(
+    context.asAbsolutePath("out/default-config.yaml"),
+  );
+  if (configInstallResult === "missing-bundle") {
+    console.warn("Qivryn bundled default configuration was not found");
   }
 
   // Add necessary files

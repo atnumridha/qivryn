@@ -55,6 +55,22 @@ function bundleAgentCli() {
   console.log("[info] Bundled the Qivryn agent CLI runtime");
 }
 
+function bundleDefaultConfig() {
+  const source = path.join(qivrynDir, ".qivryn-config", "config.yaml");
+  const destination = path.join(
+    qivrynDir,
+    "extensions",
+    "vscode",
+    "out",
+    "default-config.yaml",
+  );
+  if (!fs.existsSync(source)) {
+    throw new Error(`Missing canonical Qivryn config: ${source}`);
+  }
+  fs.copyFileSync(source, destination);
+  console.log("[info] Bundled the default Qivryn provider configuration");
+}
+
 // Clear folders that will be packaged to ensure clean slate
 rimrafSync(path.join(__dirname, "..", "bin"));
 rimrafSync(path.join(__dirname, "..", "out"));
@@ -115,6 +131,7 @@ void (async () => {
 
   // Make sure we have an initial timestamp file
   writeBuildTimestamp();
+  bundleDefaultConfig();
 
   if (!skipInstalls) {
     const installStart = Date.now();
@@ -534,6 +551,8 @@ void (async () => {
     "out/cli/index.js",
     "out/cli/package.json",
     "out/cli/xhr-sync-worker.js",
+    // Provider configuration installed on first activation
+    "out/default-config.yaml",
     // SQLite3 Node native module
     "out/build/Release/node_sqlite3.node",
 
