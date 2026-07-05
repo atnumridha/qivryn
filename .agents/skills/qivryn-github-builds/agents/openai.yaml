@@ -1,0 +1,4 @@
+interface:
+  display_name: "Qivryn GitHub Builds"
+  short_description: "Build and publish Qivryn release artifacts"
+  default_prompt: "Use $qivryn-github-builds to push my Qivryn branch, create the installer release tag, and verify GitHub Actions builds."

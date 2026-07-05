@@ -140,6 +140,15 @@ function stageQivrynExtension() {
   );
 
   if (!skipExtensionBuild) {
+    run("npm", ["run", "prepackage"], {
+      cwd: extensionDirectory,
+      env: {
+        ...process.env,
+        SKIP_INSTALLS: "true",
+        ...(vscodeTarget ? { QIVRYN_VSCODE_TARGET: vscodeTarget } : {}),
+      },
+    });
+
     const packageArgs = ["run", "package"];
     if (vscodeTarget) {
       packageArgs.push("--", "--target", vscodeTarget);
