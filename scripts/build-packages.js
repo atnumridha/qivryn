@@ -86,7 +86,13 @@ async function main() {
     // Phase 2: Build packages that depend on config-types
     await buildPackagesInParallel(["fetch", "config-yaml", "llm-info"]);
 
-    // Phase 3: Build packages that depend on other local packages
+    // Phase 3: Build runtime packages with no local runtime dependencies
+    await buildPackagesInParallel(["agent-runtime", "slack-connector"]);
+
+    // Phase 4: Build runtime packages that depend on agent-runtime
+    await buildPackagesInParallel(["browser-runtime", "review-engine"]);
+
+    // Phase 5: Build packages that depend on other local packages
     await buildPackagesInParallel(["openai-adapters", "qivryn-sdk"]);
 
     console.log("🎉 All packages built successfully!");
