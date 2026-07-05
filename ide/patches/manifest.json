@@ -10,27 +10,75 @@
     },
     {
       "id": "agent-first-workbench-layout",
-      "status": "next",
+      "status": "in-progress",
       "layer": "workbench",
       "acceptance": "Agents, editor, terminal, and review surfaces restore as one native workspace layout."
     },
     {
+      "id": "native-agent-sessions",
+      "status": "in-progress",
+      "layer": "workbench",
+      "acceptance": "The Qivryn desktop IDE registers qivryn-agent as an in-box native Chat Session provider while the React surface remains a fallback for extension and JetBrains modes."
+    },
+    {
+      "id": "qivryn-default-agent-session",
+      "status": "implemented",
+      "layer": "workbench",
+      "acceptance": "New built-in Chat sessions prefer qivryn-agent when the Qivryn provider contribution is available, without requiring a bundled Copilot default agent."
+    },
+    {
+      "id": "native-agent-session-state",
+      "status": "disabled",
+      "layer": "workbench",
+      "acceptance": "Deferred until native Agent Sessions are rebuilt against captured CodieApp references."
+    },
+    {
+      "id": "qivryn-agent-window-handoff",
+      "status": "disabled",
+      "layer": "workbench",
+      "acceptance": "The current handoff is handled by the Qivryn Agents webview panel; native session handoff is deferred with native Agent Sessions."
+    },
+    {
+      "id": "workspace-saved-layouts",
+      "status": "implemented",
+      "layer": "extension-host",
+      "acceptance": "Built-in and saved layouts capture supported workbench state, persist per workspace, and restore reliably."
+    },
+    {
       "id": "native-worktree-tabs",
-      "status": "planned",
+      "status": "implemented",
       "layer": "editor",
       "acceptance": "Editor tabs display repository, branch, worktree, and run identity without extension-only decorations."
     },
     {
+      "id": "optional-chat-onboarding",
+      "status": "implemented",
+      "layer": "workbench",
+      "acceptance": "Products without a bundled default chat provider start without upstream Copilot onboarding errors."
+    },
+    {
+      "id": "optional-default-account",
+      "status": "implemented",
+      "layer": "workbench",
+      "acceptance": "The account service remains available and non-blocking when a product has no bundled default chat provider."
+    },
+    {
+      "id": "context-key-command",
+      "status": "implemented",
+      "layer": "workbench",
+      "acceptance": "Saved layouts can read workbench visibility state through a Qivryn-internal, read-only command."
+    },
+    {
       "id": "agent-scm-graph",
-      "status": "planned",
+      "status": "implemented",
       "layer": "scm",
-      "acceptance": "Agent branches and checkpoints appear as first-class nodes in the native source-control graph."
+      "acceptance": "Agent worktrees register as native Git repositories so their branches and checkpoint commits appear as first-class source-control graph nodes."
     },
     {
       "id": "embedded-browser-canvas",
-      "status": "planned",
+      "status": "implemented",
       "layer": "workbench",
-      "acceptance": "Browser sessions render in a native editor surface with navigation, inspection, screenshots, and agent takeover."
+      "acceptance": "Browser sessions render in a native editor webview with navigation, inspection, screenshots, recording, permissions, and agent takeover."
     }
   ]
 }

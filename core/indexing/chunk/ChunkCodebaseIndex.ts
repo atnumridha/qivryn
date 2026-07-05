@@ -139,8 +139,6 @@ export class ChunkCodebaseIndex implements CodebaseIndex {
         await db.run("DELETE FROM chunk_tags WHERE chunkId = ?", [
           chunkToDelete.id,
         ]);
-      } else {
-        console.debug("Chunk to delete wasn't found in the table: ", item.path);
       }
 
       await markComplete([item], IndexResultType.Delete);

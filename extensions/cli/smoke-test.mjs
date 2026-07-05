@@ -58,6 +58,9 @@ runTest("Wrapper script has shebang", () => {
   if (!content.startsWith("#!/usr/bin/env node")) {
     throw new Error("Wrapper script missing shebang");
   }
+  if (!content.includes("process.versions.electron")) {
+    throw new Error("Wrapper script missing Electron argv normalization");
+  }
 });
 
 // Cross-platform command execution helper

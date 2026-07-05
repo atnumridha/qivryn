@@ -1,5 +1,5 @@
 import type { AgentControlRequest, AgentRun } from "@qivryn/agent-runtime";
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Route, Routes } from "react-router-dom";
 import { MockIdeMessenger } from "../../context/MockIdeMessenger";
@@ -78,7 +78,21 @@ describe("Agents workspace", () => {
     await user.click(
       await screen.findByRole("button", { name: "Reload Agents window" }),
     );
-    expect(post).toHaveBeenCalledWith("reloadAgentWindow", undefined);
+    expect(post).toHaveBeenCalledWith("reloadAgentWindow", { path: "/agents" });
+  });
+
+  it("opens the create-agent composer from the route", async () => {
+    await renderWithProviders(
+      <Routes>
+        <Route path="/agents" element={<Agents />} />
+      </Routes>,
+      { routerProps: { initialEntries: ["/agents?new=1"] } },
+    );
+
+    expect(
+      await screen.findByRole("form", { name: "Create agent" }),
+    ).toBeVisible();
+    expect(screen.getByRole("textbox", { name: "Agent task" })).toBeVisible();
   });
 
   it("groups runs, searches, and loads selected run events", async () => {
@@ -286,10 +300,13 @@ describe("Agents workspace", () => {
       await screen.findByRole("button", { name: /Inspect authentication/ }),
     );
     await user.click(
-      await screen.findByRole("button", { name: "Agent access mode" }),
+      await screen.findByRole("button", { name: "Agents mode dropdown" }),
     );
     await user.click(
-      await screen.findByRole("option", { name: /Full access/ }),
+      await screen.findByRole("button", { name: "Autonomous dropdown" }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /Full access/ }),
     );
 
     await waitFor(() =>
@@ -361,9 +378,9 @@ describe("Agents workspace", () => {
       prompt: "Review the session implementation against the API contract.",
       description: "Review prompt",
     };
-    let controlRequest: AgentControlRequest | undefined;
+    const controlRequests: AgentControlRequest[] = [];
     messenger.responseHandlers["agents/control"] = async (request) => {
-      controlRequest = request;
+      controlRequests.push(request);
       return undefined;
     };
     const { user, store } = await renderWithProviders(<Agents />, {
@@ -470,11 +487,26 @@ describe("Agents workspace", () => {
     await user.click(screen.getByRole("button", { name: "Send" }));
 
     await waitFor(() =>
-      expect(controlRequest).toMatchObject({
-        action: "queue.add",
-        runId: "context-run",
-      }),
+      expect(controlRequests).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            action: "queue.add",
+            runId: "context-run",
+          }),
+          expect.objectContaining({
+            action: "run.resume",
+            runId: "context-run",
+          }),
+        ]),
+      ),
     );
+    const controlRequest = controlRequests.find(
+      (request) => request.action === "queue.add",
+    );
+    expect(controlRequest).toMatchObject({
+      action: "queue.add",
+      runId: "context-run",
+    });
     if (controlRequest?.action !== "queue.add") {
       throw new Error("Expected a queue.add request");
     }
@@ -593,7 +625,6 @@ describe("Agents workspace", () => {
       },
     ];
     let loadedSessionId: string | undefined;
-    messenger.responseHandlers["session/openInMain"] = async () => false;
     messenger.responseHandlers["history/load"] = async ({ id }) => {
       loadedSessionId = id;
       return {
@@ -628,7 +659,6 @@ describe("Agents workspace", () => {
     messenger.responseHandlers["history/load"] = async () => {
       throw new Error("Session storage is unavailable");
     };
-    messenger.responseHandlers["session/openInMain"] = async () => false;
 
     const { user } = await renderWithProviders(<Agents />, {
       mockIdeMessenger: messenger,
@@ -643,7 +673,7 @@ describe("Agents workspace", () => {
     expect(screen.getByRole("button", { name: "Retry opening" })).toBeEnabled();
   });
 
-  it("hands large chats to the host instead of rendering them in the Agents window", async () => {
+  it("opens large chats in-place instead of handing them to the broken stock chat surface", async () => {
     const messenger = new MockIdeMessenger();
     messenger.responses["history/list"] = [
       {
@@ -654,12 +684,18 @@ describe("Agents workspace", () => {
         messageCount: 452,
       },
     ];
-    let handedOffSessionId: string | undefined;
-    messenger.responseHandlers["session/openInMain"] = async ({
-      sessionId,
-    }) => {
-      handedOffSessionId = sessionId;
-      return true;
+    let loadedSessionId: string | undefined;
+    messenger.responseHandlers["session/openInMain"] = async () => {
+      throw new Error("stock chat handoff must not be used");
+    };
+    messenger.responseHandlers["history/load"] = async ({ id }) => {
+      loadedSessionId = id;
+      return {
+        sessionId: id,
+        title: "Large implementation session",
+        workspaceDirectory: "/workspace/app",
+        history: [],
+      };
     };
 
     const { user } = await renderWithProviders(<Agents />, {
@@ -671,7 +707,7 @@ describe("Agents workspace", () => {
       }),
     );
 
-    await waitFor(() => expect(handedOffSessionId).toBe("large-chat"));
+    await waitFor(() => expect(loadedSessionId).toBe("large-chat"));
   });
 
   it("supports keyboard-first multi-repository monitoring", async () => {
@@ -760,10 +796,13 @@ describe("Agents workspace", () => {
       screen.getByRole("textbox", { name: "Agent task" }),
       "Run tests",
     );
-    await user.selectOptions(
-      screen.getByRole("combobox", { name: "Agent runtime" }),
-      "docker",
+    await user.click(
+      screen.getByRole("button", { name: "Agents mode dropdown" }),
     );
+    await user.click(
+      await screen.findByRole("button", { name: "Runtime dropdown" }),
+    );
+    await user.click(await screen.findByRole("button", { name: /Docker/ }));
     const image = screen.getByRole("textbox", { name: "Container image" });
     await user.clear(image);
     await user.type(image, "qivryn-agent:test");
@@ -814,11 +853,20 @@ describe("Agents workspace", () => {
     await user.click(
       await screen.findByRole("button", { name: "New local agent" }),
     );
-    expect(screen.getByTestId("model-select-button")).toHaveTextContent(
-      "Dynamic Reasoner",
+    await user.click(
+      screen.getByRole("button", { name: "Agents mode dropdown" }),
     );
-    expect(screen.getByText("think:")).toBeInTheDocument();
-    expect(screen.getByText("med")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Model dropdown" }),
+    ).toHaveTextContent("Dynamic Reasoner");
+    await user.click(screen.getByRole("button", { name: "Model dropdown" }));
+    expect(
+      screen.getByRole("button", { name: "Reasoning dropdown" }),
+    ).toHaveTextContent("med");
+    await user.click(
+      screen.getByRole("button", { name: "Reasoning dropdown" }),
+    );
+    await user.click(screen.getByRole("button", { name: "med" }));
     await waitFor(() =>
       expect(
         window.localStorage.getItem("qivryn.models.catalog.v1"),
@@ -855,9 +903,12 @@ describe("Agents workspace", () => {
     await user.click(
       await screen.findByRole("button", { name: "New local agent" }),
     );
-    expect(screen.getByTestId("model-select-button")).toHaveTextContent(
-      "Cached Reasoner",
+    await user.click(
+      screen.getByRole("button", { name: "Agents mode dropdown" }),
     );
+    expect(
+      screen.getByRole("button", { name: "Model dropdown" }),
+    ).toHaveTextContent("Cached Reasoner");
   });
 
   it("starts SSH agents through the shared durable runtime", async () => {
@@ -877,10 +928,13 @@ describe("Agents workspace", () => {
       screen.getByRole("textbox", { name: "Agent task" }),
       "Run remote tests",
     );
-    await user.selectOptions(
-      screen.getByRole("combobox", { name: "Agent runtime" }),
-      "ssh",
+    await user.click(
+      screen.getByRole("button", { name: "Agents mode dropdown" }),
     );
+    await user.click(
+      await screen.findByRole("button", { name: "Runtime dropdown" }),
+    );
+    await user.click(await screen.findByRole("button", { name: /Remote SSH/ }));
     const repository = screen.getByRole("combobox", {
       name: "Agent repository",
     });
@@ -932,7 +986,7 @@ describe("Agents workspace", () => {
     expect(screen.getByText("Output 1")).toBeInTheDocument();
   });
 
-  it("groups tool lifecycle events into compact expandable activity cards", async () => {
+  it("groups tool lifecycle events into a collapsed activity drawer", async () => {
     const messenger = new MockIdeMessenger();
     messenger.responses["agents/list"] = [
       run({ id: "tool-run", title: "Tool activity", status: "completed" }),
@@ -976,11 +1030,17 @@ describe("Agents workspace", () => {
       },
     ];
 
-    await renderWithProviders(<Agents />, {
+    const { user } = await renderWithProviders(<Agents />, {
       mockIdeMessenger: messenger,
       routerProps: { initialEntries: ["/agents?runId=tool-run"] },
     });
 
+    const activityDrawer = await screen.findByTestId("agent-activity-drawer");
+    expect(activityDrawer).not.toHaveAttribute("open");
+    expect(within(activityDrawer).getByText("Activity")).toBeVisible();
+    expect(within(activityDrawer).getByText("2 tool calls")).toBeVisible();
+    expect(await screen.findByText("Read file")).not.toBeVisible();
+    await user.click(within(activityDrawer).getByText("Activity"));
     expect(await screen.findByText("Read file")).toBeVisible();
     expect(screen.getAllByText("/src/app.ts")[0]).toBeVisible();
     expect(screen.getAllByText("file contents")[0]).toBeVisible();
@@ -1031,7 +1091,10 @@ describe("Agents workspace", () => {
 
     expect(await screen.findByText("● Live")).toBeVisible();
     expect(await screen.findByText("Working now")).toBeVisible();
-    expect(await screen.findByText("Using read_file")).toBeVisible();
+    const activityDrawer = await screen.findByTestId("agent-activity-drawer");
+    expect(activityDrawer).not.toHaveAttribute("open");
+    expect(within(activityDrawer).getByText("Activity")).toBeVisible();
+    expect(await screen.findByText("Using read_file")).not.toBeVisible();
     expect(
       (await screen.findByLabelText("Agent actions")).parentElement,
     ).toHaveTextContent("3 events");
@@ -1094,8 +1157,9 @@ describe("Agents workspace", () => {
       await screen.findByText("Still inspecting the repository."),
     ).toBeVisible();
     expect(screen.getAllByText("Agent is working…")).toHaveLength(1);
-    expect(screen.getAllByTestId("agent-event-row").at(-1)).toHaveTextContent(
-      "Agent is working…",
+    expect(screen.getByText("Agent is working…")).toBeVisible();
+    expect(screen.getByTestId("agent-activity-drawer")).not.toHaveAttribute(
+      "open",
     );
   });
 

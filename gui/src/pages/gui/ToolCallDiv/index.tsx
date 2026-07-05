@@ -60,6 +60,22 @@ export function ToolCallDiv({
       );
     }
 
+    if (functionName === BuiltInToolNames.UpdatePlan) {
+      return (
+        <ToolCallDisplay
+          icon={getStatusIcon(toolCallState.status)}
+          tool={tool}
+          toolCallState={toolCallState}
+          historyIndex={historyIndex}
+        >
+          <FunctionSpecificToolCallDiv
+            toolCallState={toolCallState}
+            historyIndex={historyIndex}
+          />
+        </ToolCallDisplay>
+      );
+    }
+
     if (icon) {
       return (
         <SimpleToolCallUI

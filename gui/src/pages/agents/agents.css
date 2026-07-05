@@ -71,14 +71,14 @@
   );
   --qivryn-shadow-workbench: 0 0 8px 2px
     color-mix(in srgb, var(--vscode-widget-shadow, #000) 40%, transparent);
-  --conversation-font-size: 13px;
-  --conversation-surface-border-radius: 8px;
+  --conversation-font-size: 12px;
+  --conversation-surface-border-radius: 7px;
   --agents-chrome: var(
     --vscode-sideBar-background,
     var(--vscode-editor-background, #181818)
   );
   --agents-editor: var(--vscode-editor-background, #181818);
-  --agents-input: var(--vscode-input-background, #202020);
+  --agents-input: var(--vscode-input-background, #1f1f1f);
   --agents-raised: var(--qivryn-bg-elevated);
   --agents-stroke-primary: var(--qivryn-stroke-primary);
   --agents-stroke-secondary: var(--qivryn-stroke-secondary);
@@ -87,6 +87,168 @@
   --agents-hover: var(--qivryn-bg-quaternary);
   --agents-selected: var(--qivryn-bg-tertiary);
   --agents-radius-xl: var(--conversation-surface-border-radius);
+  /*
+   * CodieApp 3.9.16 visual tokens, ported from its workbench CSS.
+   * Qivryn keeps its brand name, but the agent surface uses the same density,
+   * foreground/background/stroke hierarchy, and shadow semantics.
+   */
+  --cursor-red: var(--vscode-charts-red, #f14c4c);
+  --cursor-orange: var(--vscode-charts-orange, #ce9178);
+  --cursor-yellow: var(--vscode-charts-yellow, #dcdcaa);
+  --cursor-green: var(--vscode-charts-green, #73c991);
+  --cursor-cyan: var(--vscode-terminal-ansiCyan, #4ec9b0);
+  --cursor-blue: var(--vscode-terminal-ansiBlue, #569cd6);
+  --cursor-magenta: var(--vscode-terminal-ansiMagenta, #c586c0);
+  --cursor-purple: var(--vscode-charts-purple, #b180d7);
+  --markdown-foreground: var(--vscode-editor-foreground);
+  --cursor-text-primary: var(--vscode-editor-foreground, #e4e4e4);
+  --cursor-text-secondary: color-mix(
+    in srgb,
+    var(--vscode-editor-foreground, #e4e4e4) 74%,
+    transparent
+  );
+  --cursor-text-tertiary: color-mix(
+    in srgb,
+    var(--vscode-editor-foreground, #e4e4e4) 60%,
+    transparent
+  );
+  --cursor-text-quaternary: color-mix(
+    in srgb,
+    var(--vscode-editor-foreground, #e4e4e4) 36%,
+    transparent
+  );
+  --cursor-text-active: var(--vscode-list-activeSelectionForeground);
+  --cursor-text-focused: var(--vscode-list-focusForeground);
+  --cursor-icon-primary: color-mix(
+    in srgb,
+    var(--vscode-editor-foreground, #e4e4e4) 92%,
+    transparent
+  );
+  --cursor-icon-secondary: color-mix(
+    in srgb,
+    var(--vscode-editor-foreground, #e4e4e4) 66%,
+    transparent
+  );
+  --cursor-icon-tertiary: color-mix(
+    in srgb,
+    var(--vscode-editor-foreground, #e4e4e4) 52%,
+    transparent
+  );
+  --cursor-icon-quaternary: color-mix(
+    in srgb,
+    var(--vscode-editor-foreground, #e4e4e4) 28%,
+    transparent
+  );
+  --cursor-bg-primary: color-mix(
+    in srgb,
+    var(--vscode-editor-foreground, #e4e4e4) 20%,
+    transparent
+  );
+  --cursor-bg-secondary: color-mix(
+    in srgb,
+    var(--vscode-editor-foreground, #e4e4e4) 14%,
+    transparent
+  );
+  --cursor-bg-tertiary: color-mix(
+    in srgb,
+    var(--vscode-editor-foreground, #e4e4e4) 8%,
+    transparent
+  );
+  --cursor-bg-quaternary: color-mix(
+    in srgb,
+    var(--vscode-editor-foreground, #e4e4e4) 6%,
+    transparent
+  );
+  --cursor-bg-quinary: color-mix(
+    in srgb,
+    var(--vscode-editor-foreground, #e4e4e4) 4%,
+    transparent
+  );
+  --cursor-bg-elevated: var(
+    --vscode-dropdown-background,
+    var(--vscode-quickInput-background, #242424)
+  );
+  --cursor-bg-active: var(--vscode-list-activeSelectionBackground);
+  --cursor-bg-focused: var(--vscode-list-focusBackground);
+  --cursor-stroke-primary: color-mix(
+    in srgb,
+    var(--vscode-editor-foreground, #e4e4e4) 20%,
+    transparent
+  );
+  --cursor-stroke-secondary: color-mix(
+    in srgb,
+    var(--vscode-editor-foreground, #e4e4e4) 12%,
+    transparent
+  );
+  --cursor-stroke-tertiary: color-mix(
+    in srgb,
+    var(--vscode-editor-foreground, #e4e4e4) 8%,
+    transparent
+  );
+  --cursor-stroke-quaternary: color-mix(
+    in srgb,
+    var(--vscode-editor-foreground, #e4e4e4) 4%,
+    transparent
+  );
+  --cursor-stroke-focused: var(--vscode-focusBorder);
+  --cursor-shadow-primary: var(--vscode-widget-shadow, #000);
+  --cursor-shadow-secondary: color-mix(
+    in srgb,
+    var(--vscode-widget-shadow, #000) 60%,
+    transparent
+  );
+  --cursor-shadow-tertiary: color-mix(
+    in srgb,
+    var(--vscode-widget-shadow, #000) 30%,
+    transparent
+  );
+  --cursor-box-shadow-sm:
+    0 0 0 1px var(--vscode-widget-border, var(--cursor-stroke-tertiary)),
+    0 2px 8px 0 var(--cursor-shadow-secondary);
+  --cursor-box-shadow-base:
+    0 0 0 1px var(--vscode-widget-border, var(--cursor-stroke-tertiary)),
+    0 0 4px 0 var(--cursor-shadow-secondary),
+    0 8px 24px -2px var(--cursor-shadow-secondary);
+  --cursor-box-shadow-lg:
+    0 0 0 1px var(--vscode-widget-border, var(--cursor-stroke-tertiary)),
+    0 0 4px 0 var(--cursor-shadow-secondary),
+    0 16px 24px 0 var(--cursor-shadow-secondary);
+  --cursor-box-shadow-xl:
+    0 0 0 1px var(--vscode-widget-border, var(--cursor-stroke-tertiary)),
+    0 0 4px 0 var(--cursor-shadow-secondary),
+    0 12px 24px 0 var(--cursor-shadow-secondary),
+    0 24px 36px 0 var(--cursor-shadow-secondary);
+  --cursor-shadow-workbench: 0 0 8px 2px
+    color-mix(in srgb, var(--vscode-widget-shadow, #000) 40%, transparent);
+  --qivryn-text-primary: var(--cursor-text-primary);
+  --qivryn-text-secondary: var(--cursor-text-secondary);
+  --qivryn-text-tertiary: var(--cursor-text-tertiary);
+  --qivryn-text-quaternary: var(--cursor-text-quaternary);
+  --qivryn-icon-secondary: var(--cursor-icon-secondary);
+  --qivryn-icon-tertiary: var(--cursor-icon-tertiary);
+  --qivryn-bg-primary: var(--cursor-bg-primary);
+  --qivryn-bg-secondary: var(--cursor-bg-secondary);
+  --qivryn-bg-tertiary: var(--cursor-bg-tertiary);
+  --qivryn-bg-quaternary: var(--cursor-bg-quaternary);
+  --qivryn-bg-quinary: var(--cursor-bg-quinary);
+  --qivryn-bg-elevated: var(--cursor-bg-elevated);
+  --qivryn-stroke-primary: var(--cursor-stroke-primary);
+  --qivryn-stroke-secondary: var(--cursor-stroke-secondary);
+  --qivryn-stroke-tertiary: var(--cursor-stroke-tertiary);
+  --qivryn-shadow-workbench: var(--cursor-shadow-workbench);
+  --agents-chrome: var(
+    --vscode-sideBar-background,
+    var(--vscode-editor-background, #181818)
+  );
+  --agents-editor: var(--vscode-editor-background, #181818);
+  --agents-input: var(--vscode-input-background, #1f1f1f);
+  --agents-raised: var(--cursor-bg-elevated);
+  --agents-stroke-primary: var(--cursor-stroke-primary);
+  --agents-stroke-secondary: var(--cursor-stroke-secondary);
+  --agents-text-primary: var(--cursor-text-primary);
+  --agents-text-secondary: var(--cursor-text-tertiary);
+  --agents-hover: var(--cursor-bg-quaternary);
+  --agents-selected: var(--cursor-bg-tertiary);
   color: var(--qivryn-text-primary);
   background: var(--agents-editor);
   font-family: var(
@@ -96,19 +258,22 @@
     "Segoe UI",
     sans-serif
   );
-  font-size: 13px;
-  line-height: 1.45;
+  font-size: 12px;
+  line-height: 1.42;
 }
 
 .qivryn-agents-cursor .cursor-agents-toolbar {
-  height: 40px;
+  min-height: 34px;
+  height: auto;
+  flex-wrap: wrap;
+  row-gap: 3px;
   color: var(--qivryn-text-primary);
   background: var(--agents-editor);
   border-color: var(--qivryn-stroke-tertiary);
 }
 
 .qivryn-agents-cursor .cursor-agent-shell-grid {
-  grid-template-columns: minmax(248px, 300px) minmax(0, 1fr);
+  grid-template-columns: clamp(220px, 24vw, 300px) minmax(0, 1fr);
 }
 
 .qivryn-agents-cursor .cursor-agents-sidebar {
@@ -121,13 +286,13 @@
 }
 
 .qivryn-agents-cursor .cursor-agent-sidebar-search {
-  margin: 8px 12px 4px;
+  margin: 8px 10px 4px;
 }
 
 .qivryn-agents-cursor .cursor-agent-sidebar-search input {
-  height: 28px;
-  padding-top: 6px;
-  padding-bottom: 6px;
+  height: 26px;
+  padding-top: 5px;
+  padding-bottom: 5px;
   color: var(--qivryn-text-primary);
   background-blend-mode: screen;
   background-color: var(--qivryn-bg-quaternary);
@@ -163,8 +328,8 @@
 
 .qivryn-agents-cursor .cursor-agent-sidebar-section-title {
   box-sizing: border-box;
-  height: 24px;
-  padding: 5px 6px;
+  height: 22px;
+  padding: 4px;
   color: var(--qivryn-text-tertiary);
   font-size: 11px;
   font-weight: 400;
@@ -173,9 +338,9 @@
 }
 
 .qivryn-agents-cursor .cursor-agent-row {
-  min-height: 38px;
+  min-height: 36px;
   gap: 6px;
-  padding: 6px 8px;
+  padding: 5px 7px;
   color: var(--qivryn-text-primary);
   border-color: transparent;
   border-radius: 6px;
@@ -204,7 +369,7 @@
 .qivryn-agents-cursor .cursor-agent-row .text-xs {
   color: var(--qivryn-text-secondary);
   font-size: 12px;
-  line-height: 16px;
+  line-height: 15px;
 }
 
 .qivryn-agents-cursor .cursor-agent-row[data-selected="true"] .text-xs {
@@ -224,12 +389,12 @@
 
 .qivryn-agents-cursor .cursor-agent-detail-shell {
   max-width: none;
-  padding: 18px 24px 14px;
+  padding: clamp(12px, 2vw, 22px) clamp(10px, 2.4vw, 28px) 12px;
 }
 
 .qivryn-agents-cursor .cursor-agent-detail-header {
   width: 100%;
-  max-width: 840px;
+  max-width: 780px;
   margin-right: auto;
   margin-left: auto;
 }
@@ -279,7 +444,7 @@
   .cursor-agent-detail-shell
   > form:not(.cursor-agent-composer) {
   width: 100%;
-  max-width: 840px;
+  max-width: 780px;
   margin-right: auto;
   margin-left: auto;
 }
@@ -322,7 +487,8 @@
 
 .qivryn-agents-cursor .cursor-agent-transcript {
   box-sizing: border-box;
-  padding: 0 10px 20px;
+  width: min(100%, 860px);
+  padding: 0 clamp(4px, 1vw, 10px) 20px;
   scrollbar-width: thin;
   scrollbar-color: var(--qivryn-bg-secondary) transparent;
 }
@@ -330,7 +496,7 @@
 .qivryn-agents-cursor .cursor-human-message {
   box-sizing: border-box;
   width: fit-content;
-  max-width: min(92%, 760px);
+  max-width: min(92%, 720px);
   min-width: 150px;
   margin-left: auto;
   padding: 8px 10px;
@@ -535,7 +701,7 @@
 }
 
 .qivryn-agents-cursor .cursor-event-user {
-  max-width: min(92%, 760px);
+  max-width: min(92%, 720px);
   margin-left: auto;
   color: var(--qivryn-text-primary);
   background: var(--vscode-input-background, var(--agents-input));
@@ -545,9 +711,9 @@
 
 .qivryn-agents-cursor .cursor-agent-composer {
   box-sizing: border-box;
-  width: calc(100% - 20px);
-  max-width: 840px;
-  padding: 8px 10px 6px;
+  width: min(calc(100% - 20px), 860px);
+  max-width: 860px;
+  padding: 7px 9px 6px;
   background: var(--vscode-input-background, var(--agents-input));
   border: 1px solid var(--qivryn-stroke-secondary);
   border-radius: var(--conversation-surface-border-radius);
@@ -576,7 +742,7 @@
 }
 
 .qivryn-agents-cursor .cursor-agent-composer-input {
-  min-height: 42px;
+  min-height: 38px;
   color: var(--qivryn-text-primary);
   line-height: 1.5;
   background: transparent !important;
@@ -585,6 +751,8 @@
 .qivryn-agents-cursor .cursor-agent-composer-toolbar {
   min-height: 24px;
   margin-top: 6px;
+  flex-wrap: wrap;
+  align-items: flex-end;
 }
 
 .qivryn-agents-cursor .cursor-agent-composer .find-widget-skip {
@@ -767,6 +935,27 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .qivryn-agents-cursor .cursor-agents-sidebar-creating {
+    position: absolute;
+    z-index: 50;
+    top: 48px;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: flex !important;
+    height: auto;
+    pointer-events: none;
+    background: transparent;
+    border: 0;
+  }
+
+  .qivryn-agents-cursor
+    .cursor-agents-sidebar-creating
+    .cursor-agent-launch-overlay {
+    top: 0;
+    pointer-events: auto;
+  }
+
   .qivryn-agents-cursor .cursor-agent-launch-overlay {
     left: 0;
     padding: 18px 16px;
@@ -783,5 +972,820 @@
   .qivryn-agents-cursor .cursor-agent-composer {
     width: 100%;
     padding: 8px;
+  }
+}
+
+/* Qivryn agent cockpit ----------------------------------------------------- */
+.qivryn-agents-cursor {
+  --agents-signal: var(--vscode-focusBorder, #63d6cf);
+  --agents-signal-strong: color-mix(
+    in srgb,
+    var(--vscode-focusBorder, #63d6cf) 72%,
+    #9b8cff
+  );
+  --agents-panel: color-mix(
+    in srgb,
+    var(--vscode-editor-background, #111416) 94%,
+    var(--vscode-editor-foreground, #e8edf0)
+  );
+  --agents-panel-raised: color-mix(
+    in srgb,
+    var(--vscode-editor-background, #111416) 88%,
+    var(--vscode-editor-foreground, #e8edf0)
+  );
+  --agents-hairline: color-mix(
+    in srgb,
+    var(--vscode-editor-foreground, #e8edf0) 11%,
+    transparent
+  );
+  letter-spacing: -0.006em;
+}
+
+.qivryn-agents-cursor::before {
+  position: absolute;
+  z-index: 100;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--agents-signal) 28%,
+    var(--agents-signal-strong) 66%,
+    transparent 100%
+  );
+  opacity: 0.7;
+  content: "";
+}
+
+.qivryn-agents-cursor .cursor-agents-toolbar {
+  min-height: 48px;
+  padding: 0 14px;
+  gap: 7px;
+  background: color-mix(
+    in srgb,
+    var(--vscode-editor-background, #111416) 97%,
+    var(--vscode-editor-foreground, #e8edf0)
+  );
+  border-color: var(--agents-hairline);
+}
+
+.qivryn-agents-cursor .cursor-agents-toolbar-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  letter-spacing: -0.02em;
+}
+
+.qivryn-agents-cursor .cursor-agents-brand-mark {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  background: linear-gradient(135deg, var(--agents-signal), #9b8cff);
+  border-radius: 2px 5px 2px 5px;
+  box-shadow: 0 0 16px color-mix(in srgb, var(--agents-signal) 40%, transparent);
+  transform: rotate(12deg);
+}
+
+.qivryn-agents-cursor .cursor-agents-toolbar > button {
+  min-height: 30px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.qivryn-agents-cursor .cursor-agents-toolbar > button:hover {
+  background: var(--agents-panel-raised);
+  border-color: var(--agents-hairline);
+}
+
+.qivryn-agents-cursor
+  .cursor-agents-toolbar
+  > button[aria-label="New local agent"] {
+  color: var(--vscode-button-foreground, #071012);
+  background: linear-gradient(
+    135deg,
+    var(--agents-signal),
+    var(--agents-signal-strong)
+  );
+  border-color: color-mix(in srgb, var(--agents-signal) 75%, white);
+  box-shadow: 0 4px 18px
+    color-mix(in srgb, var(--agents-signal) 18%, transparent);
+}
+
+.qivryn-agents-cursor .cursor-agent-shell-grid {
+  grid-template-columns: clamp(250px, 25vw, 316px) minmax(0, 1fr);
+}
+
+.qivryn-agents-cursor .cursor-agents-sidebar {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--agents-signal) 3%, transparent),
+      transparent 180px
+    ),
+    var(--agents-chrome);
+  border-color: var(--agents-hairline);
+}
+
+.qivryn-agents-cursor .cursor-agent-sidebar-search {
+  margin: 12px 12px 8px;
+}
+
+.qivryn-agents-cursor .cursor-agent-sidebar-search input {
+  height: 34px;
+  padding-left: 30px;
+  background: color-mix(
+    in srgb,
+    var(--vscode-input-background, #1b1f22) 86%,
+    transparent
+  );
+  border-color: var(--agents-hairline);
+  border-radius: 8px;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.qivryn-agents-cursor .cursor-agent-sidebar-search input:focus {
+  border-color: color-mix(in srgb, var(--agents-signal) 58%, transparent);
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--agents-signal) 10%, transparent);
+}
+
+.qivryn-agents-cursor .cursor-agent-sidebar-sections {
+  padding: 4px 8px 20px;
+}
+
+.qivryn-agents-cursor .cursor-agent-sidebar-section-title {
+  height: auto;
+  padding: 9px 8px 6px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 12px;
+  letter-spacing: 0.13em;
+}
+
+.qivryn-agents-cursor .cursor-agent-row {
+  position: relative;
+  min-height: 48px;
+  margin: 1px 0;
+  padding: 7px 9px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+
+.qivryn-agents-cursor .cursor-agent-row:hover {
+  background: var(--agents-panel-raised);
+  border-color: var(--agents-hairline);
+}
+
+.qivryn-agents-cursor .cursor-agent-row[data-selected="true"] {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--agents-signal) 13%, transparent),
+    var(--agents-panel-raised)
+  );
+  border-color: color-mix(
+    in srgb,
+    var(--agents-signal) 24%,
+    var(--agents-hairline)
+  );
+}
+
+.qivryn-agents-cursor .cursor-agent-row[data-selected="true"]::before {
+  position: absolute;
+  top: 9px;
+  bottom: 9px;
+  left: 0;
+  width: 2px;
+  background: var(--agents-signal);
+  border-radius: 0 2px 2px 0;
+  content: "";
+}
+
+.qivryn-agents-cursor .cursor-agent-row .text-xs {
+  color: var(--qivryn-text-primary);
+  font-size: 12px;
+  font-weight: 550;
+}
+
+.qivryn-agents-cursor .cursor-agent-row .text-2xs {
+  margin-top: 2px;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 9px;
+  opacity: 0.72;
+}
+
+.qivryn-agents-cursor .cursor-agents-main {
+  position: relative;
+  background:
+    radial-gradient(
+      circle at 70% 18%,
+      color-mix(in srgb, var(--agents-signal) 5%, transparent),
+      transparent 34%
+    ),
+    linear-gradient(var(--agents-hairline) 1px, transparent 1px),
+    linear-gradient(90deg, var(--agents-hairline) 1px, transparent 1px),
+    var(--agents-editor);
+  background-size:
+    auto,
+    40px 40px,
+    40px 40px,
+    auto;
+}
+
+.qivryn-agents-cursor .cursor-agents-main::after {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    var(--agents-editor),
+    transparent 9%,
+    transparent 91%,
+    var(--agents-editor)
+  );
+  content: "";
+}
+
+.qivryn-agents-cursor .cursor-agents-main > * {
+  position: relative;
+  z-index: 1;
+}
+
+.qivryn-agents-cursor .cursor-agent-empty-card {
+  position: relative;
+  width: min(680px, 100%);
+  padding: clamp(28px, 5vw, 56px);
+  color: var(--qivryn-text-primary);
+  background: color-mix(in srgb, var(--agents-panel) 94%, transparent);
+  border: 1px solid var(--agents-hairline);
+  border-radius: 18px;
+  box-shadow:
+    0 30px 80px
+      color-mix(in srgb, var(--vscode-widget-shadow, #000) 38%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 5%, transparent);
+  backdrop-filter: blur(16px);
+}
+
+.qivryn-agents-cursor .cursor-agent-empty-card::before {
+  position: absolute;
+  top: -1px;
+  left: 34px;
+  width: 110px;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    var(--agents-signal),
+    var(--agents-signal-strong)
+  );
+  content: "";
+}
+
+.qivryn-agents-cursor .cursor-agent-empty-index,
+.qivryn-agents-cursor .cursor-agent-eyebrow {
+  color: var(--agents-signal);
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.qivryn-agents-cursor .cursor-agent-empty-icon {
+  display: flex;
+  width: 42px;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+  margin: 26px 0 18px;
+  color: var(--agents-signal);
+  background: color-mix(in srgb, var(--agents-signal) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--agents-signal) 28%, transparent);
+  border-radius: 11px;
+}
+
+.qivryn-agents-cursor .cursor-agent-empty-card h1 {
+  max-width: 550px;
+  margin: 0;
+  font-size: clamp(30px, 5vw, 54px);
+  font-weight: 620;
+  line-height: 0.98;
+  letter-spacing: -0.055em;
+}
+
+.qivryn-agents-cursor .cursor-agent-empty-card > p {
+  max-width: 510px;
+  margin: 17px 0 24px;
+  color: var(--qivryn-text-tertiary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.qivryn-agents-cursor .cursor-agent-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.qivryn-agents-cursor
+  :is(.cursor-agent-primary-action, .cursor-agent-secondary-action) {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  cursor: pointer;
+  font-weight: 600;
+  border-radius: 8px;
+}
+
+.qivryn-agents-cursor .cursor-agent-primary-action {
+  color: var(--vscode-button-foreground, #071012);
+  background: linear-gradient(
+    135deg,
+    var(--agents-signal),
+    var(--agents-signal-strong)
+  );
+  border: 1px solid color-mix(in srgb, var(--agents-signal) 72%, white);
+}
+
+.qivryn-agents-cursor .cursor-agent-secondary-action {
+  color: var(--qivryn-text-primary);
+  background: transparent;
+  border: 1px solid var(--agents-hairline);
+}
+
+.qivryn-agents-cursor .cursor-agent-empty-rail {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 32px;
+  padding-top: 16px;
+  color: var(--qivryn-text-tertiary);
+  font-size: 10px;
+  border-top: 1px solid var(--agents-hairline);
+}
+
+.qivryn-agents-cursor .cursor-agent-empty-rail span {
+  display: flex;
+  gap: 7px;
+}
+
+.qivryn-agents-cursor .cursor-agent-empty-rail b {
+  color: var(--agents-signal);
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-weight: 500;
+}
+
+.qivryn-agents-cursor .cursor-agent-launch-overlay {
+  top: 48px;
+  left: clamp(250px, 25vw, 316px);
+  padding: clamp(24px, 5vw, 64px);
+  background:
+    radial-gradient(
+      circle at 50% 45%,
+      color-mix(in srgb, var(--agents-signal) 7%, transparent),
+      transparent 38%
+    ),
+    linear-gradient(var(--agents-hairline) 1px, transparent 1px),
+    linear-gradient(90deg, var(--agents-hairline) 1px, transparent 1px),
+    var(--agents-editor);
+  background-size:
+    auto,
+    40px 40px,
+    40px 40px,
+    auto;
+}
+
+.qivryn-agents-cursor .cursor-agent-launch-card {
+  justify-content: center !important;
+  max-width: 760px;
+}
+
+.qivryn-agents-cursor .cursor-agent-launch-heading {
+  margin-bottom: 14px;
+}
+
+.qivryn-agents-cursor .cursor-agent-launch-heading h2 {
+  margin-top: 6px;
+  font-size: clamp(20px, 2.5vw, 28px);
+  font-weight: 620;
+  letter-spacing: -0.035em;
+}
+
+.qivryn-agents-cursor .cursor-agent-create-composer {
+  width: 100%;
+  max-width: 760px;
+  padding: 17px;
+  background: color-mix(in srgb, var(--agents-panel) 96%, transparent);
+  border-color: color-mix(
+    in srgb,
+    var(--agents-signal) 22%,
+    var(--agents-hairline)
+  );
+  border-radius: 14px;
+  box-shadow:
+    0 28px 70px
+      color-mix(in srgb, var(--vscode-widget-shadow, #000) 42%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 5%, transparent);
+}
+
+.qivryn-agents-cursor
+  .cursor-agent-create-composer
+  .cursor-agent-composer-input {
+  min-height: 116px;
+  padding: 4px 5px;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.qivryn-agents-cursor
+  .cursor-agent-create-composer
+  .cursor-agent-composer-toolbar {
+  margin-top: 13px;
+  padding-top: 13px;
+  border-top: 1px solid var(--agents-hairline);
+}
+
+.qivryn-agents-cursor .cursor-agent-create-composer :is(input, button) {
+  min-height: 32px;
+}
+
+.qivryn-agents-cursor .cursor-agent-detail-header {
+  padding-bottom: 13px;
+  border-bottom: 1px solid var(--agents-hairline);
+}
+
+.qivryn-agents-cursor .qivryn-mode-select > div > button {
+  min-height: 28px;
+  max-width: 148px;
+  padding: 2px 9px;
+  color: var(--qivryn-text-primary);
+  background: var(--agents-panel-raised);
+  border: 1px solid var(--agents-hairline);
+  border-radius: 7px;
+}
+
+.qivryn-agents-cursor .qivryn-mode-menu {
+  padding: 6px !important;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--agents-signal) 5%, transparent),
+      transparent 90px
+    ),
+    var(--vscode-dropdown-background, #202428) !important;
+  border: 1px solid
+    color-mix(in srgb, var(--agents-signal) 20%, var(--agents-hairline)) !important;
+  border-radius: 12px !important;
+  box-shadow:
+    0 24px 64px
+      color-mix(in srgb, var(--vscode-widget-shadow, #000) 62%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 6%, transparent) !important;
+}
+
+.qivryn-agents-cursor .qivryn-mode-menu > button {
+  min-height: 32px;
+  padding: 6px 9px !important;
+  border-radius: 7px !important;
+}
+
+.qivryn-agents-cursor .qivryn-mode-menu [role="group"] {
+  margin-left: 14px;
+  background: color-mix(
+    in srgb,
+    var(--agents-panel) 72%,
+    transparent
+  ) !important;
+  border-left-color: color-mix(
+    in srgb,
+    var(--agents-signal) 30%,
+    transparent
+  ) !important;
+  border-radius: 0 8px 8px 0 !important;
+}
+
+@media (max-width: 719px) {
+  .qivryn-agents-cursor .cursor-agent-shell-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .qivryn-agents-cursor .cursor-agent-launch-overlay {
+    top: 48px;
+    left: 0;
+  }
+
+  .qivryn-agents-cursor .cursor-agent-empty {
+    padding: 16px;
+  }
+
+  .qivryn-agents-cursor .cursor-agent-empty-card {
+    padding: 26px 22px;
+  }
+
+  .qivryn-agents-cursor .cursor-agent-empty-rail {
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qivryn-agents-cursor *,
+  .qivryn-agents-cursor *::before,
+  .qivryn-agents-cursor *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Chat-first Agent experience -------------------------------------------- */
+.qivryn-agents-cursor .cursor-agents-main,
+.qivryn-agents-cursor .cursor-agent-detail {
+  background: var(--vscode-editor-background, var(--agents-editor)) !important;
+}
+
+.qivryn-agents-cursor .cursor-agents-main::after,
+.qivryn-agents-cursor .cursor-agent-empty-card::before {
+  display: none;
+}
+
+.qivryn-agents-cursor .cursor-agent-detail-shell {
+  width: 100%;
+  max-width: none;
+  padding: 14px clamp(12px, 3vw, 42px) 12px !important;
+}
+
+.qivryn-agents-cursor .cursor-agent-detail-header {
+  width: min(100%, 860px);
+  max-width: 860px;
+  margin: 0 auto 2px;
+  padding: 0 2px 6px !important;
+  border-bottom: 0 !important;
+}
+
+.qivryn-agents-cursor .cursor-agent-chat-title {
+  max-width: min(76ch, 100%);
+  color: var(--qivryn-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  letter-spacing: -0.01em;
+}
+
+.qivryn-agents-cursor .cursor-agent-detail-shell > details,
+.qivryn-agents-cursor
+  .cursor-agent-detail-shell
+  > form:not(.cursor-agent-composer),
+.qivryn-agents-cursor .cursor-agent-run-meta {
+  width: min(100%, 860px);
+  max-width: 860px;
+}
+
+.qivryn-agents-cursor .cursor-checkpoint-menu,
+.qivryn-agents-cursor
+  .cursor-agent-detail-shell
+  > details:not(.cursor-checkpoint-menu) {
+  opacity: 0.75;
+}
+
+.qivryn-agents-cursor .cursor-agent-transcript {
+  width: min(100%, 860px);
+  max-width: 860px;
+  margin-top: 4px !important;
+  padding: 0 2px 18px !important;
+}
+
+.qivryn-agents-cursor .cursor-conversation-timeline {
+  margin-top: 10px !important;
+}
+
+.qivryn-agents-cursor .cursor-human-message,
+.qivryn-agents-cursor .cursor-event-user {
+  max-width: min(88%, 720px);
+  padding: 9px 11px;
+  background: color-mix(
+    in srgb,
+    var(--vscode-input-background, var(--agents-input)) 96%,
+    var(--vscode-editor-foreground, #e4e4e4)
+  );
+  border-color: var(--qivryn-stroke-secondary);
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+.qivryn-agents-cursor .cursor-assistant-message {
+  max-width: min(88%, 720px);
+  padding: 10px 2px 6px;
+  color: var(--qivryn-text-primary);
+  font-size: 13px;
+}
+
+.qivryn-agents-cursor .cursor-runtime-notice {
+  width: fit-content;
+  max-width: min(100%, 720px);
+  margin: 8px auto;
+  padding: 4px 9px;
+  color: var(--qivryn-text-tertiary);
+  background: color-mix(
+    in srgb,
+    var(--vscode-input-background, var(--agents-input)) 62%,
+    transparent
+  );
+  border: 1px solid var(--qivryn-stroke-secondary);
+  border-radius: 999px;
+}
+
+.qivryn-agents-cursor .cursor-reasoning-card {
+  width: fit-content;
+  max-width: min(100%, 720px);
+  margin: 8px 0;
+  padding: 5px 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+
+.qivryn-agents-cursor .cursor-agent-activity-drawer {
+  width: min(100%, 720px);
+  margin: 12px 0 4px;
+  color: var(--qivryn-text-tertiary);
+}
+
+.qivryn-agents-cursor
+  .cursor-agent-activity-drawer
+  > summary::-webkit-details-marker {
+  display: none;
+}
+
+.qivryn-agents-cursor .cursor-agent-activity-summary {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  padding: 4px 8px;
+  cursor: pointer;
+  color: var(--qivryn-text-tertiary);
+  font-size: 11px;
+  line-height: 14px;
+  list-style: none;
+  background: transparent;
+  border: 1px solid var(--qivryn-stroke-secondary);
+  border-radius: 999px;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.qivryn-agents-cursor .cursor-agent-activity-summary:hover {
+  color: var(--qivryn-text-secondary);
+  background: var(--qivryn-bg-quinary);
+  border-color: var(--qivryn-stroke-primary);
+}
+
+.qivryn-agents-cursor .cursor-agent-activity-summary span:last-child {
+  color: var(--qivryn-text-quaternary);
+  font-variant-numeric: tabular-nums;
+}
+
+.qivryn-agents-cursor .cursor-agent-activity-body {
+  margin-top: 7px;
+  padding-left: 10px;
+  border-left: 1px solid var(--qivryn-stroke-secondary);
+}
+
+.qivryn-agents-cursor .cursor-agent-activity-body .cursor-tool-activity {
+  opacity: 0.9;
+}
+
+.qivryn-agents-cursor .cursor-agent-activity-drawer:not([open]) {
+  opacity: 0.82;
+}
+
+.qivryn-agents-cursor .cursor-agent-composer {
+  width: min(calc(100% - 4px), 860px);
+  max-width: 860px;
+  padding: 8px 9px 7px;
+  background: var(--vscode-input-background, var(--agents-input));
+  border-color: var(--qivryn-stroke-secondary);
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+.qivryn-agents-cursor .cursor-agent-composer:focus-within {
+  border-color: color-mix(
+    in srgb,
+    var(--vscode-focusBorder, #007acc) 62%,
+    var(--qivryn-stroke-primary)
+  );
+  box-shadow: 0 0 0 1px
+    color-mix(in srgb, var(--vscode-focusBorder, #007acc) 18%, transparent);
+}
+
+.qivryn-agents-cursor .cursor-agent-composer-input {
+  min-height: 42px;
+  font-size: 13px;
+}
+
+.qivryn-agents-cursor .cursor-agent-composer-toolbar {
+  min-height: 25px;
+  align-items: center;
+}
+
+.qivryn-agents-cursor .cursor-agent-launch-overlay {
+  display: flex;
+  align-items: flex-end;
+  padding: 18px clamp(12px, 3vw, 42px) 18px !important;
+  background: var(--vscode-editor-background, var(--agents-editor)) !important;
+}
+
+.qivryn-agents-cursor .cursor-agent-launch-card {
+  justify-content: flex-end !important;
+  max-width: 860px !important;
+}
+
+.qivryn-agents-cursor .cursor-agent-launch-heading {
+  width: min(100%, 860px);
+  margin-bottom: 8px !important;
+}
+
+.qivryn-agents-cursor .cursor-agent-launch-heading .cursor-agent-eyebrow {
+  display: none;
+}
+
+.qivryn-agents-cursor .cursor-agent-launch-heading h2 {
+  margin: 0 !important;
+  font-size: 13px !important;
+  line-height: 18px;
+  letter-spacing: -0.01em;
+}
+
+.qivryn-agents-cursor .cursor-agent-launch-heading p {
+  max-width: 640px;
+  margin-top: 3px !important;
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.qivryn-agents-cursor .cursor-agent-create-composer {
+  width: min(100%, 860px) !important;
+  max-width: 860px !important;
+  padding: 8px 9px 7px !important;
+  background: var(--vscode-input-background, var(--agents-input)) !important;
+  border-color: var(--qivryn-stroke-secondary) !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+
+.qivryn-agents-cursor
+  .cursor-agent-create-composer
+  .cursor-agent-composer-input {
+  min-height: 76px !important;
+  padding: 2px 1px !important;
+  font-size: 13px !important;
+  line-height: 1.5;
+}
+
+.qivryn-agents-cursor
+  .cursor-agent-create-composer
+  .cursor-agent-composer-toolbar {
+  margin-top: 8px !important;
+  padding-top: 0 !important;
+  border-top: 0 !important;
+}
+
+.qivryn-agents-cursor .cursor-agent-create-composer input {
+  min-height: 31px;
+  background: color-mix(
+    in srgb,
+    var(--vscode-editor-background, var(--agents-editor)) 74%,
+    var(--vscode-input-background, var(--agents-input))
+  );
+}
+
+@media (max-width: 719px) {
+  .qivryn-agents-cursor .cursor-agent-detail-shell {
+    padding: 12px 10px !important;
+  }
+
+  .qivryn-agents-cursor .cursor-human-message,
+  .qivryn-agents-cursor .cursor-event-user,
+  .qivryn-agents-cursor .cursor-assistant-message {
+    max-width: 94%;
+  }
+
+  .qivryn-agents-cursor .cursor-agent-launch-overlay {
+    padding: 12px 10px !important;
   }
 }

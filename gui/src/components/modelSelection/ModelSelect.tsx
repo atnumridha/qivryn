@@ -1,5 +1,6 @@
 import {
   ArrowPathIcon,
+  CheckIcon,
   ChevronDownIcon,
   Cog6ToothIcon,
   CubeIcon,
@@ -10,7 +11,11 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/Auth";
 import { AddModelForm } from "../../forms/AddModelForm";
 import { useAppDispatch, useAppSelector } from "../../redux/hooks";
-import { setDialogMessage, setShowDialog } from "../../redux/slices/uiSlice";
+import {
+  setDialogMessage,
+  setReasoningEffort,
+  setShowDialog,
+} from "../../redux/slices/uiSlice";
 import { updateSelectedModelByRole } from "../../redux/thunks/updateSelectedModelByRole";
 import { getMetaKeyLabel, isMetaEquivalentKeyPressed } from "../../util";
 import { CONFIG_ROUTES } from "../../util/navigation";
@@ -23,6 +28,7 @@ import {
   useFontSize,
 } from "../ui";
 import { Divider } from "../ui/Divider";
+import { EFFORT_LABELS } from "./ReasoningEffortSelect";
 
 interface ModelOptionProps {
   option: Option;
@@ -98,10 +104,10 @@ function ModelOption({
       onClick={handleOptionClick}
       className={`group ${isSelected ? "bg-list-active text-list-active-foreground" : ""}`}
     >
-      <div className="flex w-full items-center justify-between gap-5">
-        <div className="flex items-center gap-2 py-0.5">
+      <div className="flex w-full min-w-0 items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2 py-0.5">
           <CubeIcon className="h-3 w-3 flex-shrink-0" />
-          <span className="line-clamp-1">
+          <span className="min-w-0 truncate">
             {option.title}
             {option.isAutoDetected && (
               <span className="text-description-muted ml-1.5 text-[10px] italic">
@@ -135,6 +141,9 @@ function ModelSelect() {
   const isInEdit = useAppSelector((store) => store.session.isInEdit);
   const config = useAppSelector((state) => state.config.config);
   const isConfigLoading = useAppSelector((state) => state.config.loading);
+  const reasoningEffortSettings = useAppSelector(
+    (state) => state.ui.reasoningEffortSettings,
+  );
   const buttonRef = useRef<HTMLButtonElement>(null);
   const cachedModels = useRef(readModelCache());
   const [options, setOptions] = useState<Option[]>(
@@ -142,6 +151,7 @@ function ModelSelect() {
   );
   const [sortedOptions, setSortedOptions] = useState<Option[]>([]);
   const [pendingModelTitle, setPendingModelTitle] = useState<string>();
+  const [reasoningMenuOpen, setReasoningMenuOpen] = useState(false);
   const { selectedProfile } = useAuth();
   const tinyFont = useFontSize(-4);
 
@@ -215,6 +225,10 @@ function ModelSelect() {
   }, [allModels, pendingModelTitle, selectedProfile, isInEdit, dispatch]);
 
   useEffect(() => {
+    setReasoningMenuOpen(false);
+  }, [selectedModel?.title]);
+
+  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
         event.key === "'" &&
@@ -277,6 +291,20 @@ function ModelSelect() {
   }
 
   const hasNoModels = allModels?.length === 0;
+  const selectedExtra = selectedModel?.requestOptions?.extraBodyProperties as
+    | Record<string, any>
+    | undefined;
+  const reasoningLevels: string[] = selectedExtra?._reasoningLevels ?? [];
+  const defaultReasoningEffort =
+    (selectedExtra?.reasoning_effort as string | undefined) ??
+    (reasoningLevels.includes("medium")
+      ? "medium"
+      : (reasoningLevels[0] ?? "medium"));
+  const selectedReasoningEffort =
+    reasoningEffortSettings[selectedModel?.title ?? ""] ??
+    defaultReasoningEffort;
+  const selectedReasoningLabel =
+    EFFORT_LABELS[selectedReasoningEffort] ?? selectedReasoningEffort;
 
   return (
     <Listbox
@@ -295,13 +323,13 @@ function ModelSelect() {
         );
       }}
     >
-      <div className="relative flex">
+      <div className="relative flex min-w-0 max-w-full">
         <ListboxButton
           data-testid="model-select-button"
           ref={buttonRef}
-          className="text-description h-[18px] min-w-0 max-w-[96px] gap-1 border-none"
+          className="text-description bg-lightgray/20 h-[20px] min-w-0 max-w-[min(145px,42vw)] gap-1 overflow-hidden rounded-full border-none px-1.5 py-0.5 min-[760px]:max-w-[190px]"
         >
-          <span className="line-clamp-1 break-all hover:brightness-110">
+          <span className="min-w-0 truncate hover:brightness-110">
             {modelSelectTitle(selectedModel) ||
               pendingModelTitle ||
               cachedModels.current.selected ||
@@ -312,7 +340,7 @@ function ModelSelect() {
             aria-hidden="true"
           />
         </ListboxButton>
-        <ListboxOptions className="min-w-[160px]">
+        <ListboxOptions className="w-[min(320px,calc(100vw-16px))] min-w-0">
           <div className="flex items-center justify-between px-1.5 py-1">
             <span className="text-description text-xs font-medium">Models</span>
             <div className="flex items-center gap-0.5">
@@ -330,7 +358,7 @@ function ModelSelect() {
             </div>
           </div>
 
-          <div className="no-scrollbar max-h-[300px] overflow-y-auto">
+          <div className="no-scrollbar max-h-[min(48vh,300px)] overflow-y-auto">
             {isConfigLoading && sortedOptions.length === 0 ? (
               <div className="text-description flex items-center gap-2 px-2 pb-2 pt-1 text-xs">
                 <ArrowPathIcon className="animate-spin-slow h-3 w-3" />
@@ -358,6 +386,93 @@ function ModelSelect() {
               </div>
             )}
           </div>
+
+          {reasoningLevels.length > 0 && (
+            <>
+              <Divider className="!my-0" />
+              <div
+                className="flex items-center justify-between gap-3 px-2 py-1.5"
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <span className="text-description text-xs font-medium">
+                  Reasoning
+                </span>
+                <div className="relative min-w-[92px]">
+                  <button
+                    type="button"
+                    aria-haspopup="listbox"
+                    aria-expanded={reasoningMenuOpen}
+                    aria-label="Select reasoning level"
+                    className="text-description bg-lightgray/20 flex h-6 w-full items-center justify-between gap-1 rounded border-none px-2 py-1 text-[11px] hover:brightness-110"
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                    }}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setReasoningMenuOpen((open) => !open);
+                    }}
+                  >
+                    <span className="truncate">{selectedReasoningLabel}</span>
+                    <ChevronDownIcon className="h-2.5 w-2.5 flex-shrink-0" />
+                  </button>
+
+                  {reasoningMenuOpen && (
+                    <div
+                      role="listbox"
+                      aria-label="Reasoning levels"
+                      className="bg-vsc-input-background border-border absolute right-0 top-full z-[200001] mt-1 flex w-28 flex-col rounded border border-solid py-1 shadow-lg"
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                      }}
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      {reasoningLevels.map((level) => {
+                        const isSelected = level === selectedReasoningEffort;
+                        return (
+                          <button
+                            key={level}
+                            type="button"
+                            role="option"
+                            aria-selected={isSelected}
+                            className={`flex items-center gap-1.5 border-none px-2 py-1 text-left text-[11px] ${
+                              isSelected
+                                ? "bg-list-active text-list-active-foreground"
+                                : "text-description hover:bg-list-hover bg-transparent"
+                            }`}
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              dispatch(
+                                setReasoningEffort({
+                                  modelTitle: selectedModel?.title ?? "",
+                                  effort: level,
+                                }),
+                              );
+                              setReasoningMenuOpen(false);
+                            }}
+                          >
+                            <CheckIcon
+                              className={`h-3 w-3 flex-shrink-0 ${
+                                isSelected ? "" : "opacity-0"
+                              }`}
+                            />
+                            <span>{EFFORT_LABELS[level] ?? level}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
 
           {!isConfigLoading && (
             <>

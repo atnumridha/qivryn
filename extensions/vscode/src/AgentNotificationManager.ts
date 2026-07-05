@@ -67,11 +67,7 @@ export class AgentNotificationManager implements vscode.Disposable {
         "Quiet",
       );
       if (selection === "Open agent") {
-        await vscode.commands.executeCommand(
-          "qivryn.navigateTo",
-          `/agents?runId=${encodeURIComponent(run.id)}`,
-          false,
-        );
+        await vscode.commands.executeCommand("qivryn.navigateTo", "/", false);
       } else if (selection === "Quiet") {
         await config.update(
           "agentCompletionNotifications",

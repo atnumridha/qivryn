@@ -46,11 +46,30 @@ export function getAutoCompactionTarget(
       break;
     }
   }
-  // The final two entries are normally the active user prompt and its empty
-  // assistant response. Walk backward to the newest completed assistant turn.
-  for (let index = history.length - 3; index > latestSummary; index--) {
+
+  // Preserve the latest user turn and anything that follows it. Different
+  // surfaces shape the active tail differently: GUI chat preallocates an empty
+  // assistant item, tool follow-ups append tool messages, and retry/resume paths
+  // may not have the same two-item tail. The invariant we actually need is:
+  // compact only completed assistant turns before the latest active prompt.
+  let protectedTailStart = history.length;
+  for (let index = history.length - 1; index >= 0; index--) {
+    if (history[index].message.role === "user") {
+      protectedTailStart = index;
+      break;
+    }
+  }
+
+  // Walk backward to the newest completed non-tool assistant turn before the
+  // protected tail. Assistant messages that still contain tool calls are not a
+  // safe summary boundary because their paired tool output can follow later.
+  for (let index = protectedTailStart - 1; index > latestSummary; index--) {
     const message = history[index].message;
-    if (message.role === "assistant" && !chatMessageIsEmpty(message)) {
+    if (
+      message.role === "assistant" &&
+      !message.toolCalls?.length &&
+      !chatMessageIsEmpty(message)
+    ) {
       return index;
     }
   }

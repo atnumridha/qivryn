@@ -38,12 +38,12 @@ runs:
     - uses: actions/setup-node@v4
       with:
         node-version-file: ".nvmrc"
-        
+
     - name: Set target variable
       id: set-target
       shell: bash
       run: echo "target=${{ inputs.platform }}-${{ inputs.arch }}" >> $GITHUB_OUTPUT
-    
+
     - name: Cache npm
       uses: actions/cache@v4
       with:
@@ -168,3 +168,7 @@ runs:
         else
           npx vsce package --no-dependencies --target ${{ steps.set-target.outputs.target }}
         fi
+
+    - name: Smoke test packaged Qivryn agent runtime
+      shell: bash
+      run: node extensions/vscode/scripts/smoke-test-agent-cli.mjs --vsix-dir extensions/vscode

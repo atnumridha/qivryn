@@ -200,9 +200,6 @@ export function Chat() {
       const latestPendingApplyStates = selectDoneApplyStates(stateSnapshot);
       const isCurrentlyInEdit = stateSnapshot.session.isInEdit;
       const codeToEditSnapshot = stateSnapshot.editModeState.codeToEdit;
-      const selectedModelByRole =
-        stateSnapshot.config.config.selectedModelByRole;
-      const currentMode = stateSnapshot.session.mode;
 
       // Cancel all pending tool calls
       latestPendingToolCalls.forEach((toolCallState) => {
@@ -219,14 +216,6 @@ export function Chat() {
           ideMessenger.post("rejectDiff", applyState);
         }
       });
-      const model = isCurrentlyInEdit
-        ? (selectedModelByRole.edit ?? selectedModelByRole.chat)
-        : selectedModelByRole.chat;
-
-      if (!model) {
-        return;
-      }
-
       if (isCurrentlyInEdit && codeToEditSnapshot.length === 0) {
         return;
       }
@@ -464,7 +453,10 @@ export function Chat() {
           </div>
         ))}
       </StepsDiv>
-      <div className="relative min-w-0 max-w-full shrink-0 overflow-x-hidden">
+      <div
+        data-testid="qivryn-chat-composer-layer"
+        className="relative z-0 min-w-0 max-w-full shrink-0 overflow-x-hidden"
+      >
         <QivrynInputBox
           isMainInput
           isLastUserInput={false}

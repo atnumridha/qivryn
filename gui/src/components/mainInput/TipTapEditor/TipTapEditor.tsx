@@ -180,6 +180,8 @@ function TipTapEditorInner(props: TipTapEditorProps) {
     }
   }, [blurTimeout]);
 
+  useEffect(() => cancelBlurTimeout, [cancelBlurTimeout]);
+
   const handleBlur = useCallback(
     (e: React.FocusEvent) => {
       if (isInEdit) {

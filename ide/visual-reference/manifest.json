@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "reference": {
+    "product": "CodieApp",
+    "version": "3.9.16",
+    "sourcePathEnvironmentVariable": "QIVRYN_CODIE_REFERENCE",
+    "defaultSourcePath": "/Users/atanumridha/Downloads/codieApp"
+  },
+  "themes": ["dark", "midnight", "light", "high-contrast"],
+  "states": [
+    "empty",
+    "running",
+    "attention",
+    "plan",
+    "tool-call",
+    "subagent",
+    "review",
+    "browser",
+    "terminal",
+    "multitask",
+    "completed",
+    "dedicated-window"
+  ],
+  "viewports": [
+    { "width": 1249, "height": 900 },
+    { "width": 1440, "height": 900 },
+    { "width": 1728, "height": 1117 }
+  ],
+  "thresholds": {
+    "maximumStructuralRegionDeltaPixels": 2,
+    "maximumOverallPixelDifferenceRatio": 0.015
+  },
+  "dynamicMasks": [
+    "timestamps",
+    "run-ids",
+    "process-ids",
+    "repository-absolute-paths",
+    "token-usage"
+  ],
+  "goldenDirectory": "ide/visual-reference/codieapp-3.9.16",
+  "actualDirectory": "ide/visual-reference/actual"
+}

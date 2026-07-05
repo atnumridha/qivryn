@@ -17,6 +17,7 @@ export * from "./lifecycle.js";
 export * from "./localRuntime.js";
 export * from "./memoryStore.js";
 export * from "./processExecutor.js";
+export * from "./presentation.js";
 export * from "./shadowWorkspace.js";
 export * from "./sshRuntime.js";
 export * from "./store.js";

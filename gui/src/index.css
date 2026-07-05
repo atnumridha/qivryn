@@ -115,6 +115,151 @@ button:not(:disabled),
   scrollbar-width: none; /* Firefox */
 }
 
+/* Qivryn mode menu ---------------------------------------------------------
+   The mode picker is shared by the normal chat composer, the agent composer,
+   and the dedicated Agents window. It renders through a document-level portal,
+   so keep the styling global and scoped only by the Qivryn class names. */
+.qivryn-mode-menu {
+  --qivryn-mode-signal: var(--vscode-focusBorder, #63d6cf);
+  --qivryn-mode-surface: var(
+    --vscode-dropdown-background,
+    var(--vscode-quickInput-background, #202428)
+  );
+  --qivryn-mode-foreground: var(
+    --vscode-dropdown-foreground,
+    var(--vscode-editor-foreground, #e8edf0)
+  );
+  --qivryn-mode-muted: var(
+    --vscode-descriptionForeground,
+    rgba(232, 237, 240, 0.66)
+  );
+  --qivryn-mode-border: var(
+    --vscode-dropdown-border,
+    rgba(232, 237, 240, 0.16)
+  );
+  isolation: isolate;
+  color: var(--qivryn-mode-foreground) !important;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--qivryn-mode-signal) 7%, transparent),
+      transparent 84px
+    ),
+    var(--qivryn-mode-surface) !important;
+  border-color: color-mix(
+    in srgb,
+    var(--qivryn-mode-signal) 20%,
+    var(--qivryn-mode-border)
+  ) !important;
+  box-shadow:
+    0 24px 64px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.58)),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+  opacity: 1 !important;
+}
+
+.qivryn-mode-menu,
+.qivryn-mode-menu * {
+  box-sizing: border-box;
+}
+
+.qivryn-mode-menu button {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  min-height: 30px;
+  color: inherit !important;
+  font: inherit;
+  background: transparent !important;
+  outline: none;
+  box-shadow: none !important;
+}
+
+.qivryn-mode-menu .qivryn-mode-row,
+.qivryn-mode-menu .qivryn-mode-control,
+.qivryn-mode-menu .qivryn-mode-subitem {
+  border-color: transparent !important;
+  transition:
+    color 140ms ease,
+    background-color 140ms ease,
+    border-color 140ms ease;
+}
+
+.qivryn-mode-menu .qivryn-mode-row:hover,
+.qivryn-mode-menu .qivryn-mode-row:focus-visible,
+.qivryn-mode-menu .qivryn-mode-control:hover,
+.qivryn-mode-menu .qivryn-mode-control:focus-visible,
+.qivryn-mode-menu .qivryn-mode-subitem:hover,
+.qivryn-mode-menu .qivryn-mode-subitem:focus-visible {
+  color: var(
+    --vscode-list-hoverForeground,
+    var(--qivryn-mode-foreground)
+  ) !important;
+  background: var(
+    --vscode-list-hoverBackground,
+    rgba(255, 255, 255, 0.08)
+  ) !important;
+  border-color: color-mix(
+    in srgb,
+    var(--qivryn-mode-signal) 18%,
+    transparent
+  ) !important;
+}
+
+.qivryn-mode-menu .qivryn-mode-row[aria-checked="true"],
+.qivryn-mode-menu .qivryn-mode-row.bg-list-active,
+.qivryn-mode-menu .qivryn-mode-subitem.bg-list-active {
+  color: var(
+    --vscode-list-activeSelectionForeground,
+    var(--qivryn-mode-foreground)
+  ) !important;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--qivryn-mode-signal) 22%, transparent),
+    var(--vscode-list-activeSelectionBackground, rgba(96, 165, 250, 0.2))
+  ) !important;
+  border-color: color-mix(
+    in srgb,
+    var(--qivryn-mode-signal) 30%,
+    transparent
+  ) !important;
+}
+
+.qivryn-mode-menu .qivryn-mode-control[aria-expanded="true"] {
+  color: var(--qivryn-mode-foreground) !important;
+  background: var(
+    --vscode-list-hoverBackground,
+    rgba(255, 255, 255, 0.075)
+  ) !important;
+  border-color: color-mix(
+    in srgb,
+    var(--qivryn-mode-signal) 20%,
+    transparent
+  ) !important;
+}
+
+.qivryn-mode-menu .qivryn-mode-submenu {
+  color: var(--qivryn-mode-foreground) !important;
+  background: color-mix(
+    in srgb,
+    var(--qivryn-mode-surface) 84%,
+    black
+  ) !important;
+  border-left-color: color-mix(
+    in srgb,
+    var(--qivryn-mode-signal) 32%,
+    transparent
+  ) !important;
+  opacity: 1 !important;
+}
+
+.qivryn-mode-menu .text-description,
+.qivryn-mode-menu .text-description-muted {
+  color: var(--qivryn-mode-muted) !important;
+}
+
+.qivryn-mode-menu svg {
+  color: currentColor;
+}
+
 .truncate-start {
   display: inline-block;
   vertical-align: middle;

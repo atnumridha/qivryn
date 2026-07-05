@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { assertProductOverlay } from "./product.mjs";
+import { assertCodeOssPatches } from "./patches.mjs";
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const ideDirectory = path.resolve(scriptDirectory, "..");
@@ -31,8 +32,17 @@ const license = fs.readFileSync(
 );
 
 assertProductOverlay(product, overlay);
+assertCodeOssPatches(vscodeDirectory);
+assert(
+  !fs.existsSync(path.join(vscodeDirectory, "extensions", "copilot")),
+  "The upstream Copilot extension must not be bundled in Qivryn",
+);
 
 assert(qivrynExtension.name === "qivryn", "Qivryn extension was not staged");
+assert(
+  !qivrynExtension.dependencies && !qivrynExtension.devDependencies,
+  "The in-box Qivryn manifest must not retain build-time dependencies",
+);
 assert(
   foundationExtension.name === "qivryn-foundation",
   "Qivryn foundation extension was not staged",

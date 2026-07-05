@@ -16,7 +16,6 @@ import { useSubmenuContextProviders } from "../../../../context/SubmenuContextPr
 import { useInputHistory } from "../../../../hooks/useInputHistory";
 import useUpdatingRef from "../../../../hooks/useUpdatingRef";
 import { useAppSelector } from "../../../../redux/hooks";
-import { selectUseActiveFile } from "../../../../redux/selectors";
 import { selectSelectedChatModel } from "../../../../redux/slices/configSlice";
 import { AppDispatch } from "../../../../redux/store";
 import { exitEdit } from "../../../../redux/thunks/edit";
@@ -86,7 +85,6 @@ export function createEditorConfig(options: {
   const { getSubmenuContextItems } = useSubmenuContextProviders();
   const defaultModel = useAppSelector(selectSelectedChatModel);
   const isStreaming = useAppSelector((state) => state.session.isStreaming);
-  const useActiveFile = useAppSelector(selectUseActiveFile);
   const historyLength = useAppSelector((store) => store.session.history.length);
   const codeToEdit = useAppSelector((store) => store.editModeState.codeToEdit);
   const isInEdit = useAppSelector((store) => store.session.isInEdit);
@@ -238,7 +236,7 @@ export function createEditorConfig(options: {
 
               onEnter({
                 useCodebase: false,
-                noContext: !useActiveFile,
+                noContext: true,
               });
               return true;
             },
@@ -246,7 +244,7 @@ export function createEditorConfig(options: {
             "Mod-Enter": () => {
               onEnter({
                 useCodebase: false,
-                noContext: !!useActiveFile,
+                noContext: true,
               });
 
               return true;
@@ -254,7 +252,7 @@ export function createEditorConfig(options: {
             "Alt-Enter": () => {
               onEnter({
                 useCodebase: false,
-                noContext: !!useActiveFile,
+                noContext: true,
               });
 
               return true;

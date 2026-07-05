@@ -17,6 +17,9 @@ test("applies Qivryn identity without dropping upstream extensions", () => {
     nameShort: "Code - OSS",
     applicationName: "code-oss",
     defaultChatAgent: { extensionId: "upstream.chat" },
+    builtInExtensionsEnabledWithAutoUpdates: ["upstream.chat"],
+    trustedExtensionAuthAccess: { github: ["upstream.chat"] },
+    voiceWsUrl: "wss://upstream.invalid",
     builtInExtensions: [{ name: "upstream.extension" }],
   };
 
@@ -25,6 +28,18 @@ test("applies Qivryn identity without dropping upstream extensions", () => {
   assert.equal(product.nameShort, "Qivryn");
   assert.equal(product.applicationName, "qivryn");
   assert.equal(product.defaultChatAgent, undefined);
+  assert.deepEqual(product.builtInExtensionsEnabledWithAutoUpdates, []);
+  assert.deepEqual(product.trustedExtensionAuthAccess, {});
+  assert.deepEqual(product.extensionEnabledApiProposals, {
+    "Qivryn.qivryn": [
+      "agentSessionsWorkspace",
+      "agentsWindowConfiguration",
+      "chatParticipantAdditions",
+      "chatParticipantPrivate",
+      "chatSessionsProvider",
+    ],
+  });
+  assert.equal(product.voiceWsUrl, undefined);
   assert.deepEqual(product.builtInExtensions, upstream.builtInExtensions);
   assert.deepEqual(upstream.defaultChatAgent, {
     extensionId: "upstream.chat",

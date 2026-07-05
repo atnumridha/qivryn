@@ -60,6 +60,7 @@ import { AiAttributionCodeLensProvider } from "../AiAttributionCodeLensProvider"
 import { GhostTextAcceptanceTracker } from "../autocomplete/GhostTextAcceptanceTracker";
 import { getDefinitionsFromLsp } from "../autocomplete/lsp";
 import { QivrynLayoutManager } from "../QivrynLayoutManager";
+import { NativeAgentSessionsProvider } from "../native/NativeAgentSessionsProvider";
 import {
   clearDocumentContentCache,
   handleTextDocumentChange,
@@ -299,6 +300,22 @@ export class VsCodeExtension {
     );
 
     this.core = new Core(inProcessMessenger, this.ide);
+    const isQivrynIde = vscode.env.appName.startsWith("Qivryn");
+    const shouldUseNativeAgentSessions =
+      process.env.QIVRYN_ENABLE_NATIVE_AGENT_SESSIONS === "true";
+    const nativeAgentSessionsProvider = shouldUseNativeAgentSessions
+      ? NativeAgentSessionsProvider.registerIfSupported(
+          context,
+          inProcessMessenger,
+        )
+      : undefined;
+    if (!nativeAgentSessionsProvider) {
+      void vscode.commands.executeCommand(
+        "setContext",
+        "qivryn.nativeAgentSessions",
+        false,
+      );
+    }
     context.subscriptions.push(new AgentNotificationManager(context));
     context.subscriptions.push(
       vscode.languages.registerCodeLensProvider(
@@ -385,14 +402,14 @@ export class VsCodeExtension {
           case "agent":
             await vscode.commands.executeCommand(
               "qivryn.navigateTo",
-              `/agents?runId=${encodeURIComponent(deepLink.runId)}`,
+              "/",
               false,
             );
             return;
           case "checkpoint":
             await vscode.commands.executeCommand(
               "qivryn.navigateTo",
-              `/agents?runId=${encodeURIComponent(deepLink.runId)}&checkpointId=${encodeURIComponent(deepLink.checkpointId)}`,
+              "/",
               false,
             );
             return;
@@ -487,7 +504,22 @@ export class VsCodeExtension {
       layoutManager,
       agentScmGraphManager,
     );
-    void layoutManager.restoreActive();
+    void layoutManager.restoreActive(isQivrynIde);
+    if (isQivrynIde) {
+      for (const delay of [0, 250, 1_000, 2_500]) {
+        setTimeout(() => {
+          void vscode.commands.executeCommand(
+            "workbench.view.extension.qivryn",
+          );
+          void vscode.commands.executeCommand(
+            "workbench.action.focusAuxiliaryBar",
+          );
+          void vscode.commands.executeCommand("qivryn.qivrynGUIView.focus");
+          void vscode.commands.executeCommand("workbench.action.closePanel");
+          void vscode.commands.executeCommand("workbench.action.closeSidebar");
+        }, delay);
+      }
+    }
 
     // Disabled due to performance issues
     // registerDebugTracker(this.sidebar.webviewProtocol, this.ide);

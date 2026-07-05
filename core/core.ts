@@ -731,6 +731,14 @@ export class Core {
           return daemon
             ? daemon.setRunPermission(data.runId, data.permissionMode)
             : agentControls.setRunPermission(data.runId, data.permissionMode);
+        case "approval.resolve":
+          return daemon
+            ? daemon.resolveApproval(data.runId, data.approvalId, data.decision)
+            : agentControls.resolveApproval(
+                data.runId,
+                data.approvalId,
+                data.decision,
+              );
         case "pin":
           return daemon
             ? daemon.setRunPinned(data.runId, data.pinned)
@@ -743,6 +751,10 @@ export class Core {
           return daemon
             ? daemon.archiveRun(data.runId)
             : agentControls.archiveRun(data.runId);
+        case "unarchive":
+          return daemon
+            ? daemon.unarchiveRun(data.runId)
+            : agentControls.unarchiveRun(data.runId);
         case "queue.add":
           return daemon
             ? daemon.enqueuePrompt(data.runId, data.prompt, data.behavior)
@@ -1617,7 +1629,6 @@ export class Core {
     });
 
     on("files/closed", async ({ data }) => {
-      console.debug("deleteChain called from files/closed");
       await NextEditProvider.getInstance().deleteChain();
 
       try {

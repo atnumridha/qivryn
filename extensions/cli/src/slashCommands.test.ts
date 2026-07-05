@@ -62,10 +62,12 @@ vi.mock("path", () => ({
     join: vi.fn((...parts) => parts.join("/")),
     isAbsolute: vi.fn((p: string) => p.startsWith("/")),
     resolve: vi.fn((...parts) => parts.join("/")),
+    dirname: vi.fn((p: string) => p.split("/").slice(0, -1).join("/") || "/"),
   },
   join: vi.fn((...parts) => parts.join("/")),
   isAbsolute: vi.fn((p: string) => p.startsWith("/")),
   resolve: vi.fn((...parts) => parts.join("/")),
+  dirname: vi.fn((p: string) => p.split("/").slice(0, -1).join("/") || "/"),
 }));
 
 // Mock history manager to avoid file system operations

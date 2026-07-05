@@ -320,6 +320,10 @@ program
   .description("List and inspect local agent runs")
   .option("--json", "Output in JSON format")
   .option("--all", "Include archived runs")
+  .option(
+    "--search <query>",
+    "Search runs by title, status, runtime, or workspace",
+  )
   .option("--events", "Include the event stream when showing a run")
   .option("--title <title>", "New title for the rename action")
   .option("--prompt <prompt>", "Follow-up prompt for the queue action")
@@ -546,7 +550,7 @@ export async function runCli(): Promise<void> {
 
   // Parse arguments and handle errors
   try {
-    program.parse();
+    await program.parseAsync();
   } catch (error) {
     console.error(error);
     process.exit(1);

@@ -131,6 +131,11 @@ async function handleManualCompaction(
   llmApi: BaseLlmApi,
   isHeadless: boolean,
 ): Promise<{ compactionIndex?: number | null } | void> {
+  const agentEvents =
+    isHeadless && isAgentEventStreamEnabled()
+      ? createAgentEventStreamCallbacks()
+      : undefined;
+  agentEvents?.onCompactionStart?.("Compacting chat history...");
   if (!isHeadless) {
     console.info(chalk.yellow("Compacting chat history..."));
   }
@@ -145,7 +150,8 @@ async function handleManualCompaction(
       result.compactionIndex,
     );
 
-    if (isHeadless) {
+    agentEvents?.onCompactionComplete?.("Chat history compacted successfully.");
+    if (isHeadless && !agentEvents) {
       safeStdout(
         JSON.stringify({
           status: "success",
@@ -160,7 +166,8 @@ async function handleManualCompaction(
     return { compactionIndex: result.compactionIndex };
   } catch (error) {
     const errorMsg = `Compaction error: ${formatError(error)}`;
-    if (isHeadless) {
+    agentEvents?.onSystemMessage?.(errorMsg);
+    if (isHeadless && !agentEvents) {
       safeStdout(JSON.stringify({ status: "error", message: errorMsg }) + "\n");
     } else {
       console.error(chalk.red(errorMsg));
@@ -241,6 +248,9 @@ async function handleAutoCompaction(
 
   // Custom callbacks for headless mode console output
   const callbacks = {
+    ...((isHeadless && isAgentEventStreamEnabled()
+      ? createAgentEventStreamCallbacks()
+      : {}) as StreamCallbacks),
     onSystemMessage: (message: string) => {
       if (
         message.includes("Auto-compacting") ||

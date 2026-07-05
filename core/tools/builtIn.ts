@@ -22,6 +22,7 @@ export enum BuiltInToolNames {
   ReadLints = "read_lints",
   GoToDefinition = "go_to_definition",
   SearchSymbols = "search_symbols",
+  UpdatePlan = "update_plan",
 
   // excluded from allTools for now
   ViewRepoMap = "view_repo_map",

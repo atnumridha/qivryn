@@ -95,19 +95,13 @@ export function SkillSelect({
       >
         <ListboxButton
           aria-label="Select skill"
-          className={`text-description hover:text-foreground h-[20px] min-w-0 gap-1 border-none bg-transparent px-1 ${compact ? "w-6 justify-center" : "max-w-44"}`}
+          className={`text-description bg-lightgray/20 hover:text-foreground h-[20px] min-w-0 gap-1 rounded-full border-none px-1.5 py-0.5 ${compact ? "max-w-[94px]" : "max-w-44"}`}
         >
           <SparklesIcon className="h-3 w-3 flex-shrink-0" />
-          {!compact && (
-            <span className="min-w-0 truncate">
-              {selected?.name ?? "Skills"}
-            </span>
-          )}
-          {!compact && (
-            <ChevronDownIcon className="h-2.5 w-2.5 flex-shrink-0" />
-          )}
+          <span className="min-w-0 truncate">{selected?.name ?? "Skills"}</span>
+          <ChevronDownIcon className="h-2.5 w-2.5 flex-shrink-0" />
         </ListboxButton>
-        <ListboxOptions className="no-scrollbar max-h-80 w-[min(320px,calc(100vw-24px))] min-w-56 overflow-y-auto py-1">
+        <ListboxOptions className="no-scrollbar max-h-80 w-[min(320px,calc(100vw-16px))] min-w-0 overflow-y-auto py-1">
           <div className="border-input text-description sticky top-0 z-10 flex items-center justify-between border-b bg-inherit px-2 py-1.5 text-xs font-medium">
             <span>Skills</span>
             <span className="text-description-muted text-[10px]">

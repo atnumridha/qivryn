@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { applyProductOverlay } from "./product.mjs";
+import { applyCodeOssPatches } from "./patches.mjs";
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const ideDirectory = path.resolve(scriptDirectory, "..");
@@ -103,6 +104,22 @@ function applyProductConfiguration() {
   fs.writeFileSync(productPath, `${JSON.stringify(product, null, "\t")}\n`);
 }
 
+function removeUpstreamDefaultChatExtension() {
+  fs.rmSync(path.join(vscodeDirectory, "extensions", "copilot"), {
+    recursive: true,
+    force: true,
+  });
+
+  const npmDirsPath = path.join(vscodeDirectory, "build", "npm", "dirs.ts");
+  if (fs.existsSync(npmDirsPath)) {
+    const current = fs.readFileSync(npmDirsPath, "utf8");
+    const patched = current.replace(/^\s*'extensions\/copilot',\n/m, "");
+    if (patched !== current) {
+      fs.writeFileSync(npmDirsPath, patched);
+    }
+  }
+}
+
 function stageFoundationExtension() {
   copyDirectory(
     path.join(ideDirectory, "builtin", "qivryn-foundation"),
@@ -142,6 +159,16 @@ function stageQivrynExtension() {
   const extractedExtension = path.join(extractionDirectory, "extension");
   const destination = path.join(vscodeDirectory, "extensions", "qivryn");
   copyDirectory(extractedExtension, destination);
+  const builtInPackagePath = path.join(destination, "package.json");
+  const builtInPackage = readJson(builtInPackagePath);
+  delete builtInPackage.dependencies;
+  delete builtInPackage.devDependencies;
+  delete builtInPackage.optionalDependencies;
+  delete builtInPackage.peerDependencies;
+  fs.writeFileSync(
+    builtInPackagePath,
+    `${JSON.stringify(builtInPackage, null, 2)}\n`,
+  );
   fs.rmSync(extractionDirectory, { recursive: true, force: true });
 }
 
@@ -185,6 +212,8 @@ function writeProvenance() {
 
 ensureUpstreamCheckout();
 applyProductConfiguration();
+removeUpstreamDefaultChatExtension();
+applyCodeOssPatches(vscodeDirectory);
 stageFoundationExtension();
 stageQivrynExtension();
 stageBranding();

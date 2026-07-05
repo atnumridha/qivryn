@@ -1,17 +1,12 @@
 import { useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { IdeMessengerContext } from "../../../context/IdeMessenger";
-import { CONFIG_ROUTES, ROUTES } from "../../../util/navigation";
+import { CONFIG_ROUTES } from "../../../util/navigation";
 
 export function OnboardingFeatureTour() {
   const navigate = useNavigate();
   const ideMessenger = useContext(IdeMessengerContext);
   const items = [
-    {
-      title: "Agents",
-      detail: "Run parallel local, Docker, or SSH tasks",
-      action: () => navigate(ROUTES.AGENTS),
-    },
     {
       title: "Inline Edit",
       detail: "Select code and press Ctrl/Cmd+I",

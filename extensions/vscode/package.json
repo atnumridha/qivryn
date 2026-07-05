@@ -44,7 +44,6 @@
     "cline",
     "roo",
     "github",
-    "copilot",
     "claude",
     "mistral",
     "codestral",
@@ -54,9 +53,17 @@
     "onUri",
     "onStartupFinished",
     "onWebviewPanel:qivryn.qivrynGUIView",
-    "onView:qivrynGUIView"
+    "onView:qivrynGUIView",
+    "onCommand:qivryn.openInNewWindow"
   ],
   "main": "./out/extension.js",
+  "enabledApiProposals": [
+    "agentSessionsWorkspace",
+    "agentsWindowConfiguration",
+    "chatParticipantAdditions",
+    "chatParticipantPrivate",
+    "chatSessionsProvider"
+  ],
   "contributes": {
     "themes": [
       {
@@ -393,12 +400,6 @@
         "group": "Qivryn"
       },
       {
-        "command": "qivryn.focusQivrynInput",
-        "category": "Qivryn",
-        "title": "Focus Qivryn Chat",
-        "group": "Qivryn"
-      },
-      {
         "command": "qivryn.enterEnterpriseLicenseKey",
         "category": "Qivryn",
         "title": "Enter Enterprise License Key",
@@ -440,10 +441,52 @@
         "group": "Qivryn"
       },
       {
-        "command": "qivryn.openAgentsWindow",
+        "command": "qivryn.openNativeAgent",
         "category": "Qivryn",
-        "title": "Open Agents Window",
+        "title": "Open Native Agent Session",
         "group": "Qivryn"
+      },
+      {
+        "command": "qivryn.resolveAgentApproval",
+        "category": "Qivryn",
+        "title": "Resolve Agent Approval",
+        "group": "Qivryn"
+      },
+      {
+        "command": "qivryn.openNativeAgentInAgentsWindow",
+        "category": "Qivryn",
+        "title": "Open Agent in Agents Window",
+        "icon": "$(open-preview)"
+      },
+      {
+        "command": "qivryn.toggleActiveAgentPin",
+        "category": "Qivryn",
+        "title": "Pin or Unpin Active Agent",
+        "icon": "$(pinned)"
+      },
+      {
+        "command": "qivryn.duplicateActiveAgent",
+        "category": "Qivryn",
+        "title": "Duplicate Active Agent",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "qivryn.archiveActiveAgent",
+        "category": "Qivryn",
+        "title": "Archive or Restore Active Agent",
+        "icon": "$(archive)"
+      },
+      {
+        "command": "qivryn.cancelActiveAgent",
+        "category": "Qivryn",
+        "title": "Cancel Active Agent",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "qivryn.resumeActiveAgent",
+        "category": "Qivryn",
+        "title": "Resume Active Agent",
+        "icon": "$(play)"
       },
       {
         "command": "qivryn.reloadAgentsWindow",
@@ -466,11 +509,35 @@
         "group": "Qivryn"
       },
       {
+        "command": "qivryn.acceptReviewFinding",
+        "category": "Qivryn",
+        "title": "Accept Review Finding",
+        "icon": "$(check)"
+      },
+      {
+        "command": "qivryn.rejectReviewFinding",
+        "category": "Qivryn",
+        "title": "Dismiss Review Finding",
+        "icon": "$(close)"
+      },
+      {
+        "command": "qivryn.commentReviewFinding",
+        "category": "Qivryn",
+        "title": "Comment on Review Finding",
+        "icon": "$(comment)"
+      },
+      {
         "command": "qivryn.openTerminalAssistant",
         "category": "Qivryn",
         "title": "Open Terminal Assistant",
         "icon": "$(terminal)",
         "group": "Qivryn"
+      },
+      {
+        "command": "qivryn.stopTerminalJob",
+        "category": "Qivryn",
+        "title": "Stop Active Terminal Job",
+        "icon": "$(debug-stop)"
       },
       {
         "command": "qivryn.openTerminalPromptBar",
@@ -485,6 +552,36 @@
         "title": "Open Browser Workspace",
         "icon": "$(globe)",
         "group": "Qivryn"
+      },
+      {
+        "command": "qivryn.browserBack",
+        "category": "Qivryn",
+        "title": "Browser: Back",
+        "icon": "$(arrow-left)"
+      },
+      {
+        "command": "qivryn.browserForward",
+        "category": "Qivryn",
+        "title": "Browser: Forward",
+        "icon": "$(arrow-right)"
+      },
+      {
+        "command": "qivryn.browserReload",
+        "category": "Qivryn",
+        "title": "Browser: Reload",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "qivryn.browserTakeover",
+        "category": "Qivryn",
+        "title": "Browser: Take Over",
+        "icon": "$(person)"
+      },
+      {
+        "command": "qivryn.browserScreenshot",
+        "category": "Qivryn",
+        "title": "Browser: Capture Screenshot",
+        "icon": "$(device-camera)"
       },
       {
         "command": "qivryn.openAgentAttribution",
@@ -691,13 +788,19 @@
           "command": "qivryn.openInNewWindow"
         },
         {
-          "command": "qivryn.openAgentsWindow"
-        },
-        {
           "command": "qivryn.switchAgent"
         },
         {
           "command": "qivryn.openAgentReview"
+        },
+        {
+          "command": "qivryn.acceptReviewFinding"
+        },
+        {
+          "command": "qivryn.rejectReviewFinding"
+        },
+        {
+          "command": "qivryn.commentReviewFinding"
         },
         {
           "command": "qivryn.openTerminalAssistant"
@@ -769,11 +872,6 @@
           "when": "view == qivryn.qivrynGUIView"
         },
         {
-          "command": "qivryn.openAgentsWindow",
-          "group": "navigation@3",
-          "when": "view == qivryn.qivrynGUIView"
-        },
-        {
           "command": "qivryn.openAgentReview",
           "group": "navigation@4",
           "when": "view == qivryn.qivrynGUIView"
@@ -791,29 +889,34 @@
       ],
       "editor/title": [
         {
-          "command": "qivryn.reloadAgentsWindow",
+          "command": "qivryn.toggleActiveAgentPin",
           "group": "navigation@0",
-          "when": "activeWebviewPanelId == qivryn.qivrynGUIView"
+          "when": "activeEditor == workbench.editor.chatSession && qivryn.activeAgentSession"
         },
         {
-          "command": "qivryn.newSession",
+          "command": "qivryn.duplicateActiveAgent",
           "group": "navigation@1",
-          "when": "activeWebviewPanelId == qivryn.qivrynGUIView"
+          "when": "activeEditor == workbench.editor.chatSession && qivryn.activeAgentSession"
         },
         {
-          "command": "qivryn.viewHistory",
+          "command": "qivryn.cancelActiveAgent",
           "group": "navigation@2",
-          "when": "activeWebviewPanelId == qivryn.qivrynGUIView"
+          "when": "activeEditor == workbench.editor.chatSession && qivryn.activeAgentSession && !qivryn.activeAgentTerminal"
         },
         {
-          "command": "qivryn.openAgentsWindow",
+          "command": "qivryn.resumeActiveAgent",
+          "group": "navigation@2",
+          "when": "activeEditor == workbench.editor.chatSession && qivryn.activeAgentSession && qivryn.activeAgentTerminal && qivryn.activeAgentStatus != archived"
+        },
+        {
+          "command": "qivryn.openNativeAgentInAgentsWindow",
           "group": "navigation@3",
-          "when": "activeWebviewPanelId == qivryn.qivrynGUIView"
+          "when": "activeEditor == workbench.editor.chatSession && qivryn.activeAgentSession && !isSessionsWindow"
         },
         {
-          "command": "qivryn.openAgentReview",
+          "command": "qivryn.archiveActiveAgent",
           "group": "navigation@4",
-          "when": "activeWebviewPanelId == qivryn.qivrynGUIView"
+          "when": "activeEditor == workbench.editor.chatSession && qivryn.activeAgentSession"
         }
       ],
       "terminal/context": [
@@ -838,7 +941,7 @@
       ]
     },
     "viewsContainers": {
-      "activitybar": [
+      "secondarySidebar": [
         {
           "id": "qivryn",
           "title": "Qivryn",
@@ -963,10 +1066,12 @@
     "vscode-extension-tester": "^8.14.1"
   },
   "dependencies": {
+    "@electron/rebuild": "^4.0.3",
     "@qivryn/agent-runtime": "file:../../packages/agent-runtime",
     "@qivryn/config-types": "file:../../packages/config-types",
     "@qivryn/fetch": "file:../../packages/fetch",
-    "@electron/rebuild": "^4.0.3",
+    "@qivryn/review-engine": "file:../../packages/review-engine",
+    "@qivryn/terminal-security": "file:../../packages/terminal-security",
     "@reduxjs/toolkit": "^1.9.3",
     "@vscode/ripgrep": "^1.15.9",
     "axios": "^1.13.1",

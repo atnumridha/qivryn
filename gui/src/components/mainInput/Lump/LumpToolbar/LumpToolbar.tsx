@@ -1,5 +1,5 @@
 import { BuiltInToolNames } from "core/tools/builtIn";
-import { useContext, useEffect } from "react";
+import { type ReactNode, useContext, useEffect } from "react";
 import { IdeMessengerContext } from "../../../../context/IdeMessenger";
 import { useAppDispatch, useAppSelector } from "../../../../redux/hooks";
 import {
@@ -13,7 +13,6 @@ import { cancelStream } from "../../../../redux/thunks/cancelStream";
 import { logToolUsage } from "../../../../redux/util";
 import { isJetBrains } from "../../../../util";
 import { useMainEditor } from "../../TipTapEditor";
-import { BlockSettingsTopToolbar } from "./BlockSettingsTopToolbar";
 import { EditOutcomeToolbar } from "./EditOutcomeToolbar";
 import { EditToolbar } from "./EditToolbar";
 import { IsApplyingToolbar } from "./IsApplyingToolbar";
@@ -21,6 +20,14 @@ import { PendingApplyStatesToolbar } from "./PendingApplyStatesToolbar";
 import { PendingToolCallToolbar } from "./PendingToolCallToolbar";
 import { StreamingToolbar } from "./StreamingToolbar";
 import { TtsActiveToolbar } from "./TtsActiveToolbar";
+
+function LumpToolbarShell({ children }: { children: ReactNode }) {
+  return (
+    <div className="bg-input rounded-t-default border-command-border mx-1.5 min-w-0 max-w-full overflow-visible border-l border-r border-t shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+      <div className="xs:px-2 min-w-0 max-w-full px-1 py-0.5">{children}</div>
+    </div>
+  );
+}
 
 // Keyboard shortcut detection utilities
 const isExecuteToolCallShortcut = (event: KeyboardEvent) => {
@@ -169,19 +176,35 @@ export function LumpToolbar() {
   ]);
 
   if (isApplying) {
-    return <IsApplyingToolbar />;
+    return (
+      <LumpToolbarShell>
+        <IsApplyingToolbar />
+      </LumpToolbarShell>
+    );
   }
 
   if (isInEdit) {
     if (editApplyState.status === "done") {
-      return <EditOutcomeToolbar />;
+      return (
+        <LumpToolbarShell>
+          <EditOutcomeToolbar />
+        </LumpToolbarShell>
+      );
     }
 
-    return <EditToolbar />;
+    return (
+      <LumpToolbarShell>
+        <EditToolbar />
+      </LumpToolbarShell>
+    );
   }
 
   if (ttsActive) {
-    return <TtsActiveToolbar />;
+    return (
+      <LumpToolbarShell>
+        <TtsActiveToolbar />
+      </LumpToolbarShell>
+    );
   }
 
   // Only show terminal streaming for actual terminal commands
@@ -189,24 +212,36 @@ export function LumpToolbar() {
     const count = runningTerminalCalls.length;
     const stopText = `Stop Terminal${count > 1 ? ` (${count})` : ""}`;
     return (
-      <StreamingToolbar onStop={handleStopAction} displayText={stopText} />
+      <LumpToolbarShell>
+        <StreamingToolbar onStop={handleStopAction} displayText={stopText} />
+      </LumpToolbarShell>
     );
   }
 
   // Regular streaming (non-terminal)
   if (isStreaming) {
-    return <StreamingToolbar onStop={() => dispatch(cancelStream())} />;
+    return (
+      <LumpToolbarShell>
+        <StreamingToolbar onStop={() => dispatch(cancelStream())} />
+      </LumpToolbarShell>
+    );
   }
 
   if (pendingToolCalls.length > 0) {
-    return <PendingToolCallToolbar />;
+    return (
+      <LumpToolbarShell>
+        <PendingToolCallToolbar />
+      </LumpToolbarShell>
+    );
   }
 
   if (pendingApplyStates.length > 0) {
     return (
-      <PendingApplyStatesToolbar pendingApplyStates={pendingApplyStates} />
+      <LumpToolbarShell>
+        <PendingApplyStatesToolbar pendingApplyStates={pendingApplyStates} />
+      </LumpToolbarShell>
     );
   }
 
-  return <BlockSettingsTopToolbar />;
+  return null;
 }

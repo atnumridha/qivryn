@@ -462,7 +462,7 @@ export function ToolsSection() {
 
   const availableToolsMessage =
     mode === "chat"
-      ? "All tools disabled in Chat, switch to Plan or Agent mode to use tools"
+      ? "All tools disabled in Chat; switch to Plan, Agent, or Debug to use tools"
       : mode === "plan"
         ? "Read-only tools available in Plan mode"
         : "";
@@ -506,8 +506,8 @@ export function ToolsSection() {
             {mode === "chat" && (
               <Alert type="info" size="sm">
                 <span className="text-2xs italic">
-                  All MCPs are disabled in Chat, switch to Plan or Agent mode to
-                  use MCPs
+                  All MCPs are disabled in Chat; switch to Plan, Agent, or Debug
+                  to use MCPs
                 </span>
               </Alert>
             )}

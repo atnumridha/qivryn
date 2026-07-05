@@ -33,6 +33,24 @@ import {
 const agentRoot = path.join(env.qivrynHome, "agents");
 const descriptorPath = path.join(agentRoot, "daemon.json");
 
+function cliEntrypoint(): string {
+  const entrypoint = process.env.QIVRYN_CLI_PATH || process.argv[1];
+  if (!entrypoint) {
+    throw new Error(
+      "Unable to resolve the Qivryn CLI entrypoint for agent execution",
+    );
+  }
+  return entrypoint;
+}
+
+function cliEnv(extra: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    ...(process.versions.electron ? { ELECTRON_RUN_AS_NODE: "1" } : {}),
+    ...extra,
+  };
+}
+
 export async function readAgentDaemonDescriptor(): Promise<
   AgentDaemonDescriptor | undefined
 > {
@@ -73,10 +91,10 @@ export async function ensureAgentDaemon(): Promise<HttpAgentRuntimeClient> {
   await rm(descriptorPath, { force: true });
   await mkdir(agentRoot, { recursive: true });
   const token = randomBytes(32).toString("hex");
-  const child = spawn(process.execPath, [process.argv[1], "agents", "daemon"], {
+  const child = spawn(process.execPath, [cliEntrypoint(), "agents", "daemon"], {
     detached: true,
     stdio: "ignore",
-    env: { ...process.env, QIVRYN_AGENT_DAEMON_TOKEN: token },
+    env: cliEnv({ QIVRYN_AGENT_DAEMON_TOKEN: token }),
   });
   child.unref();
   for (let attempt = 0; attempt < 100; attempt++) {
@@ -202,12 +220,11 @@ export async function runAgentDaemon(): Promise<void> {
       const chatArgs = buildAgentChatArgs(run, localImagePaths);
       return {
         command: process.execPath,
-        args: [process.argv[1], ...chatArgs],
-        env: {
-          ...process.env,
+        args: [cliEntrypoint(), ...chatArgs],
+        env: cliEnv({
           QIVRYN_AGENT_CHILD: "1",
           QIVRYN_AGENT_EVENT_STREAM: "1",
-        },
+        }),
         ...(run.permissionMode === "readOnly"
           ? {
               hostSandbox: {

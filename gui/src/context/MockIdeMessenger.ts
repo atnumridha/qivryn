@@ -64,6 +64,7 @@ const DEFAULT_MOCK_CORE_RESPONSES: MockResponses = {
   "reviews/get": undefined,
   "reviews/comments": [],
   getTerminalContents: "npm test\nError: expected 1 to equal 2",
+  getFileResults: [],
   runCommand: undefined,
   "terminal/jobs": [],
   "extensions/skills": { skills: [], errors: [] },
