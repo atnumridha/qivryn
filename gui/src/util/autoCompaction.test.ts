@@ -24,6 +24,71 @@ describe("getAutoCompactionTarget", () => {
     expect(getAutoCompactionTarget(history, 0.8)).toBe(1);
   });
 
+  it("works when the active prompt has no preallocated assistant response", () => {
+    const history = [
+      item("user", "first"),
+      item("assistant", "answer"),
+      item("user", "current"),
+    ];
+    expect(getAutoCompactionTarget(history, 0.8)).toBe(1);
+  });
+
+  it("preserves active tool loops while compacting earlier completed turns", () => {
+    const history: ChatHistoryItem[] = [
+      item("user", "first"),
+      item("assistant", "answer"),
+      item("user", "current"),
+      {
+        ...item("assistant", "running a tool"),
+        message: {
+          role: "assistant",
+          content: "running a tool",
+          toolCalls: [
+            {
+              id: "call-1",
+              type: "function",
+              function: { name: "read_file", arguments: "{}" },
+            },
+          ],
+        },
+      },
+      {
+        message: { role: "tool", content: "result", toolCallId: "call-1" },
+        contextItems: [],
+      },
+    ];
+
+    expect(getAutoCompactionTarget(history, 0.8)).toBe(1);
+  });
+
+  it("does not use an assistant tool-call message as a summary boundary", () => {
+    const history: ChatHistoryItem[] = [
+      item("user", "first"),
+      {
+        ...item("assistant", "running a tool"),
+        message: {
+          role: "assistant",
+          content: "running a tool",
+          toolCalls: [
+            {
+              id: "call-1",
+              type: "function",
+              function: { name: "read_file", arguments: "{}" },
+            },
+          ],
+        },
+      },
+      {
+        message: { role: "tool", content: "result", toolCallId: "call-1" },
+        contextItems: [],
+      },
+      item("user", "current"),
+      item("assistant", ""),
+    ];
+
+    expect(getAutoCompactionTarget(history, 0.95)).toBeUndefined();
+  });
+
   it("does not repeatedly compact the same history", () => {
     const history = [
       item("user", "first"),

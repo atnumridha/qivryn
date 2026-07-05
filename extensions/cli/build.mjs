@@ -113,7 +113,19 @@ const require = __createRequire(import.meta.url);`,
   // Note: We must call runCli(); a plain dynamic import will not execute the CLI.
   writeFileSync(
     "dist/qivryn.js",
-    "#!/usr/bin/env node\nimport { runCli } from './index.js';\nawait runCli();\n",
+    `#!/usr/bin/env node
+import { fileURLToPath } from 'node:url';
+import { runCli } from './index.js';
+
+// Commander parses Electron argv from index 1, while Node argv starts at index
+// 2. RUN_AS_NODE still includes this wrapper path, so remove that one slot.
+if (process.versions.electron && process.env.ELECTRON_RUN_AS_NODE) {
+  const wrapperPath = fileURLToPath(import.meta.url);
+  if (process.argv[1] === wrapperPath) process.argv.splice(1, 1);
+}
+
+await runCli();
+`,
   );
   const packageMetadata = JSON.parse(
     readFileSync(resolve(__dirname, "package.json"), "utf8"),

@@ -25,7 +25,7 @@
       "phase": 2,
       "status": "partial",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
-      "acceptance": "Agents from every runtime are searchable and show consistent status on every surface."
+      "acceptance": "Agents from every runtime are searchable and show consistent status on every surface; the native desktop sidebar, tabs, transcript, composer, and Agents Window pass packaged functional and visual acceptance tests."
     },
     {
       "id": "agents.parallel",
@@ -322,7 +322,7 @@
       "phase": 5,
       "status": "partial",
       "surfaces": ["editor"],
-      "acceptance": "Agent branches and checkpoints appear in the native graph."
+      "acceptance": "Agent branches and checkpoints appear in the packaged IDE's native graph and are covered by Electron navigation tests."
     },
     {
       "id": "review.agent",
@@ -331,9 +331,9 @@
       "qivrynBaseline": "CLI multi-worker review",
       "disposition": "hybrid",
       "phase": 4,
-      "status": "implemented",
+      "status": "partial",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
-      "acceptance": "Working tree, staged, commit, branch and file reviews share one result format."
+      "acceptance": "Working tree, staged, commit, branch and file reviews share one result format and the packaged IDE opens findings in native Monaco diff and multi-diff editors."
     },
     {
       "id": "review.actions",
@@ -342,9 +342,9 @@
       "qivrynBaseline": "CLI textual findings",
       "disposition": "implement",
       "phase": 4,
-      "status": "implemented",
+      "status": "partial",
       "surfaces": ["editor", "vscode", "jetbrains"],
-      "acceptance": "Every finding exposes the complete action set and remains anchored after edits."
+      "acceptance": "Every native finding exposes accept, reject, comment, navigation, checkpoint restore, and rerun actions and remains anchored after edits."
     },
     {
       "id": "review.autofix",
@@ -364,9 +364,9 @@
       "qivrynBaseline": "Debug Terminal context action",
       "disposition": "hybrid",
       "phase": 5,
-      "status": "implemented",
+      "status": "partial",
       "surfaces": ["editor", "vscode", "jetbrains"],
-      "acceptance": "Editor has a native bar; compatibility surfaces provide an adjacent drawer."
+      "acceptance": "The packaged editor has a native terminal prompt bar; compatibility surfaces provide an adjacent drawer."
     },
     {
       "id": "terminal.assistance",
@@ -386,9 +386,9 @@
       "qivrynBaseline": "Terminal streaming and move-to-background",
       "disposition": "hybrid",
       "phase": 4,
-      "status": "implemented",
+      "status": "partial",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
-      "acceptance": "Jobs can be stopped, reopened and observed after UI restart."
+      "acceptance": "Jobs can be stopped, reopened, observed after UI restart, and rendered as native editor inputs in the packaged IDE."
     },
     {
       "id": "browser.editor",
@@ -397,9 +397,9 @@
       "qivrynBaseline": "No embedded browser product surface",
       "disposition": "implement",
       "phase": 5,
-      "status": "implemented",
+      "status": "partial",
       "surfaces": ["editor", "vscode"],
-      "acceptance": "Users can navigate local and remote sites in agent-associated tabs."
+      "acceptance": "Users can navigate local and remote sites in agent-associated native tabs with packaged browser-layout and handoff tests."
     },
     {
       "id": "browser.automation",
@@ -496,9 +496,9 @@
       "qivrynBaseline": "Open chat in new window",
       "disposition": "implement",
       "phase": 5,
-      "status": "implemented",
+      "status": "partial",
       "surfaces": ["editor"],
-      "acceptance": "Agents Window supports multi-repository monitoring and full keyboard control."
+      "acceptance": "The packaged native Agents Window supports multi-repository monitoring, shared session handoff, restoration, and full keyboard control."
     },
     {
       "id": "shell.layouts",
@@ -509,7 +509,7 @@
       "phase": 5,
       "status": "partial",
       "surfaces": ["editor"],
-      "acceptance": "Built-in and saved layouts restore reliably per workspace."
+      "acceptance": "Built-in and saved layouts restore reliably per workspace in packaged macOS, Linux, and Windows Electron tests."
     },
     {
       "id": "shell.theme",
@@ -518,9 +518,9 @@
       "qivrynBaseline": "VS Code theme inheritance and Qivryn theme page",
       "disposition": "hybrid",
       "phase": 5,
-      "status": "implemented",
+      "status": "partial",
       "surfaces": ["editor", "vscode", "jetbrains"],
-      "acceptance": "Qivryn-branded themes pass contrast and visual regression gates."
+      "acceptance": "Qivryn-branded Dark, Midnight, Light, and High Contrast themes pass contrast checks and the CodieApp golden visual regression gates."
     },
     {
       "id": "shell.onboarding",
@@ -529,9 +529,9 @@
       "qivrynBaseline": "Qivryn provider onboarding",
       "disposition": "hybrid",
       "phase": 5,
-      "status": "implemented",
+      "status": "partial",
       "surfaces": ["editor", "vscode", "jetbrains"],
-      "acceptance": "Onboarding imports settings and teaches agents, edit, tab, privacy, skills and MCP."
+      "acceptance": "Packaged onboarding imports settings and teaches agents, edit, tab, privacy, skills, and MCP without showing stock Chat onboarding."
     },
     {
       "id": "shell.updates",
@@ -540,9 +540,9 @@
       "qivrynBaseline": "Extension updates and fatal config notice",
       "disposition": "hybrid",
       "phase": 5,
-      "status": "implemented",
+      "status": "partial",
       "surfaces": ["editor", "vscode", "jetbrains"],
-      "acceptance": "Update and runtime failures always provide retry, reload and log actions."
+      "acceptance": "Packaged update and runtime failures always provide bounded automatic retry, reload, final error, and log actions on every desktop platform."
     },
     {
       "id": "remote.ssh",

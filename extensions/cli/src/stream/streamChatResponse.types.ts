@@ -17,6 +17,9 @@ export interface StreamCallbacks {
     preview?: ToolCallPreview[],
   ) => void;
   onSystemMessage?: (message: string) => void;
+  onCompactionStart?: (message: string) => void;
+  onCompactionComplete?: (message: string) => void;
+  onRecoveryComplete?: (message: string) => void;
 }
 
 export function getDefaultCompletionOptions(

@@ -17,6 +17,7 @@ describe("Cursor-compatible local tools", () => {
       BuiltInToolNames.ReadLints,
       BuiltInToolNames.GoToDefinition,
       BuiltInToolNames.SearchSymbols,
+      BuiltInToolNames.UpdatePlan,
     ]) {
       expect(byName.has(name), `${name} should be registered`).toBe(true);
     }
@@ -29,6 +30,7 @@ describe("Cursor-compatible local tools", () => {
     expect(byName.get(BuiltInToolNames.GoToDefinition)?.defaultToolPolicy).toBe(
       "allowedWithoutPermission",
     );
+    expect(byName.get(BuiltInToolNames.UpdatePlan)?.readonly).toBe(true);
   });
 
   it("maps the complete authorized Cursor client-tool inventory locally", () => {
@@ -36,6 +38,9 @@ describe("Cursor-compatible local tools", () => {
     expect(
       resolveCursorLocalCapability("CLIENT_SIDE_TOOL_V2_DELETE_FILE"),
     ).toBe("delete_file");
+    expect(resolveCursorLocalCapability("CLIENT_SIDE_TOOL_V2_TODO_WRITE")).toBe(
+      "update_plan",
+    );
     expect(
       Object.values(CURSOR_LOCAL_CAPABILITIES).every(
         (equivalent) => equivalent.length > 0,

@@ -1,4 +1,4 @@
-import { RouterProvider, createMemoryRouter } from "react-router-dom";
+import { Navigate, RouterProvider, createMemoryRouter } from "react-router-dom";
 import Layout from "./components/Layout";
 import { MainEditorProvider } from "./components/mainInput/TipTapEditor";
 import { SubmenuContextProvidersProvider } from "./context/SubmenuContextProviders";
@@ -9,7 +9,6 @@ import ErrorPage from "./pages/error";
 import Chat from "./pages/gui";
 import History from "./pages/history";
 import Stats from "./pages/stats";
-import Agents from "./pages/agents";
 import Review from "./pages/review";
 import TerminalAssistant from "./pages/terminal";
 import BrowserWorkspace from "./pages/browser";
@@ -41,7 +40,7 @@ const routes = [
       },
       {
         path: ROUTES.AGENTS,
-        element: <Agents />,
+        element: <Navigate to={ROUTES.HOME} replace />,
       },
       {
         path: ROUTES.REVIEW,

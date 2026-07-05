@@ -131,6 +131,14 @@ export type AgentEventKind =
   | "plan.updated"
   | "artifact.created"
   | "review.finding"
+  | "approval.requested"
+  | "approval.resolved"
+  | "subagent.created"
+  | "subagent.updated"
+  | "file.changed"
+  | "context.compacted"
+  | "recovery.started"
+  | "recovery.completed"
   | "runtime.notice";
 
 export interface AgentEvent<TPayload = unknown> {
@@ -197,6 +205,116 @@ export interface AgentPlan {
   updatedAt: string;
   items: AgentPlanItem[];
 }
+
+export type AgentApprovalDecision = "approve" | "approveAlways" | "reject";
+
+export interface AgentApprovalRequest {
+  id: string;
+  runId: AgentRunId;
+  createdAt: string;
+  title: string;
+  toolName?: string;
+  detail?: string;
+  command?: string;
+  paths?: string[];
+  status: "pending" | "resolved";
+  decision?: AgentApprovalDecision;
+  resolvedAt?: string;
+}
+
+export interface AgentApprovalResolution {
+  approvalId: string;
+  runId: AgentRunId;
+  decision: AgentApprovalDecision;
+  resolvedAt: string;
+}
+
+export type QivrynComposerLocation =
+  | "pane"
+  | "editor"
+  | "promptBar"
+  | "agentsWindow";
+
+export type QivrynAgentLayoutName =
+  | "agent"
+  | "editor"
+  | "zen"
+  | "browser"
+  | "review"
+  | "maximizedChat";
+
+export interface QivrynAgentLayoutState {
+  version: 1;
+  layout: QivrynAgentLayoutName;
+  sidebarLocation: "left" | "right";
+  sidebarWidth: number;
+  sidebarVisible: boolean;
+  editorVisible: boolean;
+  panelVisible: boolean;
+  auxiliaryBarVisible: boolean;
+  agentsWindowOpen: boolean;
+  activeRunId?: AgentRunId;
+  selectedRunIds: AgentRunId[];
+  pinnedRunIds: AgentRunId[];
+  composerLocations: Record<AgentRunId, QivrynComposerLocation>;
+}
+
+export interface QivrynAgentSessionMetadata {
+  runId: AgentRunId;
+  parentRunId?: AgentRunId;
+  runtimeId?: string;
+  repositoryPath: string;
+  worktreePath?: string;
+  branch?: string;
+  status: AgentRunStatus;
+  permissionMode: AgentPermissionMode;
+  pinned: boolean;
+  unread: boolean;
+  diffAdded: number;
+  diffRemoved: number;
+}
+
+interface QivrynTranscriptItemBase {
+  id: string;
+  runId: AgentRunId;
+  sequence: number;
+  createdAt: string;
+}
+
+export type QivrynTranscriptItem =
+  | (QivrynTranscriptItemBase & {
+      type: "message";
+      role: "user" | "assistant";
+      text: string;
+    })
+  | (QivrynTranscriptItemBase & {
+      type: "reasoning";
+      text: string;
+    })
+  | (QivrynTranscriptItemBase & {
+      type: "tool";
+      toolCallId: string;
+      name: string;
+      status: "running" | "completed" | "failed";
+      detail?: string;
+      output?: string;
+    })
+  | (QivrynTranscriptItemBase & {
+      type: "approval";
+      approval: AgentApprovalRequest;
+    })
+  | (QivrynTranscriptItemBase & {
+      type: "plan" | "checkpoint" | "artifact" | "subagent" | "fileChange";
+      title: string;
+      detail?: string;
+      payload: unknown;
+    })
+  | (QivrynTranscriptItemBase & {
+      type: "notice";
+      level: "info" | "warning" | "error";
+      text: string;
+      code?: string;
+    });
 
 export interface ReviewRequest {
   id: string;
@@ -351,9 +469,16 @@ export type AgentControlRequest =
       runId: AgentRunId;
       permissionMode: AgentPermissionMode;
     }
+  | {
+      action: "approval.resolve";
+      runId: AgentRunId;
+      approvalId: string;
+      decision: AgentApprovalDecision;
+    }
   | { action: "pin"; runId: AgentRunId; pinned: boolean }
   | { action: "unread"; runId: AgentRunId; unread: boolean }
   | { action: "archive"; runId: AgentRunId }
+  | { action: "unarchive"; runId: AgentRunId }
   | {
       action: "queue.add";
       runId: AgentRunId;
@@ -394,6 +519,7 @@ export type AgentControlRequest =
     };
 
 export type AgentControlResult =
+  | AgentApprovalResolution
   | AgentCheckpoint
   | AgentRun
   | AgentPlan
@@ -439,9 +565,15 @@ export interface AgentRuntimeAdapter {
     runId: AgentRunId,
     permissionMode: AgentPermissionMode,
   ): Promise<AgentRun>;
+  resolveApproval(
+    runId: AgentRunId,
+    approvalId: string,
+    decision: AgentApprovalDecision,
+  ): Promise<AgentApprovalResolution>;
   setRunPinned(runId: AgentRunId, pinned: boolean): Promise<AgentRun>;
   setRunUnread(runId: AgentRunId, unread: boolean): Promise<AgentRun>;
   archiveRun(runId: AgentRunId): Promise<AgentRun>;
+  unarchiveRun(runId: AgentRunId): Promise<AgentRun>;
   enqueuePrompt(
     runId: AgentRunId,
     prompt: string,

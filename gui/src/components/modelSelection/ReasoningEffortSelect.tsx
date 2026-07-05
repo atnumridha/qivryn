@@ -24,7 +24,7 @@ import {
   ListboxOptions,
 } from "../ui/Listbox";
 
-const EFFORT_LABELS: Record<string, string> = {
+export const EFFORT_LABELS: Record<string, string> = {
   none: "off",
   low: "low",
   medium: "med",
@@ -34,7 +34,13 @@ const EFFORT_LABELS: Record<string, string> = {
   ultra: "ultra",
 };
 
-export function ReasoningEffortSelect() {
+export function ReasoningEffortSelect({
+  hideLabel = false,
+  optionsAnchor = "top start",
+}: {
+  hideLabel?: boolean;
+  optionsAnchor?: "top start" | "bottom start";
+} = {}) {
   const dispatch = useAppDispatch();
   const model = useAppSelector(selectSelectedChatModel);
   const effortSettings = useAppSelector(
@@ -60,12 +66,14 @@ export function ReasoningEffortSelect() {
 
   return (
     <div className="flex items-center gap-0.5">
-      <span
-        className="text-description pointer-events-none select-none"
-        style={{ fontSize: "0.65rem" }}
-      >
-        think:
-      </span>
+      {!hideLabel && (
+        <span
+          className="text-description pointer-events-none select-none"
+          style={{ fontSize: "0.65rem" }}
+        >
+          think:
+        </span>
+      )}
 
       <Listbox
         value={selected}
@@ -87,7 +95,11 @@ export function ReasoningEffortSelect() {
           <ChevronDownIcon className="h-2 w-2 opacity-70" />
         </ListboxButton>
 
-        <ListboxOptions fontSizeModifier={-3} className="min-w-[5rem]">
+        <ListboxOptions
+          anchor={optionsAnchor}
+          fontSizeModifier={-3}
+          className="min-w-[5rem]"
+        >
           {levels.map((level) => (
             <ListboxOption
               key={level}

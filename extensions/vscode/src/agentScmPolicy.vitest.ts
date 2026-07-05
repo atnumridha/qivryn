@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AgentRun } from "@qivryn/agent-runtime";
-import { activeAgentWorktrees } from "./agentScmPolicy";
+import { activeAgentScmEntries, activeAgentWorktrees } from "./agentScmPolicy";
 
 function run(id: string, worktreePath?: string, archived = false): AgentRun {
   return {
@@ -34,5 +34,22 @@ describe("agent SCM graph registration", () => {
         run("draft"),
       ]),
     ).toEqual(["/repo/worktrees/a", "/repo/worktrees/b"]);
+  });
+
+  it("publishes native tab and graph identity for each active worktree", () => {
+    expect(
+      activeAgentScmEntries([
+        run("auth", "/repo/worktrees/auth"),
+        run("archived", "/repo/worktrees/old", true),
+      ]),
+    ).toEqual([
+      {
+        root: "/repo/worktrees/auth",
+        repository: "repo",
+        branch: "qivryn/agent-auth",
+        runId: "auth",
+        title: "auth",
+      },
+    ]);
   });
 });

@@ -2,7 +2,7 @@ import { FileAgentStore } from "@qivryn/agent-runtime";
 import { getQivrynGlobalPath } from "core/util/paths";
 import path from "node:path";
 import * as vscode from "vscode";
-import { activeAgentWorktrees } from "./agentScmPolicy";
+import { activeAgentScmEntries } from "./agentScmPolicy";
 import type { GitExtension } from "./otherExtensions/git";
 
 export class AgentScmGraphManager implements vscode.Disposable {
@@ -37,17 +37,23 @@ export class AgentScmGraphManager implements vscode.Disposable {
 
   private async refresh(): Promise<void> {
     await this.store.initialize();
+    const runs = await this.store.listRuns({
+      includeArchived: false,
+      limit: 200,
+    });
+    const entries = activeAgentScmEntries(runs);
+    await vscode.commands.executeCommand(
+      "setContext",
+      "qivryn.agentWorktrees",
+      entries,
+    );
     const extension =
       vscode.extensions.getExtension<GitExtension>("vscode.git");
     if (!extension) return;
     if (!extension.isActive) await extension.activate();
     if (!extension.exports.enabled) return;
     const git = extension.exports.getAPI(1);
-    const runs = await this.store.listRuns({
-      includeArchived: false,
-      limit: 200,
-    });
-    for (const worktree of activeAgentWorktrees(runs)) {
+    for (const { root: worktree } of entries) {
       if (this.opened.has(worktree)) continue;
       const repository = await git.openRepository(vscode.Uri.file(worktree));
       if (repository) this.opened.add(worktree);

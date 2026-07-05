@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
+  AgentApprovalDecision,
+  AgentApprovalResolution,
   AgentCheckpoint,
   AgentEventKind,
   AgentPermissionMode,
@@ -50,6 +52,46 @@ export class AgentControlService {
     return this.updateRun(runId, (run) => ({ ...run, permissionMode }));
   }
 
+  async resolveApproval(
+    runId: string,
+    approvalId: string,
+    decision: AgentApprovalDecision,
+  ): Promise<AgentApprovalResolution> {
+    await this.requireRun(runId);
+    const events = await this.store.readEvents(runId, { limit: Infinity });
+    const requested = events.find(
+      (event) =>
+        event.kind === "approval.requested" &&
+        typeof event.payload === "object" &&
+        event.payload !== null &&
+        ((event.payload as { id?: string; approvalId?: string }).id ===
+          approvalId ||
+          (event.payload as { id?: string; approvalId?: string }).approvalId ===
+            approvalId),
+    );
+    if (!requested) {
+      throw new Error(`Approval ${approvalId} does not exist`);
+    }
+    const alreadyResolved = events.some(
+      (event) =>
+        event.kind === "approval.resolved" &&
+        typeof event.payload === "object" &&
+        event.payload !== null &&
+        (event.payload as { approvalId?: string }).approvalId === approvalId,
+    );
+    if (alreadyResolved) {
+      throw new Error(`Approval ${approvalId} has already been resolved`);
+    }
+    const resolution: AgentApprovalResolution = {
+      approvalId,
+      runId,
+      decision,
+      resolvedAt: this.now().toISOString(),
+    };
+    await this.appendEvent(runId, "approval.resolved", resolution);
+    return resolution;
+  }
+
   setRunPinned(runId: string, pinned: boolean): Promise<AgentRun> {
     return this.updateRun(runId, (run) => ({ ...run, pinned }));
   }
@@ -74,6 +116,24 @@ export class AgentControlService {
       }
     }
     return transitionAgentRun(this.store, current.id, "archived");
+  }
+
+  async unarchiveRun(runId: string): Promise<AgentRun> {
+    const current = await this.requireRun(runId);
+    if (current.status !== "archived" && current.archived !== true)
+      return current;
+    const restored = await this.updateRun(runId, (run) => ({
+      ...run,
+      status: "completed",
+      statusReason: undefined,
+      archived: false,
+    }));
+    await this.appendEvent(runId, "run.status", {
+      from: current.status,
+      to: restored.status,
+      reason: "restored-from-archive",
+    });
+    return restored;
   }
 
   async enqueuePrompt(

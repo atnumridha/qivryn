@@ -27,6 +27,7 @@ import { readSkillImpl } from "./implementations/readSkill";
 import { requestRuleImpl } from "./implementations/requestRule";
 import { runTerminalCommandImpl } from "./implementations/runTerminalCommand";
 import { searchWebImpl } from "./implementations/searchWeb";
+import { updatePlanImpl } from "./implementations/updatePlan";
 import { viewDiffImpl } from "./implementations/viewDiff";
 import { viewRepoMapImpl } from "./implementations/viewRepoMap";
 import { viewSubdirectoryImpl } from "./implementations/viewSubdirectory";
@@ -237,6 +238,8 @@ export async function callBuiltInTool(
       return await goToDefinitionImpl(args, extras);
     case BuiltInToolNames.SearchSymbols:
       return await searchSymbolsImpl(args, extras);
+    case BuiltInToolNames.UpdatePlan:
+      return await updatePlanImpl(args, extras);
     case BuiltInToolNames.ViewRepoMap:
       return await viewRepoMapImpl(args, extras);
     case BuiltInToolNames.ViewSubdirectory:

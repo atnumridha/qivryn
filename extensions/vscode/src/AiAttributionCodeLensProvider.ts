@@ -65,9 +65,5 @@ export async function openAgentAttribution(
     );
     return;
   }
-  await vscode.commands.executeCommand(
-    "qivryn.navigateTo",
-    `/agents?runId=${encodeURIComponent(attribution.runId)}${attribution.eventSequence ? `&eventSequence=${attribution.eventSequence}` : ""}${attribution.checkpointId ? `&checkpointId=${encodeURIComponent(attribution.checkpointId)}` : ""}`,
-    false,
-  );
+  await vscode.commands.executeCommand("qivryn.navigateTo", "/", false);
 }

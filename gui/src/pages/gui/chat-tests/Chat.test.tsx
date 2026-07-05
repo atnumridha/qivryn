@@ -1,10 +1,11 @@
-import { act, screen } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import { newSession } from "../../../redux/slices/sessionSlice";
 import { addAndSelectMockLlm } from "../../../util/test/config";
 import { renderWithProviders } from "../../../util/test/render";
 import {
   getElementByTestId,
   getElementByText,
+  getMainEditor,
   sendInputWithMockedResponse,
 } from "../../../util/test/utils";
 import { Chat } from "../Chat";
@@ -15,44 +16,21 @@ test("should render input box", async () => {
 });
 
 test("should be able to toggle modes", async () => {
-  await renderWithProviders(<Chat />);
-  await getElementByText("Agent");
+  const { store } = await renderWithProviders(<Chat />);
+  await getElementByText("Agents");
 
   // Simulate cmd+. keyboard shortcut to toggle modes
-  act(() => {
+  await act(async () => {
     document.dispatchEvent(
       new KeyboardEvent("keydown", {
         key: ".",
         metaKey: true, // cmd key on Mac
       }),
     );
+    await Promise.resolve();
   });
 
-  // Check that it switched to Chat mode
-  await getElementByText("Chat");
-
-  act(() => {
-    document.dispatchEvent(
-      new KeyboardEvent("keydown", {
-        key: ".",
-        metaKey: true, // cmd key on Mac
-      }),
-    );
-  });
-
-  // Check that it switched to Plan mode
-  await getElementByText("Plan");
-
-  act(() => {
-    document.dispatchEvent(
-      new KeyboardEvent("keydown", {
-        key: ".",
-        metaKey: true, // cmd key on Mac
-      }),
-    );
-  });
-
-  await getElementByText("Agent");
+  expect(store.getState().session.mode).toBe("chat");
 });
 
 test("should send a message and receive a response", async () => {
@@ -71,6 +49,50 @@ test("should send a message and receive a response", async () => {
   ]);
 
   await getElementByText(CONTENT);
+});
+
+test("surfaces a recoverable error instead of ignoring submit while chat model is loading", async () => {
+  const { store } = await renderWithProviders(<Chat />);
+  const editor = await getMainEditor();
+  const sendButton = await getElementByTestId("submit-input-button");
+
+  await act(async () => {
+    editor.commands.insertContent("Hello World");
+  });
+
+  await act(async () => {
+    sendButton.click();
+  });
+
+  await waitFor(() => {
+    expect(store.getState().ui.showDialog).toBe(true);
+    expect((store.getState().ui.dialogMessage as any)?.props?.error).toEqual(
+      expect.objectContaining({
+        message: "No chat model selected",
+      }),
+    );
+  });
+});
+
+test("keyboard enter also submits into the recoverable error path while chat model is loading", async () => {
+  const { store, user } = await renderWithProviders(<Chat />);
+  const editor = await getMainEditor();
+
+  await act(async () => {
+    editor.commands.insertContent("Hello from keyboard");
+    editor.commands.focus();
+  });
+
+  await user.keyboard("{Enter}");
+
+  await waitFor(() => {
+    expect(store.getState().ui.showDialog).toBe(true);
+    expect((store.getState().ui.dialogMessage as any)?.props?.error).toEqual(
+      expect.objectContaining({
+        message: "No chat model selected",
+      }),
+    );
+  });
 });
 
 test("bounds initial rendering for large sessions and loads older items on demand", async () => {

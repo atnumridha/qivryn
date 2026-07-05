@@ -11,8 +11,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { HeaderButton, Input } from "..";
-import HeaderButtonWithToolTip from "../gui/HeaderButtonWithToolTip";
+import { ToolTip } from "../gui/Tooltip";
 import {
   Rectangle,
   SearchMatch,
@@ -69,7 +68,10 @@ export const useFindWidget = (
   const [open, setOpen] = useState<boolean>(false);
   const openWidget = useCallback(() => {
     setOpen(true);
-    inputRef?.current?.select();
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    });
   }, [inputRef]);
 
   // Search settings and results
@@ -212,12 +214,27 @@ export const useFindWidget = (
     };
   }, [searchRef, refreshSearch, open]);
 
+  const resultText =
+    matches.length === 0
+      ? "No results"
+      : `${(currentMatch?.index ?? 0) + 1} of ${matches.length}`;
+
+  const iconButtonClass =
+    "hover:bg-list-hover focus-visible:ring-border-focus inline-flex h-8 w-8 flex-shrink-0 cursor-pointer items-center justify-center rounded-md border border-transparent bg-transparent text-description transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-description";
+
   // Find widget component
-  const widget = (
+  const widget = open ? (
     <div
-      className={`fixed top-0 z-50 transition-all ${open ? "" : "-translate-y-full"} bg-vsc-background right-0 flex flex-row items-center gap-1.5 rounded-bl-lg border-0 border-b border-l border-solid border-zinc-700 pl-[3px] pr-3 sm:gap-2`}
+      role="search"
+      aria-label="Find in chat"
+      data-testid="qivryn-find-widget"
+      className="find-widget-skip bg-vsc-input-background border-command-border text-foreground fixed right-3 top-3 z-[70] flex max-w-[calc(100vw-24px)] translate-y-0 items-center gap-1 rounded-xl border px-2 py-1.5 opacity-100 shadow-2xl backdrop-blur-sm transition-all duration-150 ease-out"
     >
-      <Input
+      <label htmlFor="qivryn-find-input" className="sr-only">
+        Find in chat
+      </label>
+      <input
+        id="qivryn-find-input"
         disabled={disabled}
         type="text"
         ref={inputRef}
@@ -225,66 +242,92 @@ export const useFindWidget = (
         onChange={(e) => {
           setCurrentValue(e.target.value);
         }}
+        onKeyDown={(event) => {
+          event.stopPropagation();
+        }}
         placeholder="Search..."
+        className="bg-vsc-background border-command-border focus:bg-input focus:ring-border-focus text-foreground placeholder:text-description-muted h-8 w-[min(46vw,260px)] min-w-[168px] rounded-lg border px-2.5 text-sm outline-none transition-colors focus:ring-1 disabled:cursor-not-allowed disabled:opacity-50"
       />
-      <p className="xs:block hidden min-w-12 whitespace-nowrap px-1 text-center text-xs">
-        {matches.length === 0
-          ? "No results"
-          : `${(currentMatch?.index ?? 0) + 1} of ${matches.length}`}
+      <p
+        role="status"
+        aria-live="polite"
+        className="text-description hidden min-w-[64px] whitespace-nowrap px-1 text-center text-xs sm:block"
+      >
+        {resultText}
       </p>
       <div className="hidden flex-row gap-0.5 sm:flex">
-        <HeaderButtonWithToolTip
-          tooltipPlacement="top-end"
-          text={"Previous Match"}
-          onClick={(e) => {
-            e.stopPropagation();
-            previousMatch();
-          }}
-          className="h-4 w-4 focus:ring"
-          disabled={matches.length < 2 || disabled}
-        >
-          <ArrowUpIcon className="h-4 w-4" />
-        </HeaderButtonWithToolTip>
-        <HeaderButtonWithToolTip
-          tooltipPlacement="top-end"
-          text={"Next Match"}
-          onClick={(e) => {
-            e.stopPropagation();
-            nextMatch();
-          }}
-          className="h-4 w-4 focus:ring"
-          disabled={matches.length < 2 || disabled}
-        >
-          <ArrowDownIcon className="h-4 w-4" />
-        </HeaderButtonWithToolTip>
+        <ToolTip place="bottom-end" content="Previous match">
+          <button
+            type="button"
+            aria-label="Previous match"
+            onClick={(e) => {
+              e.stopPropagation();
+              previousMatch();
+            }}
+            className={iconButtonClass}
+            disabled={matches.length < 2 || disabled}
+          >
+            <ArrowUpIcon className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </ToolTip>
+        <ToolTip place="bottom-end" content="Next match">
+          <button
+            type="button"
+            aria-label="Next match"
+            onClick={(e) => {
+              e.stopPropagation();
+              nextMatch();
+            }}
+            className={iconButtonClass}
+            disabled={matches.length < 2 || disabled}
+          >
+            <ArrowDownIcon className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </ToolTip>
       </div>
-      <HeaderButtonWithToolTip
-        disabled={disabled}
-        inverted={caseSensitive}
-        tooltipPlacement="top-end"
-        text={
+      <ToolTip
+        place="bottom-end"
+        content={
           caseSensitive
             ? "Turn off case sensitivity"
             : "Turn on case sensitivity"
         }
-        onClick={(e) => {
-          e.stopPropagation();
-          setCaseSensitive((curr) => !curr);
-        }}
-        className="h-5 w-6 rounded-full border text-xs focus:outline-none focus:ring"
       >
-        Aa
-      </HeaderButtonWithToolTip>
+        <button
+          type="button"
+          disabled={disabled}
+          aria-label={
+            caseSensitive
+              ? "Turn off case sensitivity"
+              : "Turn on case sensitivity"
+          }
+          aria-pressed={caseSensitive}
+          onClick={(e) => {
+            e.stopPropagation();
+            setCaseSensitive((curr) => !curr);
+          }}
+          className={`${iconButtonClass} w-9 text-[11px] font-medium ${
+            caseSensitive
+              ? "border-description bg-list-active text-list-active-foreground hover:bg-list-active hover:text-list-active-foreground"
+              : ""
+          }`}
+        >
+          Aa
+        </button>
+      </ToolTip>
       {/* TODO - add useRegex functionality */}
-      <HeaderButton
-        inverted={false}
-        onClick={() => setOpen(false)}
-        className="focus:ring"
-      >
-        <XMarkIcon className="h-4 w-4" />
-      </HeaderButton>
+      <ToolTip place="bottom-end" content="Close search">
+        <button
+          type="button"
+          aria-label="Close search"
+          onClick={() => setOpen(false)}
+          className={iconButtonClass}
+        >
+          <XMarkIcon className="h-4 w-4" aria-hidden="true" />
+        </button>
+      </ToolTip>
     </div>
-  );
+  ) : null;
 
   // Generate the highlight overlay elements
   const highlights = useMemo(() => {

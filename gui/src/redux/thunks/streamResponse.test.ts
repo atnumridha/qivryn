@@ -420,7 +420,7 @@ describe("streamResponseThunk", () => {
     expect(result.type).toBe("chat/streamResponse/fulfilled");
 
     // Verify final state after thunk completion
-    const finalState = mockStore.getState();
+    const finalState = mockStore.getState() as RootState;
     expect(finalState).toEqual({
       ...initialState,
       session: {
@@ -1269,5 +1269,236 @@ describe("streamResponseThunk", () => {
         title: "Session summary",
       },
     });
+  });
+
+  it("auto-compacts and retries the same turn when compiled context is too large", async () => {
+    const initialState = getRootStateWithClaude();
+    initialState.session.history = [
+      {
+        message: { id: "1", role: "user", content: "Earlier question" },
+        contextItems: [],
+      },
+      {
+        message: {
+          id: "2",
+          role: "assistant",
+          content: "Earlier answer that can be summarized",
+        },
+        contextItems: [],
+      },
+      {
+        message: { id: "3", role: "user", content: "Follow-up question" },
+        contextItems: [],
+      },
+      {
+        message: {
+          id: "4",
+          role: "assistant",
+          content: "Follow-up answer",
+        },
+        contextItems: [],
+      },
+    ];
+    initialState.session.id = "session-123";
+
+    const mockStore = createMockStore(initialState);
+    const mockIdeMessenger = mockStore.mockIdeMessenger;
+    const originalRequest = mockIdeMessenger.request.bind(mockIdeMessenger);
+    const compileRequests: any[] = [];
+    const compactRequests: any[] = [];
+
+    vi.spyOn(mockIdeMessenger, "request").mockImplementation(
+      async (message, data) => {
+        if (message === "llm/compileChat") {
+          compileRequests.push(data);
+          if (compileRequests.length === 1) {
+            return {
+              done: true,
+              status: "success",
+              content: {
+                compiledChatMessages: [
+                  { role: "user", content: "compiled before compaction" },
+                ],
+                didPrune: true,
+                contextPercentage: 0.95,
+              },
+            } as any;
+          }
+          return {
+            done: true,
+            status: "success",
+            content: {
+              compiledChatMessages: [
+                { role: "user", content: "compiled after compaction" },
+              ],
+              didPrune: false,
+              contextPercentage: 0.4,
+            },
+          } as any;
+        }
+        if (message === "conversation/compact") {
+          compactRequests.push(data);
+          return {
+            done: true,
+            status: "success",
+            content: "Summary of earlier conversation",
+          } as any;
+        }
+        return originalRequest(message as any, data as any);
+      },
+    );
+
+    async function* compactedStream(): AsyncGenerator<
+      AssistantChatMessage[],
+      PromptLog
+    > {
+      yield [{ role: "assistant", content: "Continued after compaction" }];
+      return {
+        prompt: "compiled after compaction",
+        completion: "Continued after compaction",
+        modelProvider: "anthropic",
+        modelTitle: "Claude 3.5 Sonnet",
+      };
+    }
+
+    const streamSpy = vi.fn().mockImplementation(() => compactedStream());
+    mockIdeMessenger.llmStreamChat = streamSpy;
+
+    const result = await mockStore.dispatch(
+      streamResponseThunk({
+        editorState: mockEditorState,
+        modifiers: mockModifiers,
+      }) as any,
+    );
+
+    expect(result.type).toBe("chat/streamResponse/fulfilled");
+    expect(compileRequests).toHaveLength(2);
+    expect(compactRequests).toEqual([
+      { index: 3, sessionId: "session-123", automatic: true },
+    ]);
+    expect(streamSpy).toHaveBeenCalledTimes(1);
+    expect(streamSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: [{ role: "user", content: "compiled after compaction" }],
+      }),
+      expect.any(AbortSignal),
+    );
+
+    const finalState = mockStore.getState() as RootState;
+    expect(finalState.session.inlineErrorMessage).toBeUndefined();
+    expect(finalState.session.contextPercentage).toBe(0.4);
+    expect(finalState.session.history[3].conversationSummary).toBe(
+      "Summary of earlier conversation",
+    );
+    expect(finalState.session.history[3].conversationSummaryAutomatic).toBe(
+      true,
+    );
+  });
+
+  it("auto-compacts and retries instead of stopping on a not-enough-context compile error", async () => {
+    const initialState = getRootStateWithClaude();
+    initialState.session.history = [
+      {
+        message: { id: "1", role: "user", content: "Earlier question" },
+        contextItems: [],
+      },
+      {
+        message: {
+          id: "2",
+          role: "assistant",
+          content: "Earlier answer that can be summarized",
+        },
+        contextItems: [],
+      },
+      {
+        message: { id: "3", role: "user", content: "Follow-up question" },
+        contextItems: [],
+      },
+      {
+        message: {
+          id: "4",
+          role: "assistant",
+          content: "Follow-up answer",
+        },
+        contextItems: [],
+      },
+    ];
+    initialState.session.id = "session-123";
+
+    const mockStore = createMockStore(initialState);
+    const mockIdeMessenger = mockStore.mockIdeMessenger;
+    const originalRequest = mockIdeMessenger.request.bind(mockIdeMessenger);
+    const compileRequests: any[] = [];
+    const compactRequests: any[] = [];
+
+    vi.spyOn(mockIdeMessenger, "request").mockImplementation(
+      async (message, data) => {
+        if (message === "llm/compileChat") {
+          compileRequests.push(data);
+          if (compileRequests.length === 1) {
+            return {
+              done: true,
+              status: "error",
+              error: "Not enough context available for this request",
+            } as any;
+          }
+          return {
+            done: true,
+            status: "success",
+            content: {
+              compiledChatMessages: [
+                { role: "user", content: "compiled after error compaction" },
+              ],
+              didPrune: false,
+              contextPercentage: 0.35,
+            },
+          } as any;
+        }
+        if (message === "conversation/compact") {
+          compactRequests.push(data);
+          return {
+            done: true,
+            status: "success",
+            content: "Summary after compile error",
+          } as any;
+        }
+        return originalRequest(message as any, data as any);
+      },
+    );
+
+    async function* recoveredStream(): AsyncGenerator<
+      AssistantChatMessage[],
+      PromptLog
+    > {
+      yield [{ role: "assistant", content: "Recovered with compaction" }];
+      return {
+        prompt: "compiled after error compaction",
+        completion: "Recovered with compaction",
+        modelProvider: "anthropic",
+        modelTitle: "Claude 3.5 Sonnet",
+      };
+    }
+
+    const streamSpy = vi.fn().mockImplementation(() => recoveredStream());
+    mockIdeMessenger.llmStreamChat = streamSpy;
+
+    const result = await mockStore.dispatch(
+      streamResponseThunk({
+        editorState: mockEditorState,
+        modifiers: mockModifiers,
+      }) as any,
+    );
+
+    expect(result.type).toBe("chat/streamResponse/fulfilled");
+    expect(compileRequests).toHaveLength(2);
+    expect(compactRequests).toEqual([
+      { index: 3, sessionId: "session-123", automatic: true },
+    ]);
+    expect(streamSpy).toHaveBeenCalledTimes(1);
+    const finalState = mockStore.getState() as RootState;
+    expect(finalState.session.inlineErrorMessage).toBeUndefined();
+    expect(finalState.session.history[3].conversationSummary).toBe(
+      "Summary after compile error",
+    );
   });
 });

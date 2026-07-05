@@ -3,6 +3,8 @@ import {
   createAgentDiagnosticReport,
   FileAgentStore,
   FileAgentAutomationStore,
+  filterAgentRuns,
+  formatAgentRunStatus,
   formatQivrynDeepLink,
   GitWorktreeWorkspaceProvider,
   type AgentRun,
@@ -16,6 +18,7 @@ import { ensureAgentDaemon, runAgentDaemon } from "../services/agentDaemon.js";
 interface AgentsCommandOptions {
   json?: boolean;
   all?: boolean;
+  search?: string;
   events?: boolean;
   title?: string;
   prompt?: string;
@@ -55,7 +58,7 @@ function formatRun(run: AgentRun): string {
       ? ` +${run.diffAdded ?? 0}/-${run.diffRemoved ?? 0}`
       : "";
   const workspace = run.workspace.worktreePath ?? run.workspace.repositoryPath;
-  return `${run.id}\t${run.status}\t${run.title}${diff}\t${workspace}`;
+  return `${run.id}\t${formatAgentRunStatus(run.status)}\t${run.title}${diff}\t${workspace}`;
 }
 
 export async function agentsCommand(
@@ -414,10 +417,13 @@ export async function agentsCommand(
   }
 
   if (!action || action === "list") {
-    const runs = await store.listRuns({
-      includeArchived: options.all,
-      limit: options.all ? undefined : 100,
-    });
+    const runs = filterAgentRuns(
+      await store.listRuns({
+        includeArchived: options.all,
+        limit: options.all ? undefined : 100,
+      }),
+      options.search,
+    );
     if (options.json) {
       console.log(JSON.stringify({ runs }, null, 2));
       return;

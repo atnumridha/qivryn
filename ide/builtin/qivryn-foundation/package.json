@@ -18,17 +18,40 @@
         "label": "Qivryn Dark",
         "uiTheme": "vs-dark",
         "path": "./themes/qivryn-dark-color-theme.json"
+      },
+      {
+        "label": "Qivryn Midnight",
+        "uiTheme": "vs-dark",
+        "path": "./themes/qivryn-midnight-color-theme.json"
+      },
+      {
+        "label": "Qivryn Light",
+        "uiTheme": "vs",
+        "path": "./themes/qivryn-light-color-theme.json"
+      },
+      {
+        "label": "Qivryn High Contrast",
+        "uiTheme": "hc-black",
+        "path": "./themes/qivryn-high-contrast-color-theme.json"
       }
     ],
     "configurationDefaults": {
       "workbench.colorTheme": "Qivryn Dark",
       "workbench.startupEditor": "none",
-      "workbench.commandCenter": true,
+      "window.commandCenter": true,
+      "workbench.layoutControl.enabled": true,
       "workbench.editor.showTabs": "multiple",
       "workbench.editor.enablePreview": false,
+      "workbench.editor.tabSizing": "shrink",
+      "workbench.editor.pinnedTabSizing": "compact",
       "workbench.panel.defaultLocation": "bottom",
       "workbench.sideBar.location": "left",
-      "terminal.integrated.defaultLocation": "view"
+      "workbench.secondarySideBar.defaultVisibility": "visible",
+      "terminal.integrated.defaultLocation": "view",
+      "chat.viewSessions.enabled": true,
+      "chat.viewSessions.orientation": "stacked",
+      "chat.agentsControl.enabled": "hidden",
+      "chat.agentsHandoffTip.mode": "hidden"
     }
   }
 }

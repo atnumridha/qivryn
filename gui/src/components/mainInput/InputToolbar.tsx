@@ -1,35 +1,19 @@
-import {
-  AtSymbolIcon,
-  LightBulbIcon as LightBulbIconOutline,
-  PhotoIcon,
-} from "@heroicons/react/24/outline";
-import { LightBulbIcon as LightBulbIconSolid } from "@heroicons/react/24/solid";
+import { AtSymbolIcon, PhotoIcon } from "@heroicons/react/24/outline";
 import { InputModifiers } from "core";
-import {
-  modelSupportsImages,
-  modelSupportsReasoning,
-} from "core/llm/autodetect";
+import { modelSupportsImages } from "core/llm/autodetect";
 import { memo, useContext, useRef } from "react";
 import { IdeMessengerContext } from "../../context/IdeMessenger";
 import { useAppDispatch, useAppSelector } from "../../redux/hooks";
-import { selectUseActiveFile } from "../../redux/selectors";
 import { selectSelectedChatModel } from "../../redux/slices/configSlice";
-import { setHasReasoningEnabled } from "../../redux/slices/sessionSlice";
-import { setReasoningSetting } from "../../redux/slices/uiSlice";
 import type { AgentAccessMode } from "../../redux/slices/uiSlice";
 import { exitEdit } from "../../redux/thunks/edit";
-import { getMetaKeyLabel, isMetaEquivalentKeyPressed } from "../../util";
 import { ToolTip } from "../gui/Tooltip";
-import ModelSelect from "../modelSelection/ModelSelect";
-import { ReasoningEffortSelect } from "../modelSelection/ReasoningEffortSelect";
 import { ModeSelect } from "../ModeSelect";
 import { Button } from "../ui";
 import { useFontSize } from "../ui/font";
 import ContextStatus from "./ContextStatus";
 import HoverItem from "./InputToolbar/HoverItem";
 import { VoiceInputButton } from "./VoiceInputButton";
-import { AgentAccessModeSelect } from "./Lump/LumpToolbar/AgentAccessModeSelect";
-import { SkillSelect } from "../skills/SkillSelect";
 
 export interface ToolbarOptions {
   hideUseCodebase?: boolean;
@@ -55,18 +39,32 @@ interface InputToolbarProps {
   onSkillChange?: (name: string | undefined) => void;
 }
 
+const TOOLBAR_INTERACTIVE_SELECTOR = [
+  "button",
+  "select",
+  "input",
+  "label",
+  "[role='button']",
+  "[role='menu']",
+  "[role='menuitem']",
+  "[role='menuitemradio']",
+  "[role='option']",
+  "[aria-haspopup]",
+  "[data-headlessui-state]",
+  "[data-qivryn-interactive]",
+  "ul",
+].join(", ");
+
+const iconButtonClass =
+  "text-description hover:bg-list-hover hover:text-foreground focus-visible:ring-border-focus inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-md border border-transparent bg-transparent p-0 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-1 disabled:cursor-not-allowed disabled:opacity-50";
+
 function InputToolbar(props: InputToolbarProps) {
   const dispatch = useAppDispatch();
   const ideMessenger = useContext(IdeMessengerContext);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const defaultModel = useAppSelector(selectSelectedChatModel);
-  const useActiveFile = useAppSelector(selectUseActiveFile);
   const isInEdit = useAppSelector((store) => store.session.isInEdit);
-  const mode = useAppSelector((store) => store.session.mode);
   const codeToEdit = useAppSelector((store) => store.editModeState.codeToEdit);
-  const hasReasoningEnabled = useAppSelector(
-    (store) => store.session.hasReasoningEnabled,
-  );
   const isEnterDisabled =
     props.disabled || (isInEdit && codeToEdit.length === 0);
 
@@ -79,8 +77,6 @@ function InputToolbar(props: InputToolbarProps) {
       defaultModel.capabilities,
     );
 
-  const supportsReasoning = modelSupportsReasoning(defaultModel);
-
   const smallFont = useFontSize(-2);
   const tinyFont = useFontSize(-3);
 
@@ -88,138 +84,96 @@ function InputToolbar(props: InputToolbarProps) {
     <>
       <div
         onClick={(e) => {
-          // Don't steal focus from child dropdowns (e.g. ReasoningEffortSelect)
+          // Don't steal focus from child dropdowns.
           const target = e.target as HTMLElement;
-          if (
-            target.closest(
-              "button, select, input, label, [role='button'], [role='option'], [data-headlessui-state], ul",
-            )
-          )
+          if (target.closest(TOOLBAR_INTERACTIVE_SELECTOR)) {
             return;
+          }
           props.onClick?.();
         }}
-        className={`find-widget-skip bg-vsc-input-background flex select-none flex-row items-center justify-between gap-1 pt-1 ${props.hidden ? "pointer-events-none h-0 cursor-default opacity-0" : "pointer-events-auto mt-2 cursor-text opacity-100"}`}
+        className={`find-widget-skip bg-vsc-input-background flex min-w-0 select-none flex-row flex-wrap items-center gap-1 pt-1 transition-opacity duration-150 ${props.hidden ? "pointer-events-none h-0 cursor-default opacity-0" : "pointer-events-auto mt-2 cursor-text opacity-100"}`}
         style={{
           fontSize: smallFont,
         }}
       >
-        <div className="xs:gap-1.5 flex min-w-0 flex-1 flex-row items-center gap-1 overflow-hidden">
+        <div className="flex min-w-0 flex-1 flex-row flex-wrap items-center gap-1 overflow-visible min-[720px]:gap-1.5">
           {!isInEdit && (
             <ToolTip place="top" content="Select Mode">
               <HoverItem className="!p-0">
-                <ModeSelect />
+                <ModeSelect
+                  skillName={props.skillName}
+                  onSkillChange={props.onSkillChange}
+                  agentAccessMode={props.agentAccessMode}
+                  onAgentAccessModeChange={props.onAgentAccessModeChange}
+                  includeAgentControls
+                  includeModelControls={!props.toolbarOptions?.hideSelectModel}
+                />
               </HoverItem>
             </ToolTip>
           )}
-          {!isInEdit && (mode === "agent" || mode === "debug") && (
-            <AgentAccessModeSelect
-              value={props.agentAccessMode}
-              onChange={props.onAgentAccessModeChange}
-            />
-          )}
-          {!isInEdit && (
-            <SkillSelect
-              value={props.skillName}
-              onChange={(skill) => props.onSkillChange?.(skill?.name)}
-              compact
-            />
-          )}
-          {!props.toolbarOptions?.hideSelectModel && (
-            <ToolTip place="top" content="Select Model">
-              <HoverItem className="min-w-0 !p-0">
-                <ModelSelect />
-              </HoverItem>
-            </ToolTip>
-          )}
-          <div className="xs:flex text-description -mb-1 hidden items-center transition-colors duration-200">
-            {props.toolbarOptions?.hideImageUpload ||
-              (supportsImages && (
-                <>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    style={{ display: "none" }}
-                    accept=".jpg,.jpeg,.png,.gif,.svg,.webp"
-                    onChange={(e) => {
-                      const files = e.target?.files ?? [];
-                      for (const file of files) {
-                        props.onImageFileSelected?.(file);
-                      }
-                      if (fileInputRef.current) {
-                        fileInputRef.current.value = "";
-                      }
-                    }}
-                  />
+          <div className="xs:flex text-description -mb-1 hidden items-center gap-0.5 transition-colors duration-150">
+            {!props.toolbarOptions?.hideImageUpload && supportsImages && (
+              <>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  style={{ display: "none" }}
+                  aria-label="Attach image file"
+                  accept=".jpg,.jpeg,.png,.gif,.svg,.webp"
+                  onChange={(e) => {
+                    const files = e.target?.files ?? [];
+                    for (const file of files) {
+                      props.onImageFileSelected?.(file);
+                    }
+                    if (fileInputRef.current) {
+                      fileInputRef.current.value = "";
+                    }
+                  }}
+                />
 
-                  <ToolTip place="top" content="Attach Image">
-                    <HoverItem className="">
-                      <PhotoIcon
-                        className="h-3 w-3 hover:brightness-125"
-                        onClick={(e) => {
-                          fileInputRef.current?.click();
-                        }}
-                      />
-                    </HoverItem>
-                  </ToolTip>
-                </>
-              ))}
-            {props.toolbarOptions?.hideAddContext || (
+                <ToolTip place="top" content="Attach Image">
+                  <button
+                    type="button"
+                    className={iconButtonClass}
+                    aria-label="Attach image"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      fileInputRef.current?.click();
+                    }}
+                  >
+                    <PhotoIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                  </button>
+                </ToolTip>
+              </>
+            )}
+            {!props.toolbarOptions?.hideAddContext && (
               <ToolTip place="top" content="Attach Context">
-                <HoverItem onClick={props.onAddContextItem}>
-                  <AtSymbolIcon className="h-3 w-3 hover:brightness-125" />
-                </HoverItem>
+                <button
+                  type="button"
+                  className={iconButtonClass}
+                  aria-label="Attach context"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    props.onAddContextItem?.();
+                  }}
+                >
+                  <AtSymbolIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
               </ToolTip>
             )}
-            <div
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <ReasoningEffortSelect />
-            </div>
           </div>
         </div>
 
         <div
-          className="text-description flex flex-shrink-0 items-center gap-1 whitespace-nowrap"
+          className="text-description ml-auto flex flex-shrink-0 items-center gap-1 whitespace-nowrap"
           style={{
             fontSize: tinyFont,
           }}
         >
           {props.isMainInput && <VoiceInputButton />}
           {!isInEdit && <ContextStatus />}
-          {!props.toolbarOptions?.hideUseCodebase && !isInEdit && (
-            <div className="hidden transition-colors duration-200 hover:underline min-[560px]:flex">
-              <HoverItem
-                className={
-                  props.activeKey === "Meta" ||
-                  props.activeKey === "Control" ||
-                  props.activeKey === "Alt"
-                    ? "underline"
-                    : ""
-                }
-                onClick={(e) =>
-                  props.onEnter?.({
-                    useCodebase: false,
-                    noContext: !useActiveFile,
-                  })
-                }
-              >
-                <ToolTip
-                  place="top-end"
-                  content={`${
-                    useActiveFile
-                      ? "Send Without Active File"
-                      : "Send With Active File"
-                  } (${getMetaKeyLabel()}⏎)`}
-                >
-                  <span>
-                    {getMetaKeyLabel()}⏎{" "}
-                    {useActiveFile ? "No active file" : "Active file"}
-                  </span>
-                </ToolTip>
-              </HoverItem>
-            </div>
-          )}
           {isInEdit && (
             <HoverItem
               className="hidden hover:underline sm:flex"
@@ -243,9 +197,7 @@ function InputToolbar(props: InputToolbarProps) {
                 if (props.onEnter) {
                   props.onEnter({
                     useCodebase: false,
-                    noContext: useActiveFile
-                      ? isMetaEquivalentKeyPressed(e as any) || e.altKey
-                      : !(isMetaEquivalentKeyPressed(e as any) || e.altKey),
+                    noContext: true,
                   });
                 }
               }}

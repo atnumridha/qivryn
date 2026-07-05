@@ -87,7 +87,7 @@ export function ModelsSection() {
           }
           description={
             <span>
-              Used in Chat, Plan, Agent mode (
+              Used in Chat, Plan, Agent, and Debug modes (
               <a
                 href={MODEL_DOCS_URLS.chat.learnMore}
                 target="_blank"

@@ -20,7 +20,7 @@ export type ToIdeFromWebviewProtocol = ToIdeFromWebviewOrCoreProtocol & {
   showFile: [ShowFilePayload, void];
   toggleDevTools: [undefined, void];
   reloadWindow: [undefined, void];
-  reloadAgentWindow: [undefined, void];
+  reloadAgentWindow: [{ path?: string } | undefined, void];
   closeAgentWindow: [undefined, void];
   "onboarding/importVsCode": [undefined, void];
   focusEditor: [undefined, void];

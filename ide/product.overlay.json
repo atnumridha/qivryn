@@ -1,5 +1,5 @@
 {
-  "remove": ["defaultChatAgent"],
+  "remove": ["defaultChatAgent", "voiceWsUrl"],
   "set": {
     "nameShort": "Qivryn",
     "nameLong": "Qivryn Agent IDE",
@@ -31,6 +31,17 @@
     "reportIssueUrl": "https://github.com/atnumridha/qivryn/issues/new/choose",
     "urlProtocol": "qivryn",
     "agentsTelemetryAppName": "qivryn-agents",
+    "extensionEnabledApiProposals": {
+      "Qivryn.qivryn": [
+        "agentSessionsWorkspace",
+        "agentsWindowConfiguration",
+        "chatParticipantAdditions",
+        "chatParticipantPrivate",
+        "chatSessionsProvider"
+      ]
+    },
+    "builtInExtensionsEnabledWithAutoUpdates": [],
+    "trustedExtensionAuthAccess": {},
     "enableTelemetry": false
   }
 }

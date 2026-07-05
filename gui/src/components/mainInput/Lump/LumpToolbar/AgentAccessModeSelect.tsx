@@ -68,14 +68,14 @@ export function AgentAccessModeSelect({
         <ToolTip content={`${selected.label}: ${selected.description}`}>
           <ListboxButton
             aria-label="Agent access mode"
-            className="text-description bg-lightgray/20 max-w-[132px] gap-1 rounded-full border-none px-1.5 py-0.5"
+            className="text-description bg-lightgray/20 h-[20px] max-w-[132px] gap-1 rounded-full border-none px-1.5 py-0.5"
           >
             <ShieldCheckIcon className="h-3 w-3 flex-shrink-0" />
-            <span className="truncate">{selected.label}</span>
+            <span className="max-w-[72px] truncate">{selected.label}</span>
             <ChevronDownIcon className="h-2.5 w-2.5 flex-shrink-0" />
           </ListboxButton>
         </ToolTip>
-        <ListboxOptions className="cursor-access-menu min-w-52">
+        <ListboxOptions className="cursor-access-menu w-[min(260px,calc(100vw-16px))] min-w-0">
           {ACCESS_MODES.map((candidate) => (
             <ListboxOption key={candidate.value} value={candidate.value}>
               <div className="min-w-0 pr-3">

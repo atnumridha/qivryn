@@ -23,7 +23,10 @@ import {
 } from "../slices/sessionSlice";
 import { ThunkApiType } from "../store";
 import { constructMessages } from "../util/constructMessages";
-import { getAutoCompactionTarget } from "../../util/autoCompaction";
+import {
+  GUI_AUTO_COMPACTION_THRESHOLD,
+  getAutoCompactionTarget,
+} from "../../util/autoCompaction";
 
 import { modelSupportsNativeTools } from "core/llm/toolSupport";
 import { applyToolOverrides } from "core/tools/applyToolOverrides";
@@ -40,6 +43,8 @@ import { callToolById } from "./callToolById";
 import { evaluateToolPolicies } from "./evaluateToolPolicies";
 import { preprocessToolCalls } from "./preprocessToolCallArgs";
 import { streamResponseAfterToolCall } from "./streamResponseAfterToolCall";
+
+const MAX_GUI_AUTO_COMPACTION_ATTEMPTS = 3;
 
 /**
  * Builds completion options with reasoning configuration based on session state and model capabilities.
@@ -78,12 +83,13 @@ export const streamNormalInput = createAsyncThunk<
   {
     legacySlashCommandData?: ToCoreProtocol["llm/streamChat"][0]["legacySlashCommandData"];
     depth?: number;
+    autoCompactAttempts?: number;
   },
   ThunkApiType
 >(
   "chat/streamNormalInput",
   async (
-    { legacySlashCommandData, depth = 0 },
+    { legacySlashCommandData, depth = 0, autoCompactAttempts = 0 },
     { dispatch, extra, getState },
   ) => {
     if (process.env.NODE_ENV === "test" && depth > 50) {
@@ -98,12 +104,18 @@ export const streamNormalInput = createAsyncThunk<
       throw new Error("No chat model selected");
     }
 
-    const compactionTarget = getAutoCompactionTarget(
-      state.session.history,
-      state.session.contextPercentage,
-      state.session.isPruned,
-    );
-    if (compactionTarget !== undefined && state.session.id) {
+    const compactAutomatically = async (
+      compactionTarget: number | undefined,
+    ): Promise<boolean> => {
+      if (compactionTarget === undefined) {
+        return false;
+      }
+
+      const latestSessionId = getState().session.id;
+      if (!latestSessionId) {
+        return false;
+      }
+
       dispatch(
         setCompactionLoading({ index: compactionTarget, loading: true }),
       );
@@ -112,11 +124,11 @@ export const streamNormalInput = createAsyncThunk<
           "conversation/compact",
           {
             index: compactionTarget,
-            sessionId: state.session.id,
+            sessionId: latestSessionId,
             automatic: true,
           },
         );
-        if (compacted.status === "success" && compacted.content) {
+        if (compacted?.status === "success" && compacted.content) {
           dispatch(
             updateHistoryItemAtIndex({
               index: compactionTarget,
@@ -127,7 +139,8 @@ export const streamNormalInput = createAsyncThunk<
             }),
           );
           state = getState();
-        } else if (compacted.status === "error") {
+          return true;
+        } else if (compacted?.status === "error") {
           console.warn("Automatic context compaction failed", compacted.error);
         }
       } catch (error) {
@@ -139,7 +152,16 @@ export const streamNormalInput = createAsyncThunk<
           setCompactionLoading({ index: compactionTarget, loading: false }),
         );
       }
-    }
+      return false;
+    };
+
+    await compactAutomatically(
+      getAutoCompactionTarget(
+        state.session.history,
+        state.session.contextPercentage,
+        state.session.isPruned,
+      ),
+    );
 
     // Get tools and apply model-level overrides (disabled, description, etc.)
     let activeTools = selectActiveTools(state);
@@ -236,6 +258,24 @@ export const streamNormalInput = createAsyncThunk<
 
     if (precompiledRes.status === "error") {
       if (precompiledRes.error.includes("Not enough context")) {
+        const didCompact =
+          autoCompactAttempts < MAX_GUI_AUTO_COMPACTION_ATTEMPTS &&
+          (await compactAutomatically(
+            getAutoCompactionTarget(getState().session.history, 1, true),
+          ));
+        if (didCompact) {
+          unwrapResult(
+            await dispatch(
+              streamNormalInput({
+                legacySlashCommandData,
+                depth: depth + 1,
+                autoCompactAttempts: autoCompactAttempts + 1,
+              }),
+            ),
+          );
+          return;
+        }
+
         dispatch(setInlineErrorMessage("out-of-context"));
         dispatch(setInactive());
         return;
@@ -266,6 +306,31 @@ export const streamNormalInput = createAsyncThunk<
         model: selectedChatModel.model,
       }),
     );
+
+    if (
+      autoCompactAttempts < MAX_GUI_AUTO_COMPACTION_ATTEMPTS &&
+      (didPrune || contextPercentage >= GUI_AUTO_COMPACTION_THRESHOLD)
+    ) {
+      const didCompact = await compactAutomatically(
+        getAutoCompactionTarget(
+          getState().session.history,
+          contextPercentage,
+          didPrune,
+        ),
+      );
+      if (didCompact) {
+        unwrapResult(
+          await dispatch(
+            streamNormalInput({
+              legacySlashCommandData,
+              depth: depth + 1,
+              autoCompactAttempts: autoCompactAttempts + 1,
+            }),
+          ),
+        );
+        return;
+      }
+    }
 
     const start = Date.now();
     const streamAborter = state.session.streamAborter;

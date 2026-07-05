@@ -1,15 +1,15 @@
 import type { ContextItem } from "core/index.js";
-import { fetchUrlContentImpl } from "core/tools/implementations/fetchUrlContent.js";
+import { getUrlContextItems } from "core/context/providers/URLContextProvider.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { fetchTool } from "./fetch.js";
 
-// Mock the core fetchUrlContent implementation
-vi.mock("core/tools/implementations/fetchUrlContent.js", () => ({
-  fetchUrlContentImpl: vi.fn(),
+// Mock the core URL provider used by the CLI fetch tool.
+vi.mock("core/context/providers/URLContextProvider.js", () => ({
+  getUrlContextItems: vi.fn(),
 }));
 
-const mockFetchUrlContentImpl = vi.mocked(fetchUrlContentImpl);
+const mockGetUrlContextItems = vi.mocked(getUrlContextItems);
 
 describe("fetchTool", () => {
   let originalConsoleError: typeof console.error;
@@ -17,7 +17,7 @@ describe("fetchTool", () => {
   beforeEach(() => {
     originalConsoleError = console.error;
     console.error = vi.fn();
-    mockFetchUrlContentImpl.mockReset();
+    mockGetUrlContextItems.mockReset();
   });
 
   afterEach(() => {
@@ -35,16 +35,16 @@ describe("fetchTool", () => {
       },
     ];
 
-    mockFetchUrlContentImpl.mockResolvedValue(mockContextItems);
+    mockGetUrlContextItems.mockResolvedValue(mockContextItems);
 
     const result = await fetchTool.run({ url: "https://example.com" });
 
     expect(result).toBe(
       "# Example Page\n\nThis is some example content from a webpage.",
     );
-    expect(mockFetchUrlContentImpl).toHaveBeenCalledWith(
-      { url: "https://example.com" },
-      { fetch },
+    expect(mockGetUrlContextItems).toHaveBeenCalledWith(
+      "https://example.com",
+      fetch,
     );
   });
 
@@ -64,7 +64,7 @@ describe("fetchTool", () => {
       },
     ];
 
-    mockFetchUrlContentImpl.mockResolvedValue(mockContextItems);
+    mockGetUrlContextItems.mockResolvedValue(mockContextItems);
 
     const result = await fetchTool.run({ url: "https://example.com" });
 
@@ -88,7 +88,7 @@ describe("fetchTool", () => {
       },
     ];
 
-    mockFetchUrlContentImpl.mockResolvedValue(mockContextItems);
+    mockGetUrlContextItems.mockResolvedValue(mockContextItems);
 
     const result = await fetchTool.run({ url: "https://example.com" });
 
@@ -96,7 +96,7 @@ describe("fetchTool", () => {
   });
 
   it("should throw error when no content items returned", async () => {
-    mockFetchUrlContentImpl.mockResolvedValue([]);
+    mockGetUrlContextItems.mockResolvedValue([]);
 
     await expect(fetchTool.run({ url: "https://example.com" })).rejects.toThrow(
       "Could not fetch content from https://example.com",
@@ -105,7 +105,7 @@ describe("fetchTool", () => {
 
   it("should throw errors from core implementation", async () => {
     const error = new Error("Network error");
-    mockFetchUrlContentImpl.mockRejectedValue(error);
+    mockGetUrlContextItems.mockRejectedValue(error);
 
     await expect(fetchTool.run({ url: "https://example.com" })).rejects.toThrow(
       "Error: Network error",
@@ -122,13 +122,13 @@ describe("fetchTool", () => {
       },
     ];
 
-    mockFetchUrlContentImpl.mockResolvedValue(mockContextItems);
+    mockGetUrlContextItems.mockResolvedValue(mockContextItems);
 
     await fetchTool.run({ url: "https://example.com" });
 
-    expect(mockFetchUrlContentImpl).toHaveBeenCalledWith(
-      { url: "https://example.com" },
-      { fetch },
+    expect(mockGetUrlContextItems).toHaveBeenCalledWith(
+      "https://example.com",
+      fetch,
     );
   });
 

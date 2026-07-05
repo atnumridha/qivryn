@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { validateAgentAttachments } from "./attachments.js";
 import {
+  AgentApprovalDecision,
+  AgentApprovalResolution,
   AgentCheckpoint,
   AgentEvent,
   AgentPlan,
@@ -313,6 +315,18 @@ export class LocalAgentRuntime implements AgentRuntimeAdapter {
   }
 
   async resumeRun(runId: string): Promise<AgentRun> {
+    const current = await this.store.getRun(runId);
+    if (!current) {
+      throw new Error(`Agent run ${runId} does not exist`);
+    }
+    if (current.status === "completed") {
+      const queue = await this.controls.listQueue(runId);
+      if (queue.length === 0) {
+        throw new Error(
+          "Completed agent runs can only be resumed with a queued follow-up",
+        );
+      }
+    }
     const run = await transitionAgentRun(
       this.store,
       runId,
@@ -446,6 +460,26 @@ export class LocalAgentRuntime implements AgentRuntimeAdapter {
     return this.controls.setRunPermission(runId, permissionMode);
   }
 
+  async resolveApproval(
+    runId: string,
+    approvalId: string,
+    decision: AgentApprovalDecision,
+  ): Promise<AgentApprovalResolution> {
+    const resolution = await this.controls.resolveApproval(
+      runId,
+      approvalId,
+      decision,
+    );
+    const run = await this.requireRun(runId);
+    if (
+      decision !== "reject" &&
+      ["attention", "waiting"].includes(run.status)
+    ) {
+      await this.resumeRun(runId);
+    }
+    return resolution;
+  }
+
   setRunPinned(runId: string, pinned: boolean): Promise<AgentRun> {
     return this.controls.setRunPinned(runId, pinned);
   }
@@ -458,12 +492,26 @@ export class LocalAgentRuntime implements AgentRuntimeAdapter {
     return this.controls.archiveRun(runId);
   }
 
+  async unarchiveRun(runId: string): Promise<AgentRun> {
+    return this.controls.unarchiveRun(runId);
+  }
+
   async enqueuePrompt(
     runId: string,
     prompt: string,
     behavior: AgentQueueItem["behavior"] = "run-next",
   ): Promise<AgentQueueItem> {
-    return this.controls.enqueuePrompt(runId, prompt, behavior);
+    const item = await this.controls.enqueuePrompt(runId, prompt, behavior);
+    const run = await this.store.getRun(runId);
+    if (
+      run &&
+      ["completed", "failed", "canceled"].includes(run.status) &&
+      !this.queue.includes(runId) &&
+      !this.active.has(runId)
+    ) {
+      await this.resumeRun(runId);
+    }
+    return item;
   }
 
   listQueue(runId: string): Promise<AgentQueueItem[]> {
@@ -589,6 +637,10 @@ export class LocalAgentRuntime implements AgentRuntimeAdapter {
     controller: AbortController,
   ): Promise<void> {
     try {
+      const queuedRun = await this.store.getRun(runId);
+      const resumedCompletedRun =
+        queuedRun?.statusReason === "resumed" &&
+        (await this.controls.listQueue(runId)).length > 0;
       let run = await transitionAgentRun(this.store, runId, "running");
       await this.runHooks("agent.before", { run });
       const workspace = await this.workspaceProvider.prepare(run);
@@ -600,7 +652,19 @@ export class LocalAgentRuntime implements AgentRuntimeAdapter {
       if (this.autoCheckpoint) {
         await this.controls.createCheckpoint(runId, "Before agent changes");
       }
+      let consumeQueuedPromptBeforeExecute = resumedCompletedRun;
       while (true) {
+        if (consumeQueuedPromptBeforeExecute) {
+          const next = await this.consumeNextQueuedPrompt(
+            runId,
+            run,
+            "Before follow-up",
+          );
+          if (next) {
+            run = next;
+          }
+          consumeQueuedPromptBeforeExecute = false;
+        }
         const result = await this.executor.execute(run, {
           signal: controller.signal,
           emit: async (event) => {
@@ -638,27 +702,14 @@ export class LocalAgentRuntime implements AgentRuntimeAdapter {
         const resultStatus = result?.status ?? "completed";
         const queue = await this.controls.listQueue(runId);
         if (resultStatus === "completed" && queue.length > 0) {
-          const next = queue[0];
-          if (this.autoCheckpoint) {
-            await this.controls.createCheckpoint(runId, "Before follow-up");
-          }
-          await this.store.appendEvent({
-            id: this.idFactory(),
+          const nextRun = await this.consumeNextQueuedPrompt(
             runId,
-            kind: "message.user",
-            createdAt: this.now().toISOString(),
-            payload: {
-              prompt: next.prompt,
-              queueItemId: next.id,
-              behavior: next.behavior,
-            },
-          });
-          await this.controls.removeQueueItem(runId, next.id);
-          run = {
-            ...run,
-            prompt: next.prompt,
-            metadata: { ...run.metadata, activeQueueItemId: next.id },
-          };
+            run,
+            "Before follow-up",
+          );
+          if (nextRun) {
+            run = nextRun;
+          }
           continue;
         }
 
@@ -707,6 +758,38 @@ export class LocalAgentRuntime implements AgentRuntimeAdapter {
         }
       }
     }
+  }
+
+  private async consumeNextQueuedPrompt(
+    runId: string,
+    run: AgentRun,
+    checkpointLabel: string,
+  ): Promise<AgentRun | undefined> {
+    const queue = await this.controls.listQueue(runId);
+    const next = queue[0];
+    if (!next) {
+      return undefined;
+    }
+    if (this.autoCheckpoint) {
+      await this.controls.createCheckpoint(runId, checkpointLabel);
+    }
+    await this.store.appendEvent({
+      id: this.idFactory(),
+      runId,
+      kind: "message.user",
+      createdAt: this.now().toISOString(),
+      payload: {
+        prompt: next.prompt,
+        queueItemId: next.id,
+        behavior: next.behavior,
+      },
+    });
+    await this.controls.removeQueueItem(runId, next.id);
+    return {
+      ...run,
+      prompt: next.prompt,
+      metadata: { ...run.metadata, activeQueueItemId: next.id },
+    };
   }
 
   private async requireRun(runId: string): Promise<AgentRun> {

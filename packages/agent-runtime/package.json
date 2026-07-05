@@ -13,6 +13,10 @@
       "types": "./dist/contracts.d.ts",
       "default": "./dist/contracts.js"
     },
+    "./presentation": {
+      "types": "./dist/presentation.d.ts",
+      "default": "./dist/presentation.js"
+    },
     "./deep-links": {
       "types": "./dist/deepLinks.d.ts",
       "default": "./dist/deepLinks.js"
@@ -20,6 +24,12 @@
   },
   "typesVersions": {
     "*": {
+      "contracts": [
+        "dist/contracts.d.ts"
+      ],
+      "presentation": [
+        "dist/presentation.d.ts"
+      ],
       "deep-links": [
         "dist/deepLinks.d.ts"
       ]

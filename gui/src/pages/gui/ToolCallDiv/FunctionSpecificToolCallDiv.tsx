@@ -5,6 +5,7 @@ import { CreateFile } from "./CreateFile";
 import { EditFile } from "./EditFile";
 import { FindAndReplaceDisplay } from "./FindAndReplace";
 import { RunTerminalCommand } from "./RunTerminalCommand";
+import { UpdatePlan } from "./UpdatePlan";
 
 function FunctionSpecificToolCallDiv({
   toolCallState,
@@ -74,6 +75,8 @@ function FunctionSpecificToolCallDiv({
           toolCallId={toolCall.id}
         />
       );
+    case BuiltInToolNames.UpdatePlan:
+      return <UpdatePlan toolCallState={toolCallState} />;
     default:
       return null;
   }

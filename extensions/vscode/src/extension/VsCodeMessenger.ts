@@ -105,8 +105,11 @@ export class VsCodeMessenger {
     this.onWebview("reloadWindow", (msg) => {
       vscode.commands.executeCommand("workbench.action.reloadWindow");
     });
-    this.onWebview("reloadAgentWindow", () => {
-      vscode.commands.executeCommand("qivryn.reloadAgentsWindow");
+    this.onWebview("reloadAgentWindow", (msg) => {
+      vscode.commands.executeCommand(
+        "qivryn.reloadAgentsWindow",
+        msg.data?.path,
+      );
     });
     this.onWebview("closeAgentWindow", () => {
       vscode.commands.executeCommand("qivryn.closeAgentsWindow");

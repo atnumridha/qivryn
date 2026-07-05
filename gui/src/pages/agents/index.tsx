@@ -9,7 +9,13 @@ import type {
   AgentRuntimeStatus,
   AgentRunSnapshot,
   AgentWorktreeResult,
-} from "@qivryn/agent-runtime";
+} from "@qivryn/agent-runtime/contracts";
+import {
+  AGENT_ACTIVE_RUN_STATUSES,
+  AGENT_LIVE_RUN_STATUSES,
+  filterAgentRuns,
+  formatAgentRunStatus,
+} from "@qivryn/agent-runtime/presentation";
 import type {
   BaseSessionMetadata,
   ContextProviderDescription,
@@ -48,27 +54,24 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { IdeMessengerContext } from "../../context/IdeMessenger";
 import { useAppDispatch, useAppSelector } from "../../redux/hooks";
 import { selectSelectedChatModel } from "../../redux/slices/configSlice";
+import { setMode } from "../../redux/slices/sessionSlice";
 import { exitEdit } from "../../redux/thunks/edit";
 import { loadSession, saveCurrentSession } from "../../redux/thunks/session";
 import { ROUTES } from "../../util/navigation";
 import ModelSelect from "../../components/modelSelection/ModelSelect";
 import { ReasoningEffortSelect } from "../../components/modelSelection/ReasoningEffortSelect";
+import { ModeSelect } from "../../components/ModeSelect";
 import StyledMarkdownPreview from "../../components/StyledMarkdownPreview";
 import "./agents.css";
 import { AgentAutomationsPanel } from "./AgentAutomationsPanel";
 import { SkillSelect } from "../../components/skills/SkillSelect";
-import { AgentAccessModeSelect } from "../../components/mainInput/Lump/LumpToolbar/AgentAccessModeSelect";
-
-const ACTIVE_STATUSES = new Set([
-  "draft",
-  "queued",
-  "running",
-  "waiting",
-  "attention",
-]);
 
 const CHAT_OPEN_TIMEOUT_MS = 15_000;
-const LIVE_AGENT_STATUSES = new Set(["queued", "running", "waiting"]);
+const AGENT_FOLLOW_UP_RESUME_STATUSES = new Set<AgentRun["status"]>([
+  "completed",
+  "failed",
+  "canceled",
+]);
 type AgentStreamMode = "idle" | "connecting" | "live" | "polling";
 
 function withTimeout<T>(promise: Promise<T>, milliseconds: number): Promise<T> {
@@ -1056,6 +1059,68 @@ function ToolActivityCard({ item }: { item: ToolConversationItem }) {
   );
 }
 
+function isAgentProcessActivity(item: ToolConversationItem): boolean {
+  const payload = eventPayload(item.started);
+  return (
+    payload.scope === "process" || toolKey(item.started) === "__agent_process__"
+  );
+}
+
+function isPrimaryConversationEvent(event: AgentEvent): boolean {
+  return (
+    event.kind === "message.user" ||
+    event.kind === "message.assistant" ||
+    event.kind === "message.reasoning" ||
+    event.kind === "runtime.notice" ||
+    event.kind === "run.progress"
+  );
+}
+
+function renderConversationItem(
+  item: ConversationItem,
+  onEditAndResend?: (prompt: string) => void,
+) {
+  return item.type === "tool" ? (
+    <ToolActivityCard key={item.id} item={item} />
+  ) : (
+    <ConversationEventCard
+      key={item.event.id}
+      event={item.event}
+      onEditAndResend={onEditAndResend}
+    />
+  );
+}
+
+function ActivityDrawer({
+  items,
+  onEditAndResend,
+}: {
+  items: ConversationItem[];
+  onEditAndResend?: (prompt: string) => void;
+}) {
+  if (items.length === 0) return null;
+  const toolCount = items.filter((item) => item.type === "tool").length;
+  const eventCount = items.length - toolCount;
+  const summary =
+    toolCount > 0
+      ? `${toolCount} tool ${toolCount === 1 ? "call" : "calls"}`
+      : `${eventCount} runtime ${eventCount === 1 ? "event" : "events"}`;
+  return (
+    <details
+      className="cursor-agent-activity-drawer"
+      data-testid="agent-activity-drawer"
+    >
+      <summary className="cursor-agent-activity-summary">
+        <span>Activity</span>
+        <span>{summary}</span>
+      </summary>
+      <div className="cursor-agent-activity-body">
+        {items.map((item) => renderConversationItem(item, onEditAndResend))}
+      </div>
+    </details>
+  );
+}
+
 function ConversationEventCard({
   event,
   onEditAndResend,
@@ -1219,31 +1284,52 @@ function VirtualEventList({
   onEditAndResend?: (prompt: string) => void;
 }) {
   const [scrollTop, setScrollTop] = useState(0);
-  const conversationItems = useMemo(
-    () => groupConversationEvents(events),
+  const displayEvents = useMemo(
+    () =>
+      events.filter(
+        (event) =>
+          !(
+            event.kind.startsWith("tool.") &&
+            eventPayload(event).scope === "process"
+          ),
+      ),
     [events],
   );
+  const conversationItems = useMemo(
+    () => groupConversationEvents(displayEvents),
+    [displayEvents],
+  );
+  const primaryEvents = useMemo(
+    () => displayEvents.filter(isPrimaryConversationEvent),
+    [displayEvents],
+  );
+  const virtualEvents =
+    primaryEvents.length > 0 ? primaryEvents : displayEvents;
   const start = Math.max(0, Math.floor(scrollTop / EVENT_ROW_HEIGHT) - 3);
   const count = Math.ceil(EVENT_VIEWPORT_HEIGHT / EVENT_ROW_HEIGHT) + 6;
-  const visible = events.slice(start, start + count);
-  if (events.length === 0) return null;
+  const visible = virtualEvents.slice(start, start + count);
+  if (displayEvents.length === 0) return null;
   if (conversationItems.length <= 600) {
+    const primaryConversationItems = conversationItems.filter(
+      (item) => item.type === "event" && isPrimaryConversationEvent(item.event),
+    );
+    const activityConversationItems = conversationItems.filter(
+      (item) =>
+        !(item.type === "event" && isPrimaryConversationEvent(item.event)) &&
+        (item.type !== "tool" || !isAgentProcessActivity(item)),
+    );
     return (
       <div
         aria-label="Agent conversation"
         className="cursor-conversation-timeline mt-3 space-y-1.5"
       >
-        {conversationItems.map((item) =>
-          item.type === "tool" ? (
-            <ToolActivityCard key={item.id} item={item} />
-          ) : (
-            <ConversationEventCard
-              key={item.event.id}
-              event={item.event}
-              onEditAndResend={onEditAndResend}
-            />
-          ),
+        {primaryConversationItems.map((item) =>
+          renderConversationItem(item, onEditAndResend),
         )}
+        <ActivityDrawer
+          items={activityConversationItems}
+          onEditAndResend={onEditAndResend}
+        />
       </div>
     );
   }
@@ -1256,7 +1342,7 @@ function VirtualEventList({
     >
       <div
         className="relative min-w-0"
-        style={{ height: events.length * EVENT_ROW_HEIGHT }}
+        style={{ height: virtualEvents.length * EVENT_ROW_HEIGHT }}
       >
         {visible.map((event, index) => {
           const position = start + index;
@@ -1265,7 +1351,7 @@ function VirtualEventList({
               key={event.id}
               data-testid="agent-event-row"
               aria-posinset={position + 1}
-              aria-setsize={events.length}
+              aria-setsize={virtualEvents.length}
               className="absolute left-0 right-0 min-w-0 px-1 py-1 text-xs"
               style={{
                 height: EVENT_ROW_HEIGHT,
@@ -1496,7 +1582,7 @@ function AgentRow({
         className={`h-2 w-2 flex-shrink-0 rounded-full ${statusColor(run.status)} ${
           run.status === "running" ? "animate-pulse" : ""
         }`}
-        aria-label={run.status}
+        aria-label={formatAgentRunStatus(run.status)}
       />
       <span className="min-w-0 flex-1">
         <span
@@ -1874,7 +1960,7 @@ function AgentDetails({
             <button
               type="button"
               title="Rename agent"
-              className="hover:text-link block max-w-full cursor-text truncate border-none bg-transparent p-0 text-left text-sm font-medium"
+              className="cursor-agent-chat-title hover:text-link block max-w-full cursor-text truncate border-none bg-transparent p-0 text-left text-sm font-medium"
               onClick={() => {
                 setTitle(run.title);
                 setEditingTitle(true);
@@ -1883,18 +1969,18 @@ function AgentDetails({
               {run.title}
             </button>
           )}
-          <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1.5">
+          <div className="sr-only mt-1.5 min-w-0 flex-wrap items-center gap-1.5">
             <span className="cursor-agent-status-pill" data-status={run.status}>
               <span
                 className={`cursor-agent-status-dot ${statusColor(run.status)}`}
               />
-              {run.status}
+              {formatAgentRunStatus(run.status)}
             </span>
             <span className="cursor-agent-meta-pill">{run.permissionMode}</span>
             <span className="text-description text-2xs min-w-0 truncate">
               {run.model ?? "Default model"}
             </span>
-            {LIVE_AGENT_STATUSES.has(run.status) && (
+            {AGENT_LIVE_RUN_STATUSES.has(run.status) && (
               <span
                 role="status"
                 className={`cursor-agent-live-pill ${
@@ -1914,7 +2000,7 @@ function AgentDetails({
             )}
           </div>
         </div>
-        <div className="flex flex-shrink-0 items-center gap-1">
+        <div className="sr-only flex-shrink-0 items-center gap-1">
           {!["completed", "archived"].includes(run.status) && (
             <button
               type="button"
@@ -1957,7 +2043,7 @@ function AgentDetails({
           </button>
         </div>
       </div>
-      <div className="cursor-agent-run-meta text-description text-2xs mt-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+      <div className="cursor-agent-run-meta text-description text-2xs sr-only mt-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
         <span className="min-w-0 truncate">{workspaceLabel(run)}</span>
         {run.workspace.branch && (
           <span className="min-w-0 truncate font-mono">
@@ -1994,7 +2080,7 @@ function AgentDetails({
             <span className="text-description text-2xs">
               {
                 childRuns.filter((child) =>
-                  LIVE_AGENT_STATUSES.has(child.status),
+                  AGENT_LIVE_RUN_STATUSES.has(child.status),
                 ).length
               }{" "}
               active · {childRuns.length} total
@@ -2325,7 +2411,7 @@ function AgentDetails({
               onEditAndResend={beginResubmit}
             />
           ) : null}
-          {ACTIVE_STATUSES.has(run.status) &&
+          {AGENT_ACTIVE_RUN_STATUSES.has(run.status) &&
             conversationEvents.length === 0 && (
               <div
                 role="status"
@@ -2412,26 +2498,19 @@ function AgentDetails({
         />
         <div className="cursor-agent-composer-toolbar mt-2 flex min-w-0 items-center justify-between gap-2">
           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-            <AgentAccessModeSelect
-              value={run.permissionMode}
-              onChange={onPermissionChange}
-            />
-            <SkillSelect
-              value={selectedSkill}
-              onChange={(skill) => setSelectedSkill(skill?.name)}
-              compact
+            <ModeSelect
+              skillName={selectedSkill}
+              onSkillChange={setSelectedSkill}
+              agentAccessMode={run.permissionMode}
+              onAgentAccessModeChange={onPermissionChange}
+              includeAgentControls
+              includeModelControls
             />
             <AgentContextPicker
               repositoryPath={run.workspace.repositoryPath}
               items={contextItems}
               onChange={setContextItems}
             />
-            <span
-              title={`This run keeps its original model: ${run.model}`}
-              className="text-description max-w-40 truncate text-[10px]"
-            >
-              {run.model}
-            </span>
           </div>
           <button
             type="submit"
@@ -2576,6 +2655,7 @@ export default function Agents() {
   const importRef = useRef<HTMLInputElement>(null);
   const lastEventSequenceRef = useRef(0);
   const eventPollInFlightRef = useRef(false);
+  const openedCreateFromRouteRef = useRef(false);
 
   const appendEvents = useCallback((incoming: AgentEvent[]) => {
     if (incoming.length === 0) return;
@@ -2717,6 +2797,24 @@ export default function Agents() {
     });
     if (response.status === "success") setQueue(response.content);
   }, [ideMessenger, selectedId]);
+
+  const latestRunStatus = useCallback(
+    async (
+      runId: string,
+      fallback: AgentRun["status"],
+    ): Promise<AgentRun["status"]> => {
+      const response = await ideMessenger.request("agents/list", {
+        includeArchived: true,
+        limit: 500,
+      });
+      if (response.status !== "success") return fallback;
+      return (
+        response.content.find((candidate) => candidate.id === runId)?.status ??
+        fallback
+      );
+    },
+    [ideMessenger],
+  );
 
   const reloadPlans = useCallback(async () => {
     if (!selectedId) return;
@@ -2904,6 +3002,7 @@ export default function Agents() {
       setShowMultitask(false);
       setShowCreate(true);
       setNewParentRunId(parentRunId);
+      dispatch(setMode("agent"));
       if (newRepository) return;
       const response = await ideMessenger.request(
         "getWorkspaceDirs",
@@ -2926,8 +3025,22 @@ export default function Agents() {
         "";
       if (fallback) setNewRepository(fallback);
     },
-    [chatSessions, ideMessenger, newRepository, runs, selectedId],
+    [chatSessions, dispatch, ideMessenger, newRepository, runs, selectedId],
   );
+
+  useEffect(() => {
+    const createParam = searchParams.get("new") ?? searchParams.get("create");
+    const shouldOpenCreate =
+      createParam === "1" || createParam === "true" || createParam === "agent";
+    if (!shouldOpenCreate) {
+      openedCreateFromRouteRef.current = false;
+      return;
+    }
+    if (openedCreateFromRouteRef.current) return;
+    openedCreateFromRouteRef.current = true;
+    void openCreate(undefined);
+    navigate(ROUTES.AGENTS, { replace: true });
+  }, [navigate, openCreate, searchParams]);
 
   const chooseRepository = useCallback(async () => {
     const response = await ideMessenger.request(
@@ -3192,21 +3305,7 @@ export default function Agents() {
     [ideMessenger, loadRuns],
   );
 
-  const filtered = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    return normalized
-      ? runs.filter((run) =>
-          [
-            run.title,
-            run.prompt,
-            run.workspace.repositoryPath,
-            run.workspace.branch,
-          ]
-            .filter(Boolean)
-            .some((value) => value!.toLowerCase().includes(normalized)),
-        )
-      : runs;
-  }, [query, runs]);
+  const filtered = useMemo(() => filterAgentRuns(runs, query), [query, runs]);
   const filteredChatSessions = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     return normalized
@@ -3233,8 +3332,12 @@ export default function Agents() {
     () => parseMultitaskItems(multitaskItems).length,
     [multitaskItems],
   );
-  const active = filtered.filter((run) => ACTIVE_STATUSES.has(run.status));
-  const recent = filtered.filter((run) => !ACTIVE_STATUSES.has(run.status));
+  const active = filtered.filter((run) =>
+    AGENT_ACTIVE_RUN_STATUSES.has(run.status),
+  );
+  const recent = filtered.filter(
+    (run) => !AGENT_ACTIVE_RUN_STATUSES.has(run.status),
+  );
   const selected = filtered.find((run) => run.id === selectedId);
   const selectedChat = chatSessions.find(
     (session) => session.sessionId === selectedChatId,
@@ -3245,15 +3348,6 @@ export default function Agents() {
       setOpeningChatId(sessionId);
       setChatOpenError(undefined);
       try {
-        try {
-          const handoff = await withTimeout(
-            ideMessenger.request("session/openInMain", { sessionId }),
-            1_500,
-          );
-          if (handoff.status === "success" && handoff.content) return;
-        } catch {
-          // IDEs without a native host handoff use the in-webview fallback.
-        }
         await dispatch(exitEdit({})).unwrap();
         await withTimeout(
           dispatch(
@@ -3268,7 +3362,7 @@ export default function Agents() {
         setOpeningChatId(undefined);
       }
     },
-    [dispatch, ideMessenger, navigate],
+    [dispatch, navigate],
   );
 
   const onWorkspaceKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -3339,8 +3433,9 @@ export default function Agents() {
         >
           <ArrowLeftIcon className="h-3.5 w-3.5" />
         </button>
-        <div className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight">
-          Agent workspace
+        <div className="cursor-agents-toolbar-title min-w-0 flex-1 truncate text-sm font-semibold tracking-tight">
+          <span className="cursor-agents-brand-mark" aria-hidden="true" />
+          <span>Agent workspace</span>
         </div>
         <div
           role="status"
@@ -3436,7 +3531,11 @@ export default function Agents() {
             type="button"
             aria-label="Reload Agents window"
             title="Reload Agents window and release any active edit"
-            onClick={() => ideMessenger.post("reloadAgentWindow", undefined)}
+            onClick={() =>
+              ideMessenger.post("reloadAgentWindow", {
+                path: ROUTES.AGENTS,
+              } as any)
+            }
             className="hover:bg-list-hover focus-visible:ring-border-focus relative z-20 flex h-7 cursor-pointer items-center gap-1.5 rounded-md border-none bg-transparent px-2 text-xs outline-none focus-visible:ring-1"
           >
             <ArrowPathIcon className="h-3.5 w-3.5" />
@@ -3664,7 +3763,7 @@ export default function Agents() {
       <div className="cursor-agent-shell-grid grid min-h-0 min-w-0 flex-1 grid-cols-1">
         <aside
           aria-label="Agents and chats"
-          className={`cursor-agents-sidebar flex min-h-0 min-w-0 flex-col border-r ${
+          className={`cursor-agents-sidebar ${showCreate ? "cursor-agents-sidebar-creating" : ""} flex min-h-0 min-w-0 flex-col border-r ${
             selected || selectedChat ? "max-[719px]:hidden" : ""
           }`}
         >
@@ -3677,14 +3776,23 @@ export default function Agents() {
                 void createRun();
               }}
             >
-              <div className="cursor-agent-launch-card mx-auto flex min-h-full w-full max-w-3xl flex-col justify-center">
-                <div className="mb-3 flex items-start justify-between gap-3">
-                  <div>
+              <div className="cursor-agent-launch-card mx-auto flex min-h-full w-full max-w-4xl flex-col justify-end">
+                <div className="cursor-agent-launch-heading mx-auto mb-3 flex w-full max-w-[860px] items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="cursor-agent-eyebrow">
+                      New autonomous run
+                    </div>
                     <h2 className="m-0 text-base font-semibold">New agent</h2>
                     <p className="text-description mb-0 mt-1 text-xs">
-                      Describe the outcome. Qivryn runs it in an isolated local
-                      workspace and keeps the conversation here.
+                      Define the outcome. Qivryn will prepare an isolated
+                      workspace, execute the task, and keep the run durable.
                     </p>
+                    {newParentRunId && (
+                      <div className="text-description text-2xs mt-1 truncate">
+                        Subagent of{" "}
+                        {runs.find((run) => run.id === newParentRunId)?.title}
+                      </div>
+                    )}
                   </div>
                   <button
                     type="button"
@@ -3693,171 +3801,146 @@ export default function Agents() {
                       setShowCreate(false);
                       setNewParentRunId(undefined);
                     }}
-                    className="hover:bg-list-hover flex h-7 w-7 items-center justify-center rounded-md border-none bg-transparent"
+                    className="hover:bg-list-hover flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border-none bg-transparent"
                   >
                     <XMarkIcon className="h-4 w-4" />
                   </button>
                 </div>
-                <textarea
-                  autoFocus
-                  aria-label="Agent task"
-                  value={newPrompt}
-                  onChange={(event) => setNewPrompt(event.target.value)}
-                  placeholder="What should the agent build?"
-                  rows={7}
-                  className="cursor-agent-launch-textarea border-input bg-editor focus:border-border-focus box-border w-full resize-y rounded-xl border p-4 text-sm leading-relaxed outline-none"
-                />
-                {newParentRunId && (
-                  <div className="text-description text-2xs mt-1 truncate">
-                    Subagent of{" "}
-                    {runs.find((run) => run.id === newParentRunId)?.title}
-                  </div>
-                )}
-                <div className="mt-3 flex min-w-0 items-center gap-2">
-                  <input
-                    aria-label="Agent repository"
-                    value={newRepository}
-                    list="agent-repository-options"
-                    onChange={(event) => setNewRepository(event.target.value)}
-                    placeholder="Choose a repository"
-                    className="border-input bg-editor focus:border-border-focus box-border min-w-0 flex-1 rounded-md border px-3 py-2 text-xs outline-none"
-                  />
-                  <datalist id="agent-repository-options">
-                    {repositoryChoices.map((repository) => (
-                      <option key={repository} value={repository} />
-                    ))}
-                  </datalist>
-                  <button
-                    type="button"
-                    onClick={() => void chooseRepository()}
-                    className="border-input bg-input hover:bg-list-hover flex-shrink-0 cursor-pointer rounded-md border px-3 py-2 text-xs"
-                  >
-                    Browse…
-                  </button>
-                </div>
-                {repositoryChoices.length > 0 && !newRepository && (
-                  <div className="mt-2 flex min-w-0 flex-wrap gap-1.5">
-                    {repositoryChoices.slice(0, 3).map((repository) => (
-                      <button
-                        key={repository}
-                        type="button"
-                        title={repository}
-                        onClick={() => setNewRepository(repository)}
-                        className="border-input bg-input hover:bg-list-hover text-2xs max-w-52 cursor-pointer truncate rounded-full border px-2 py-1"
-                      >
-                        {repository.split(/[\\/]/).filter(Boolean).at(-1)}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <div className="mt-3">
-                  <AgentContextPicker
-                    repositoryPath={newRepository}
-                    items={newContextItems}
-                    onChange={setNewContextItems}
-                  />
-                  <div className="text-description text-2xs mt-1">
-                    Context is stored as portable repository-relative file
-                    references, so it works in worktrees and remote runtimes.
-                  </div>
-                </div>
-                <div className="mt-3 grid min-w-0 grid-cols-1 gap-2 min-[520px]:grid-cols-3">
-                  <select
-                    aria-label="Agent runtime"
-                    value={newRuntime}
-                    onChange={(event) =>
-                      setNewRuntime(
-                        event.target.value as "local" | "docker" | "ssh",
-                      )
-                    }
-                    className="border-input bg-editor min-w-0 rounded-md border px-2 py-2 text-xs"
-                  >
-                    <option value="local">Local</option>
-                    <option value="docker">Docker</option>
-                    <option value="ssh">Remote SSH</option>
-                  </select>
-                  <select
-                    aria-label="Agent permission mode"
-                    value={newPermissionMode}
-                    onChange={(event) =>
-                      setNewPermissionMode(
-                        event.target.value as AgentRun["permissionMode"],
-                      )
-                    }
-                    className="border-input bg-editor min-w-0 rounded-md border px-2 py-2 text-xs"
-                  >
-                    <option value="autonomous">Autonomous</option>
-                    <option value="ask">Ask</option>
-                    <option value="fullAccess">Full access</option>
-                    <option value="readOnly">Read only</option>
-                  </select>
-                  <div
-                    aria-label="Agent model and reasoning"
-                    className="border-input bg-editor flex min-w-0 items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs"
-                  >
-                    <ModelSelect />
-                    <ReasoningEffortSelect />
-                  </div>
-                  <SkillSelect
-                    value={newSkill}
-                    onChange={(skill) => setNewSkill(skill?.name)}
-                    className="border-input bg-editor rounded-md border px-3 py-2 min-[520px]:col-span-3"
-                  />
-                  <div className="text-description text-2xs min-[520px]:col-span-3">
-                    {newSkill
-                      ? `${newSkill} will be loaded into this agent with its provenance and supporting files.`
-                      : "Skills are optional. Select one to add its instructions and supporting files to this run."}
-                  </div>
-                  {newRuntime === "docker" && (
-                    <input
-                      aria-label="Container image"
-                      value={newContainerImage}
-                      onChange={(event) =>
-                        setNewContainerImage(event.target.value)
+
+                <div className="cursor-agent-composer cursor-agent-create-composer mx-auto">
+                  <textarea
+                    autoFocus
+                    aria-label="Agent task"
+                    value={newPrompt}
+                    onChange={(event) => setNewPrompt(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.shiftKey) {
+                        event.preventDefault();
+                        event.currentTarget.form?.requestSubmit();
                       }
-                      placeholder="Container image"
-                      className="border-input bg-editor min-w-0 rounded-md border px-3 py-2 text-xs outline-none min-[520px]:col-span-3"
-                    />
-                  )}
-                  {newRuntime === "ssh" && (
-                    <input
-                      aria-label="SSH host"
-                      value={newSshHost}
-                      onChange={(event) => setNewSshHost(event.target.value)}
-                      placeholder="user@host"
-                      className="border-input bg-editor min-w-0 rounded-md border px-3 py-2 text-xs outline-none min-[520px]:col-span-3"
-                    />
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowCreate(false);
-                      setNewParentRunId(undefined);
                     }}
-                    className="border-input bg-input hover:bg-list-hover cursor-pointer rounded-md border px-3 py-2 text-xs min-[520px]:col-start-2"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={
-                      starting ||
-                      !newPrompt.trim() ||
-                      !newRepository.trim() ||
-                      (newRuntime === "ssh" && !newSshHost.trim())
-                    }
-                    className="bg-primary text-primary-foreground hover:bg-primary-hover cursor-pointer rounded-md border-none px-3 py-2 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {starting ? "Starting…" : "Start"}
-                  </button>
-                  <div className="text-description text-2xs text-right min-[520px]:col-span-3">
+                    placeholder="What should the agent accomplish?"
+                    rows={4}
+                    className="cursor-agent-composer-input bg-input box-border w-full resize-none border-none px-1 py-1 text-xs outline-none"
+                  />
+
+                  <div className="mt-2 flex min-w-0 items-center gap-2">
+                    <input
+                      aria-label="Agent repository"
+                      value={newRepository}
+                      list="agent-repository-options"
+                      onChange={(event) => setNewRepository(event.target.value)}
+                      placeholder="Choose a repository"
+                      className="border-input bg-editor focus:border-border-focus box-border min-w-0 flex-1 rounded-md border px-2 py-1.5 text-xs outline-none"
+                    />
+                    <datalist id="agent-repository-options">
+                      {repositoryChoices.map((repository) => (
+                        <option key={repository} value={repository} />
+                      ))}
+                    </datalist>
+                    <button
+                      type="button"
+                      onClick={() => void chooseRepository()}
+                      className="border-input bg-input hover:bg-list-hover flex-shrink-0 cursor-pointer rounded-md border px-2.5 py-1.5 text-xs"
+                    >
+                      Browse…
+                    </button>
+                  </div>
+
+                  {repositoryChoices.length > 0 && !newRepository && (
+                    <div className="mt-2 flex min-w-0 flex-wrap gap-1.5">
+                      {repositoryChoices.slice(0, 3).map((repository) => (
+                        <button
+                          key={repository}
+                          type="button"
+                          title={repository}
+                          onClick={() => setNewRepository(repository)}
+                          className="border-input bg-input hover:bg-list-hover text-2xs max-w-52 cursor-pointer truncate rounded-full border px-2 py-1"
+                        >
+                          {repository.split(/[\\/]/).filter(Boolean).at(-1)}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {(newRuntime === "docker" || newRuntime === "ssh") && (
+                    <div className="mt-2">
+                      {newRuntime === "docker" ? (
+                        <input
+                          aria-label="Container image"
+                          value={newContainerImage}
+                          onChange={(event) =>
+                            setNewContainerImage(event.target.value)
+                          }
+                          placeholder="Container image"
+                          className="border-input bg-editor min-w-0 rounded-md border px-2 py-1.5 text-xs outline-none"
+                        />
+                      ) : (
+                        <input
+                          aria-label="SSH host"
+                          value={newSshHost}
+                          onChange={(event) =>
+                            setNewSshHost(event.target.value)
+                          }
+                          placeholder="user@host"
+                          className="border-input bg-editor min-w-0 rounded-md border px-2 py-1.5 text-xs outline-none"
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  <div className="cursor-agent-composer-toolbar flex min-w-0 items-center justify-between gap-2">
+                    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                      <ModeSelect
+                        skillName={newSkill}
+                        onSkillChange={setNewSkill}
+                        agentAccessMode={newPermissionMode}
+                        onAgentAccessModeChange={setNewPermissionMode}
+                        agentRuntime={newRuntime}
+                        onAgentRuntimeChange={setNewRuntime}
+                        includeAgentControls
+                        includeModelControls
+                      />
+                      <AgentContextPicker
+                        repositoryPath={newRepository}
+                        items={newContextItems}
+                        onChange={setNewContextItems}
+                      />
+                    </div>
+                    <div className="flex flex-shrink-0 items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowCreate(false);
+                          setNewParentRunId(undefined);
+                        }}
+                        className="border-input bg-input hover:bg-list-hover cursor-pointer rounded-md border px-3 py-1.5 text-xs"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={
+                          starting ||
+                          !newPrompt.trim() ||
+                          !newRepository.trim() ||
+                          (newRuntime === "ssh" && !newSshHost.trim())
+                        }
+                        className="bg-primary text-primary-foreground hover:bg-primary-hover cursor-pointer rounded-md border-none px-3 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {starting ? "Starting…" : "Start"}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="text-description text-2xs mt-2 text-right">
                     {!newPrompt.trim()
                       ? "Describe a task to enable Start."
                       : !newRepository.trim()
                         ? "Choose a repository to enable Start."
                         : newRuntime === "ssh" && !newSshHost.trim()
                           ? "Enter an SSH host to enable Start."
-                          : "Ready to start. Enter submits; Escape returns to the agent list."}
+                          : "Ready to start. Enter submits; Shift+Enter adds a new line."}
                   </div>
                 </div>
               </div>
@@ -4062,7 +4145,21 @@ export default function Agents() {
                   runId: selected.id,
                   prompt,
                   behavior,
-                }).then(reloadQueue)
+                }).then(async (success) => {
+                  await reloadQueue();
+                  if (
+                    success &&
+                    AGENT_FOLLOW_UP_RESUME_STATUSES.has(
+                      await latestRunStatus(selected.id, selected.status),
+                    )
+                  ) {
+                    await control({
+                      action: "run.resume",
+                      runId: selected.id,
+                    });
+                    await reloadQueue();
+                  }
+                })
               }
               onUpdateQueueItem={(itemId, prompt, behavior) =>
                 void control({
@@ -4211,25 +4308,49 @@ export default function Agents() {
             />
           )}
           {!selected && !selectedChat && (
-            <div className="flex h-full min-h-64 items-center justify-center p-8 text-center">
-              <div className="max-w-sm">
-                <div className="border-input bg-input mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-xl border">
-                  <ChatBubbleLeftRightIcon className="h-5 w-5" />
+            <div className="cursor-agent-empty flex h-full min-h-64 items-center justify-center p-8">
+              <div className="cursor-agent-empty-card">
+                <div className="cursor-agent-empty-index">Q / 01</div>
+                <div className="cursor-agent-empty-icon" aria-hidden="true">
+                  <Squares2X2Icon className="h-5 w-5" />
                 </div>
-                <h2 className="m-0 text-sm font-semibold">
-                  Your development workspace
-                </h2>
-                <p className="text-description mb-4 mt-2 text-xs leading-relaxed">
-                  Select an agent to monitor its work, or choose a saved chat to
-                  resume where you left off.
+                <h1>Build in parallel.</h1>
+                <p>
+                  Launch durable coding agents, inspect their live activity, and
+                  return to any run without losing context.
                 </p>
-                <button
-                  type="button"
-                  onClick={() => void openCreate(undefined)}
-                  className="bg-button text-button-foreground cursor-pointer rounded-md border-none px-3 py-2 text-xs font-medium"
+                <div className="cursor-agent-empty-actions">
+                  <button
+                    type="button"
+                    onClick={() => void openCreate(undefined)}
+                    className="cursor-agent-primary-action"
+                  >
+                    <PlusIcon className="h-4 w-4" />
+                    Launch an agent
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void openMultitask()}
+                    className="cursor-agent-secondary-action"
+                  >
+                    <Squares2X2Icon className="h-4 w-4" />
+                    Run in parallel
+                  </button>
+                </div>
+                <div
+                  className="cursor-agent-empty-rail"
+                  aria-label="Agent capabilities"
                 >
-                  Start a new agent
-                </button>
+                  <span>
+                    <b>01</b> Isolated worktree
+                  </span>
+                  <span>
+                    <b>02</b> Live execution
+                  </span>
+                  <span>
+                    <b>03</b> Durable context
+                  </span>
+                </div>
               </div>
             </div>
           )}

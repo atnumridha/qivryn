@@ -51,6 +51,9 @@ import {
 import { QivrynConsoleWebviewViewProvider } from "./QivrynConsoleWebviewViewProvider";
 import { QivrynGUIWebviewViewProvider } from "./QivrynGUIWebviewViewProvider";
 import { QivrynLayoutManager } from "./QivrynLayoutManager";
+import { NativeReviewEditor } from "./native/NativeReviewEditor";
+import { NativeBrowserEditor } from "./native/NativeBrowserEditor";
+import { NativeTerminalJobs } from "./native/NativeTerminalJobs";
 import { processDiff } from "./diff/processDiff";
 import { VerticalDiffManager } from "./diff/vertical/manager";
 import { partialSuggestionCommand } from "./partialSuggestionAcceptance";
@@ -69,6 +72,12 @@ import { VsCodeIde } from "./VsCodeIde";
 let fullScreenPanel: vscode.WebviewPanel | undefined;
 let fullScreenRecoverySessionId: string | undefined;
 
+const CHAT_ROUTE = "/";
+
+function normalizeChatRoute(path: string | undefined): string | undefined {
+  return path?.startsWith("/agents") ? CHAT_ROUTE : path;
+}
+
 function getFullScreenTab() {
   const tabs = vscode.window.tabGroups.all.flatMap((tabGroup) => tabGroup.tabs);
   return tabs.find((tab) =>
@@ -82,9 +91,13 @@ function focusGUI() {
     // focus fullscreen
     fullScreenPanel?.reveal();
   } else {
-    // focus sidebar
+    // Focus the Qivryn chat surface. In Qivryn IDE this view lives in the
+    // secondary/right sidebar; in extension fallback builds it remains the
+    // host-provided webview surface.
+    vscode.commands.executeCommand("workbench.view.extension.qivryn");
+    vscode.commands.executeCommand("workbench.action.focusAuxiliaryBar");
     vscode.commands.executeCommand("qivryn.qivrynGUIView.focus");
-    // vscode.commands.executeCommand("workbench.action.focusAuxiliaryBar");
+    vscode.commands.executeCommand("workbench.action.closeSidebar");
   }
 }
 
@@ -150,6 +163,9 @@ const getCommandsMap: (
   layoutManager,
   agentScmGraphManager,
 ) => {
+  const nativeReview = new NativeReviewEditor(extensionContext, core);
+  const nativeBrowser = new NativeBrowserEditor(extensionContext, core);
+  const nativeTerminalJobs = new NativeTerminalJobs(extensionContext, core);
   /**
    * Streams an inline edit to the vertical diff manager.
    *
@@ -643,7 +659,7 @@ const getCommandsMap: (
         } else if (selectedOption === "$(comment) Open chat") {
           vscode.commands.executeCommand("qivryn.focusQivrynInput");
         } else if (selectedOption === "$(screen-full) Open full screen chat") {
-          vscode.commands.executeCommand("qivryn.openInNewWindow");
+          vscode.commands.executeCommand("qivryn.openInNewWindow", "/");
         } else if (selectedOption === "$(gear) Open settings") {
           vscode.commands.executeCommand("qivryn.navigateTo", "/config");
         }
@@ -653,20 +669,24 @@ const getCommandsMap: (
       quickPick.show();
     },
     "qivryn.navigateTo": (path: string, toggle: boolean) => {
-      sidebar.webviewProtocol?.request("navigateTo", { path, toggle });
+      sidebar.webviewProtocol?.request("navigateTo", {
+        path: normalizeChatRoute(path) ?? CHAT_ROUTE,
+        toggle,
+      });
       focusGUI();
     },
-    "qivryn.openAgentsWindow": () => {
+    "qivryn.openAgentsWindow": async () => {
       return vscode.commands.executeCommand(
         "qivryn.openInNewWindow",
-        "/agents",
+        CHAT_ROUTE,
       );
     },
-    "qivryn.reloadAgentsWindow": async () => {
+    "qivryn.reloadAgentsWindow": async (initialPath?: string) => {
       if (!fullScreenPanel) {
         await vscode.commands.executeCommand("workbench.action.reloadWindow");
         return;
       }
+      const reloadPath = normalizeChatRoute(initialPath) ?? CHAT_ROUTE;
 
       await releaseAgentWindowEditState({
         cancelApply: async () => {
@@ -679,10 +699,12 @@ const getCommandsMap: (
           verticalDiffManager.clearForfileUri(filepath, false),
       });
 
+      fullScreenPanel.title =
+        reloadPath === "/browser" ? "Qivryn Browser" : "Qivryn";
       fullScreenPanel.webview.html = sidebar.getSidebarContent(
         extensionContext,
         fullScreenPanel,
-        "/agents",
+        reloadPath,
         undefined,
         true,
       );
@@ -691,20 +713,13 @@ const getCommandsMap: (
     "qivryn.closeAgentsWindow": () => {
       fullScreenPanel?.dispose();
     },
-    "qivryn.openAgentReview": () => {
-      return vscode.commands.executeCommand(
-        "qivryn.navigateTo",
-        "/review",
-        false,
-      );
-    },
-    "qivryn.openTerminalAssistant": () => {
-      return vscode.commands.executeCommand(
-        "qivryn.navigateTo",
-        "/terminal",
-        false,
-      );
-    },
+    "qivryn.openAgentReview": (reportId?: string) =>
+      nativeReview.open(reportId),
+    "qivryn.acceptReviewFinding": () => nativeReview.accept(),
+    "qivryn.rejectReviewFinding": () => nativeReview.reject(),
+    "qivryn.commentReviewFinding": () => nativeReview.comment(),
+    "qivryn.openTerminalAssistant": () => nativeTerminalJobs.open(),
+    "qivryn.stopTerminalJob": () => nativeTerminalJobs.stop(),
     "qivryn.openTerminalPromptBar": async () => {
       const command = await vscode.window.showInputBox({
         title: "Qivryn Terminal Prompt",
@@ -747,13 +762,12 @@ const getCommandsMap: (
       terminal.show();
       terminal.sendText(command, true);
     },
-    "qivryn.openBrowserWorkspace": () => {
-      return vscode.commands.executeCommand(
-        "qivryn.navigateTo",
-        "/browser",
-        false,
-      );
-    },
+    "qivryn.openBrowserWorkspace": (url?: string) => nativeBrowser.open(url),
+    "qivryn.browserBack": () => nativeBrowser.back(),
+    "qivryn.browserForward": () => nativeBrowser.forward(),
+    "qivryn.browserReload": () => nativeBrowser.reload(),
+    "qivryn.browserTakeover": () => nativeBrowser.takeover(),
+    "qivryn.browserScreenshot": () => nativeBrowser.screenshot(),
     "qivryn.openAgentAttribution": openAgentAttribution,
     "qivryn.chooseLayout": () => layoutManager.chooseAndApply(),
     "qivryn.saveLayout": () => layoutManager.saveCurrent(),
@@ -851,7 +865,7 @@ const getCommandsMap: (
       if (selected) {
         await vscode.commands.executeCommand(
           "qivryn.navigateTo",
-          `/agents?runId=${encodeURIComponent(selected.runId)}`,
+          CHAT_ROUTE,
           false,
         );
       }
@@ -974,37 +988,59 @@ const getCommandsMap: (
         return;
       }
       await vscode.commands.executeCommand("qivryn.qivrynGUIView.focus");
-      await vscode.commands.executeCommand("qivryn.navigateTo", "/", false);
       await vscode.commands.executeCommand(
-        "qivryn.focusQivrynSessionId",
-        sessionId,
+        "qivryn.navigateTo",
+        CHAT_ROUTE,
+        false,
       );
     },
-    "qivryn.openInNewWindow": async (initialPath?: string) => {
-      focusGUI();
+    "qivryn.openInNewWindow": async (
+      initialPath?: string,
+      moveToNewWindow = true,
+      resetSidebar = true,
+    ) => {
+      initialPath = normalizeChatRoute(initialPath) ?? CHAT_ROUTE;
+      if (moveToNewWindow) {
+        focusGUI();
+      }
 
-      const sessionId = await sidebar.webviewProtocol.request(
-        "getCurrentSessionId",
-        undefined,
-      );
+      let sessionId: string | undefined;
+      if (sidebar.isReady) {
+        try {
+          sessionId = await sidebar.webviewProtocol.request(
+            "getCurrentSessionId",
+            undefined,
+          );
+        } catch {
+          sessionId = undefined;
+        }
+      }
       fullScreenRecoverySessionId = sessionId;
       // Check if full screen is already open by checking open tabs
       const fullScreenTab = getFullScreenTab();
 
       if (fullScreenTab && fullScreenPanel) {
-        // Full screen open, but not focused - focus it
-        fullScreenPanel.reveal();
-        return;
+        if (!moveToNewWindow) {
+          fullScreenPanel.dispose();
+          fullScreenPanel = undefined;
+        } else {
+          // Full screen open, but not focused - focus it
+          fullScreenPanel.reveal();
+          return;
+        }
       }
 
-      // Clear the sidebar to prevent overwriting changes made in fullscreen
-      vscode.commands.executeCommand("qivryn.newSession");
+      // Clear the sidebar before full-screen chat/browser sessions to prevent
+      // overwriting changes made in fullscreen.
+      if (resetSidebar && sidebar.isReady) {
+        vscode.commands.executeCommand("qivryn.newSession");
+      }
 
       // Full screen not open - open it
       // Create the full screen panel
       let panel = vscode.window.createWebviewPanel(
         "qivryn.qivrynGUIView",
-        initialPath === "/agents" ? "Qivryn Agents" : "Qivryn",
+        initialPath === "/browser" ? "Qivryn Browser" : "Qivryn",
         vscode.ViewColumn.One,
         {
           retainContextWhenHidden: true,
@@ -1023,7 +1059,9 @@ const getCommandsMap: (
       );
 
       const sessionLoader = panel.onDidChangeViewState(() => {
-        vscode.commands.executeCommand("qivryn.newSession");
+        if (resetSidebar && sidebar.isReady) {
+          vscode.commands.executeCommand("qivryn.newSession");
+        }
         if (sessionId) {
           vscode.commands.executeCommand(
             "qivryn.focusQivrynSessionId",
@@ -1082,8 +1120,15 @@ const getCommandsMap: (
       // Copying creates a second visual webview whose buttons are no longer
       // connected to `fullScreenPanel`, which is why the Agents window could
       // render normally while every click appeared to hang.
-      vscode.commands.executeCommand("workbench.action.moveEditorToNewWindow");
-      vscode.commands.executeCommand("workbench.action.closeAuxiliaryBar");
+      if (moveToNewWindow) {
+        vscode.commands.executeCommand(
+          "workbench.action.moveEditorToNewWindow",
+        );
+        vscode.commands.executeCommand("workbench.action.closeAuxiliaryBar");
+      } else {
+        panel.reveal(vscode.ViewColumn.One);
+        vscode.commands.executeCommand("workbench.action.closeAuxiliaryBar");
+      }
     },
     "qivryn.forceNextEdit": async () => {
       // This is basically the same logic as forceAutocomplete.
@@ -1155,19 +1200,27 @@ export function registerAllCommands(
   context.subscriptions.push(
     vscode.window.registerWebviewPanelSerializer("qivryn.qivrynGUIView", {
       async deserializeWebviewPanel(panel, state) {
+        if (
+          vscode.env.appName.startsWith("Qivryn") &&
+          process.env.QIVRYN_RESTORE_DEDICATED_CHAT_WINDOWS !== "true"
+        ) {
+          panel.dispose();
+          if (fullScreenPanel === panel) fullScreenPanel = undefined;
+          return;
+        }
+
         fullScreenPanel = panel;
         const restoredState = state as { page?: unknown } | undefined;
-        const restoredPath =
+        const restoredPath = normalizeChatRoute(
           typeof restoredState?.page === "string"
             ? restoredState.page
-            : undefined;
-        const isAgentsWindow =
-          restoredPath === "/agents" || panel.title.includes("Agents");
-        panel.title = isAgentsWindow ? "Qivryn Agents" : "Qivryn";
+            : undefined,
+        );
+        panel.title = restoredPath === "/browser" ? "Qivryn Browser" : "Qivryn";
         panel.webview.html = sidebar.getSidebarContent(
           extensionContext,
           panel,
-          restoredPath ?? (isAgentsWindow ? "/agents" : "/"),
+          restoredPath ?? CHAT_ROUTE,
           undefined,
           true,
         );

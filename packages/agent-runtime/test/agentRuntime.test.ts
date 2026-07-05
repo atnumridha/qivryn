@@ -403,6 +403,47 @@ describe("local agent runtime", () => {
     });
   });
 
+  it("resumes completed runs from the next queued follow-up without replaying the original prompt", async () => {
+    const store = new MemoryAgentStore();
+    const prompts: string[] = [];
+    const runtime = new LocalAgentRuntime(
+      store,
+      {
+        async execute(run) {
+          prompts.push(run.prompt);
+          return { status: "completed" };
+        },
+      },
+      { prepare: async (run) => run.workspace },
+    );
+    await runtime.initialize();
+    const run = await runtime.createRun({
+      prompt: "Initial",
+      workspace: { location: "local", repositoryPath: "/workspace/repo" },
+    });
+    await runtime.waitForIdle();
+    expect(prompts).toEqual(["Initial"]);
+
+    await runtime.enqueuePrompt(run.id, "Follow-up after completion");
+    await runtime.waitForIdle();
+
+    expect(prompts).toEqual(["Initial", "Follow-up after completion"]);
+    await expect(runtime.listQueue(run.id)).resolves.toEqual([]);
+    await expect(runtime.getRun(run.id)).resolves.toMatchObject({
+      status: "completed",
+    });
+    await expect(runtime.readEvents(run.id)).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "message.user",
+          payload: expect.objectContaining({
+            prompt: "Follow-up after completion",
+          }),
+        }),
+      ]),
+    );
+  });
+
   it("duplicates runs and cleans persisted state idempotently", async () => {
     const store = new MemoryAgentStore();
     const cleaned: string[] = [];
@@ -565,6 +606,76 @@ describe("local agent runtime", () => {
       approved.revision,
     );
     expect(rejected.status).toBe("rejected");
+  });
+
+  it("resolves durable approvals and resumes an attention run", async () => {
+    let executions = 0;
+    const runtime = new LocalAgentRuntime(
+      new MemoryAgentStore(),
+      {
+        execute: async (_run, context) => {
+          executions += 1;
+          if (executions === 1) {
+            await context.emit({
+              kind: "approval.requested",
+              createdAt: "2026-07-03T00:00:00.000Z",
+              payload: {
+                id: "approval-1",
+                title: "Run the test suite?",
+                command: "npm test",
+              },
+            });
+            return { status: "attention", reason: "approval-required" };
+          }
+          return { status: "completed" };
+        },
+      },
+      { prepare: async (run) => run.workspace },
+    );
+    await runtime.initialize();
+    const run = await runtime.createRun({
+      prompt: "Approval task",
+      workspace: { location: "local", repositoryPath: "/repo" },
+    });
+    await runtime.waitForIdle();
+    await expect(runtime.getRun(run.id)).resolves.toMatchObject({
+      status: "attention",
+    });
+    await expect(
+      runtime.resolveApproval(run.id, "approval-1", "approve"),
+    ).resolves.toMatchObject({
+      approvalId: "approval-1",
+      decision: "approve",
+    });
+    await runtime.waitForIdle();
+    await expect(runtime.getRun(run.id)).resolves.toMatchObject({
+      status: "completed",
+    });
+    expect(
+      (await runtime.readEvents(run.id)).map((event) => event.kind),
+    ).toContain("approval.resolved");
+  });
+
+  it("restores archived runs to the native session list", async () => {
+    const runtime = new LocalAgentRuntime(
+      new MemoryAgentStore(),
+      { execute: async () => ({ status: "completed" }) },
+      { prepare: async (run) => run.workspace },
+    );
+    await runtime.initialize();
+    const run = await runtime.createRun({
+      prompt: "Archive lifecycle",
+      workspace: { location: "local", repositoryPath: "/repo" },
+    });
+    await runtime.waitForIdle();
+    await expect(runtime.archiveRun(run.id)).resolves.toMatchObject({
+      status: "archived",
+      archived: true,
+    });
+    await expect(runtime.unarchiveRun(run.id)).resolves.toMatchObject({
+      status: "completed",
+      archived: false,
+    });
   });
 });
 
@@ -891,6 +1002,8 @@ describe("process agent executor", () => {
               "const emit = (kind, payload) => console.log(JSON.stringify({ kind, payload }));",
               "emit('message.assistant', { text: 'Working ', delta: true });",
               "setTimeout(() => emit('tool.started', { text: 'Using read_file', toolName: 'read_file' }), 100);",
+              "setTimeout(() => emit('context.compacted', { text: 'History compacted' }), 120);",
+              "setTimeout(() => emit('file.changed', { path: '/repo/file.ts', insertions: 2, deletions: 1 }), 140);",
             ].join(" "),
           ],
         }),
@@ -924,6 +1037,11 @@ describe("process agent executor", () => {
         expect.objectContaining({
           kind: "tool.started",
           payload: expect.objectContaining({ toolName: "read_file" }),
+        }),
+        expect.objectContaining({ kind: "context.compacted" }),
+        expect.objectContaining({
+          kind: "file.changed",
+          payload: expect.objectContaining({ path: "/repo/file.ts" }),
         }),
       ]),
     );

@@ -89,23 +89,47 @@ const StyledMarkdown = styled.div<{
   ol ul,
   ol ol {
     padding-left: 1.5em;
-    margin-top: 1em;
+    margin-top: 0.35em;
   }
 
   li {
-    margin-bottom: 0.8em;
+    margin-bottom: 0.35em;
   }
   li:last-child {
     margin-bottom: 0;
   }
 
+  li > p {
+    margin-top: 0;
+    margin-bottom: 0.45em;
+  }
+
   ul,
   ol {
     padding-left: 2em;
+    margin-top: 0.35em;
+    margin-bottom: 0.75em;
   }
 
   code:not(pre > code) {
     font-family: var(--vscode-editor-font-family);
+  }
+
+  pre,
+  pre * {
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+
+  table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  blockquote {
+    margin-left: 0;
+    margin-right: 0;
   }
 
   background-color: ${(props) => props.bgColor};
@@ -135,7 +159,8 @@ const StyledMarkdown = styled.div<{
   }
 
   * {
-    word-break: break-word;
+    overflow-wrap: anywhere;
+    word-break: normal;
   }
 
   > *:last-child {

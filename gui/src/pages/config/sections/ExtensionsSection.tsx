@@ -12,7 +12,7 @@ import {
   useSkillsCatalog,
 } from "../../../components/skills/SkillSelect";
 import { IdeMessengerContext } from "../../../context/IdeMessenger";
-import { CONFIG_ROUTES, ROUTES } from "../../../util/navigation";
+import { CONFIG_ROUTES } from "../../../util/navigation";
 
 interface SkillDraft {
   name: string;
@@ -270,7 +270,7 @@ export function ExtensionsSection() {
           <PlusIcon className="h-3.5 w-3.5" /> New skill
         </button>
       </div>
-      <div className="mb-3 grid grid-cols-2 gap-2 min-[700px]:grid-cols-4">
+      <div className="mb-3 grid grid-cols-2 gap-2 min-[700px]:grid-cols-3">
         <button
           onClick={() => navigate(CONFIG_ROUTES.RULES)}
           className="border-input bg-input rounded border p-2 text-left text-xs"
@@ -282,12 +282,6 @@ export function ExtensionsSection() {
           className="border-input bg-input rounded border p-2 text-left text-xs"
         >
           MCP & tools
-        </button>
-        <button
-          onClick={() => navigate(ROUTES.AGENTS)}
-          className="border-input bg-input rounded border p-2 text-left text-xs"
-        >
-          Agents & multitasking
         </button>
         <div className="border-input bg-input rounded border p-2 text-xs">
           {skills.length} discovered skills

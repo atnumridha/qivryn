@@ -22,6 +22,7 @@ export const getBaseToolDefinitions = () => [
   toolDefinitions.readLintsTool,
   toolDefinitions.goToDefinitionTool,
   toolDefinitions.searchSymbolsTool,
+  toolDefinitions.updatePlanTool,
 ];
 
 export const getConfigDependentToolDefinitions = async (

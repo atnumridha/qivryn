@@ -8,7 +8,7 @@ const ALLOWED_TRANSITIONS: Record<AgentRunStatus, AgentRunStatus[]> = {
   running: ["waiting", "attention", "completed", "failed", "canceled"],
   waiting: ["running", "attention", "failed", "canceled"],
   attention: ["queued", "running", "failed", "canceled", "archived"],
-  completed: ["archived"],
+  completed: ["queued", "archived"],
   failed: ["queued", "archived"],
   canceled: ["queued", "archived"],
   archived: [],

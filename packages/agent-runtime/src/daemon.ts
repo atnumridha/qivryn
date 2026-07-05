@@ -3,9 +3,11 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from "node:http";
-import { readFile } from "node:fs/promises";
+import { readFile, rm } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
 import type {
+  AgentApprovalDecision,
+  AgentApprovalResolution,
   AgentControlRequest,
   AgentControlResult,
   AgentEvent,
@@ -36,7 +38,7 @@ export interface AgentDaemonAddress {
   baseUrl: string;
 }
 
-export const AGENT_DAEMON_PROTOCOL_VERSION = 2;
+export const AGENT_DAEMON_PROTOCOL_VERSION = 4;
 
 export interface AgentDaemonDescriptor {
   baseUrl: string;
@@ -64,22 +66,35 @@ export async function connectAgentDaemon(
 ): Promise<HttpAgentRuntimeClient | undefined> {
   const descriptor = await readAgentDaemonDescriptor(filepath);
   if (!descriptor) return undefined;
+  if (descriptor.protocolVersion !== AGENT_DAEMON_PROTOCOL_VERSION) {
+    try {
+      process.kill(descriptor.pid, "SIGTERM");
+    } catch {
+      // A stale descriptor can point at a process that already exited.
+    }
+    await rm(filepath, { force: true });
+    return undefined;
+  }
   const client = new HttpAgentRuntimeClient({
     baseUrl: descriptor.baseUrl,
     token: descriptor.token,
   });
   try {
     await client.initialize();
-    if (descriptor.protocolVersion !== AGENT_DAEMON_PROTOCOL_VERSION) {
-      try {
-        process.kill(descriptor.pid, "SIGTERM");
-      } catch {
-        // A stale descriptor can point at a process that already exited.
-      }
-      return undefined;
-    }
     return client;
   } catch {
+    let processIsAlive = true;
+    try {
+      process.kill(descriptor.pid, 0);
+    } catch {
+      processIsAlive = false;
+    }
+    if (
+      !processIsAlive ||
+      descriptor.protocolVersion !== AGENT_DAEMON_PROTOCOL_VERSION
+    ) {
+      await rm(filepath, { force: true });
+    }
     return undefined;
   }
 }
@@ -301,12 +316,20 @@ export class AgentDaemonServer {
           request.runId,
           request.permissionMode,
         );
+      case "approval.resolve":
+        return this.runtime.resolveApproval(
+          request.runId,
+          request.approvalId,
+          request.decision,
+        );
       case "pin":
         return this.runtime.setRunPinned(request.runId, request.pinned);
       case "unread":
         return this.runtime.setRunUnread(request.runId, request.unread);
       case "archive":
         return this.runtime.archiveRun(request.runId);
+      case "unarchive":
+        return this.runtime.unarchiveRun(request.runId);
       case "queue.add":
         return this.runtime.enqueuePrompt(
           request.runId,
@@ -432,7 +455,7 @@ export class HttpAgentRuntimeClient implements AgentRuntimeAdapter {
   }
 
   async initialize(): Promise<void> {
-    await this.request("/health");
+    await this.request("/health", "GET", undefined, AbortSignal.timeout(1_500));
   }
 
   async createRun(request: CreateAgentRunRequest): Promise<AgentRun> {
@@ -605,6 +628,18 @@ export class HttpAgentRuntimeClient implements AgentRuntimeAdapter {
       permissionMode,
     });
   }
+  resolveApproval(
+    runId: string,
+    approvalId: string,
+    decision: AgentApprovalDecision,
+  ): Promise<AgentApprovalResolution> {
+    return this.control<AgentApprovalResolution>({
+      action: "approval.resolve",
+      runId,
+      approvalId,
+      decision,
+    });
+  }
   setRunPinned(runId: string, pinned: boolean): Promise<AgentRun> {
     return this.control<AgentRun>({ action: "pin", runId, pinned });
   }
@@ -613,6 +648,9 @@ export class HttpAgentRuntimeClient implements AgentRuntimeAdapter {
   }
   archiveRun(runId: string): Promise<AgentRun> {
     return this.control<AgentRun>({ action: "archive", runId });
+  }
+  unarchiveRun(runId: string): Promise<AgentRun> {
+    return this.control<AgentRun>({ action: "unarchive", runId });
   }
   enqueuePrompt(
     runId: string,
@@ -782,9 +820,11 @@ export class HttpAgentRuntimeClient implements AgentRuntimeAdapter {
     path: string,
     method = "GET",
     body?: unknown,
+    signal?: AbortSignal,
   ): Promise<T> {
     const response = await fetch(`${this.options.baseUrl}${path}`, {
       method,
+      signal,
       headers: {
         authorization: `Bearer ${this.options.token}`,
         ...(body === undefined ? {} : { "content-type": "application/json" }),

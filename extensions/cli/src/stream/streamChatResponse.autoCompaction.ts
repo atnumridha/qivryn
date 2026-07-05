@@ -18,6 +18,9 @@ interface AutoCompactionCallbacks {
   // For streaming mode
   onSystemMessage?: (message: string) => void;
   onContent?: (content: string) => void;
+  onCompactionStart?: (message: string) => void;
+  onCompactionComplete?: (message: string) => void;
+  onRecoveryComplete?: (message: string) => void;
 
   // For TUI mode
   setMessages?: React.Dispatch<React.SetStateAction<ChatHistoryItem[]>>;
@@ -45,6 +48,7 @@ function notifyCompactionStart(
   isHeadless: boolean,
   callbacks?: AutoCompactionCallbacks,
 ) {
+  callbacks?.onCompactionStart?.(message);
   if (callbacks?.onSystemMessage) {
     callbacks.onSystemMessage(message);
   } else if (!isHeadless && callbacks?.setMessages) {
@@ -61,6 +65,7 @@ function handleCompactionSuccess(
   callbacks?: AutoCompactionCallbacks,
 ) {
   const successMessage = "Chat history auto-compacted successfully.";
+  callbacks?.onCompactionComplete?.(successMessage);
 
   if (callbacks?.onSystemMessage) {
     callbacks.onSystemMessage(successMessage);
@@ -221,6 +226,9 @@ export async function handleAutoCompaction(
       updateSessionHistory(fallback.compactedHistory);
       callbacks?.onSystemMessage?.(
         "Model-based compaction could not complete. Recovered with a bounded local summary and will continue from the workspace state.",
+      );
+      callbacks?.onRecoveryComplete?.(
+        "Recovered with a bounded local summary and workspace state.",
       );
       return {
         chatHistory: fallback.compactedHistory,

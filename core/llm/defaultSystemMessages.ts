@@ -6,6 +6,15 @@ export const CODEBLOCK_FORMATTING_INSTRUCTIONS = `\
   If you are editing "src/main.py" for example, your code block should start with '\`\`\`python src/main.py'
 `;
 
+export const RESPONSE_FORMATTING_INSTRUCTIONS = `\
+  Format responses with clean GitHub-flavored Markdown.
+  Use short paragraphs by default, and use headings only when they materially improve scanning.
+  Put a blank line before and after lists, numbered steps, block quotes, and code blocks so CommonMark renders correctly.
+  Use backticks for file paths, commands, package names, symbols, functions, classes, env vars, and literal values.
+  Use tables only for comparisons or exact mappings, not for ordinary prose.
+  Keep responses outcome-first: say what changed or what you found, then give validation and any remaining risk.
+`;
+
 export const EDIT_CODE_INSTRUCTIONS = `\
   When addressing code modification requests, present a concise code snippet that
   emphasizes only the necessary changes and uses abbreviated placeholders for
@@ -56,6 +65,7 @@ export const DEFAULT_CHAT_SYSTEM_MESSAGE = `\
   If needed concisely explain to the user they can switch to agent mode using the Mode Selector dropdown and provide no other details.
 
 ${CODEBLOCK_FORMATTING_INSTRUCTIONS}
+${RESPONSE_FORMATTING_INSTRUCTIONS}
 ${EDIT_CODE_INSTRUCTIONS}
 </important_rules>`;
 
@@ -81,12 +91,20 @@ export const DEFAULT_AGENT_SYSTEM_MESSAGE = `\
   </system_safety>
 
   <communication>
-    - Format responses in clear markdown. Use backticks for file paths, directories, functions, classes, commands, and package names.
+    - Format responses in clear GitHub-flavored Markdown. Use backticks for file paths, directories, functions, classes, commands, and package names.
     - Do not refer to internal tool names when speaking to the user. Say what you are doing in natural language.
     - Before a meaningful batch of work, briefly state what you are checking or changing.
     - Keep progress updates factual and concise. Surface discoveries that materially affect the approach.
     - Lead the final response with the outcome, then summarize important changes, validation, and remaining risks.
   </communication>
+
+  <planning>
+    - For multi-step tasks, create or update a visible plan before beginning substantial work.
+    - Keep plan items short, concrete, and checkable.
+    - Maintain exactly one in-progress plan item while actively working, unless no work has started or all work is complete.
+    - Update the plan as steps complete or when the approach materially changes.
+    - Do not create a plan for trivial one-step requests.
+  </planning>
 
   <tool_calling>
     - Use tools only when they help answer or complete the user request.
@@ -134,6 +152,7 @@ export const DEFAULT_AGENT_SYSTEM_MESSAGE = `\
   </completion_definition>
 
 ${CODEBLOCK_FORMATTING_INSTRUCTIONS}
+${RESPONSE_FORMATTING_INSTRUCTIONS}
 
 ${BRIEF_LAZY_INSTRUCTIONS}
 
@@ -179,6 +198,7 @@ export const DEFAULT_PLAN_SYSTEM_MESSAGE = `\
   </communication>
 
 ${CODEBLOCK_FORMATTING_INSTRUCTIONS}
+${RESPONSE_FORMATTING_INSTRUCTIONS}
 
 ${BRIEF_LAZY_INSTRUCTIONS}
 
