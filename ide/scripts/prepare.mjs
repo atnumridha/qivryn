@@ -17,6 +17,7 @@ const productOverlay = readJson(
 );
 const shouldReset = process.argv.includes("--reset");
 const skipExtensionBuild = process.argv.includes("--skip-extension-build");
+const vscodeTarget = process.env.QIVRYN_VSCODE_TARGET?.trim();
 const minimumCheckoutBytes = 2 * 1024 * 1024 * 1024;
 
 function readJson(filepath) {
@@ -139,7 +140,12 @@ function stageQivrynExtension() {
   );
 
   if (!skipExtensionBuild) {
-    run("npm", ["run", "package"], {
+    const packageArgs = ["run", "package"];
+    if (vscodeTarget) {
+      packageArgs.push("--", "--target", vscodeTarget);
+    }
+
+    run("npm", packageArgs, {
       cwd: extensionDirectory,
       env: { ...process.env, SKIP_INSTALLS: "true" },
     });
