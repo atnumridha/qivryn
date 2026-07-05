@@ -1,0 +1,4 @@
+interface:
+  display_name: "GitHub Release Build"
+  short_description: "Build, push, and upload Qivryn VSIX releases"
+  default_prompt: "Use $github-release-build to build the Qivryn VSIX, push main, and upload the GitHub release asset."
