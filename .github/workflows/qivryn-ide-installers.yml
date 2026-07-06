@@ -91,7 +91,7 @@ jobs:
       - name: Install CLI dependencies
         shell: bash
         working-directory: extensions/cli
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Install GUI dependencies
         shell: bash
