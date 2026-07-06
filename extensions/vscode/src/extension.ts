@@ -25,7 +25,7 @@ export function activate(context: vscode.ExtensionContext) {
       )
       .then((selection) => {
         if (selection === "View Logs") {
-          vscode.commands.executeCommand("qivryn.viewLogs");
+          vscode.commands.executeCommand("workbench.action.openLogsFolder");
         } else if (selection === "Retry Extension Host") {
           vscode.commands.executeCommand(
             "workbench.action.restartExtensionHost",

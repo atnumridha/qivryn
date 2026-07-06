@@ -259,6 +259,16 @@ class GitHubCopilot extends OpenAI {
       ...this._copilotHeaders(),
     };
   }
+
+  /**
+   * GitHub Copilot GPT-family models should prefer the Responses API.
+   * This widens the base OpenAI heuristic (gpt-5+) to all gpt-* models
+   * for this provider only.
+   */
+  public override isOSeriesOrGpt5PlusModel(model?: string): boolean {
+    if (!model) return false;
+    return /^gpt-/i.test(model) || super.isOSeriesOrGpt5PlusModel(model);
+  }
 }
 
 export default GitHubCopilot;

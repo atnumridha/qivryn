@@ -80,7 +80,7 @@ export class ReleaseUpdateManager implements vscode.Disposable {
       } else if (selection === "Reload Window") {
         await vscode.commands.executeCommand("workbench.action.reloadWindow");
       } else if (selection === "Open Logs") {
-        await vscode.commands.executeCommand("qivryn.viewLogs");
+        await vscode.commands.executeCommand("workbench.action.openLogsFolder");
       }
     }
   }

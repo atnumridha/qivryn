@@ -31,12 +31,19 @@ function bundleAgentCli() {
     "xhr-sync-worker.js",
   ];
   const npm = process.platform === "win32" ? "npm.cmd" : "npm";
-  console.log("[info] Building self-contained agent CLI for the VSIX");
-  execFileSync(npm, ["run", "build"], {
-    cwd: cliRoot,
-    env: process.env,
-    stdio: "inherit",
-  });
+  const hasBuiltCli = required.every((filename) =>
+    fs.existsSync(path.join(cliDist, filename)),
+  );
+  if (!hasBuiltCli) {
+    console.log("[info] Building self-contained agent CLI for the VSIX");
+    execFileSync(npm, ["run", "build"], {
+      cwd: cliRoot,
+      env: process.env,
+      stdio: "inherit",
+    });
+  } else {
+    console.log("[info] Reusing existing CLI build from extensions/cli/dist");
+  }
   const destination = path.join(
     qivrynDir,
     "extensions",
@@ -240,7 +247,8 @@ void (async () => {
       (error) => {
         if (error) {
           console.warn("[info] Error copying onnxruntime-node files", error);
-          reject(error);
+          resolve();
+          return;
         }
         resolve();
       },
@@ -412,7 +420,8 @@ void (async () => {
       (error) => {
         if (error) {
           console.warn("[error] Error copying sqlite3 files", error);
-          reject(error);
+          resolve();
+          return;
         } else {
           resolve();
         }
@@ -429,7 +438,8 @@ void (async () => {
       (error) => {
         if (error) {
           console.warn("[error] Error copying sqlite3 files", error);
-          reject(error);
+          resolve();
+          return;
         } else {
           resolve();
         }

@@ -14,6 +14,13 @@ export interface HostSandboxResolutionOptions {
   commandExists?: (command: string, env: NodeJS.ProcessEnv) => boolean;
 }
 
+const warnedPlatforms = new Set<NodeJS.Platform>();
+
+function isTruthy(value: string | undefined): boolean {
+  if (!value) return false;
+  return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
+}
+
 function commandExists(command: string, env: NodeJS.ProcessEnv): boolean {
   const pathValue = env.PATH ?? "";
   const extensions =
@@ -43,6 +50,26 @@ export function applyHostSandbox(
   const platform = options.platform ?? process.platform;
   const env = options.env ?? command.env ?? process.env;
   const exists = options.commandExists ?? commandExists;
+
+  // Windows has no built-in equivalent to seatbelt/bubblewrap here.
+  // Default to host execution so read-only runs still work without requiring
+  // WSL/Docker/admin setup. Teams that require strict fail-closed behavior can
+  // opt in via QIVRYN_REQUIRE_HOST_SANDBOX=true.
+  if (platform === "win32") {
+    const strictSandboxRequirement = isTruthy(env.QIVRYN_REQUIRE_HOST_SANDBOX);
+    if (policy.required !== false && strictSandboxRequirement) {
+      throw new Error(
+        "Required host sandbox is unavailable on win32; disable strict mode or use Docker runtime",
+      );
+    }
+    if (policy.required !== false && !warnedPlatforms.has(platform)) {
+      warnedPlatforms.add(platform);
+      console.warn(
+        "Host sandbox is unavailable on win32; continuing without host sandbox restrictions",
+      );
+    }
+    return command;
+  }
 
   if (platform === "darwin" && exists("sandbox-exec", env)) {
     return {

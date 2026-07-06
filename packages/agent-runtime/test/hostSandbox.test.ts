@@ -46,13 +46,24 @@ describe("applyHostSandbox", () => {
     );
   });
 
-  it("fails closed when a required host sandbox is unavailable", () => {
+  it("falls back to host execution on Windows when strict mode is not enabled", () => {
+    const command = { command: "node", args: ["worker.js"] };
+    expect(
+      applyHostSandbox(command, policy, {
+        platform: "win32",
+        commandExists: () => false,
+      }),
+    ).toEqual(command);
+  });
+
+  it("fails closed on Windows when strict mode is enabled", () => {
     expect(() =>
       applyHostSandbox({ command: "node" }, policy, {
         platform: "win32",
         commandExists: () => false,
+        env: { QIVRYN_REQUIRE_HOST_SANDBOX: "true" },
       }),
-    ).toThrow(/Required host sandbox is unavailable/);
+    ).toThrow(/Required host sandbox is unavailable on win32/);
   });
 
   it("allows an explicit optional policy to fall back to the host", () => {

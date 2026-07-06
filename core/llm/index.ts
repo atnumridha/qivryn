@@ -1028,7 +1028,8 @@ export abstract class BaseLLM implements ILLM {
 
   private canUseOpenAIResponses(options: CompletionOptions): boolean {
     return (
-      this.providerName === "openai" &&
+      (this.providerName === "openai" ||
+        this.providerName === "github-copilot") &&
       this._llmOptions.useResponsesApi !== false &&
       typeof (this as any)._streamResponses === "function" &&
       (this as any).isOSeriesOrGpt5PlusModel(options.model)

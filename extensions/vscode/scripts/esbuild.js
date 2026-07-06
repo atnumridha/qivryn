@@ -10,7 +10,7 @@ const esbuildConfig = {
   entryPoints: ["src/extension.ts"],
   bundle: true,
   outfile: "out/extension.js",
-  external: ["vscode", "esbuild", "./xhr-sync-worker.js"],
+  external: ["vscode", "esbuild", "sharp", "./xhr-sync-worker.js"],
   format: "cjs",
   platform: "node",
   sourcemap: flags.includes("--sourcemap"),
@@ -32,7 +32,7 @@ const esbuildConfig = {
         build.onLoad(
           { filter: /onnxruntime_binding\.node$/ },
           ({ path: bindingPath }) => {
-            const normalizedPath = bindingPath.replaceAll("\\\\", "/");
+            const normalizedPath = bindingPath.replace(/\\/g, "/");
             const match = normalizedPath.match(
               /\/bin\/napi-v3\/([^/]+)\/([^/]+)\/onnxruntime_binding\.node$/,
             );
