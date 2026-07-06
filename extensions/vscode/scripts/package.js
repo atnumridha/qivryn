@@ -18,9 +18,10 @@ if (!fs.existsSync("build")) {
 
 const isPreRelease = args.includes("--pre-release");
 
+const outputPath = `./build/qivryn-${version}.vsix`;
 let command = isPreRelease
-  ? "npx @vscode/vsce package --out ./build --pre-release --no-dependencies" // --yarn"
-  : "npx @vscode/vsce package --out ./build --no-dependencies"; // --yarn";
+  ? `npx @vscode/vsce package --out ${outputPath} --pre-release --no-dependencies` // --yarn"
+  : `npx @vscode/vsce package --out ${outputPath} --no-dependencies`; // --yarn";
 
 if (target) {
   command += ` --target ${target}`;
