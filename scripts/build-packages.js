@@ -93,7 +93,7 @@ async function main() {
     await buildPackagesInParallel(["browser-runtime", "review-engine"]);
 
     // Phase 5: Build packages that depend on other local packages
-    await buildPackagesInParallel(["openai-adapters", "qivryn-sdk"]);
+    await buildPackagesInParallel(["openai-adapters", "qivryn-sdk/typescript"]);
 
     console.log("🎉 All packages built successfully!");
   } catch (error) {
