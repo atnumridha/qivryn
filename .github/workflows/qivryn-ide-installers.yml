@@ -88,6 +88,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Install CLI dependencies
+        shell: bash
+        working-directory: extensions/cli
+        run: npm ci
+
       - name: Install GUI dependencies
         shell: bash
         working-directory: gui
