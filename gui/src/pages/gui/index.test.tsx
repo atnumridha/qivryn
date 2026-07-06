@@ -1,6 +1,5 @@
-import { screen } from "@testing-library/react";
-import { afterEach, expect, test, vi } from "vitest";
-import { MockIdeMessenger } from "../../context/MockIdeMessenger";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { afterEach, expect, test } from "vitest";
 import { renderWithProviders } from "../../util/test/render";
 import GUI from ".";
 
@@ -8,45 +7,48 @@ afterEach(() => {
   delete (window as any).isFullScreen;
 });
 
-test("opens chat full screen in one click", async () => {
-  const messenger = new MockIdeMessenger();
-  const request = vi.spyOn(messenger, "request");
-  const { user } = await renderWithProviders(<GUI />, {
-    mockIdeMessenger: messenger,
-  });
+test("does not duplicate native view-toolbar actions inside chat", async () => {
+  await renderWithProviders(<GUI />);
 
-  await user.click(screen.getByRole("button", { name: "Open full screen" }));
-  expect(request).toHaveBeenCalledWith("toggleFullScreen", {
-    newWindow: true,
-    path: "/",
-  });
+  expect(screen.queryByTestId("qivryn-chat-header")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Open settings" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "New chat" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Reload chat" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Open full screen" })).toBeNull();
+  expect(screen.getByTestId("qivryn-chat-composer-layer")).toBeVisible();
 });
 
-test("offers a clickable standalone reload that releases stuck edit state", async () => {
-  (window as any).isFullScreen = true;
-  const messenger = new MockIdeMessenger();
-  const post = vi.spyOn(messenger, "post");
-  const { user } = await renderWithProviders(<GUI />, {
-    mockIdeMessenger: messenger,
+test("attaches every dropped file to the composer", async () => {
+  await renderWithProviders(<GUI />);
+  const composer = screen.getByTestId("editor-input-main");
+
+  const files = [
+    new File(["alpha"], "alpha.txt", { type: "text/plain" }),
+    new File(["beta"], "beta.json", { type: "application/json" }),
+  ];
+  fireEvent.drop(composer, {
+    dataTransfer: {
+      files,
+      getData: () => "",
+    },
   });
 
-  await user.click(screen.getByRole("button", { name: "Reload chat" }));
-  expect(post).toHaveBeenCalledWith("reloadAgentWindow", { path: "/" });
+  await waitFor(() => {
+    expect(screen.getByText("alpha.txt")).toBeVisible();
+    expect(screen.getByText("beta.json")).toBeVisible();
+  });
 });
 
 test("uses the full standalone window for chat instead of the history sidebar", async () => {
   (window as any).isFullScreen = true;
-  const { user, store } = await renderWithProviders(<GUI />);
-  const previousSessionId = store.getState().session.id;
+  await renderWithProviders(<GUI />);
 
   expect(screen.queryByPlaceholderText("Search past sessions")).toBeNull();
   expect(
     screen.getByRole("button", { name: "Agents mode dropdown" }),
   ).toBeVisible();
-  expect(screen.getByRole("button", { name: "New chat" })).toBeVisible();
-
-  await user.click(screen.getByRole("button", { name: "New chat" }));
-  expect(store.getState().session.id).not.toBe(previousSessionId);
+  expect(screen.queryByRole("button", { name: "New chat" })).toBeNull();
+  expect(screen.queryByTestId("qivryn-chat-header")).toBeNull();
 });
 
 test("keeps tool permissions and skills inside the primary mode dropdown", async () => {
@@ -76,32 +78,4 @@ test("keeps tool permissions and skills inside the primary mode dropdown", async
     screen.getByRole("group", { name: "Agent access mode" }),
   ).toBeVisible();
   expect(screen.queryByRole("group", { name: "Skill choices" })).toBeNull();
-});
-
-test("keeps config controls as a compact chat header icon popover", async () => {
-  const { user } = await renderWithProviders(<GUI />);
-
-  expect(screen.getByTestId("qivryn-chat-header")).toHaveClass(
-    "relative",
-    "z-[120]",
-    "overflow-visible",
-  );
-  expect(screen.getByTestId("qivryn-chat-composer-layer")).toHaveClass(
-    "relative",
-    "z-0",
-  );
-  expect(screen.getAllByRole("button", { name: "Open settings" })).toHaveLength(
-    1,
-  );
-  expect(screen.getByRole("button", { name: "Open settings" })).toBeVisible();
-  expect(screen.queryByText("CONFIG")).toBeNull();
-  expect(screen.queryByText("Config")).toBeNull();
-  expect(screen.queryByRole("button", { name: "Configure rules" })).toBeNull();
-
-  await user.click(screen.getByRole("button", { name: "Open settings" }));
-
-  expect(screen.queryByText("CONFIG")).toBeNull();
-  expect(screen.queryByRole("button", { name: "Configure rules" })).toBeNull();
-  expect(screen.queryByRole("button", { name: "Configure tools" })).toBeNull();
-  expect(screen.queryByRole("button", { name: "Configure models" })).toBeNull();
 });

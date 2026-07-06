@@ -28,15 +28,15 @@
     },
     {
       "id": "native-agent-session-state",
-      "status": "disabled",
+      "status": "in-progress",
       "layer": "workbench",
-      "acceptance": "Deferred until native Agent Sessions are rebuilt against captured CodieApp references."
+      "acceptance": "Native pin and unread state hydrates from durable run metadata and synchronizes through the Qivryn runtime; packaged restoration tests remain required."
     },
     {
       "id": "qivryn-agent-window-handoff",
-      "status": "disabled",
+      "status": "in-progress",
       "layer": "workbench",
-      "acceptance": "The current handoff is handled by the Qivryn Agents webview panel; native session handoff is deferred with native Agent Sessions."
+      "acceptance": "Qivryn native sessions are eligible for the Agents Window and preserve selected run identity during handoff; packaged multi-window tests remain required."
     },
     {
       "id": "workspace-saved-layouts",
@@ -49,6 +49,12 @@
       "status": "implemented",
       "layer": "editor",
       "acceptance": "Editor tabs display repository, branch, worktree, and run identity without extension-only decorations."
+    },
+    {
+      "id": "qivryn-webview-file-drop",
+      "status": "implemented",
+      "layer": "workbench",
+      "acceptance": "Explorer file drags remain interactive over the Qivryn composer so single and multi-file drops reach the webview without requiring a modifier key."
     },
     {
       "id": "optional-chat-onboarding",

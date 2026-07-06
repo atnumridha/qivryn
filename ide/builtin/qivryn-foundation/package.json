@@ -46,9 +46,9 @@
       "workbench.editor.pinnedTabSizing": "compact",
       "workbench.panel.defaultLocation": "bottom",
       "workbench.sideBar.location": "left",
-      "workbench.secondarySideBar.defaultVisibility": "visible",
+      "workbench.secondarySideBar.defaultVisibility": "hidden",
       "terminal.integrated.defaultLocation": "view",
-      "chat.viewSessions.enabled": true,
+      "chat.viewSessions.enabled": false,
       "chat.viewSessions.orientation": "stacked",
       "chat.agentsControl.enabled": "hidden",
       "chat.agentsHandoffTip.mode": "hidden"

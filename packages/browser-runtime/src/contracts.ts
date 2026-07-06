@@ -70,7 +70,7 @@ export interface BrowserAdapter {
   setRecording(
     session: BrowserSession,
     recording: BrowserSession["recording"],
-  ): Promise<void>;
+  ): Promise<Partial<BrowserSession> | void>;
 }
 
 export interface BrowserStore {

@@ -50,6 +50,18 @@ export class QivrynGUIWebviewViewProvider
     this.webviewProtocol.webview = this._webview;
   }
 
+  public reload(page = "/"): boolean {
+    if (!this._webviewView) {
+      return false;
+    }
+    this._webviewView.webview.html = this.getSidebarContent(
+      this.extensionContext,
+      this._webviewView,
+      page,
+    );
+    return true;
+  }
+
   sendMainUserInput(input: string) {
     this.webview?.postMessage({
       type: "userInput",

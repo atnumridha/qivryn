@@ -54,12 +54,14 @@ import {
 } from "../activation/SelectionChangeManager";
 import { resolveAgentCliPath } from "../agentCliPath";
 import { AgentNotificationManager } from "../AgentNotificationManager";
+import { AgentRuntimeRecoveryManager } from "../AgentRuntimeRecoveryManager";
 import { AgentScmGraphManager } from "../AgentScmGraphManager";
 import { AgentWorktreeDecorationProvider } from "../AgentWorktreeDecorationProvider";
 import { AiAttributionCodeLensProvider } from "../AiAttributionCodeLensProvider";
 import { GhostTextAcceptanceTracker } from "../autocomplete/GhostTextAcceptanceTracker";
 import { getDefinitionsFromLsp } from "../autocomplete/lsp";
 import { QivrynLayoutManager } from "../QivrynLayoutManager";
+import { ReleaseUpdateManager } from "../ReleaseUpdateManager";
 import { NativeAgentSessionsProvider } from "../native/NativeAgentSessionsProvider";
 import {
   clearDocumentContentCache,
@@ -302,7 +304,7 @@ export class VsCodeExtension {
     this.core = new Core(inProcessMessenger, this.ide);
     const isQivrynIde = vscode.env.appName.startsWith("Qivryn");
     const shouldUseNativeAgentSessions =
-      process.env.QIVRYN_ENABLE_NATIVE_AGENT_SESSIONS === "true";
+      isQivrynIde || process.env.QIVRYN_ENABLE_NATIVE_AGENT_SESSIONS === "true";
     const nativeAgentSessionsProvider = shouldUseNativeAgentSessions
       ? NativeAgentSessionsProvider.registerIfSupported(
           context,
@@ -316,7 +318,11 @@ export class VsCodeExtension {
         false,
       );
     }
-    context.subscriptions.push(new AgentNotificationManager(context));
+    context.subscriptions.push(
+      new AgentNotificationManager(context),
+      new AgentRuntimeRecoveryManager(inProcessMessenger),
+      new ReleaseUpdateManager(context),
+    );
     context.subscriptions.push(
       vscode.languages.registerCodeLensProvider(
         { scheme: "file" },
@@ -505,7 +511,7 @@ export class VsCodeExtension {
       agentScmGraphManager,
     );
     void layoutManager.restoreActive(isQivrynIde);
-    if (isQivrynIde) {
+    if (isQivrynIde && !nativeAgentSessionsProvider) {
       for (const delay of [0, 250, 1_000, 2_500]) {
         setTimeout(() => {
           void vscode.commands.executeCommand(

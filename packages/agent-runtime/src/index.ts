@@ -21,3 +21,4 @@ export * from "./presentation.js";
 export * from "./shadowWorkspace.js";
 export * from "./sshRuntime.js";
 export * from "./store.js";
+export * from "./workspacePolicy.js";

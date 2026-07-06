@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qivryn.ai/schemas/environment.json",
+  "title": "Qivryn workspace environment",
+  "description": "Workspace-scoped environment applied to Qivryn agent runtimes.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1
+    },
+    "variables": {
+      "type": "object",
+      "description": "Non-secret environment variables. Use the host secret store for credentials.",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "inherit": {
+      "type": "array",
+      "description": "Host variable names that the runtime may inherit.",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+      },
+      "uniqueItems": true
+    },
+    "unset": {
+      "type": "array",
+      "description": "Variables removed from the runtime environment after inheritance.",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+      },
+      "uniqueItems": true
+    },
+    "workingDirectory": {
+      "type": "string",
+      "description": "Workspace-relative default working directory."
+    },
+    "runtime": {
+      "type": "string",
+      "enum": ["local", "container", "ssh"]
+    }
+  },
+  "required": ["version"]
+}

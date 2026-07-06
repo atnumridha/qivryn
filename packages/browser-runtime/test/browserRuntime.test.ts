@@ -40,7 +40,13 @@ function adapter(): BrowserAdapter {
       { method: "GET", url: "http://localhost:3000/api" },
     ]),
     setViewport: vi.fn(async () => undefined),
-    setRecording: vi.fn(async () => undefined),
+    setRecording: vi.fn(async (session, recording) => ({
+      metadata: {
+        ...session.metadata,
+        recordingPath:
+          recording === "full" ? `/recordings/${session.id}.webm` : undefined,
+      },
+    })),
   };
 }
 
@@ -195,9 +201,11 @@ describe("BrowserSessionService", () => {
       (await browser.viewport(session.id, { width: 390, height: 844 }, "user"))
         .viewport,
     ).toEqual({ width: 390, height: 844 });
-    expect(
-      (await browser.recording(session.id, "full", "user")).recording,
-    ).toBe("full");
+    const recording = await browser.recording(session.id, "full", "user");
+    expect(recording.recording).toBe("full");
+    expect(recording.metadata?.recordingPath).toBe(
+      `/recordings/${session.id}.webm`,
+    );
     await expect(
       browser.viewport(session.id, { width: 100, height: 100 }, "user"),
     ).rejects.toThrow(/between 200x200/);

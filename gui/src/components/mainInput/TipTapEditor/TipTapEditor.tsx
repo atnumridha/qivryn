@@ -1,6 +1,5 @@
 import { Editor, EditorContent, JSONContent } from "@tiptap/react";
 import { ContextProviderDescription, InputModifiers } from "core";
-import { modelSupportsImages } from "core/llm/autodetect";
 import {
   memo,
   useCallback,
@@ -13,14 +12,20 @@ import { IdeMessengerContext } from "../../../context/IdeMessenger";
 import useIsOSREnabled from "../../../hooks/useIsOSREnabled";
 import useUpdatingRef from "../../../hooks/useUpdatingRef";
 import { useAppDispatch, useAppSelector } from "../../../redux/hooks";
-import { selectSelectedChatModel } from "../../../redux/slices/configSlice";
 import InputToolbar, { ToolbarOptions } from "../InputToolbar";
 import { ComboBoxItem } from "../types";
 import { DragOverlay } from "./components/DragOverlay";
 import { InputBoxDiv } from "./components/StyledComponents";
 import { useMainEditor } from "./MainEditorProvider";
 import "./TipTapEditor.css";
+import { CodeBlock } from "./extensions";
 import { createEditorConfig, getPlaceholderText } from "./utils/editorConfig";
+import {
+  getDroppedFileContextItem,
+  getDroppedFiles,
+  getDroppedFileUris,
+  isImageFile,
+} from "./utils/fileDropUtils";
 import { handleImageFile } from "./utils/imageUtils";
 import { useEditorEventHandlers } from "./utils/keyHandlers";
 
@@ -52,7 +57,6 @@ function TipTapEditorInner(props: TipTapEditorProps) {
   const ideMessenger = useContext(IdeMessengerContext);
   const isOSREnabled = useIsOSREnabled();
 
-  const defaultModel = useAppSelector(selectSelectedChatModel);
   const isStreaming = useAppSelector((state) => state.session.isStreaming);
   const historyLength = useAppSelector((store) => store.session.history.length);
   const isInEdit = useAppSelector((store) => store.session.isInEdit);
@@ -207,6 +211,56 @@ function TipTapEditorInner(props: TipTapEditorProps) {
     setShouldHideToolbar(false);
   }, [cancelBlurTimeout]);
 
+  const handleFileDrop = useCallback(
+    async (dataTransfer: DataTransfer) => {
+      if (!editor) return;
+
+      const files = getDroppedFiles(dataTransfer);
+      const uris = getDroppedFileUris(dataTransfer);
+      const attachmentCount = Math.max(files.length, uris.length);
+      const attachments: JSONContent[] = [];
+      const errors: string[] = [];
+
+      for (let index = 0; index < attachmentCount; index++) {
+        const file = files[index];
+        const uri = uris[index];
+        try {
+          if (file && isImageFile(file)) {
+            const result = await handleImageFile(ideMessenger, file);
+            if (result) {
+              attachments.push({ type: "image", attrs: { src: result[1] } });
+            }
+            continue;
+          }
+
+          const item = await getDroppedFileContextItem(ideMessenger, {
+            file,
+            uri,
+          });
+          attachments.push({
+            type: CodeBlock.name,
+            attrs: { item, inputId: props.inputId },
+          });
+        } catch (error) {
+          errors.push(error instanceof Error ? error.message : String(error));
+        }
+      }
+
+      if (attachments.length > 0) {
+        const existingContent = editor.getJSON().content ?? [];
+        editor.commands.setContent({
+          type: "doc",
+          content: [...attachments, ...existingContent],
+        });
+        editor.commands.focus("end");
+      }
+      if (errors.length > 0) {
+        ideMessenger.post("showToast", ["error", errors.join("\n")]);
+      }
+    },
+    [editor, ideMessenger, props.inputId],
+  );
+
   return (
     <InputBoxDiv
       onFocus={handleFocus}
@@ -221,49 +275,26 @@ function TipTapEditorInner(props: TipTapEditorProps) {
       onClick={() => {
         editor?.commands.focus();
       }}
-      onDragOver={(event) => {
+      onDragOverCapture={(event) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+        setShowDragOverMsg(true);
+      }}
+      onDragLeave={(event) => {
+        if (event.relatedTarget === null) {
+          setTimeout(() => setShowDragOverMsg(false), 250);
+        }
+      }}
+      onDragEnterCapture={(event) => {
         event.preventDefault();
         setShowDragOverMsg(true);
       }}
-      onDragLeave={(e) => {
-        if (e.relatedTarget === null) {
-          if (e.shiftKey) {
-            setShowDragOverMsg(false);
-          } else {
-            setTimeout(() => setShowDragOverMsg(false), 2000);
-          }
-        }
-      }}
-      onDragEnter={() => {
-        setShowDragOverMsg(true);
-      }}
-      onDrop={(event) => {
+      onDropCapture={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        event.nativeEvent.stopImmediatePropagation();
         setShowDragOverMsg(false);
-        if (
-          !defaultModel ||
-          !modelSupportsImages(
-            defaultModel.provider,
-            defaultModel.model,
-            defaultModel.title,
-            defaultModel.capabilities,
-          )
-        ) {
-          return;
-        }
-        let file = event.dataTransfer.files[0];
-        void handleImageFile(ideMessenger, file).then((result) => {
-          if (!editor) {
-            return;
-          }
-          if (result) {
-            const [_, dataUrl] = result;
-            const { schema } = editor.state;
-            const node = schema.nodes.image.create({ src: dataUrl });
-            const tr = editor.state.tr.insert(0, node);
-            editor.view.dispatch(tr);
-          }
-        });
-        event.preventDefault();
+        void handleFileDrop(event.dataTransfer);
       }}
     >
       <div className="px-2.5 pb-1 pt-2">
@@ -309,15 +340,9 @@ function TipTapEditorInner(props: TipTapEditorProps) {
         />
       </div>
 
-      {showDragOverMsg &&
-        modelSupportsImages(
-          defaultModel?.provider || "",
-          defaultModel?.model || "",
-          defaultModel?.title,
-          defaultModel?.capabilities,
-        ) && (
-          <DragOverlay show={showDragOverMsg} setShow={setShowDragOverMsg} />
-        )}
+      {showDragOverMsg && (
+        <DragOverlay show={showDragOverMsg} setShow={setShowDragOverMsg} />
+      )}
       <div id={TIPPY_DIV_ID} className="fixed z-50" />
     </InputBoxDiv>
   );

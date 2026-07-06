@@ -1,12 +1,22 @@
 import { useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { IdeMessengerContext } from "../../../context/IdeMessenger";
-import { CONFIG_ROUTES } from "../../../util/navigation";
+import { CONFIG_ROUTES, ROUTES } from "../../../util/navigation";
 
 export function OnboardingFeatureTour() {
   const navigate = useNavigate();
   const ideMessenger = useContext(IdeMessengerContext);
   const items = [
+    {
+      title: "Agents",
+      detail: "Start, monitor, and resume durable tasks",
+      action: () => navigate(ROUTES.AGENTS),
+    },
+    {
+      title: "Permissions",
+      detail: "Choose Ask, Autonomous, Read Only, or Full Access",
+      action: () => navigate(CONFIG_ROUTES.SETTINGS),
+    },
     {
       title: "Inline Edit",
       detail: "Select code and press Ctrl/Cmd+I",

@@ -363,7 +363,27 @@ export class NativeAgentSessionsProvider implements vscode.Disposable {
               ? this.resourceForRun(this.currentRunId)
               : undefined;
           if (!sessionResource) return;
-          await vscode.commands.executeCommand("qivryn.openAgentsWindow");
+          const runId = this.runIdFromResource(sessionResource);
+          this.currentRunId = runId;
+          await Promise.all([
+            this.context.workspaceState.update(
+              "qivryn.nativeAgent.lastRunId",
+              runId,
+            ),
+            this.context.globalState.update(
+              "qivryn.nativeAgent.handoffRunId",
+              runId,
+            ),
+            vscode.commands.executeCommand(
+              "setContext",
+              "qivryn.activeAgentSession",
+              runId,
+            ),
+          ]);
+          await vscode.commands.executeCommand(
+            "qivryn.openAgentsWindow",
+            sessionResource,
+          );
         },
       ),
     );
@@ -373,7 +393,7 @@ export class NativeAgentSessionsProvider implements vscode.Disposable {
       "qivryn.nativeAgentSessions",
       true,
     );
-    void this.refreshWindowContext();
+    void this.refreshWindowContext().then(() => this.restoreHandoffSession());
     void this.refresh();
     this.refreshTimer = setInterval(() => void this.refresh(), 2_000);
     this.refreshTimer.unref?.();
@@ -956,6 +976,28 @@ export class NativeAgentSessionsProvider implements vscode.Disposable {
       "setContext",
       "qivryn.isAgentsWindow",
       this.isAgentsWindow,
+    );
+  }
+
+  private async restoreHandoffSession(): Promise<void> {
+    const runId =
+      this.context.globalState.get<string>("qivryn.nativeAgent.handoffRunId") ??
+      this.context.workspaceState.get<string>("qivryn.nativeAgent.lastRunId");
+    if (!runId) return;
+    this.currentRunId = runId;
+    await vscode.commands.executeCommand(
+      "setContext",
+      "qivryn.activeAgentSession",
+      runId,
+    );
+    if (!this.isAgentsWindow) return;
+    await vscode.commands.executeCommand(
+      "qivryn.openNativeAgent",
+      this.resourceForRun(runId),
+    );
+    await this.context.globalState.update(
+      "qivryn.nativeAgent.handoffRunId",
+      undefined,
     );
   }
 }

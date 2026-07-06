@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { BuiltInToolNames } from "./builtIn";
-import { getBaseToolDefinitions } from ".";
+import { getBaseToolDefinitions, getToolNameInventory } from ".";
 import {
   CURSOR_LOCAL_CAPABILITIES,
+  LocalCapabilityKind,
   resolveCursorLocalCapability,
 } from "./cursorLocalCapabilities";
 
@@ -37,14 +38,27 @@ describe("Cursor-compatible local tools", () => {
     expect(Object.keys(CURSOR_LOCAL_CAPABILITIES)).toHaveLength(53);
     expect(
       resolveCursorLocalCapability("CLIENT_SIDE_TOOL_V2_DELETE_FILE"),
-    ).toBe("delete_file");
-    expect(resolveCursorLocalCapability("CLIENT_SIDE_TOOL_V2_TODO_WRITE")).toBe(
-      "update_plan",
-    );
+    ).toMatchObject({
+      kind: LocalCapabilityKind.Tool,
+      executable: true,
+      toolName: BuiltInToolNames.DeleteFile,
+    });
     expect(
-      Object.values(CURSOR_LOCAL_CAPABILITIES).every(
-        (equivalent) => equivalent.length > 0,
-      ),
-    ).toBe(true);
+      resolveCursorLocalCapability("CLIENT_SIDE_TOOL_V2_WRITE_SHELL_STDIN"),
+    ).toMatchObject({
+      kind: LocalCapabilityKind.Unsupported,
+      executable: false,
+    });
+
+    const registered = getToolNameInventory();
+    for (const [name, capability] of Object.entries(
+      CURSOR_LOCAL_CAPABILITIES,
+    )) {
+      expect(capability.implementation.length, name).toBeGreaterThan(0);
+      if (!capability.executable) continue;
+      expect(capability.kind, name).toBe(LocalCapabilityKind.Tool);
+      expect(capability.toolName, name).toBeDefined();
+      expect(registered.has(capability.toolName!), name).toBe(true);
+    }
   });
 });

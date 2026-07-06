@@ -9,17 +9,13 @@ interface DragOverlayProps {
 export const DragOverlay: React.FC<DragOverlayProps> = ({ show, setShow }) => {
   useEffect(() => {
     const overListener = (event: DragEvent) => {
-      if (event.shiftKey) return;
+      event.preventDefault();
       setShow(true);
     };
     window.addEventListener("dragover", overListener);
 
-    const leaveListener = (event: DragEvent) => {
-      if (event.shiftKey) {
-        setShow(false);
-      } else {
-        setTimeout(() => setShow(false), 2000);
-      }
+    const leaveListener = () => {
+      setTimeout(() => setShow(false), 250);
     };
     window.addEventListener("dragleave", leaveListener);
 
@@ -27,14 +23,14 @@ export const DragOverlay: React.FC<DragOverlayProps> = ({ show, setShow }) => {
       window.removeEventListener("dragover", overListener);
       window.removeEventListener("dragleave", leaveListener);
     };
-  }, []);
+  }, [setShow]);
 
   if (!show) return null;
 
   return (
     <>
       <HoverDiv />
-      <HoverTextDiv>Hold ⇧ to drop image</HoverTextDiv>
+      <HoverTextDiv>Drop files to attach</HoverTextDiv>
     </>
   );
 };

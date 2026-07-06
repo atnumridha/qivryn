@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qivryn.ai/schemas/permissions.json",
+  "title": "Qivryn workspace permissions",
+  "description": "Workspace restrictions for agent tools and runtime access. Workspace rules may restrict higher-level policy but must not grant permissions denied by user or organization policy.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1
+    },
+    "default": {
+      "type": "string",
+      "enum": ["ask", "deny"],
+      "default": "ask"
+    },
+    "tools": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "enum": ["allow", "ask", "deny"]
+      }
+    },
+    "terminal": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allow": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "deny": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "network": { "type": "string", "enum": ["ask", "deny"] },
+        "elevation": { "type": "string", "enum": ["ask", "deny"] }
+      }
+    },
+    "filesystem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "read": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "write": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "deny": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "browser": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "origins": {
+          "type": "array",
+          "items": { "type": "string", "format": "uri" },
+          "uniqueItems": true
+        },
+        "downloads": { "type": "string", "enum": ["ask", "deny"] },
+        "authentication": { "type": "string", "enum": ["ask", "deny"] }
+      }
+    },
+    "mcp": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "enum": ["allow", "ask", "deny"]
+      }
+    }
+  },
+  "required": ["version"]
+}

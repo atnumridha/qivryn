@@ -50,8 +50,11 @@ export function getPlaceholderText(
  */
 export function hasValidEditorContent(json: JSONContent): boolean {
   // Check for prompt or code blocks
-  const hasPromptOrCodeBlock = json.content?.some(
-    (c) => c.type === PromptBlock.name || c.type === CodeBlock.name,
+  const hasAttachmentOrSpecialBlock = json.content?.some(
+    (content) =>
+      content.type === PromptBlock.name ||
+      content.type === CodeBlock.name ||
+      content.type === Image.name,
   );
 
   // Check for non-whitespace text content
@@ -69,7 +72,7 @@ export function hasValidEditorContent(json: JSONContent): boolean {
   );
 
   // Content is valid if it has either non-whitespace text or special blocks
-  return hasNonWhitespaceText || hasPromptOrCodeBlock || false;
+  return hasNonWhitespaceText || hasAttachmentOrSpecialBlock || false;
 }
 
 /**
@@ -217,7 +220,7 @@ export function createEditorConfig(options: {
         },
       }).configure({
         HTMLAttributes: {
-          class: "object-contain max-h-[210px] max-w-full mx-1",
+          class: "qivryn-composer-image",
         },
       }),
       Placeholder.configure({

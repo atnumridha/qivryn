@@ -675,18 +675,25 @@ const getCommandsMap: (
       });
       focusGUI();
     },
-    "qivryn.openAgentsWindow": async () => {
+    "qivryn.openAgentsWindow": async (resource?: vscode.Uri) => {
+      const available = await vscode.commands.getCommands(true);
+      if (available.includes("workbench.action.openAgentsWindow")) {
+        return vscode.commands.executeCommand(
+          "workbench.action.openAgentsWindow",
+          resource,
+        );
+      }
       return vscode.commands.executeCommand(
         "qivryn.openInNewWindow",
         CHAT_ROUTE,
       );
     },
     "qivryn.reloadAgentsWindow": async (initialPath?: string) => {
+      const reloadPath = normalizeChatRoute(initialPath) ?? CHAT_ROUTE;
       if (!fullScreenPanel) {
-        await vscode.commands.executeCommand("workbench.action.reloadWindow");
+        sidebar.reload(reloadPath);
         return;
       }
-      const reloadPath = normalizeChatRoute(initialPath) ?? CHAT_ROUTE;
 
       await releaseAgentWindowEditState({
         cancelApply: async () => {
@@ -718,6 +725,8 @@ const getCommandsMap: (
     "qivryn.acceptReviewFinding": () => nativeReview.accept(),
     "qivryn.rejectReviewFinding": () => nativeReview.reject(),
     "qivryn.commentReviewFinding": () => nativeReview.comment(),
+    "qivryn.restoreReviewCheckpoint": () => nativeReview.restoreCheckpoint(),
+    "qivryn.rerunAgentReview": () => nativeReview.rerun(),
     "qivryn.openTerminalAssistant": () => nativeTerminalJobs.open(),
     "qivryn.stopTerminalJob": () => nativeTerminalJobs.stop(),
     "qivryn.openTerminalPromptBar": async () => {

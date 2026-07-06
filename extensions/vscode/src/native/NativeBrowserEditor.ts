@@ -2,13 +2,22 @@ import type { BrowserSession } from "@qivryn/agent-runtime";
 import type { Core } from "core/core";
 import * as vscode from "vscode";
 
-export class NativeBrowserEditor {
+export class NativeBrowserEditor implements vscode.Disposable {
   private activeSession?: BrowserSession;
+  private panel?: vscode.WebviewPanel;
+  private refreshTimer?: NodeJS.Timeout;
 
   constructor(
     private readonly context: vscode.ExtensionContext,
     private readonly core: Core,
-  ) {}
+  ) {
+    context.subscriptions.push(this);
+  }
+
+  dispose(): void {
+    if (this.refreshTimer) clearInterval(this.refreshTimer);
+    this.panel?.dispose();
+  }
 
   async open(url?: string): Promise<void> {
     let session: BrowserSession | undefined;
@@ -47,14 +56,12 @@ export class NativeBrowserEditor {
     }
     if (!session?.url) return;
     this.activeSession = session;
-    await Promise.all([
-      vscode.commands.executeCommand("simpleBrowser.show", session.url),
-      vscode.commands.executeCommand(
-        "setContext",
-        "qivryn.activeBrowserSession",
-        session.id,
-      ),
-    ]);
+    await this.showSession();
+    await vscode.commands.executeCommand(
+      "setContext",
+      "qivryn.activeBrowserSession",
+      session.id,
+    );
   }
 
   back(): Promise<void> {
@@ -76,6 +83,7 @@ export class NativeBrowserEditor {
       sessionId: session.id,
       actor: "user",
     })) as BrowserSession;
+    await this.render();
     void vscode.window.showInformationMessage(
       "You now control this browser session.",
     );
@@ -122,11 +130,47 @@ export class NativeBrowserEditor {
       sessionId: session.id,
       actor: "user",
     })) as BrowserSession;
-    if (this.activeSession.url) {
-      await vscode.commands.executeCommand(
-        "simpleBrowser.show",
-        this.activeSession.url,
+    await this.render();
+  }
+
+  private async showSession(): Promise<void> {
+    if (!this.panel) {
+      this.panel = vscode.window.createWebviewPanel(
+        "qivryn.browserSession",
+        "Qivryn Browser",
+        vscode.ViewColumn.One,
+        { enableScripts: false, retainContextWhenHidden: true },
       );
+      this.panel.onDidDispose(() => {
+        this.panel = undefined;
+        if (this.refreshTimer) clearInterval(this.refreshTimer);
+        this.refreshTimer = undefined;
+      });
+    }
+    this.panel.reveal(vscode.ViewColumn.One, false);
+    await this.render();
+    if (this.refreshTimer) clearInterval(this.refreshTimer);
+    this.refreshTimer = setInterval(() => void this.render(), 1_000);
+    this.refreshTimer.unref?.();
+  }
+
+  private async render(): Promise<void> {
+    if (!this.panel || !this.activeSession) return;
+    try {
+      const result = (await this.core.invoke("browser/action", {
+        action: "screenshot",
+        sessionId: this.activeSession.id,
+        actor: "user",
+      })) as { data?: string; mediaType?: string };
+      if (!result.data) return;
+      this.panel.title = this.activeSession.title || "Qivryn Browser";
+      this.panel.webview.html = browserHtml(
+        this.activeSession,
+        result.data,
+        result.mediaType ?? "image/png",
+      );
+    } catch (error) {
+      this.panel.webview.html = browserErrorHtml(error);
     }
   }
 
@@ -135,4 +179,34 @@ export class NativeBrowserEditor {
       throw new Error("Open a Qivryn browser session first");
     return this.activeSession;
   }
+}
+
+function browserHtml(
+  session: BrowserSession,
+  data: string,
+  mediaType: string,
+): string {
+  const locked = session.locked
+    ? `Controlled by ${escapeHtml(session.lockOwner ?? "another actor")}`
+    : "Shared session";
+  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'"><style>body{margin:0;background:#111;color:#ccc;font:12px system-ui}.bar{display:flex;gap:12px;padding:8px 12px;border-bottom:1px solid #333}.url{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}img{display:block;max-width:100%;margin:auto}</style></head><body><div class="bar"><span class="url">${escapeHtml(session.url ?? "about:blank")}</span><span>${locked}</span><span>${escapeHtml(session.recording)}</span></div><img alt="Live browser session" src="data:${escapeHtml(mediaType)};base64,${data}"></body></html>`;
+}
+
+function browserErrorHtml(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return `<!doctype html><html><body><p>Browser session unavailable: ${escapeHtml(message)}</p></body></html>`;
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(
+    /[&<>"']/g,
+    (character) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[character] ?? character,
+  );
 }

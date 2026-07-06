@@ -49,6 +49,46 @@ import {
   applyQivrynStartupEditor,
   targetFile as qivrynStartupEditorTarget,
 } from "../patches/qivryn-startup-editor.mjs";
+import {
+  applyQivrynWebviewFileDrop,
+  targetFile as qivrynWebviewFileDropTarget,
+} from "../patches/qivryn-webview-file-drop.mjs";
+import {
+  applyNativeAgentChatCss,
+  applyNativeAgentInitialScroll,
+  applyNativeAgentSessionsCss,
+  applyNativeAgentSessionsViewer,
+  applyNativeSessionHeaderRenderer,
+  applyNativeSessionHeaderTransport,
+  chatCssTarget as nativeAgentChatCssTarget,
+  chatListRendererTarget as nativeAgentChatListRendererTarget,
+  chatWidgetTarget as nativeAgentChatWidgetTarget,
+  sessionTransportTarget as nativeAgentSessionTransportTarget,
+  viewerCssTarget as nativeAgentSessionsCssTarget,
+  viewerTarget as nativeAgentSessionsViewerTarget,
+} from "../patches/native-agent-sessions.mjs";
+import {
+  applyNativeAgentSessionState,
+  targetFile as nativeAgentSessionStateTarget,
+} from "../patches/native-agent-session-state.mjs";
+import {
+  applyQivrynAgentWindowHandoff,
+  targetFile as qivrynAgentWindowHandoffTarget,
+} from "../patches/qivryn-agent-window-handoff.mjs";
+import {
+  applyQivrynActiveAgentSelection,
+  applyQivrynAgentEditorTitle,
+  applyQivrynAgentsSearch,
+  applyQivrynAgentsSearchFilter,
+  applyQivrynAgentsSidebarVisibility,
+  applyQivrynAgentsViewPane,
+  applyQivrynAgentsViewPaneCss,
+  editorInputTarget as qivrynAgentEditorTitleTarget,
+  sessionsControlTarget as qivrynActiveAgentSelectionTarget,
+  sessionsFilterTarget as qivrynAgentsSearchFilterTarget,
+  viewPaneCssTarget as qivrynAgentsViewPaneCssTarget,
+  viewPaneTarget as qivrynAgentsViewPaneTarget,
+} from "../patches/qivryn-native-agent-workspace.mjs";
 
 const patches = [
   {
@@ -60,6 +100,11 @@ const patches = [
     id: "qivryn-cli-launcher",
     targetFile: qivrynCliLauncherTarget,
     apply: applyQivrynCliLauncher,
+  },
+  {
+    id: "qivryn-webview-file-drop",
+    targetFile: qivrynWebviewFileDropTarget,
+    apply: applyQivrynWebviewFileDrop,
   },
   {
     id: "optional-built-in-copilot",
@@ -85,6 +130,81 @@ const patches = [
     id: "qivryn-session-pane-opener",
     targetFile: qivrynSessionOpenerTarget,
     apply: applyQivrynSessionPaneOpener,
+  },
+  {
+    id: "native-agent-sessions-css",
+    targetFile: nativeAgentSessionsCssTarget,
+    apply: applyNativeAgentSessionsCss,
+  },
+  {
+    id: "native-agent-sessions-viewer",
+    targetFile: nativeAgentSessionsViewerTarget,
+    apply: applyNativeAgentSessionsViewer,
+  },
+  {
+    id: "native-agent-chat-css",
+    targetFile: nativeAgentChatCssTarget,
+    apply: applyNativeAgentChatCss,
+  },
+  {
+    id: "native-agent-session-transport",
+    targetFile: nativeAgentSessionTransportTarget,
+    apply: applyNativeSessionHeaderTransport,
+  },
+  {
+    id: "native-agent-session-renderer",
+    targetFile: nativeAgentChatListRendererTarget,
+    apply: applyNativeSessionHeaderRenderer,
+  },
+  {
+    id: "native-agent-session-scroll",
+    targetFile: nativeAgentChatWidgetTarget,
+    apply: applyNativeAgentInitialScroll,
+  },
+  {
+    id: "native-agent-session-state",
+    targetFile: nativeAgentSessionStateTarget,
+    apply: applyNativeAgentSessionState,
+  },
+  {
+    id: "qivryn-agent-window-handoff",
+    targetFile: qivrynAgentWindowHandoffTarget,
+    apply: applyQivrynAgentWindowHandoff,
+  },
+  {
+    id: "qivryn-agents-view-pane",
+    targetFile: qivrynAgentsViewPaneTarget,
+    apply: applyQivrynAgentsViewPane,
+  },
+  {
+    id: "qivryn-agents-search",
+    targetFile: qivrynAgentsViewPaneTarget,
+    apply: applyQivrynAgentsSearch,
+  },
+  {
+    id: "qivryn-agents-sidebar-visibility",
+    targetFile: qivrynAgentsViewPaneTarget,
+    apply: applyQivrynAgentsSidebarVisibility,
+  },
+  {
+    id: "qivryn-agents-view-pane-css",
+    targetFile: qivrynAgentsViewPaneCssTarget,
+    apply: applyQivrynAgentsViewPaneCss,
+  },
+  {
+    id: "qivryn-agents-search-filter",
+    targetFile: qivrynAgentsSearchFilterTarget,
+    apply: applyQivrynAgentsSearchFilter,
+  },
+  {
+    id: "qivryn-active-agent-selection",
+    targetFile: qivrynActiveAgentSelectionTarget,
+    apply: applyQivrynActiveAgentSelection,
+  },
+  {
+    id: "qivryn-agent-editor-title",
+    targetFile: qivrynAgentEditorTitleTarget,
+    apply: applyQivrynAgentEditorTitle,
   },
   {
     id: "qivryn-layout-dimensions",

@@ -1,6 +1,7 @@
 import { ConfigDependentToolParams, Tool } from "..";
 import { isRecommendedAgentModel } from "../llm/toolSupport";
 import * as toolDefinitions from "./definitions";
+import { BuiltInToolNames } from "./builtIn";
 export {
   CURSOR_LOCAL_CAPABILITIES,
   resolveCursorLocalCapability,
@@ -24,6 +25,9 @@ export const getBaseToolDefinitions = () => [
   toolDefinitions.searchSymbolsTool,
   toolDefinitions.updatePlanTool,
 ];
+
+export const getToolNameInventory = (): ReadonlySet<string> =>
+  new Set(Object.values(BuiltInToolNames));
 
 export const getConfigDependentToolDefinitions = async (
   params: ConfigDependentToolParams,

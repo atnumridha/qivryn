@@ -32,33 +32,37 @@ export async function handleImageFile(
   ideMessenger: IIdeMessenger,
   file: File,
 ): Promise<[HTMLImageElement, string] | undefined> {
-  let filesize = file.size / 1024 / 1024; // filesize in MB
-  // check image type and size
-  if (
-    [
-      "image/jpeg",
-      "image/jpg",
-      "image/png",
-      "image/gif",
-      "image/svg",
-      "image/webp",
-    ].includes(file.type) &&
-    filesize < 10
-  ) {
+  const filesize = file.size / 1024 / 1024; // filesize in MB
+  const supportedImage =
+    file.type.startsWith("image/") ||
+    /\.(?:avif|bmp|gif|jpe?g|png|svg|webp)$/i.test(file.name);
+  if (supportedImage && filesize < 10) {
     // check dimensions
-    let _URL = window.URL || window.webkitURL;
-    let img = new window.Image();
-    img.src = _URL.createObjectURL(file);
+    const objectUrl = (window.URL || window.webkitURL).createObjectURL(file);
+    const img = new window.Image();
+    img.src = objectUrl;
 
     return await new Promise((resolve) => {
+      const fail = () => {
+        URL.revokeObjectURL(objectUrl);
+        ideMessenger.post("showToast", [
+          "error",
+          `Could not read ${file.name} as an image.`,
+        ]);
+        resolve(undefined);
+      };
+      img.onerror = fail;
       img.onload = function () {
+        URL.revokeObjectURL(objectUrl);
         const dataUrl = getDataUrlForFile(file, img);
         if (!dataUrl) {
+          resolve(undefined);
           return;
         }
 
-        let image = new window.Image();
+        const image = new window.Image();
         image.src = dataUrl;
+        image.onerror = fail;
         image.onload = function () {
           resolve([image, dataUrl]);
         };
@@ -67,7 +71,7 @@ export async function handleImageFile(
   } else {
     ideMessenger.post("showToast", [
       "error",
-      "Images need to be in jpg or png format and less than 10MB in size.",
+      "Images need to use a supported image format and be less than 10MB in size.",
     ]);
   }
 }

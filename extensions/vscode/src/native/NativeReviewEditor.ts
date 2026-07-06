@@ -12,11 +12,24 @@ export class NativeReviewEditor implements vscode.Disposable {
   private readonly changed = new vscode.EventEmitter<vscode.Uri>();
   private activeReport?: ReviewReport;
   private readonly registration: vscode.Disposable;
+  private readonly decoration: vscode.TextEditorDecorationType;
 
   constructor(
     context: vscode.ExtensionContext,
     private readonly core: Core,
   ) {
+    this.decoration = vscode.window.createTextEditorDecorationType({
+      isWholeLine: true,
+      overviewRulerColor: new vscode.ThemeColor("editorWarning.foreground"),
+      overviewRulerLane: vscode.OverviewRulerLane.Right,
+      backgroundColor: new vscode.ThemeColor(
+        "editor.findMatchHighlightBackground",
+      ),
+      after: {
+        color: new vscode.ThemeColor("editorCodeLens.foreground"),
+        margin: "0 0 0 1rem",
+      },
+    });
     this.registration = vscode.workspace.registerTextDocumentContentProvider(
       REVIEW_SCHEME,
       {
@@ -25,7 +38,12 @@ export class NativeReviewEditor implements vscode.Disposable {
           this.documents.get(uri.toString()) ?? "",
       },
     );
-    context.subscriptions.push(this, this.registration, this.changed);
+    context.subscriptions.push(
+      this,
+      this.registration,
+      this.changed,
+      this.decoration,
+    );
   }
 
   dispose(): void {
@@ -62,6 +80,7 @@ export class NativeReviewEditor implements vscode.Disposable {
       "qivryn.activeReview",
       report.id,
     );
+    await this.decorateOpenEditors(report);
   }
 
   async accept(): Promise<void> {
@@ -110,6 +129,72 @@ export class NativeReviewEditor implements vscode.Disposable {
       findingId: finding.id,
       body: body.trim(),
     });
+  }
+
+  async restoreCheckpoint(): Promise<void> {
+    const runId = this.activeReport?.request.runId;
+    if (!runId) {
+      void vscode.window.showInformationMessage(
+        "This review is not associated with an agent checkpoint.",
+      );
+      return;
+    }
+    const checkpoints = await this.core.invoke("agents/checkpoints", { runId });
+    const selected = await vscode.window.showQuickPick(
+      checkpoints.map((checkpoint) => ({
+        label: checkpoint.label || checkpoint.id,
+        description: checkpoint.createdAt,
+        checkpoint,
+      })),
+      { title: "Restore review checkpoint" },
+    );
+    if (!selected) return;
+    await this.core.invoke("agents/control", {
+      action: "checkpoint.restore",
+      runId,
+      checkpointId: selected.checkpoint.id,
+    });
+    await this.rerun();
+  }
+
+  async rerun(): Promise<void> {
+    const report = this.activeReport;
+    if (!report) return;
+    this.activeReport = await this.core.invoke("reviews/run", {
+      repositoryPath: report.repositoryPath,
+      request: { ...report.request, id: randomUUID() },
+      analyzerIds: report.analyzerIds,
+    });
+    await this.open(this.activeReport.id);
+  }
+
+  private async decorateOpenEditors(report: ReviewReport): Promise<void> {
+    for (const editor of vscode.window.visibleTextEditors) {
+      const relative = path.relative(
+        report.repositoryPath,
+        editor.document.uri.fsPath,
+      );
+      const findings = report.findings.filter(
+        (finding) => finding.status === "open" && finding.filepath === relative,
+      );
+      editor.setDecorations(
+        this.decoration,
+        findings.map((finding) => ({
+          range: new vscode.Range(
+            Math.max(0, finding.startLine - 1),
+            0,
+            Math.max(0, (finding.endLine ?? finding.startLine) - 1),
+            Number.MAX_SAFE_INTEGER,
+          ),
+          hoverMessage: new vscode.MarkdownString(
+            `**${finding.title}**\n\n${finding.body}`,
+          ),
+          renderOptions: {
+            after: { contentText: ` ${finding.severity}: ${finding.title}` },
+          },
+        })),
+      );
+    }
   }
 
   private async chooseReport(): Promise<ReviewReport | undefined> {

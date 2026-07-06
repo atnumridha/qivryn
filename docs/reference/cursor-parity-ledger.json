@@ -1,5 +1,6 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
+  "statusSemantics": "status describes implementation only; acceptanceStatus describes observable packaged-product acceptance.",
   "reference": {
     "product": "CursorApp",
     "version": "3.9.16",
@@ -14,6 +15,13 @@
     "excludedCapabilities": ["hosted-cloud", "slack"]
   },
   "statuses": ["existing", "partial", "planned", "implemented", "excluded"],
+  "acceptanceStatuses": [
+    "not-run",
+    "passed",
+    "failed",
+    "blocked",
+    "not-applicable"
+  ],
   "dispositions": ["implement", "retain", "hybrid", "local-equivalent"],
   "features": [
     {
@@ -24,6 +32,7 @@
       "disposition": "hybrid",
       "phase": 2,
       "status": "partial",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
       "acceptance": "Agents from every runtime are searchable and show consistent status on every surface; the native desktop sidebar, tabs, transcript, composer, and Agents Window pass packaged functional and visual acceptance tests."
     },
@@ -35,6 +44,7 @@
       "disposition": "hybrid",
       "phase": 3,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
       "acceptance": "The GUI and CLI can launch at least four skill-backed local tasks concurrently as independently cancelable runs in isolated worktrees."
     },
@@ -46,6 +56,7 @@
       "disposition": "implement",
       "phase": 3,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
       "acceptance": "Runs survive UI closure and recover after process restart."
     },
@@ -57,6 +68,7 @@
       "disposition": "hybrid",
       "phase": 3,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
       "acceptance": "Nested tasks stream progress and can be canceled independently."
     },
@@ -68,6 +80,7 @@
       "disposition": "implement",
       "phase": 3,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
       "acceptance": "Users can add, edit, reorder, remove and run queued prompts."
     },
@@ -79,6 +92,7 @@
       "disposition": "local-equivalent",
       "phase": 7,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "cli"],
       "acceptance": "Runs can move between runtime adapters without transcript loss."
     },
@@ -90,6 +104,7 @@
       "disposition": "hybrid",
       "phase": 3,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
       "acceptance": "Hooks share one schema and execute consistently across surfaces."
     },
@@ -101,6 +116,7 @@
       "disposition": "implement",
       "phase": 3,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains"],
       "acceptance": "Stable links open runs, files, reviews, checkpoints and settings."
     },
@@ -112,6 +128,7 @@
       "disposition": "hybrid",
       "phase": 2,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains"],
       "acceptance": "Composer remains fully usable at 320 px without clipping."
     },
@@ -123,6 +140,7 @@
       "disposition": "hybrid",
       "phase": 3,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
       "acceptance": "Plans support edit, approve, reject, export and progress tracking."
     },
@@ -134,6 +152,7 @@
       "disposition": "hybrid",
       "phase": 3,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
       "acceptance": "Mutating batches create restorable checkpoints independent of editor undo."
     },
@@ -145,6 +164,7 @@
       "disposition": "hybrid",
       "phase": 2,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains"],
       "acceptance": "Ten thousand events scroll smoothly without layout shift."
     },
@@ -156,6 +176,7 @@
       "disposition": "retain",
       "phase": 2,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
       "acceptance": "Main chat retains all existing context sources. Durable Agents resolve portable files, language-server symbols, terminal and Git snapshots, configured providers including web, MCP resources, and MCP prompts with bounded payloads. Direct multimodal image attachments execute locally, through read-only Docker mounts, and through temporary SSH transfer with cleanup."
     },
@@ -167,6 +188,7 @@
       "disposition": "implement",
       "phase": 4,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains"],
       "acceptance": "Supported platforms can record, transcribe, review and cancel voice input."
     },
@@ -178,6 +200,7 @@
       "disposition": "implement",
       "phase": 4,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains"],
       "acceptance": "Completion notification behavior is configurable and trust-safe."
     },
@@ -189,6 +212,7 @@
       "disposition": "hybrid",
       "phase": 2,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains"],
       "acceptance": "Inline edits support selection and full-file workflows with immediate cancel."
     },
@@ -200,6 +224,7 @@
       "disposition": "hybrid",
       "phase": 2,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains"],
       "acceptance": "Changes can be accepted or rejected by block, file or turn."
     },
@@ -211,6 +236,7 @@
       "disposition": "hybrid",
       "phase": 4,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains"],
       "acceptance": "Provider-independent suggestions support partial acceptance and jump navigation."
     },
@@ -222,6 +248,7 @@
       "disposition": "implement",
       "phase": 5,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains"],
       "acceptance": "Generated lines resolve to their originating agent event and checkpoint."
     },
@@ -233,6 +260,7 @@
       "disposition": "retain",
       "phase": 4,
       "status": "existing",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
       "acceptance": "Existing local indexing works unchanged and exposes diagnostics."
     },
@@ -244,6 +272,7 @@
       "disposition": "hybrid",
       "phase": 4,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
       "acceptance": "Retrieval ranks code, symbols and relevant history in one budget."
     },
@@ -255,6 +284,7 @@
       "disposition": "implement",
       "phase": 4,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
       "acceptance": "Build and language checks run without mutating the active workspace."
     },
@@ -266,6 +296,7 @@
       "disposition": "hybrid",
       "phase": 4,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
       "acceptance": "Local-only mode performs no remote retrieval or inference."
     },
@@ -277,6 +308,7 @@
       "disposition": "hybrid",
       "phase": 3,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
       "acceptance": "Every parallel local run receives an isolated dirty-tree snapshot."
     },
@@ -288,6 +320,7 @@
       "disposition": "hybrid",
       "phase": 3,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
       "acceptance": "Users can retain, merge, export and safely clean worktrees."
     },
@@ -299,6 +332,7 @@
       "disposition": "implement",
       "phase": 5,
       "status": "partial",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor"],
       "acceptance": "Native editor tabs clearly identify repository, branch and worktree."
     },
@@ -310,6 +344,7 @@
       "disposition": "hybrid",
       "phase": 4,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
       "acceptance": "One shared generator works from SCM and CLI with editable output."
     },
@@ -321,6 +356,7 @@
       "disposition": "implement",
       "phase": 5,
       "status": "partial",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor"],
       "acceptance": "Agent branches and checkpoints appear in the packaged IDE's native graph and are covered by Electron navigation tests."
     },
@@ -332,6 +368,7 @@
       "disposition": "hybrid",
       "phase": 4,
       "status": "partial",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
       "acceptance": "Working tree, staged, commit, branch and file reviews share one result format and the packaged IDE opens findings in native Monaco diff and multi-diff editors."
     },
@@ -343,6 +380,7 @@
       "disposition": "implement",
       "phase": 4,
       "status": "partial",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains"],
       "acceptance": "Every native finding exposes accept, reject, comment, navigation, checkpoint restore, and rerun actions and remains anchored after edits."
     },
@@ -354,6 +392,7 @@
       "disposition": "hybrid",
       "phase": 4,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
       "acceptance": "Autofix validates changes and reports remaining findings."
     },
@@ -365,6 +404,7 @@
       "disposition": "hybrid",
       "phase": 5,
       "status": "partial",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains"],
       "acceptance": "The packaged editor has a native terminal prompt bar; compatibility surfaces provide an adjacent drawer."
     },
@@ -376,6 +416,7 @@
       "disposition": "hybrid",
       "phase": 4,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
       "acceptance": "Commands show quoting, policy, sandbox and elevation before execution."
     },
@@ -387,6 +428,7 @@
       "disposition": "hybrid",
       "phase": 4,
       "status": "partial",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
       "acceptance": "Jobs can be stopped, reopened, observed after UI restart, and rendered as native editor inputs in the packaged IDE."
     },
@@ -398,6 +440,7 @@
       "disposition": "implement",
       "phase": 5,
       "status": "partial",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode"],
       "acceptance": "Users can navigate local and remote sites in agent-associated native tabs with packaged browser-layout and handoff tests."
     },
@@ -409,6 +452,7 @@
       "disposition": "implement",
       "phase": 4,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "cli"],
       "acceptance": "Browser tools share permissions, audit logs, locking and takeover."
     },
@@ -420,6 +464,7 @@
       "disposition": "hybrid",
       "phase": 4,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "cli"],
       "acceptance": "Sensitive browser actions require explicit scoped authorization."
     },
@@ -431,6 +476,7 @@
       "disposition": "retain",
       "phase": 2,
       "status": "existing",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
       "acceptance": "All existing MCP capabilities remain available and share diagnostics."
     },
@@ -442,6 +488,7 @@
       "disposition": "retain",
       "phase": 2,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
       "acceptance": "Every surface discovers Qivryn, Cursor, Codex, Claude, Copilot and plugin skills; the GUI and CLI can list, create, edit and apply writable skills while preserving provenance and read-only plugin sources."
     },
@@ -453,6 +500,7 @@
       "disposition": "hybrid",
       "phase": 2,
       "status": "existing",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
       "acceptance": "Rules expose provenance, priority, read-only state and generation from selection."
     },
@@ -464,6 +512,7 @@
       "disposition": "hybrid",
       "phase": 4,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
       "acceptance": "The Extensions settings surface can import or update trusted local plugin bundles, enable, disable, and uninstall them, show provenance and contribution counts, activate bundled skills, and navigate to rules, MCP/tools, and agents on VS Code and JetBrains through the shared Core protocol."
     },
@@ -475,6 +524,7 @@
       "disposition": "retain",
       "phase": 2,
       "status": "existing",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
       "acceptance": "No existing provider or local model capability regresses; the last sanitized model catalog renders immediately while configuration refreshes in the background."
     },
@@ -486,6 +536,7 @@
       "disposition": "hybrid",
       "phase": 2,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
       "acceptance": "The same policy decision is shown and enforced on every surface."
     },
@@ -497,6 +548,11 @@
       "disposition": "implement",
       "phase": 5,
       "status": "partial",
+      "acceptanceStatus": "not-run",
+      "evidence": [
+        "ide/acceptance/artifacts/packaged-agents-empty-1440x900.png",
+        "ide/acceptance/artifacts/packaged-dedicated-agents-window-1440x900.png"
+      ],
       "surfaces": ["editor"],
       "acceptance": "The packaged native Agents Window supports multi-repository monitoring, shared session handoff, restoration, and full keyboard control."
     },
@@ -508,6 +564,7 @@
       "disposition": "implement",
       "phase": 5,
       "status": "partial",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor"],
       "acceptance": "Built-in and saved layouts restore reliably per workspace in packaged macOS, Linux, and Windows Electron tests."
     },
@@ -519,6 +576,8 @@
       "disposition": "hybrid",
       "phase": 5,
       "status": "partial",
+      "acceptanceStatus": "not-run",
+      "evidence": ["ide/visual-reference/capture-plan.json"],
       "surfaces": ["editor", "vscode", "jetbrains"],
       "acceptance": "Qivryn-branded Dark, Midnight, Light, and High Contrast themes pass contrast checks and the CodieApp golden visual regression gates."
     },
@@ -530,6 +589,7 @@
       "disposition": "hybrid",
       "phase": 5,
       "status": "partial",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains"],
       "acceptance": "Packaged onboarding imports settings and teaches agents, edit, tab, privacy, skills, and MCP without showing stock Chat onboarding."
     },
@@ -541,6 +601,11 @@
       "disposition": "hybrid",
       "phase": 5,
       "status": "partial",
+      "acceptanceStatus": "not-run",
+      "evidence": [
+        "ide/scripts/verify-packaged-recovery.mjs",
+        ".github/workflows/qivryn-ide-installers.yml"
+      ],
       "surfaces": ["editor", "vscode", "jetbrains"],
       "acceptance": "Packaged update and runtime failures always provide bounded automatic retry, reload, final error, and log actions on every desktop platform."
     },
@@ -552,6 +617,7 @@
       "disposition": "hybrid",
       "phase": 7,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "cli"],
       "acceptance": "Remote runs reconnect without losing local metadata or events."
     },
@@ -563,6 +629,7 @@
       "disposition": "implement",
       "phase": 7,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "cli"],
       "acceptance": "Container runs implement the same runtime contract and permissions."
     },
@@ -574,6 +641,7 @@
       "disposition": "implement",
       "phase": 7,
       "status": "excluded",
+      "acceptanceStatus": "not-applicable",
       "surfaces": ["editor", "vscode", "cli"],
       "acceptance": "Slack remains outside the parity target unless the target exclusions are revised.",
       "excludedCapability": "slack"
@@ -586,6 +654,7 @@
       "disposition": "local-equivalent",
       "phase": 6,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "cli"],
       "acceptance": "A localhost-only ingest endpoint can attach external structured events to a run."
     },
@@ -597,6 +666,7 @@
       "disposition": "hybrid",
       "phase": 6,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
       "acceptance": "Diagnostics can export redacted runtime state without silently uploading code."
     },
@@ -608,6 +678,7 @@
       "disposition": "hybrid",
       "phase": 2,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
       "acceptance": "Completed turns compact before the limit without dropping the active prompt. Provider token-count mismatches force one compact-and-retry cycle, oversized completed tool payloads are bounded, and local summary recovery prevents compaction failure from stopping a run."
     },
@@ -619,6 +690,7 @@
       "disposition": "hybrid",
       "phase": 2,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "jetbrains", "cli"],
       "acceptance": "Agents can search a workspace precisely without escaping its roots or flooding context."
     },
@@ -630,6 +702,7 @@
       "disposition": "local-equivalent",
       "phase": 3,
       "status": "implemented",
+      "acceptanceStatus": "not-run",
       "surfaces": ["editor", "vscode", "cli"],
       "acceptance": "Local interval and manual automations persist, survive restart and start runs through the shared runtime."
     }

@@ -120,6 +120,14 @@ jobs:
         shell: bash
         run: node ide/scripts/run-upstream.mjs npx gulp ${{ matrix.gulp_task }}
 
+      - name: Verify packaged update and recovery controls
+        shell: bash
+        run: |
+          node ide/scripts/verify-packaged-recovery.mjs \
+            --platform ${{ matrix.platform }} \
+            --arch ${{ matrix.arch }} \
+            --output ide/.build/acceptance/recovery-${{ matrix.platform }}-${{ matrix.arch }}.json
+
       - name: Install Linux packaging tools
         if: matrix.platform == 'linux'
         shell: bash
@@ -161,6 +169,7 @@ jobs:
           name: qivryn-ide-${{ matrix.platform }}-${{ matrix.arch }}
           path: |
             ide/.build/installers/*
+            ide/.build/acceptance/recovery-${{ matrix.platform }}-${{ matrix.arch }}.json
 
   release:
     name: Publish installer release assets

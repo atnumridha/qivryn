@@ -2,33 +2,68 @@ import type { TerminalJob } from "@qivryn/terminal-security";
 import type { Core } from "core/core";
 import * as vscode from "vscode";
 
-const TERMINAL_JOB_SCHEME = "qivryn-terminal-job";
+class DurableJobPseudoterminal implements vscode.Pseudoterminal {
+  private readonly writeEmitter = new vscode.EventEmitter<string>();
+  private readonly closeEmitter = new vscode.EventEmitter<number | void>();
+  readonly onDidWrite = this.writeEmitter.event;
+  readonly onDidClose = this.closeEmitter.event;
+  private offset = 0;
+
+  constructor(
+    private readonly jobId: string,
+    private readonly core: Core,
+  ) {}
+
+  open(): void {
+    void this.refresh();
+  }
+
+  close(): void {
+    this.writeEmitter.dispose();
+    this.closeEmitter.dispose();
+  }
+
+  handleInput(): void {
+    this.writeEmitter.fire(
+      "\r\nQivryn: this durable job is read-only; start an interactive terminal for stdin.\r\n",
+    );
+  }
+
+  async refresh(): Promise<TerminalJob | undefined> {
+    const output = await this.core.invoke("terminal/jobOutput", {
+      jobId: this.jobId,
+    });
+    if (output.length > this.offset) {
+      this.writeEmitter.fire(toTerminalText(output.slice(this.offset)));
+      this.offset = output.length;
+    }
+    const jobs = await this.core.invoke("terminal/jobs", undefined);
+    const job = jobs.find((candidate) => candidate.id === this.jobId);
+    if (job && job.status !== "running") {
+      this.writeEmitter.fire(
+        `\r\n[Qivryn job ${job.status}${job.exitCode === undefined ? "" : ` · exit ${job.exitCode}`}]\r\n`,
+      );
+    }
+    return job;
+  }
+}
 
 export class NativeTerminalJobs implements vscode.Disposable {
-  private readonly output = new Map<string, string>();
-  private readonly changed = new vscode.EventEmitter<vscode.Uri>();
   private activeJob?: TerminalJob;
-  private activeUri?: vscode.Uri;
+  private activePty?: DurableJobPseudoterminal;
+  private activeTerminal?: vscode.Terminal;
   private refreshTimer?: NodeJS.Timeout;
 
   constructor(
     context: vscode.ExtensionContext,
     private readonly core: Core,
   ) {
-    const registration = vscode.workspace.registerTextDocumentContentProvider(
-      TERMINAL_JOB_SCHEME,
-      {
-        onDidChange: this.changed.event,
-        provideTextDocumentContent: (uri) =>
-          this.output.get(uri.authority) ?? "",
-      },
-    );
-    context.subscriptions.push(this, registration, this.changed);
+    context.subscriptions.push(this);
   }
 
   dispose(): void {
     if (this.refreshTimer) clearInterval(this.refreshTimer);
-    this.output.clear();
+    this.activeTerminal?.dispose();
   }
 
   async open(): Promise<void> {
@@ -102,42 +137,35 @@ export class NativeTerminalJobs implements vscode.Disposable {
   }
 
   private async show(job: TerminalJob): Promise<void> {
+    this.activeTerminal?.dispose();
     this.activeJob = job;
-    const uri = vscode.Uri.from({
-      scheme: TERMINAL_JOB_SCHEME,
-      authority: job.id,
-      path: `/${encodeURIComponent(job.command.slice(0, 50))}.log`,
+    this.activePty = new DurableJobPseudoterminal(job.id, this.core);
+    this.activeTerminal = vscode.window.createTerminal({
+      name: `Qivryn · ${job.command.slice(0, 40)}`,
+      pty: this.activePty,
+      iconPath: new vscode.ThemeIcon("terminal"),
     });
-    this.activeUri = uri;
-    await this.refresh();
-    await Promise.all([
-      vscode.commands.executeCommand("vscode.open", uri, {
-        preview: false,
-        preserveFocus: false,
-      }),
-      vscode.commands.executeCommand(
-        "setContext",
-        "qivryn.activeTerminalJob",
-        job.id,
-      ),
-    ]);
+    this.activeTerminal.show(false);
+    await vscode.commands.executeCommand(
+      "setContext",
+      "qivryn.activeTerminalJob",
+      job.id,
+    );
     if (this.refreshTimer) clearInterval(this.refreshTimer);
-    this.refreshTimer = setInterval(() => void this.refresh(), 1_000);
+    this.refreshTimer = setInterval(() => void this.refresh(), 500);
     this.refreshTimer.unref?.();
   }
 
   private async refresh(): Promise<void> {
-    if (!this.activeJob) return;
-    const output = await this.core.invoke("terminal/jobOutput", {
-      jobId: this.activeJob.id,
-    });
-    this.output.set(this.activeJob.id, output);
-    if (this.activeUri) this.changed.fire(this.activeUri);
-    const jobs = await this.core.invoke("terminal/jobs", undefined);
-    this.activeJob = jobs.find((job) => job.id === this.activeJob?.id);
+    if (!this.activeJob || !this.activePty) return;
+    this.activeJob = await this.activePty.refresh();
     if (this.activeJob?.status !== "running" && this.refreshTimer) {
       clearInterval(this.refreshTimer);
       this.refreshTimer = undefined;
     }
   }
+}
+
+function toTerminalText(value: string): string {
+  return value.replace(/\r?\n/g, "\r\n");
 }

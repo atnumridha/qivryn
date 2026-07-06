@@ -2,7 +2,7 @@
   "name": "qivryn",
   "icon": "media/icon.png",
   "author": "Qivryn AI",
-  "version": "1.3.42",
+  "version": "1.3.43",
   "repository": {
     "type": "git",
     "url": "https://github.com/atnumridha/qivryn"
@@ -333,6 +333,13 @@
         "group": "Qivryn"
       },
       {
+        "command": "qivryn.checkForUpdates",
+        "category": "Qivryn",
+        "title": "Check for Updates",
+        "icon": "$(cloud-download)",
+        "group": "Qivryn"
+      },
+      {
         "command": "qivryn.clearConsole",
         "category": "Qivryn",
         "title": "Clear Console",
@@ -525,6 +532,18 @@
         "category": "Qivryn",
         "title": "Comment on Review Finding",
         "icon": "$(comment)"
+      },
+      {
+        "command": "qivryn.restoreReviewCheckpoint",
+        "category": "Qivryn",
+        "title": "Restore Review Checkpoint",
+        "icon": "$(history)"
+      },
+      {
+        "command": "qivryn.rerunAgentReview",
+        "category": "Qivryn",
+        "title": "Rerun Agent Review",
+        "icon": "$(refresh)"
       },
       {
         "command": "qivryn.openTerminalAssistant",
@@ -828,6 +847,9 @@
         },
         {
           "command": "qivryn.exportAgentDiagnostics"
+        },
+        {
+          "command": "qivryn.checkForUpdates"
         }
       ],
       "editor/context": [
@@ -879,6 +901,11 @@
         {
           "command": "qivryn.openConfigPage",
           "group": "navigation@5",
+          "when": "view == qivryn.qivrynGUIView"
+        },
+        {
+          "command": "qivryn.reloadAgentsWindow",
+          "group": "navigation@6",
           "when": "view == qivryn.qivrynGUIView"
         },
         {
@@ -989,6 +1016,14 @@
       {
         "fileMatch": "**/config.yaml",
         "url": "./config-yaml-schema.json"
+      },
+      {
+        "fileMatch": "**/.qivryn/environment.json",
+        "url": "./schemas/qivryn-environment.schema.json"
+      },
+      {
+        "fileMatch": "**/.qivryn/permissions.json",
+        "url": "./schemas/qivryn-permissions.schema.json"
       }
     ]
   },

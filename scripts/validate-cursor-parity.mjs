@@ -9,6 +9,7 @@ const errors = [];
 const ids = new Set();
 const allowedSurfaces = new Set(["editor", "vscode", "jetbrains", "cli"]);
 const excludedCapabilities = new Set(ledger.target?.excludedCapabilities ?? []);
+const acceptanceStatuses = new Set(ledger.acceptanceStatuses ?? []);
 
 for (const feature of ledger.features ?? []) {
   if (!feature.id || ids.has(feature.id)) {
@@ -19,6 +20,22 @@ for (const feature of ledger.features ?? []) {
   ids.add(feature.id);
   if (!ledger.statuses.includes(feature.status)) {
     errors.push(`${feature.id}: unsupported status ${feature.status}`);
+  }
+  if (!acceptanceStatuses.has(feature.acceptanceStatus)) {
+    errors.push(
+      `${feature.id}: unsupported acceptanceStatus ${feature.acceptanceStatus}`,
+    );
+  }
+  if (feature.acceptanceStatus === "passed") {
+    if (!Array.isArray(feature.evidence) || feature.evidence.length === 0) {
+      errors.push(`${feature.id}: passed acceptance requires evidence`);
+    }
+  }
+  if (
+    feature.acceptanceStatus === "blocked" &&
+    !feature.acceptanceBlocker?.trim()
+  ) {
+    errors.push(`${feature.id}: blocked acceptance requires acceptanceBlocker`);
   }
   if (feature.status === "excluded") {
     if (!feature.excludedCapability?.trim()) {
@@ -70,12 +87,19 @@ if (errors.length > 0) {
   console.error(errors.join("\n"));
   process.exitCode = 1;
 } else {
-  const counts = Object.fromEntries(
+  const implementation = Object.fromEntries(
     ledger.statuses.map((status) => [
       status,
       ledger.features.filter((feature) => feature.status === status).length,
     ]),
   );
+  const acceptance = Object.fromEntries(
+    [...acceptanceStatuses].map((status) => [
+      status,
+      ledger.features.filter((feature) => feature.acceptanceStatus === status)
+        .length,
+    ]),
+  );
   console.log(`Cursor parity ledger: ${ledger.features.length} features`);
-  console.log(JSON.stringify(counts, null, 2));
+  console.log(JSON.stringify({ implementation, acceptance }, null, 2));
 }

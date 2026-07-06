@@ -257,8 +257,16 @@ export class BrowserSessionService {
     actor: BrowserActor,
   ): Promise<BrowserSession> {
     const session = await this.require(sessionId, actor);
-    await this.adapter.setRecording(session, recording);
-    const saved = await this.save({ ...session, recording });
+    const adapterState = await this.adapter.setRecording(session, recording);
+    const saved = await this.save({
+      ...session,
+      ...adapterState,
+      recording,
+      metadata: {
+        ...session.metadata,
+        ...adapterState?.metadata,
+      },
+    });
     await this.event(sessionId, "recording", { actor, recording });
     return saved;
   }

@@ -1,5 +1,12 @@
-import puppeteer, { type Browser, type Page } from "puppeteer";
+import puppeteer, {
+  type Browser,
+  type Page,
+  type ScreenRecorder,
+} from "puppeteer";
 import type { BrowserSession } from "@qivryn/agent-runtime";
+import { mkdir } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import type { BrowserAdapter } from "./contracts.js";
 
 interface BrowserState {
@@ -7,6 +14,8 @@ interface BrowserState {
   page: Page;
   console: unknown[];
   network: unknown[];
+  recorder?: ScreenRecorder;
+  recordingPath?: string;
 }
 
 export class PuppeteerBrowserAdapter implements BrowserAdapter {
@@ -47,6 +56,9 @@ export class PuppeteerBrowserAdapter implements BrowserAdapter {
       });
     });
     if (session.viewport) await page.setViewport(session.viewport);
+    if (session.recording === "full") {
+      await this.startRecording(session, state);
+    }
     if (session.url && session.metadata?.driver === "puppeteer") {
       await page.goto(session.url, {
         waitUntil: "domcontentloaded",
@@ -60,6 +72,7 @@ export class PuppeteerBrowserAdapter implements BrowserAdapter {
     const state = this.states.get(session.id);
     if (!state) return;
     this.states.delete(session.id);
+    if (state.recorder) await state.recorder.stop();
     await state.browser.close();
   }
 
@@ -116,9 +129,47 @@ export class PuppeteerBrowserAdapter implements BrowserAdapter {
   }
 
   async setRecording(
-    _session: BrowserSession,
-    _recording: BrowserSession["recording"],
-  ): Promise<void> {}
+    session: BrowserSession,
+    recording: BrowserSession["recording"],
+  ): Promise<Partial<BrowserSession>> {
+    const state = this.require(session.id);
+    if (recording === "full" && !state.recorder) {
+      await this.startRecording(session, state);
+    } else if (recording !== "full" && state.recorder) {
+      await state.recorder.stop();
+      state.recorder = undefined;
+    }
+    return {
+      metadata: {
+        ...session.metadata,
+        recordingPath: state.recordingPath,
+        recordingFormat: state.recordingPath ? "video/webm" : undefined,
+      },
+    };
+  }
+
+  private async startRecording(
+    session: BrowserSession,
+    state: BrowserState,
+  ): Promise<void> {
+    const recordingDirectory =
+      typeof session.metadata?.recordingDirectory === "string"
+        ? session.metadata.recordingDirectory
+        : path.join(os.tmpdir(), "qivryn-browser-recordings");
+    await mkdir(recordingDirectory, { recursive: true });
+    const recordingPath = path.join(
+      recordingDirectory,
+      `${session.id}.webm`,
+    ) as `${string}.webm`;
+    state.recordingPath = recordingPath;
+    state.recorder = await state.page.screencast({
+      path: recordingPath,
+      ffmpegPath:
+        typeof session.metadata?.ffmpegPath === "string"
+          ? session.metadata.ffmpegPath
+          : undefined,
+    });
+  }
 
   private require(sessionId: string): BrowserState {
     const state = this.states.get(sessionId);

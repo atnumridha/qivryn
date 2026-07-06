@@ -30,10 +30,26 @@
   border-top: 1px solid white;
 }
 
-.tiptap img {
-  height: auto;
-  max-width: 96%;
-  border: 1px solid transparent;
+.tiptap img.qivryn-composer-image {
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-widget-border, transparent);
+  border-radius: 6px;
+  box-sizing: border-box;
+  display: inline-block;
+  height: 144px;
+  margin: 4px;
+  object-fit: contain;
+  padding: 4px;
+  vertical-align: top;
+  width: 192px;
+}
+
+@media (max-width: 420px) {
+  .tiptap img.qivryn-composer-image {
+    height: 120px;
+    max-width: calc(100% - 8px);
+    width: 160px;
+  }
 }
 
 .tiptap img.ProseMirror-selectednode {
