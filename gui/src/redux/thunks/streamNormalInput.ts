@@ -56,6 +56,7 @@ function areCurrentToolCallsComplete(
     toolCalls.every(
       (tc) =>
         tc.status === "done" ||
+        tc.status === "errored" ||
         (qivrynAfterToolRejection && tc.status === "canceled"),
     )
   );

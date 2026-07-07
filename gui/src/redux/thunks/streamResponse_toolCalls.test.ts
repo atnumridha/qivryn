@@ -29,6 +29,7 @@ import {
   grepSearchTool,
   runTerminalCommandTool,
 } from "core/tools/definitions";
+import { QivrynErrorReason } from "core/util/errors";
 import { resolveEditorContent } from "../../components/mainInput/TipTapEditor/utils/resolveEditorContent";
 import { MockIdeMessenger } from "../../context/MockIdeMessenger";
 import { RootState } from "../store";
@@ -552,7 +553,7 @@ describe("streamResponseThunk - tool calls", () => {
     });
   });
 
-  it("continues once after all auto-approved tools in a batch finish", async () => {
+  it("continues once after a parallel tool batch contains an error", async () => {
     const initialState = getRootStateWithClaude();
     initialState.session.history = [
       {
@@ -578,18 +579,25 @@ describe("streamResponseThunk - tool calls", () => {
       didPrune: false,
       contextPercentage: 0.5,
     };
-    mockIdeMessenger.responses["tools/call"] = {
-      contextItems: [
-        {
-          name: "Search Results",
-          description: "Found matches",
-          content: "Result",
-          icon: "search",
-          hidden: false,
-        },
-      ],
-      errorMessage: undefined,
-    };
+    mockIdeMessenger.responseHandlers["tools/call"] = async ({ toolCall }) =>
+      toolCall.id === "tool-call-2"
+        ? {
+            contextItems: [],
+            errorMessage: "The requested file does not exist",
+            errorReason: QivrynErrorReason.FileNotFound,
+          }
+        : {
+            contextItems: [
+              {
+                name: "Search Results",
+                description: "Found matches",
+                content: "Result",
+                icon: "search",
+                hidden: false,
+              },
+            ],
+            errorMessage: undefined,
+          };
 
     async function* firstStream(): AsyncGenerator<
       AssistantChatMessage[],
@@ -631,10 +639,15 @@ describe("streamResponseThunk - tool calls", () => {
       AssistantChatMessage[],
       PromptLog
     > {
-      yield [{ role: "assistant", content: "Both searches completed." }];
+      yield [
+        {
+          role: "assistant",
+          content: "I recovered by choosing a different file.",
+        },
+      ];
       return {
         prompt: "continuing after tools",
-        completion: "Both searches completed.",
+        completion: "I recovered by choosing a different file.",
         modelProvider: "anthropic",
         modelTitle: "Claude 3.5 Sonnet",
       };
@@ -665,13 +678,20 @@ describe("streamResponseThunk - tool calls", () => {
     expect(toolMessages).toHaveLength(2);
     expect(toolCallStates.map((state) => state.status)).toEqual([
       "done",
-      "done",
+      "errored",
     ]);
+    expect(
+      toolMessages.some((item) =>
+        String(item.message.content).includes(
+          "The requested file does not exist",
+        ),
+      ),
+    ).toBe(true);
     expect(
       state.session.history.some(
         (item) =>
           item.message.role === "assistant" &&
-          item.message.content === "Both searches completed.",
+          item.message.content === "I recovered by choosing a different file.",
       ),
     ).toBe(true);
   });
