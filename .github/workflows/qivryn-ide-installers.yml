@@ -64,7 +64,6 @@ jobs:
 
     env:
       QIVRYN_VSCODE_TARGET: ${{ matrix.platform }}-${{ matrix.arch }}
-      npm_config_arch: ${{ matrix.npm_config_arch }}
 
     steps:
       - name: Checkout
@@ -120,6 +119,8 @@ jobs:
         shell: bash
         working-directory: ide/.build/vscode
         run: npm ci
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Qivryn IDE app bundle
         shell: bash

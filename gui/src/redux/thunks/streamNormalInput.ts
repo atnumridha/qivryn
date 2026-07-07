@@ -27,6 +27,7 @@ import {
   GUI_AUTO_COMPACTION_THRESHOLD,
   getAutoCompactionTarget,
 } from "../../util/autoCompaction";
+import { createStreamUpdateBatcher } from "../../util/streamUpdateBatcher";
 
 import { modelSupportsNativeTools } from "core/llm/toolSupport";
 import { applyToolOverrides } from "core/tools/applyToolOverrides";
@@ -45,6 +46,20 @@ import { preprocessToolCalls } from "./preprocessToolCallArgs";
 import { streamResponseAfterToolCall } from "./streamResponseAfterToolCall";
 
 const MAX_GUI_AUTO_COMPACTION_ATTEMPTS = 3;
+
+function areCurrentToolCallsComplete(
+  toolCalls: Array<{ status: string }>,
+  qivrynAfterToolRejection: boolean | undefined,
+): boolean {
+  return (
+    toolCalls.length > 0 &&
+    toolCalls.every(
+      (tc) =>
+        tc.status === "done" ||
+        (qivrynAfterToolRejection && tc.status === "canceled"),
+    )
+  );
+}
 
 /**
  * Builds completion options with reasoning configuration based on session state and model capabilities.
@@ -334,6 +349,9 @@ export const streamNormalInput = createAsyncThunk<
 
     const start = Date.now();
     const streamAborter = state.session.streamAborter;
+    const toolCallIdsBeforeStream = new Set(
+      selectCurrentToolCalls(getState()).map(({ toolCallId }) => toolCallId),
+    );
     try {
       let gen = extra.ideMessenger.llmStreamChat(
         {
@@ -353,15 +371,31 @@ export const streamNormalInput = createAsyncThunk<
         );
       }
 
-      let next = await gen.next();
-      while (!next.done) {
-        if (!getState().session.isStreaming) {
-          dispatch(abortStream());
-          break;
+      const streamingSessionId = state.session.id;
+      const streamUpdates = createStreamUpdateBatcher((messages) => {
+        // Preserve already-received text after Stop, but never let a delayed
+        // timer write into a newly opened session.
+        if (getState().session.id === streamingSessionId) {
+          dispatch(streamUpdate(messages));
         }
+      });
 
-        dispatch(streamUpdate(next.value));
-        next = await gen.next();
+      let next = await gen.next();
+      try {
+        while (!next.done) {
+          if (!getState().session.isStreaming) {
+            streamUpdates.flush();
+            dispatch(abortStream());
+            break;
+          }
+
+          streamUpdates.enqueue(next.value);
+          next = await gen.next();
+        }
+      } finally {
+        // Make final text and tool-call deltas visible before completion logic
+        // inspects the Redux history.
+        streamUpdates.flush();
       }
 
       // Attach prompt log and end thinking for reasoning models
@@ -426,7 +460,12 @@ export const streamNormalInput = createAsyncThunk<
     if (streamAborter.signal.aborted || !state1.session.isStreaming) {
       return;
     }
-    const originalToolCalls = selectCurrentToolCalls(state1);
+    // selectCurrentToolCalls can still resolve the previous assistant turn
+    // when a provider ends a continuation without emitting a new message.
+    // Never execute or append output for those old calls again.
+    const originalToolCalls = selectCurrentToolCalls(state1).filter(
+      ({ toolCallId }) => !toolCallIdsBeforeStream.has(toolCallId),
+    );
     const generatingCalls = originalToolCalls.filter(
       (tc) => tc.status === "generating",
     );
@@ -492,6 +531,7 @@ export const streamNormalInput = createAsyncThunk<
                   toolCallId: toolCallState.toolCallId,
                   isAutoApproved: true,
                   depth: depth + 1,
+                  continueAfterToolCall: false,
                 }),
               ),
             );
@@ -508,19 +548,58 @@ export const streamNormalInput = createAsyncThunk<
         return;
       }
       if (generatedCalls4.length > 0) {
-        await Promise.all(
-          generatedCalls4.map(async ({ toolCallId }) => {
-            unwrapResult(
-              await dispatch(
-                callToolById({
-                  toolCallId,
-                  isAutoApproved: true,
-                  depth: depth + 1,
-                }),
-              ),
-            );
-          }),
-        );
+        if (generatedCalls4.length === 1) {
+          unwrapResult(
+            await dispatch(
+              callToolById({
+                toolCallId: generatedCalls4[0].toolCallId,
+                isAutoApproved: true,
+                depth: depth + 1,
+              }),
+            ),
+          );
+          return;
+        }
+
+        for (const { toolCallId } of generatedCalls4) {
+          unwrapResult(
+            await dispatch(
+              callToolById({
+                toolCallId,
+                isAutoApproved: true,
+                depth: depth + 1,
+                continueAfterToolCall: false,
+              }),
+            ),
+          );
+        }
+
+        const stateAfterTools = getState();
+        if (
+          streamAborter.signal.aborted ||
+          !stateAfterTools.session.isStreaming
+        ) {
+          return;
+        }
+
+        const currentToolCallsAfterTools =
+          selectCurrentToolCalls(stateAfterTools);
+        if (
+          areCurrentToolCallsComplete(
+            currentToolCallsAfterTools,
+            stateAfterTools.config.config.ui?.qivrynAfterToolRejection,
+          )
+        ) {
+          unwrapResult(
+            await dispatch(
+              streamNormalInput({
+                depth: depth + 1,
+              }),
+            ),
+          );
+        } else {
+          dispatch(setInactive());
+        }
       } else {
         for (const { toolCallId } of originalToolCalls) {
           unwrapResult(
@@ -528,9 +607,31 @@ export const streamNormalInput = createAsyncThunk<
               streamResponseAfterToolCall({
                 toolCallId,
                 depth: depth + 1,
+                continueAfterToolCall: false,
               }),
             ),
           );
+        }
+
+        const stateAfterToolMessages = getState();
+        const currentToolCallsAfterMessages = selectCurrentToolCalls(
+          stateAfterToolMessages,
+        );
+        if (
+          areCurrentToolCallsComplete(
+            currentToolCallsAfterMessages,
+            stateAfterToolMessages.config.config.ui?.qivrynAfterToolRejection,
+          )
+        ) {
+          unwrapResult(
+            await dispatch(
+              streamNormalInput({
+                depth: depth + 1,
+              }),
+            ),
+          );
+        } else {
+          dispatch(setInactive());
         }
       }
     }

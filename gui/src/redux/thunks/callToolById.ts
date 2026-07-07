@@ -18,10 +18,20 @@ import { streamResponseAfterToolCall } from "./streamResponseAfterToolCall";
 
 export const callToolById = createAsyncThunk<
   void,
-  { toolCallId: string; isAutoApproved?: boolean; depth?: number },
+  {
+    toolCallId: string;
+    isAutoApproved?: boolean;
+    depth?: number;
+    continueAfterToolCall?: boolean;
+  },
   ThunkApiType
 >("chat/callTool", async (inputs, { dispatch, extra, getState }) => {
-  const { toolCallId, isAutoApproved, depth = 0 } = inputs;
+  const {
+    toolCallId,
+    isAutoApproved,
+    depth = 0,
+    continueAfterToolCall = true,
+  } = inputs;
 
   const state = getState();
   const toolCallState = findToolCallById(state.session.history, toolCallId);
@@ -141,6 +151,7 @@ export const callToolById = createAsyncThunk<
       streamResponseAfterToolCall({
         toolCallId,
         depth: depth + 1,
+        continueAfterToolCall,
       }),
     );
     unwrapResult(wrapped);

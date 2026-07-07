@@ -263,8 +263,8 @@ describe("streamResponseThunk - tool calls", () => {
       "session/setInlineErrorMessage",
       "session/setIsPruned",
       "session/setContextPercentage",
+      "session/setContextUsage",
       "symbols/updateFromContextItems/fulfilled",
-      "session/streamUpdate",
       "session/streamUpdate",
       "session/addPromptCompletionPair",
       "session/setToolGenerated",
@@ -282,6 +282,7 @@ describe("streamResponseThunk - tool calls", () => {
       "session/setInlineErrorMessage",
       "session/setIsPruned",
       "session/setContextPercentage",
+      "session/setContextUsage",
       "session/streamUpdate",
       "session/addPromptCompletionPair",
       "session/setInactive",
@@ -323,8 +324,6 @@ describe("streamResponseThunk - tool calls", () => {
     );
     expect(streamUpdates[0].payload).toEqual([
       { role: "assistant", content: "I'll search the codebase for you." },
-    ]);
-    expect(streamUpdates[1].payload).toEqual([
       {
         role: "assistant",
         content: "",
@@ -540,11 +539,141 @@ describe("streamResponseThunk - tool calls", () => {
         id: "session-123",
         streamAborter: expect.any(AbortController),
         contextPercentage: 0.9,
+        contextUsage: {
+          inputTokens: 29_491,
+          contextLength: 32_768,
+          availableTokens: undefined,
+          model: "claude-3-5-sonnet-20241022",
+        },
         isPruned: false,
         title: "Session summary",
         inlineErrorMessage: undefined,
       },
     });
+  });
+
+  it("continues once after all auto-approved tools in a batch finish", async () => {
+    const initialState = getRootStateWithClaude();
+    initialState.session.history = [
+      {
+        message: {
+          id: "1",
+          role: "user",
+          content: "Search two things",
+        },
+        contextItems: [],
+      },
+    ];
+    initialState.ui.toolSettings = {
+      [grepName]: "allowedWithoutPermission",
+    };
+    initialState.session.id = "session-123";
+    initialState.config.config.tools = [grepTool];
+
+    const mockStore = createMockStore(initialState);
+    const mockIdeMessenger = mockStore.mockIdeMessenger;
+
+    mockIdeMessenger.responses["llm/compileChat"] = {
+      compiledChatMessages: [{ role: "user", content: "Search two things" }],
+      didPrune: false,
+      contextPercentage: 0.5,
+    };
+    mockIdeMessenger.responses["tools/call"] = {
+      contextItems: [
+        {
+          name: "Search Results",
+          description: "Found matches",
+          content: "Result",
+          icon: "search",
+          hidden: false,
+        },
+      ],
+      errorMessage: undefined,
+    };
+
+    async function* firstStream(): AsyncGenerator<
+      AssistantChatMessage[],
+      PromptLog
+    > {
+      yield [
+        {
+          role: "assistant",
+          content: "",
+          toolCalls: [
+            {
+              id: "tool-call-1",
+              type: "function",
+              function: {
+                name: grepName,
+                arguments: JSON.stringify({ query: "one" }),
+              },
+            },
+            {
+              id: "tool-call-2",
+              type: "function",
+              function: {
+                name: grepName,
+                arguments: JSON.stringify({ query: "two" }),
+              },
+            },
+          ],
+        },
+      ];
+      return {
+        prompt: "Search two things",
+        completion: "",
+        modelProvider: "anthropic",
+        modelTitle: "Claude 3.5 Sonnet",
+      };
+    }
+
+    async function* continuationStream(): AsyncGenerator<
+      AssistantChatMessage[],
+      PromptLog
+    > {
+      yield [{ role: "assistant", content: "Both searches completed." }];
+      return {
+        prompt: "continuing after tools",
+        completion: "Both searches completed.",
+        modelProvider: "anthropic",
+        modelTitle: "Claude 3.5 Sonnet",
+      };
+    }
+
+    let streamCallCount = 0;
+    mockIdeMessenger.llmStreamChat = vi.fn().mockImplementation(() => {
+      streamCallCount++;
+      return streamCallCount === 1 ? firstStream() : continuationStream();
+    });
+
+    await mockStore.dispatch(
+      streamResponseThunk({
+        editorState: mockEditorState,
+        modifiers: mockModifiers,
+      }) as any,
+    );
+
+    const state = mockStore.getState() as RootState;
+    const toolMessages = state.session.history.filter(
+      (item) => item.message.role === "tool",
+    );
+    const toolCallStates = state.session.history.flatMap(
+      (item) => item.toolCallStates ?? [],
+    );
+
+    expect(streamCallCount).toBe(2);
+    expect(toolMessages).toHaveLength(2);
+    expect(toolCallStates.map((state) => state.status)).toEqual([
+      "done",
+      "done",
+    ]);
+    expect(
+      state.session.history.some(
+        (item) =>
+          item.message.role === "assistant" &&
+          item.message.content === "Both searches completed.",
+      ),
+    ).toBe(true);
   });
 
   it("should handle tool call requiring manual approval", async () => {
@@ -564,6 +693,7 @@ describe("streamResponseThunk - tool calls", () => {
     initialState.ui.toolSettings = {
       [grepName]: "allowedWithPermission", // Requires manual approval
     };
+    initialState.ui.agentAccessMode = "ask";
     initialState.config.config.tools = [grepTool];
     const mockStoreWithManualApproval = createMockStore(initialState);
 
@@ -738,6 +868,15 @@ describe("streamResponseThunk - tool calls", () => {
         payload: 0.9,
       },
       {
+        type: "session/setContextUsage",
+        payload: {
+          inputTokens: 29_491,
+          contextLength: 32_768,
+          availableTokens: undefined,
+          model: "claude-3-5-sonnet-20241022",
+        },
+      },
+      {
         type: "symbols/updateFromContextItems/fulfilled",
         meta: {
           arg: [],
@@ -753,11 +892,6 @@ describe("streamResponseThunk - tool calls", () => {
             role: "assistant",
             content: "I'll search the codebase for you.",
           },
-        ],
-      },
-      {
-        type: "session/streamUpdate",
-        payload: [
           {
             role: "assistant",
             content: "",
@@ -1040,6 +1174,12 @@ describe("streamResponseThunk - tool calls", () => {
         ],
         streamAborter: expect.any(AbortController),
         contextPercentage: 0.9,
+        contextUsage: {
+          inputTokens: 29_491,
+          contextLength: 32_768,
+          availableTokens: undefined,
+          model: "claude-3-5-sonnet-20241022",
+        },
         isPruned: false,
         title: "Session summary",
         inlineErrorMessage: undefined,
@@ -1069,6 +1209,7 @@ describe("streamResponseThunk - tool calls", () => {
     initialState.ui.toolSettings = {
       [grepName]: "allowedWithPermission", // Requires manual approval
     };
+    initialState.ui.agentAccessMode = "ask";
     initialState.session.id = "session-123";
     initialState.config.config.tools = [grepTool];
 
@@ -1292,6 +1433,15 @@ describe("streamResponseThunk - tool calls", () => {
         payload: 0.85,
       },
       {
+        type: "session/setContextUsage",
+        payload: {
+          inputTokens: 27_853,
+          contextLength: 32_768,
+          availableTokens: undefined,
+          model: "claude-3-5-sonnet-20241022",
+        },
+      },
+      {
         type: "symbols/updateFromContextItems/fulfilled",
         meta: {
           arg: [],
@@ -1307,11 +1457,6 @@ describe("streamResponseThunk - tool calls", () => {
             role: "assistant",
             content: "I'll search for test functions in the codebase.",
           },
-        ],
-      },
-      {
-        type: "session/streamUpdate",
-        payload: [
           {
             role: "assistant",
             content: "",
@@ -1513,6 +1658,7 @@ describe("streamResponseThunk - tool calls", () => {
               hidden: false,
             },
           ],
+          mcpUiState: undefined,
         },
       },
       {
@@ -1525,6 +1671,7 @@ describe("streamResponseThunk - tool calls", () => {
           arg: {
             depth: 1,
             toolCallId: "tool-approval-flow-1",
+            continueAfterToolCall: true,
           },
           requestId: expect.any(String),
           requestStatus: "pending",
@@ -1586,6 +1733,15 @@ describe("streamResponseThunk - tool calls", () => {
       {
         type: "session/setContextPercentage",
         payload: 0.85,
+      },
+      {
+        type: "session/setContextUsage",
+        payload: {
+          inputTokens: 27_853,
+          contextLength: 32_768,
+          availableTokens: undefined,
+          model: "claude-3-5-sonnet-20241022",
+        },
       },
       {
         type: "session/streamUpdate",
@@ -1722,6 +1878,7 @@ describe("streamResponseThunk - tool calls", () => {
           arg: {
             depth: 1,
             toolCallId: "tool-approval-flow-1",
+            continueAfterToolCall: true,
           },
           requestId: expect.any(String),
           requestStatus: "fulfilled",
@@ -1819,6 +1976,7 @@ describe("streamResponseThunk - tool calls", () => {
                 },
                 parsedArgs: { query: "test function" },
                 status: "done", // Tool call completed successfully
+                mcpUiState: undefined,
                 output: [
                   {
                     name: "Search Results",
@@ -1867,6 +2025,12 @@ describe("streamResponseThunk - tool calls", () => {
         id: "session-123",
         streamAborter: expect.any(AbortController),
         contextPercentage: 0.85,
+        contextUsage: {
+          inputTokens: 27_853,
+          contextLength: 32_768,
+          availableTokens: undefined,
+          model: "claude-3-5-sonnet-20241022",
+        },
         inlineErrorMessage: undefined,
         isPruned: false,
       },
@@ -1982,6 +2146,7 @@ describe("streamResponseThunk - tool calls", () => {
       initialState.ui.toolSettings = {
         [terminalName]: "allowedWithPermission",
       };
+      initialState.ui.agentAccessMode = "ask";
       initialState.config.config.tools = [terminalTool];
       const mockStore = createMockStore(initialState);
       const mockIdeMessenger = mockStore.mockIdeMessenger;

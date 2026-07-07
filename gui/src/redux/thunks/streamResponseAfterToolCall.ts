@@ -14,7 +14,7 @@ import { streamThunkWrapper } from "./streamThunkWrapper";
 /**
  * Determines if we should continue streaming based on tool call completion status.
  */
-function areAllToolsDoneStreaming(
+export function areAllToolsDoneStreaming(
   assistantMessage: ChatHistoryItemWithMessageId,
   qivrynAfterToolRejection: boolean | undefined,
 ): boolean {
@@ -36,11 +36,14 @@ function areAllToolsDoneStreaming(
 
 export const streamResponseAfterToolCall = createAsyncThunk<
   void,
-  { toolCallId: string; depth?: number },
+  { toolCallId: string; depth?: number; continueAfterToolCall?: boolean },
   ThunkApiType
 >(
   "chat/streamAfterToolCall",
-  async ({ toolCallId, depth = 0 }, { dispatch, getState }) => {
+  async (
+    { toolCallId, depth = 0, continueAfterToolCall = true },
+    { dispatch, getState },
+  ) => {
     await dispatch(
       streamThunkWrapper(async () => {
         const state = getState();
@@ -74,6 +77,7 @@ export const streamResponseAfterToolCall = createAsyncThunk<
         );
 
         if (
+          continueAfterToolCall &&
           assistantMessage &&
           areAllToolsDoneStreaming(
             assistantMessage,

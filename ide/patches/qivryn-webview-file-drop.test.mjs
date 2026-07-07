@@ -25,3 +25,14 @@ test("is idempotent", () => {
   const transformed = applyQivrynWebviewFileDrop(source);
   assert.equal(applyQivrynWebviewFileDrop(transformed), transformed);
 });
+
+test("preserves CRLF line endings in the Code OSS source", () => {
+  const crlfSource = source.replaceAll("\n", "\r\n");
+  const transformed = applyQivrynWebviewFileDrop(crlfSource);
+
+  assert.match(
+    transformed,
+    /webview\?\.providedViewType === 'qivryn\.qivrynGUIView'/,
+  );
+  assert.match(transformed, /\r\n\t\t\twebview\?\.windowDidDragStart\(\);/);
+});

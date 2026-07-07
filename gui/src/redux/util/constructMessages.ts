@@ -26,6 +26,7 @@ import {
   renderContextItemsWithStatus,
 } from "core/util/messageContent";
 import { toolCallStateToContextItems } from "../../pages/gui/ToolCallDiv/utils";
+import { limitToolContextItemsForHistory } from "../../util/historyPayloadLimits";
 
 // Helper function to render context items and append status information
 // Helper function to render context items and append status information
@@ -154,25 +155,32 @@ export function constructMessages(
         // If the assistant message has tool calls, we need to insert tool messages
         for (const toolCallState of item.toolCallStates) {
           const { output, status, toolCall } = toolCallState;
+          const boundedOutput = output
+            ? limitToolContextItemsForHistory(output)
+            : undefined;
           let content: string = NO_TOOL_CALL_OUTPUT_MESSAGE;
 
           if (status === "canceled") {
             content = CANCELLED_TOOL_CALL_MESSAGE;
-          } else if (output) {
+          } else if (boundedOutput) {
             if (
               toolCall.function?.name == BuiltInToolNames.RunTerminalCommand
             ) {
               // Add status for tools containing detailed status outcomes per context item
-              content = renderContextItemsWithStatus(output);
+              content = renderContextItemsWithStatus(boundedOutput);
             } else {
-              content = renderContextItems(output);
+              content = renderContextItems(boundedOutput);
             }
           } else if (toolCallState.status === "errored") {
             content = ERRORED_TOOL_CALL_OUTPUT_MESSAGE;
           }
 
+          const boundedToolCallState = boundedOutput
+            ? { ...toolCallState, output: boundedOutput }
+            : toolCallState;
+
           msgs.push({
-            ctxItems: toolCallStateToContextItems(toolCallState),
+            ctxItems: toolCallStateToContextItems(boundedToolCallState),
             message: {
               role: "tool",
               content,

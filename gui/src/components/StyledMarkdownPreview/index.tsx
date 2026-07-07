@@ -220,7 +220,15 @@ const StyledMarkdownPreview = memo(function StyledMarkdownPreview(
   // The logic here is to get file names from
   // 1. Context items found in past messages
   // 2. Toolbar Codeblocks found in past messages
-  const history = useAppSelector((state) => state.session.history);
+  const history = useAppSelector(
+    (state) =>
+      props.itemIndex === undefined
+        ? []
+        : state.session.history.slice(0, props.itemIndex + 1),
+    (previous, next) =>
+      previous.length === next.length &&
+      previous.every((item, index) => item === next[index]),
+  );
   const allSymbols = useAppSelector((state) => state.session.symbols);
   const pastFileInfo = useMemo(() => {
     const index = props.itemIndex;
@@ -230,7 +238,7 @@ const StyledMarkdownPreview = memo(function StyledMarkdownPreview(
         rifs: [],
       };
     }
-    const pastContextItems = getContextItemsFromHistory(history, index);
+    const pastContextItems = getContextItemsFromHistory(history);
     const rifs = pastContextItems.map((item) =>
       ctxItemToRifWithContents(item, true),
     );

@@ -37,6 +37,10 @@ import { findLastIndex } from "lodash";
 import { v4 as uuidv4 } from "uuid";
 import { type InlineErrorMessageType } from "../../components/mainInput/InlineErrorMessage";
 import { toolCallCtxItemToCtxItemWithId } from "../../pages/gui/ToolCallDiv/utils";
+import {
+  limitPromptLogsForHistory,
+  limitToolContextItemsForHistory,
+} from "../../util/historyPayloadLimits";
 import { recoverInterruptedHistory } from "../../util/toolCallRecovery";
 import { addToolCallDeltaToState, isEditTool } from "../../util/toolCallState";
 import { RootState } from "../store";
@@ -262,9 +266,10 @@ export const sessionSlice = createSlice({
 
       const lastMessage = state.history[state.history.length - 1];
 
+      const boundedPayload = limitPromptLogsForHistory(payload);
       lastMessage.promptLogs = lastMessage.promptLogs
-        ? lastMessage.promptLogs.concat(payload)
-        : payload;
+        ? lastMessage.promptLogs.concat(boundedPayload)
+        : boundedPayload;
 
       // Inactive thinking for reasoning models when '</think>' tag is not received on request completion
       if (lastMessage.reasoning?.active) {
@@ -871,13 +876,18 @@ export const sessionSlice = createSlice({
         mcpUiState?: McpUiState;
       }>,
     ) => {
-      // Update tool call state and corresponding tool output message
+      // Update tool call state and corresponding tool output message. Tool
+      // output can contain full CI logs; bound it before persistence so a long
+      // release/debug run does not grow the session into hundreds of MB.
+      const boundedContextItems = limitToolContextItemsForHistory(
+        action.payload.contextItems,
+      );
       const toolCallState = findToolCallById(
         state.history,
         action.payload.toolCallId,
       );
       if (toolCallState) {
-        toolCallState.output = action.payload.contextItems;
+        toolCallState.output = boundedContextItems;
         toolCallState.mcpUiState = action.payload.mcpUiState;
       }
       const toolItem = findChatHistoryItemByToolCallId(
@@ -885,10 +895,8 @@ export const sessionSlice = createSlice({
         action.payload.toolCallId,
       );
       if (toolItem) {
-        toolItem.message.content = renderContextItems(
-          action.payload.contextItems,
-        );
-        toolItem.contextItems = action.payload.contextItems.map((item) =>
+        toolItem.message.content = renderContextItems(boundedContextItems);
+        toolItem.contextItems = boundedContextItems.map((item) =>
           toolCallCtxItemToCtxItemWithId(item, action.payload.toolCallId),
         );
       }
@@ -936,7 +944,9 @@ export const sessionSlice = createSlice({
       if (toolCallState) {
         toolCallState.status = "errored";
         if (action.payload.output) {
-          toolCallState.output = action.payload.output;
+          toolCallState.output = limitToolContextItemsForHistory(
+            action.payload.output,
+          );
         }
       }
     },

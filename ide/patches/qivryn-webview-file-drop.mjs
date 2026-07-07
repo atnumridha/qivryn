@@ -8,15 +8,27 @@ export function applyQivrynWebviewFileDrop(source) {
     return source;
   }
 
-  const anchor = `\t\tconst onDragStart = () => {\n\t\t\tgetWebview()?.windowDidDragStart();\n\t\t};`;
-  if (!source.includes(anchor)) {
+  const anchor =
+    /(\t\tconst onDragStart = \(\) => \{)(\r?\n)(\t\t\tgetWebview\(\)\?\.windowDidDragStart\(\);)(\r?\n)(\t\t};)/;
+  const match = source.match(anchor);
+  if (!match) {
     throw new Error(
       "Pinned Code - OSS anchor not found for Qivryn webview file drop",
     );
   }
 
+  const eol = match[2];
   return source.replace(
     anchor,
-    `\t\tconst onDragStart = () => {\n\t\t\tconst webview = getWebview();\n\t\t\t${marker}\n\t\t\tif (webview?.providedViewType === 'qivryn.qivrynGUIView') {\n\t\t\t\treturn;\n\t\t\t}\n\t\t\twebview?.windowDidDragStart();\n\t\t};`,
+    [
+      "\t\tconst onDragStart = () => {",
+      "\t\t\tconst webview = getWebview();",
+      `\t\t\t${marker}`,
+      "\t\t\tif (webview?.providedViewType === 'qivryn.qivrynGUIView') {",
+      "\t\t\t\treturn;",
+      "\t\t\t}",
+      "\t\t\twebview?.windowDidDragStart();",
+      "\t\t};",
+    ].join(eol),
   );
 }

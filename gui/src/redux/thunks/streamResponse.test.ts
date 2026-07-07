@@ -232,6 +232,15 @@ describe("streamResponseThunk", () => {
         payload: 0.8,
       },
       {
+        type: "session/setContextUsage",
+        payload: {
+          inputTokens: 26_214,
+          contextLength: 32_768,
+          availableTokens: undefined,
+          model: "claude-3-5-sonnet-20241022",
+        },
+      },
+      {
         type: "symbols/updateFromContextItems/fulfilled",
         meta: expect.objectContaining({
           arg: [],
@@ -246,11 +255,6 @@ describe("streamResponseThunk", () => {
             role: "assistant",
             content: "First chunk",
           },
-        ],
-      },
-      {
-        type: "session/streamUpdate",
-        payload: [
           {
             role: "assistant",
             content: "Second chunk",
@@ -430,6 +434,12 @@ describe("streamResponseThunk", () => {
         isPruned: false,
         inlineErrorMessage: undefined,
         contextPercentage: 0.8,
+        contextUsage: {
+          inputTokens: 26_214,
+          contextLength: 32_768,
+          availableTokens: undefined,
+          model: "claude-3-5-sonnet-20241022",
+        },
         history: [
           {
             contextItems: [],
@@ -601,8 +611,8 @@ describe("streamResponseThunk", () => {
       "session/setInlineErrorMessage",
       "session/setIsPruned",
       "session/setContextPercentage",
+      "session/setContextUsage",
       "symbols/updateFromContextItems/fulfilled",
-      "session/streamUpdate",
       "session/streamUpdate",
       "session/addPromptCompletionPair",
       "session/setToolGenerated",
@@ -620,6 +630,7 @@ describe("streamResponseThunk", () => {
       "session/setInlineErrorMessage",
       "session/setIsPruned",
       "session/setContextPercentage",
+      "session/setContextUsage",
       "session/streamUpdate",
       "session/addPromptCompletionPair",
       "session/setInactive",
@@ -661,8 +672,6 @@ describe("streamResponseThunk", () => {
     );
     expect(streamUpdates[0].payload).toEqual([
       { role: "assistant", content: "I'll search the codebase for you." },
-    ]);
-    expect(streamUpdates[1].payload).toEqual([
       {
         role: "assistant",
         content: "",
@@ -823,6 +832,7 @@ describe("streamResponseThunk", () => {
                 },
                 parsedArgs: { query: "test function" },
                 status: "done",
+                mcpUiState: undefined,
                 output: [
                   {
                     name: "Search Results",
@@ -867,6 +877,12 @@ describe("streamResponseThunk", () => {
         id: "session-123",
         streamAborter: expect.any(AbortController),
         contextPercentage: 0.9,
+        contextUsage: {
+          inputTokens: 29_491,
+          contextLength: 32_768,
+          availableTokens: undefined,
+          model: "claude-3-5-sonnet-20241022",
+        },
         isPruned: false,
         inlineErrorMessage: undefined,
       },
@@ -1033,6 +1049,15 @@ describe("streamResponseThunk", () => {
         payload: 0.8,
       },
       {
+        type: "session/setContextUsage",
+        payload: {
+          inputTokens: 26_214,
+          contextLength: 32_768,
+          availableTokens: undefined,
+          model: "claude-3-5-sonnet-20241022",
+        },
+      },
+      {
         type: "symbols/updateFromContextItems/fulfilled",
         meta: {
           arg: [],
@@ -1040,6 +1065,10 @@ describe("streamResponseThunk", () => {
           requestStatus: "fulfilled",
         },
         payload: undefined,
+      },
+      // User abort action (dispatched by the test)
+      {
+        type: "session/setInactive",
       },
       {
         type: "session/streamUpdate",
@@ -1049,10 +1078,6 @@ describe("streamResponseThunk", () => {
             content: "First chunk",
           },
         ],
-      },
-      // User abort action (dispatched by the test)
-      {
-        type: "session/setInactive",
       },
       // Stream abort dispatch (called by implementation)
       {
@@ -1264,6 +1289,12 @@ describe("streamResponseThunk", () => {
         id: "session-123",
         streamAborter: expect.any(AbortController), // New controller after abort
         contextPercentage: 0.8,
+        contextUsage: {
+          inputTokens: 26_214,
+          contextLength: 32_768,
+          availableTokens: undefined,
+          model: "claude-3-5-sonnet-20241022",
+        },
         inlineErrorMessage: undefined,
         isPruned: false,
         title: "Session summary",
