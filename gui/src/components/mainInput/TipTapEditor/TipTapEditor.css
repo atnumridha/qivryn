@@ -16,6 +16,31 @@
   transition: background-color 0.2s ease-in-out;
 }
 
+.skill-mention {
+  align-items: center;
+  background-color: var(
+    --vscode-textCodeBlock-background,
+    var(--vscode-badge-background, rgba(127, 127, 127, 0.16))
+  );
+  border: 1px solid
+    var(
+      --vscode-focusBorder,
+      var(--vscode-widget-border, rgba(127, 127, 127, 0.5))
+    );
+  color: var(
+    --vscode-textLink-foreground,
+    var(--vscode-foreground, currentColor)
+  );
+  border-radius: 4px;
+  display: inline-flex;
+  font-size: 0.9em;
+  font-weight: 500;
+  line-height: 1.35;
+  padding: 0 4px;
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+
 .tiptap p.is-editor-empty:first-child::before {
   color: #646464; /* lightGray */
   content: attr(data-placeholder);

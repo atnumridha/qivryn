@@ -301,6 +301,39 @@ describe("fromResponsesChunk", () => {
     });
   });
 
+  it("preserves an incomplete finish reason when usage is present", () => {
+    const state = createResponsesStreamState({
+      created: 1710000000,
+      model: "gpt-5-preview",
+      responseId: "resp_limited",
+    });
+    const chunk = fromResponsesChunk(state, {
+      type: "response.incomplete",
+      sequence_number: 1,
+      response: {
+        id: "resp_limited",
+        object: "response",
+        model: "gpt-5-preview",
+        created_at: 1710000000,
+        incomplete_details: { reason: "max_output_tokens" },
+        usage: {
+          input_tokens: 12,
+          input_tokens_details: { cached_tokens: 0 },
+          output_tokens: 100,
+          output_tokens_details: { reasoning_tokens: 0 },
+          total_tokens: 112,
+        },
+      },
+    } as any);
+
+    expect(chunk?.choices[0].finish_reason).toBe("length");
+    expect(chunk?.usage).toMatchObject({
+      prompt_tokens: 12,
+      completion_tokens: 100,
+      total_tokens: 112,
+    });
+  });
+
   it("tracks streaming tool call arguments and surfaces tool_calls deltas", () => {
     const toolAdded: ResponseOutputItemAddedEvent = {
       type: "response.output_item.added",

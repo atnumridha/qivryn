@@ -31,13 +31,15 @@ const ThinkingIndicator = ({ historyItem }: ThinkingIndicatorProps) => {
   const isO1 = selectedModel?.model.startsWith("o1");
   const isThinking =
     isStreaming && !historyItem.isGatheringContext && !hasContent;
-  if (!isThinking || !isO1) {
+  if (!isThinking) {
     return null;
   }
 
+  const label = isO1 ? "Thinking" : "Working";
+
   return (
-    <div className="px-2 py-2">
-      <span className="text-lightgray">{`Thinking.${".".repeat(animation)}`}</span>
+    <div className="qivryn-thinking-indicator px-2 py-2" role="status">
+      <span className="text-lightgray">{`${label}${".".repeat(animation + 1)}`}</span>
     </div>
   );
 };

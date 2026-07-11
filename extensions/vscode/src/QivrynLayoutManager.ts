@@ -12,6 +12,8 @@ const CUSTOM_KEY = "qivryn.customLayouts";
 const ACTIVE_KEY = "qivryn.activeLayout";
 
 export class QivrynLayoutManager {
+  private contextKeyReaderAvailable: boolean | undefined;
+
   constructor(private readonly context: vscode.ExtensionContext) {}
 
   async chooseAndApply(): Promise<void> {
@@ -58,6 +60,15 @@ export class QivrynLayoutManager {
   }
 
   async restoreActive(useAgentDefault = false): Promise<void> {
+    const hasQivrynEditor = vscode.window.tabGroups.all.some((group) =>
+      group.tabs.some((tab) =>
+        (tab.input as { viewType?: string } | undefined)?.viewType?.endsWith(
+          "qivryn.qivrynGUIView",
+        ),
+      ),
+    );
+    if (!useAgentDefault && hasQivrynEditor) return;
+
     const active =
       this.context.workspaceState.get<QivrynLayoutPreset>(ACTIVE_KEY) ??
       (useAgentDefault ? BUILT_IN_LAYOUTS[0] : undefined);
@@ -83,6 +94,10 @@ export class QivrynLayoutManager {
           await vscode.commands.executeCommand(
             "workbench.action.focusAuxiliaryBar",
           );
+          await vscode.commands.executeCommand("qivryn.qivrynGUIView.focus");
+          // VS Code can report the contributed container as visible before its
+          // webview has replaced the previously active auxiliary-bar view.
+          await new Promise((resolve) => setTimeout(resolve, 75));
           await vscode.commands.executeCommand("qivryn.qivrynGUIView.focus");
         } catch {
           await vscode.commands.executeCommand(
@@ -127,17 +142,12 @@ export class QivrynLayoutManager {
   }
 
   private async captureSnapshot(): Promise<QivrynLayoutSnapshot> {
-    const read = (key: string) =>
-      vscode.commands.executeCommand<boolean | undefined>(
-        "getContextKeyValue",
-        key,
-      );
     const [sidebarVisible, auxiliaryBarVisible, panelVisible, zenMode] =
       await Promise.all([
-        read("sideBarVisible"),
-        read("auxiliaryBarVisible"),
-        read("panelVisible"),
-        read("inZenMode"),
+        this.readContextKey("sideBarVisible"),
+        this.readContextKey("auxiliaryBarVisible"),
+        this.readContextKey("panelVisible"),
+        this.readContextKey("inZenMode"),
       ]);
     return {
       sidebarVisible: sidebarVisible === true,
@@ -172,21 +182,52 @@ export class QivrynLayoutManager {
     enabled: boolean,
     command: string,
   ): Promise<void> {
-    const current = await vscode.commands.executeCommand<boolean | undefined>(
-      "getContextKeyValue",
-      contextKey,
-    );
+    const current = await this.readContextKey(contextKey);
+    if (current === undefined) {
+      const explicitCommand = {
+        sideBarVisible: enabled
+          ? "workbench.action.focusSideBar"
+          : "workbench.action.closeSidebar",
+        auxiliaryBarVisible: enabled
+          ? "workbench.action.focusAuxiliaryBar"
+          : "workbench.action.closeAuxiliaryBar",
+        panelVisible: enabled
+          ? "workbench.action.focusPanel"
+          : "workbench.action.closePanel",
+      }[contextKey];
+      if (explicitCommand) {
+        await vscode.commands.executeCommand(explicitCommand);
+      }
+      return;
+    }
     if (current !== enabled) await vscode.commands.executeCommand(command);
   }
 
   private async ensureZen(enabled: boolean): Promise<void> {
-    const current = await vscode.commands.executeCommand<boolean | undefined>(
-      "getContextKeyValue",
-      "inZenMode",
-    );
+    const current = await this.readContextKey("inZenMode");
+    if (current === undefined) {
+      await vscode.commands.executeCommand(
+        enabled
+          ? "workbench.action.toggleZenMode"
+          : "workbench.action.exitZenMode",
+      );
+      return;
+    }
     if ((enabled && current !== true) || (!enabled && current === true)) {
       await vscode.commands.executeCommand("workbench.action.toggleZenMode");
     }
+  }
+
+  private async readContextKey(key: string): Promise<boolean | undefined> {
+    if (this.contextKeyReaderAvailable === undefined) {
+      const commands = await vscode.commands.getCommands(true);
+      this.contextKeyReaderAvailable = commands.includes("getContextKeyValue");
+    }
+    if (!this.contextKeyReaderAvailable) return undefined;
+    return vscode.commands.executeCommand<boolean | undefined>(
+      "getContextKeyValue",
+      key,
+    );
   }
 
   private async updateLayoutContext(preset: QivrynLayoutPreset): Promise<void> {

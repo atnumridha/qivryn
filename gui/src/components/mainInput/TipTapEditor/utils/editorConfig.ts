@@ -20,10 +20,17 @@ import { selectSelectedChatModel } from "../../../../redux/slices/configSlice";
 import { AppDispatch } from "../../../../redux/store";
 import { exitEdit } from "../../../../redux/thunks/edit";
 import { getFontSize, isJetBrains } from "../../../../util";
-import { CodeBlock, Mention, PromptBlock, SlashCommand } from "../extensions";
+import {
+  CodeBlock,
+  Mention,
+  PromptBlock,
+  SkillMention,
+  SlashCommand,
+} from "../extensions";
 import { TipTapEditorProps } from "../TipTapEditor";
 import {
   getContextProviderDropdownOptions,
+  getSkillDropdownOptions,
   getSlashCommandDropdownOptions,
 } from "./getSuggestion";
 import { handleImageFile } from "./imageUtils";
@@ -36,9 +43,7 @@ export function getPlaceholderText(
     return placeholder;
   }
 
-  return historyLength === 0
-    ? "Ask anything, '@' to add context"
-    : "Ask a follow-up";
+  return historyLength === 0 ? "Message Qivryn..." : "Ask a follow-up...";
 }
 
 /**
@@ -64,7 +69,7 @@ export function hasValidEditorContent(json: JSONContent): boolean {
         return child.text.trim().length > 0;
       }
       // Mentions and other non-text nodes are valid content
-      if (child.type === "mention") {
+      if (child.type === Mention.name || child.type === SkillMention.name) {
         return true;
       }
       return false;
@@ -362,6 +367,9 @@ export function createEditorConfig(options: {
           ideMessenger,
         ),
       }),
+      SkillMention.configure({
+        suggestion: getSkillDropdownOptions(ideMessenger, onClose, onOpen),
+      }),
       SlashCommand.configure({
         suggestion: getSlashCommandDropdownOptions(
           availableSlashCommandsRef,
@@ -385,7 +393,7 @@ export function createEditorConfig(options: {
       },
     },
     content: props.editorState,
-    editable: !isStreaming || props.isMainInput,
+    editable: !props.readOnly && (!isStreaming || props.isMainInput),
   });
 
   const onEnter = (modifiers: InputModifiers) => {

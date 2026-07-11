@@ -8,10 +8,16 @@ import { selectSelectedChatModel } from "../slices/configSlice";
 import {
   acceptToolCall,
   errorToolCall,
+  setActive,
   setInactive,
   setToolCallCalling,
   updateToolCallOutput,
 } from "../slices/sessionSlice";
+import {
+  createSessionScopedDispatch,
+  findSessionIdForToolCall,
+  getRootStateForSession,
+} from "../sessionRuntime";
 import { ThunkApiType } from "../store";
 import { findToolCallById, logToolUsage } from "../util";
 import { streamResponseAfterToolCall } from "./streamResponseAfterToolCall";
@@ -23,6 +29,7 @@ export const callToolById = createAsyncThunk<
     isAutoApproved?: boolean;
     depth?: number;
     continueAfterToolCall?: boolean;
+    sessionId?: string;
   },
   ThunkApiType
 >("chat/callTool", async (inputs, { dispatch, extra, getState }) => {
@@ -31,9 +38,20 @@ export const callToolById = createAsyncThunk<
     isAutoApproved,
     depth = 0,
     continueAfterToolCall = true,
+    sessionId: requestedSessionId,
   } = inputs;
 
-  const state = getState();
+  const sessionId =
+    requestedSessionId ??
+    findSessionIdForToolCall(getState(), toolCallId) ??
+    getState().session.id;
+  const getScopedState = () => getRootStateForSession(getState(), sessionId);
+  const scopedDispatch = createSessionScopedDispatch(
+    dispatch,
+    sessionId,
+    getState,
+  );
+  const state = getScopedState();
   const toolCallState = findToolCallById(state.session.history, toolCallId);
   if (!toolCallState) {
     console.warn(`Tool call with ID ${toolCallId} not found`);
@@ -44,13 +62,18 @@ export const callToolById = createAsyncThunk<
     return;
   }
 
-  const selectedChatModel = selectSelectedChatModel(state);
+  const selectedChatModel =
+    state.config.config?.modelsByRole?.chat?.find(
+      (model) => model.title === state.session.chatModelTitle,
+    ) ?? selectSelectedChatModel(state);
 
   if (!selectedChatModel) {
     throw new Error("No model selected");
   }
 
-  dispatch(
+  // An approved tool remains part of the owning turn while it executes.
+  scopedDispatch(setActive());
+  scopedDispatch(
     setToolCallCalling({
       toolCallId,
     }),
@@ -77,9 +100,10 @@ export const callToolById = createAsyncThunk<
       respondImmediately,
       error: clientToolError,
     } = await callClientTool(toolCallState, {
-      dispatch,
+      dispatch: scopedDispatch,
       ideMessenger: extra.ideMessenger,
-      getState,
+      getState: getScopedState,
+      sessionId,
     });
     output = clientToolOutput;
     error = clientToolError;
@@ -105,7 +129,7 @@ export const callToolById = createAsyncThunk<
   }
 
   if (error) {
-    dispatch(
+    scopedDispatch(
       updateToolCallOutput({
         toolCallId,
         contextItems: [
@@ -120,7 +144,7 @@ export const callToolById = createAsyncThunk<
       }),
     );
   } else if (output?.length) {
-    dispatch(
+    scopedDispatch(
       updateToolCallOutput({
         toolCallId,
         contextItems: output,
@@ -132,14 +156,14 @@ export const callToolById = createAsyncThunk<
   if (streamResponse) {
     if (error) {
       logToolUsage(toolCallState, false, false, extra.ideMessenger, output);
-      dispatch(
+      scopedDispatch(
         errorToolCall({
           toolCallId,
         }),
       );
     } else {
       logToolUsage(toolCallState, true, true, extra.ideMessenger, output);
-      dispatch(
+      scopedDispatch(
         acceptToolCall({
           toolCallId,
         }),
@@ -149,6 +173,7 @@ export const callToolById = createAsyncThunk<
     // Send to the LLM to continue the conversation
     const wrapped = await dispatch(
       streamResponseAfterToolCall({
+        ...(getState().session.id === sessionId ? {} : { sessionId }),
         toolCallId,
         depth: depth + 1,
         continueAfterToolCall,
@@ -156,6 +181,6 @@ export const callToolById = createAsyncThunk<
     );
     unwrapResult(wrapped);
   } else {
-    dispatch(setInactive());
+    scopedDispatch(setInactive());
   }
 });

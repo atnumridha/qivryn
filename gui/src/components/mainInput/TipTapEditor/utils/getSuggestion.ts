@@ -9,6 +9,11 @@ import tippy from "tippy.js";
 import { IIdeMessenger } from "../../../../context/IdeMessenger";
 import { AppDispatch } from "../../../../redux/store";
 import AtMentionDropdown from "../../AtMentionDropdown";
+import {
+  loadSkillsCatalog,
+  readCachedSkills,
+} from "../../../skills/SkillSelect";
+import { filterSkillsByQuery } from "../../../skills/skillSearch";
 import { ComboBoxItem, ComboBoxItemType, ComboBoxSubAction } from "../../types";
 import { TIPPY_DIV_ID } from "../TipTapEditor";
 import { SlashCommand } from "../extensions";
@@ -58,8 +63,32 @@ function getSuggestion(
             showOnCreate: true,
             interactive: true,
             trigger: "manual",
-            placement: "bottom-start",
-            maxWidth: `${window.innerWidth - 24}px`,
+            placement: "top-start",
+            maxWidth: `${Math.max(0, window.innerWidth - 16)}px`,
+            popperOptions: {
+              strategy: "fixed",
+              modifiers: [
+                {
+                  name: "offset",
+                  options: { offset: [0, 6] },
+                },
+                {
+                  name: "flip",
+                  options: {
+                    fallbackPlacements: ["bottom-start"],
+                    padding: 8,
+                  },
+                },
+                {
+                  name: "preventOverflow",
+                  options: {
+                    altAxis: true,
+                    boundary: "viewport",
+                    padding: 8,
+                  },
+                },
+              ],
+            },
           });
 
           onOpen();
@@ -242,5 +271,52 @@ export function getSlashCommandDropdownOptions(
 
     return commandItems;
   };
+  return getSuggestion(items, undefined, onClose, onOpen);
+}
+
+export function getSkillDropdownOptions(
+  ideMessenger: IIdeMessenger,
+  onClose: () => void,
+  onOpen: () => void,
+) {
+  let skills = readCachedSkills();
+  let refreshPromise: ReturnType<typeof loadSkillsCatalog> | undefined;
+  let refreshedAt = 0;
+
+  const refresh = () => {
+    if (!refreshPromise) {
+      refreshPromise = loadSkillsCatalog(ideMessenger)
+        .then((result) => {
+          skills = result.skills;
+          refreshedAt = Date.now();
+          return result;
+        })
+        .finally(() => {
+          refreshPromise = undefined;
+        });
+    }
+    return refreshPromise;
+  };
+
+  const items = async ({ query }: { query: string }) => {
+    if (skills.length === 0) {
+      await refresh();
+    } else if (Date.now() - refreshedAt > 60_000) {
+      void refresh();
+    }
+
+    return filterSkillsByQuery(skills, query)
+      .slice(0, 8)
+      .map(
+        (skill): ComboBoxItem => ({
+          id: skill.name,
+          title: skill.name,
+          label: skill.name,
+          description: skill.description,
+          type: "skill",
+        }),
+      );
+  };
+
   return getSuggestion(items, undefined, onClose, onOpen);
 }

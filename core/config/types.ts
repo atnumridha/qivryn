@@ -247,6 +247,7 @@ declare global {
     sessionId: string;
     title: string;
     dateCreated: string;
+    dateUpdated?: string;
     workspaceDirectory: string;
   }
   

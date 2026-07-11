@@ -7,6 +7,11 @@ import {
   resetNextCodeBlockToApplyIndex,
   streamUpdate,
 } from "../slices/sessionSlice";
+import {
+  createSessionScopedDispatch,
+  findSessionIdForToolCall,
+  getRootStateForSession,
+} from "../sessionRuntime";
 import { ThunkApiType } from "../store";
 import { streamNormalInput } from "./streamNormalInput";
 import { streamThunkWrapper } from "./streamThunkWrapper";
@@ -36,57 +41,91 @@ export function areAllToolsDoneStreaming(
 
 export const streamResponseAfterToolCall = createAsyncThunk<
   void,
-  { toolCallId: string; depth?: number; continueAfterToolCall?: boolean },
+  {
+    toolCallId: string;
+    depth?: number;
+    continueAfterToolCall?: boolean;
+    sessionId?: string;
+  },
   ThunkApiType
 >(
   "chat/streamAfterToolCall",
   async (
-    { toolCallId, depth = 0, continueAfterToolCall = true },
+    {
+      toolCallId,
+      depth = 0,
+      continueAfterToolCall = true,
+      sessionId: requestedSessionId,
+    },
     { dispatch, getState },
   ) => {
+    const sessionId =
+      requestedSessionId ??
+      findSessionIdForToolCall(getState(), toolCallId) ??
+      getState().session.id;
+    const getScopedState = () => getRootStateForSession(getState(), sessionId);
+    const scopedDispatch = createSessionScopedDispatch(
+      dispatch,
+      sessionId,
+      getState,
+    );
+
+    const runStream = async () => {
+      const state = getScopedState();
+      const currentToolCalls = selectCurrentToolCalls(state);
+      const toolCallState = currentToolCalls.find(
+        (tc) => tc.toolCallId === toolCallId,
+      );
+
+      if (!toolCallState) {
+        return; // in cases where edit tool is cancelled mid apply, this will be triggered
+      }
+
+      const toolOutput = toolCallState.output ?? [];
+
+      scopedDispatch(resetNextCodeBlockToApplyIndex());
+
+      // Create and dispatch the tool message
+      const newMessage: ChatMessage = {
+        role: "tool",
+        content: renderContextItems(toolOutput),
+        toolCallId,
+      };
+      scopedDispatch(streamUpdate([newMessage]));
+
+      // Check if we should continue streaming based on tool call completion
+      const history = getScopedState().session.history;
+      const assistantMessage = history.findLast(
+        (item) =>
+          item.message.role === "assistant" &&
+          item.toolCallStates?.some((tc) => tc.toolCallId === toolCallId),
+      );
+
+      if (
+        continueAfterToolCall &&
+        assistantMessage &&
+        areAllToolsDoneStreaming(
+          assistantMessage,
+          state.config.config.ui?.qivrynAfterToolRejection,
+        )
+      ) {
+        unwrapResult(
+          await dispatch(
+            streamNormalInput({
+              ...(getState().session.id === sessionId ? {} : { sessionId }),
+              depth: depth + 1,
+            }),
+          ),
+        );
+      }
+    };
+
     await dispatch(
-      streamThunkWrapper(async () => {
-        const state = getState();
-        const currentToolCalls = selectCurrentToolCalls(state);
-        const toolCallState = currentToolCalls.find(
-          (tc) => tc.toolCallId === toolCallId,
-        );
-
-        if (!toolCallState) {
-          return; // in cases where edit tool is cancelled mid apply, this will be triggered
-        }
-
-        const toolOutput = toolCallState.output ?? [];
-
-        dispatch(resetNextCodeBlockToApplyIndex());
-
-        // Create and dispatch the tool message
-        const newMessage: ChatMessage = {
-          role: "tool",
-          content: renderContextItems(toolOutput),
-          toolCallId,
-        };
-        dispatch(streamUpdate([newMessage]));
-
-        // Check if we should continue streaming based on tool call completion
-        const history = getState().session.history;
-        const assistantMessage = history.findLast(
-          (item) =>
-            item.message.role === "assistant" &&
-            item.toolCallStates?.some((tc) => tc.toolCallId === toolCallId),
-        );
-
-        if (
-          continueAfterToolCall &&
-          assistantMessage &&
-          areAllToolsDoneStreaming(
-            assistantMessage,
-            state.config.config.ui?.qivrynAfterToolRejection,
-          )
-        ) {
-          unwrapResult(await dispatch(streamNormalInput({ depth: depth + 1 })));
-        }
-      }),
+      streamThunkWrapper(
+        getState().session.id === sessionId
+          ? runStream
+          : { sessionId, runStream },
+      ),
     );
   },
 );

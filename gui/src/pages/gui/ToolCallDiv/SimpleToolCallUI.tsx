@@ -44,24 +44,42 @@ export function SimpleToolCallUI({
     }
   }
 
+  const statusContent = (
+    <>
+      <ToggleWithIcon
+        icon={Icon}
+        isToggleable={isToggleable}
+        open={shouldShowContent}
+        isClickable={isSingleItem}
+      />
+      <ToolCallStatusMessage tool={tool} toolCallState={toolCallState} />
+    </>
+  );
+
   return (
-    <div className="mt-1 flex flex-col px-4">
-      <div className="flex min-w-0 flex-row items-center justify-between gap-2">
-        <div
-          className={`text-description flex min-w-0 flex-row items-center justify-between gap-1.5 text-xs transition-colors duration-200 ease-in-out ${
-            isClickable ? "cursor-pointer hover:brightness-125" : ""
-          }`}
-          onClick={isClickable ? handleClick : undefined}
-          data-testid="context-items-peek"
-        >
-          <ToggleWithIcon
-            icon={Icon}
-            isToggleable={isToggleable}
-            open={shouldShowContent}
-            isClickable={isSingleItem}
-          />
-          <ToolCallStatusMessage tool={tool} toolCallState={toolCallState} />
-        </div>
+    <div className="qivryn-simple-tool-call mt-1 flex flex-col px-4">
+      <div className="qivryn-tool-status-row">
+        {isClickable ? (
+          <button
+            type="button"
+            className="qivryn-tool-status-trigger"
+            aria-expanded={isToggleable ? shouldShowContent : undefined}
+            aria-label={
+              isToggleable ? "Toggle tool results" : "Open tool result"
+            }
+            onClick={handleClick}
+            data-testid="context-items-peek"
+          >
+            {statusContent}
+          </button>
+        ) : (
+          <div
+            className="qivryn-tool-status-trigger"
+            data-testid="context-items-peek"
+          >
+            {statusContent}
+          </div>
+        )}
 
         {!!toolCallState.output?.length && (
           <ToolTruncateHistoryIcon historyIndex={historyIndex} />
@@ -70,7 +88,7 @@ export function SimpleToolCallUI({
 
       {isToggleable && (
         <div
-          className={`mt-2 overflow-y-auto transition-all duration-300 ease-in-out ${
+          className={`mt-2 overflow-y-auto transition-[max-height,opacity] duration-300 ease-in-out ${
             shouldShowContent ? "max-h-[50vh] opacity-100" : "max-h-0 opacity-0"
           }`}
         >

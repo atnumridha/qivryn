@@ -95,7 +95,7 @@ const ContextStatus = () => {
       <button
         type="button"
         aria-label={accessible}
-        className="text-description hover:text-foreground flex max-w-44 cursor-pointer items-center gap-1.5 truncate border-none bg-transparent p-0 text-[10px]"
+        className="qivryn-context-status text-description hover:text-foreground flex max-w-44 cursor-pointer items-center gap-1.5 truncate border-none bg-transparent p-0 text-[10px]"
       >
         <span className="border-command-border relative h-[12px] w-[6px] flex-shrink-0 overflow-hidden rounded-[1px] border-[0.5px] border-solid">
           <span

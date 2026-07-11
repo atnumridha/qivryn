@@ -42,8 +42,9 @@ export function ConversationStarterCards() {
   const remainingCount = bookmarkedSlashCommands.length - NUM_CARDS_TO_RENDER;
 
   return (
-    <div className="flex w-full max-w-full flex-col">
-      <div className="lg:grid lg:grid-cols-3 lg:gap-4">
+    <div className="qivryn-saved-starters flex w-full max-w-full flex-col">
+      <div className="qivryn-saved-starters-label">Saved Prompts</div>
+      <div className="qivryn-saved-starters-grid">
         {visibleCommands.map((command, i) => (
           <ConversationStarterCard
             key={command.name + i}
@@ -53,12 +54,13 @@ export function ConversationStarterCards() {
         ))}
       </div>
       {bookmarkedSlashCommands.length > NUM_CARDS_TO_RENDER && (
-        <span
-          className="text-lightgray mt-1 cursor-pointer text-xs hover:underline"
+        <button
+          type="button"
+          className="qivryn-saved-starters-more"
           onClick={() => setShowAll(!showAll)}
         >
-          {showAll ? "Show less" : `Show ${remainingCount} more...`}
-        </span>
+          {showAll ? "Show less" : `Show ${remainingCount} more…`}
+        </button>
       )}
     </div>
   );

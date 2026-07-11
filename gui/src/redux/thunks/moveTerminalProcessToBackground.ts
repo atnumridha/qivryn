@@ -5,6 +5,11 @@ import {
   acceptToolCall,
   updateToolCallOutput,
 } from "../slices/sessionSlice";
+import {
+  createSessionScopedDispatch,
+  findSessionIdForToolCall,
+  getRootStateForSession,
+} from "../sessionRuntime";
 import { ThunkApiType } from "../store";
 import { findToolCallById } from "../util";
 import { streamResponseAfterToolCall } from "./streamResponseAfterToolCall";
@@ -24,8 +29,16 @@ export const moveTerminalProcessToBackground = createAsyncThunk<
 >(
   "chat/moveTerminalProcessToBackground",
   async ({ toolCallId }, { dispatch, getState, extra }) => {
+    const sessionId =
+      findSessionIdForToolCall(getState(), toolCallId) ?? getState().session.id;
+    const state = getRootStateForSession(getState(), sessionId);
+    const scopedDispatch = createSessionScopedDispatch(
+      dispatch,
+      sessionId,
+      getState,
+    );
+
     // Find the current tool call using utility function
-    const state = getState();
     const toolCall = findToolCallById(state.session.history, toolCallId);
 
     if (!toolCall) {
@@ -52,10 +65,10 @@ export const moveTerminalProcessToBackground = createAsyncThunk<
     ];
 
     // Abort any existing stream for this tool call
-    dispatch(abortStream());
+    scopedDispatch(abortStream());
 
     // Update the tool call output
-    dispatch(
+    scopedDispatch(
       updateToolCallOutput({
         toolCallId,
         contextItems,
@@ -69,12 +82,13 @@ export const moveTerminalProcessToBackground = createAsyncThunk<
 
     // Mark the tool call as "done" in the UI
     // This will set isRunning to false in RunTerminalCommand.tsx
-    dispatch(acceptToolCall({ toolCallId }));
+    scopedDispatch(acceptToolCall({ toolCallId }));
 
     // Trigger an LLM response about the command being moved to background
-    dispatch(updateToolCallOutput({ toolCallId, contextItems }));
+    scopedDispatch(updateToolCallOutput({ toolCallId, contextItems }));
     dispatch(
       streamResponseAfterToolCall({
+        sessionId,
         toolCallId,
       }),
     );

@@ -71,7 +71,7 @@
   );
   --qivryn-shadow-workbench: 0 0 8px 2px
     color-mix(in srgb, var(--vscode-widget-shadow, #000) 40%, transparent);
-  --conversation-font-size: 12px;
+  --conversation-font-size: var(--vscode-font-size, 13px);
   --conversation-surface-border-radius: 7px;
   --agents-chrome: var(
     --vscode-sideBar-background,
@@ -258,8 +258,8 @@
     "Segoe UI",
     sans-serif
   );
-  font-size: 12px;
-  line-height: 1.42;
+  font-size: var(--vscode-font-size, 13px);
+  line-height: 1.5;
 }
 
 .qivryn-agents-cursor .cursor-agents-toolbar {
@@ -1788,4 +1788,37 @@
   .qivryn-agents-cursor .cursor-agent-launch-overlay {
     padding: 12px 10px !important;
   }
+}
+
+/* The chat route reuses the agent shell, but its transcript layout is owned
+   by the shared thread rail in index.css. Keep only route-level shell rules
+   here so late-loaded agent styles cannot reintroduce per-message offsets. */
+.qivryn-agents-cursor.qivryn-chat-route {
+  letter-spacing: 0;
+}
+
+.qivryn-agents-cursor.qivryn-chat-route::before {
+  display: none !important;
+}
+
+.qivryn-agents-cursor.qivryn-chat-route .cursor-agents-main {
+  background: var(--qivryn-canvas) !important;
+}
+
+.qivryn-agents-cursor.qivryn-chat-route .cursor-agents-main::after {
+  display: none !important;
+}
+
+.qivryn-agents-cursor.qivryn-chat-route .qivryn-assistant-surface,
+.qivryn-agents-cursor.qivryn-chat-route .qivryn-tool-surface,
+.qivryn-agents-cursor.qivryn-chat-route .qivryn-tool-group {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.qivryn-agents-cursor.qivryn-chat-route .qivryn-main-editor-input:focus-within {
+  border-color: var(--qivryn-border-strong) !important;
+  box-shadow: 0 4px 16px
+    color-mix(in srgb, var(--vscode-widget-shadow, #000) 5%, transparent) !important;
 }

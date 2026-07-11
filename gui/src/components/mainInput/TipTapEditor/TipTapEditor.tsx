@@ -18,7 +18,7 @@ import { DragOverlay } from "./components/DragOverlay";
 import { InputBoxDiv } from "./components/StyledComponents";
 import { useMainEditor } from "./MainEditorProvider";
 import "./TipTapEditor.css";
-import { CodeBlock } from "./extensions";
+import { CodeBlock, SkillMention } from "./extensions";
 import { createEditorConfig, getPlaceholderText } from "./utils/editorConfig";
 import {
   getDroppedFileContextItem,
@@ -42,6 +42,8 @@ export interface TipTapEditorProps {
   toolbarOptions?: ToolbarOptions;
   placeholder?: string;
   historyKey: string;
+  onEditorReady?: (editor: Editor | null) => void;
+  readOnly?: boolean;
 
   // TODO: This isn't actually used anywhere in this component, but it appears
   // to be pulled into some of our TipTap extensions.
@@ -66,6 +68,20 @@ function TipTapEditorInner(props: TipTapEditorProps) {
     ideMessenger,
     dispatch,
   });
+
+  useEffect(() => {
+    props.onEditorReady?.(editor ?? null);
+    return () => props.onEditorReady?.(null);
+  }, [editor, props.onEditorReady]);
+
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) {
+      return;
+    }
+    const editable = !props.readOnly && (!isStreaming || props.isMainInput);
+    editor.setOptions({ editable });
+    editor.view.dispatch(editor.state.tr);
+  }, [editor, isStreaming, props.isMainInput, props.readOnly]);
 
   // Register the main editor with the provider
   useEffect(() => {
@@ -133,7 +149,7 @@ function TipTapEditorInner(props: TipTapEditorProps) {
 
   // Recovery mechanism: ensure historical inputs regain editability when streaming ends
   useEffect(() => {
-    if (!isStreaming && !props.isMainInput && editor) {
+    if (!isStreaming && !props.isMainInput && !props.readOnly && editor) {
       // Small delay to ensure editor state has settled after streaming transition
       const timeoutId = setTimeout(() => {
         if (editor && !editor.isDestroyed) {
@@ -146,7 +162,7 @@ function TipTapEditorInner(props: TipTapEditorProps) {
 
       return () => clearTimeout(timeoutId);
     }
-  }, [isStreaming, props.isMainInput]);
+  }, [editor, isStreaming, props.isMainInput, props.readOnly]);
 
   const [showDragOverMsg, setShowDragOverMsg] = useState(false);
 
@@ -211,13 +227,17 @@ function TipTapEditorInner(props: TipTapEditorProps) {
     setShouldHideToolbar(false);
   }, [cancelBlurTimeout]);
 
-  const handleFileDrop = useCallback(
-    async (dataTransfer: DataTransfer) => {
+  const insertAttachments = useCallback(
+    async (options: { files?: File[]; uris?: string[] }) => {
       if (!editor) return;
 
-      const files = getDroppedFiles(dataTransfer);
-      const uris = getDroppedFileUris(dataTransfer);
+      const files = options.files ?? [];
+      const uris = options.uris ?? [];
       const attachmentCount = Math.max(files.length, uris.length);
+      if (attachmentCount === 0) {
+        return;
+      }
+
       const attachments: JSONContent[] = [];
       const errors: string[] = [];
 
@@ -261,19 +281,35 @@ function TipTapEditorInner(props: TipTapEditorProps) {
     [editor, ideMessenger, props.inputId],
   );
 
+  const handleFileDrop = useCallback(
+    async (dataTransfer: DataTransfer) => {
+      await insertAttachments({
+        files: getDroppedFiles(dataTransfer),
+        uris: getDroppedFileUris(dataTransfer),
+      });
+    },
+    [insertAttachments],
+  );
+
+  const inputBoxClassName = [
+    props.isMainInput
+      ? "qivryn-main-editor-input"
+      : "qivryn-transcript-editor-input",
+    !props.isMainInput && shouldHideToolbar ? "cursor-pointer" : "cursor-text",
+    props.readOnly ? "qivryn-editor-readonly" : "qivryn-editor-editable",
+  ].join(" ");
+
   return (
     <InputBoxDiv
       onFocus={handleFocus}
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
       onKeyUp={handleKeyUp}
-      className={
-        !props.isMainInput && shouldHideToolbar
-          ? "cursor-pointer"
-          : "cursor-text"
-      }
+      className={inputBoxClassName}
       onClick={() => {
-        editor?.commands.focus();
+        if (!props.readOnly) {
+          editor?.commands.focus();
+        }
       }}
       onDragOverCapture={(event) => {
         event.preventDefault();
@@ -314,27 +350,25 @@ function TipTapEditorInner(props: TipTapEditorProps) {
           onAddContextItem={() => insertCharacterWithWhitespace("@")}
           onSkillChange={(name) => {
             if (!name || !editor) return;
-            editor.commands.insertContent(
-              `Use the ${JSON.stringify(name)} skill for this task. `,
-            );
-            editor.commands.focus();
+            editor
+              .chain()
+              .focus()
+              .insertContent([
+                {
+                  type: SkillMention.name,
+                  attrs: {
+                    id: name,
+                    label: name,
+                    itemType: "skill",
+                  },
+                },
+                { type: "text", text: " " },
+              ])
+              .run();
           }}
           onEnter={onEnter}
-          onImageFileSelected={(file) => {
-            void handleImageFile(ideMessenger, file).then((result) => {
-              if (!editor) {
-                return;
-              }
-              if (result) {
-                const [_, dataUrl] = result;
-                const { schema } = editor.state;
-                const node = schema.nodes.image.create({ src: dataUrl });
-                editor.commands.command(({ tr }) => {
-                  tr.insert(0, node);
-                  return true;
-                });
-              }
-            });
+          onFilesSelected={(files) => {
+            void insertAttachments({ files });
           }}
           disabled={isStreaming}
         />
@@ -367,6 +401,8 @@ const MemoInner = memo(
     prev.placeholder === next.placeholder &&
     prev.historyKey === next.historyKey &&
     prev.inputId === next.inputId &&
+    prev.readOnly === next.readOnly &&
+    prev.onEditorReady === next.onEditorReady &&
     toolbarOptionsEqual(prev.toolbarOptions, next.toolbarOptions) &&
     (prev.availableContextProviders?.length || 0) ===
       (next.availableContextProviders?.length || 0) &&
@@ -376,7 +412,9 @@ const MemoInner = memo(
 
 export function TipTapEditor(props: TipTapEditorProps) {
   return (
-    <div className="relative w-full">
+    <div
+      className={`relative w-full ${props.isMainInput ? "qivryn-main-editor-root" : "qivryn-transcript-editor-root"}`}
+    >
       <MemoInner {...props} />
     </div>
   );

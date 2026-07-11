@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CodeBlock, PromptBlock } from "../extensions";
+import { CodeBlock, PromptBlock, SkillMention } from "../extensions";
 import { hasValidEditorContent } from "./editorConfig";
 
 describe("hasValidEditorContent", () => {
@@ -33,5 +33,24 @@ describe("hasValidEditorContent", () => {
         ],
       }),
     ).toBe(false);
+  });
+
+  it("accepts a selected skill without additional text", () => {
+    expect(
+      hasValidEditorContent({
+        type: "doc",
+        content: [
+          {
+            type: "paragraph",
+            content: [
+              {
+                type: SkillMention.name,
+                attrs: { id: "ui-ux-pro-max", label: "ui-ux-pro-max" },
+              },
+            ],
+          },
+        ],
+      }),
+    ).toBe(true);
   });
 });

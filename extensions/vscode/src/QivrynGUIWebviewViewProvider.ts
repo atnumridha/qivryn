@@ -84,6 +84,7 @@ export class QivrynGUIWebviewViewProvider
     isFullScreen = false,
   ): string {
     const extensionUri = getExtensionUri();
+    const nonce = getNonce();
     let scriptUri: string;
     let styleMainUri: string;
     const vscMediaUrl: string = panel.webview
@@ -96,12 +97,12 @@ export class QivrynGUIWebviewViewProvider
       scriptUri = "http://localhost:5173/src/main.tsx";
       styleMainUri = "http://localhost:5173/src/index.css";
     } else {
-      scriptUri = panel.webview
+      scriptUri = `${panel.webview
         .asWebviewUri(vscode.Uri.joinPath(extensionUri, "gui/assets/index.js"))
-        .toString();
-      styleMainUri = panel.webview
+        .toString()}?v=${nonce}`;
+      styleMainUri = `${panel.webview
         .asWebviewUri(vscode.Uri.joinPath(extensionUri, "gui/assets/index.css"))
-        .toString();
+        .toString()}?v=${nonce}`;
     }
 
     panel.webview.options = {
@@ -118,8 +119,6 @@ export class QivrynGUIWebviewViewProvider
         },
       ],
     };
-
-    const nonce = getNonce();
 
     const currentTheme = getTheme();
     vscode.workspace.onDidChangeConfiguration((e) => {
@@ -149,7 +148,7 @@ export class QivrynGUIWebviewViewProvider
 
         <title>Qivryn</title>
       </head>
-      <body>
+      <body data-qivryn-fullscreen="${isFullScreen ? "true" : "false"}">
         <div id="root"></div>
 
         ${

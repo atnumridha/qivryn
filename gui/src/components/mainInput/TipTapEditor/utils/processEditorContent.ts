@@ -10,7 +10,7 @@ import {
 } from "core";
 import { ctxItemToRifWithContents } from "core/commands/util";
 import { getUriDescription } from "core/util/uri";
-import { CodeBlock, Mention, PromptBlock } from "../extensions";
+import { CodeBlock, Mention, PromptBlock, SkillMention } from "../extensions";
 import { GetContextRequest } from "./types";
 
 interface MentionAttrs {
@@ -24,38 +24,58 @@ function resolvePromptBlock(p: JSONContent): string | undefined {
   return p.attrs?.item.name;
 }
 
-function resolveParagraph(p: JSONContent): [string, GetContextRequest[]] {
+function resolveParagraph(p: JSONContent): {
+  text: string;
+  contextRequests: GetContextRequest[];
+  skillNames: string[];
+} {
   const contextRequests: GetContextRequest[] = [];
+  const skillNames: string[] = [];
+  let text = "";
+  let stripSkillSpacer = false;
 
-  const text = (p.content || [])
-    .map((child) => {
-      switch (child.type) {
-        case Text.name:
-          return child.text;
-        case Mention.name:
-          const attrs = child.attrs as MentionAttrs;
-          contextRequests.push({
-            provider:
-              attrs.itemType === "contextProvider" ? attrs.id : attrs.itemType!,
-            query: attrs.query,
-          });
-          return child.attrs?.renderInlineAs ?? child.attrs?.label;
-
-        default:
-          console.warn("Unexpected child type", child.type);
-          return "";
+  for (const child of p.content || []) {
+    switch (child.type) {
+      case Text.name: {
+        let childText = child.text ?? "";
+        if (stripSkillSpacer && childText.startsWith(" ")) {
+          childText = childText.slice(1);
+        }
+        stripSkillSpacer = false;
+        text += childText;
+        break;
       }
-    })
-    .join("")
-    .trimStart();
+      case Mention.name: {
+        const attrs = child.attrs as MentionAttrs;
+        contextRequests.push({
+          provider:
+            attrs.itemType === "contextProvider" ? attrs.id : attrs.itemType!,
+          query: attrs.query,
+        });
+        text += child.attrs?.renderInlineAs ?? child.attrs?.label;
+        break;
+      }
+      case SkillMention.name: {
+        const skillName = child.attrs?.id ?? child.attrs?.label;
+        if (typeof skillName === "string" && skillName.trim()) {
+          skillNames.push(skillName.trim());
+        }
+        stripSkillSpacer = true;
+        break;
+      }
+      default:
+        console.warn("Unexpected child type", child.type);
+    }
+  }
 
-  return [text, contextRequests];
+  return { text: text.trimStart(), contextRequests, skillNames };
 }
 
 export function processEditorContent(editorState: JSONContent) {
   const contextRequests: GetContextRequest[] = [];
   const selectedCode: RangeInFile[] = [];
   let slashCommandName: string | undefined;
+  const skillNames: string[] = [];
 
   const parts: MessagePart[] = [];
   for (const p of editorState?.content || []) {
@@ -64,9 +84,11 @@ export function processEditorContent(editorState: JSONContent) {
         slashCommandName = resolvePromptBlock(p);
         break;
       case Paragraph.name:
-        const [text, ctxItems] = resolveParagraph(p);
+        const resolvedParagraph = resolveParagraph(p);
+        const { text } = resolvedParagraph;
 
-        contextRequests.push(...ctxItems);
+        contextRequests.push(...resolvedParagraph.contextRequests);
+        skillNames.push(...resolvedParagraph.skillNames);
 
         if (text) {
           // Merge with previous text part if possible
@@ -113,6 +135,22 @@ export function processEditorContent(editorState: JSONContent) {
       default: {
         console.warn("Unexpected content type", p.type);
       }
+    }
+  }
+
+  const uniqueSkillNames = [...new Set(skillNames)];
+  if (uniqueSkillNames.length > 0) {
+    const skillInstructions = uniqueSkillNames
+      .map(
+        (skillName) =>
+          `Use the ${JSON.stringify(skillName)} skill for this task.`,
+      )
+      .join("\n");
+    const firstPart = parts[0];
+    if (firstPart?.type === "text") {
+      firstPart.text = `${skillInstructions}\n\n${firstPart.text}`;
+    } else {
+      parts.unshift({ type: "text", text: skillInstructions });
     }
   }
 

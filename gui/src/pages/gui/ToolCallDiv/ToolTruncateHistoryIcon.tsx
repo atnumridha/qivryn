@@ -22,27 +22,29 @@ export function ToolTruncateHistoryIcon({
 
   if (historyIndex === lastMessageIndex) {
     // filler so doesn't jump in
-    return <div className="h-3 w-3" />;
+    return <span className="qivryn-tool-trim-action" aria-hidden="true" />;
   }
 
   return (
-    <ToolbarButtonWithTooltip
-      tooltipContent={isStreaming ? "" : "Trim chat to this message"}
-      onClick={() => {
-        if (isStreaming) {
-          return;
-        }
-        dispatch(
-          truncateHistoryToMessage({
-            index: historyIndex,
-          }),
-        );
-        mainEditor?.commands.focus();
-      }}
-    >
-      <BarsArrowUpIcon
-        className={`h-3 w-3 flex-shrink-0 opacity-60 ${isStreaming ? "cursor-not-allowed" : ""}`}
-      />
-    </ToolbarButtonWithTooltip>
+    <span className="qivryn-tool-trim-action">
+      <ToolbarButtonWithTooltip
+        tooltipContent={isStreaming ? "" : "Trim chat to this message"}
+        onClick={() => {
+          if (isStreaming) {
+            return;
+          }
+          dispatch(
+            truncateHistoryToMessage({
+              index: historyIndex,
+            }),
+          );
+          mainEditor?.commands.focus();
+        }}
+      >
+        <BarsArrowUpIcon
+          className={`h-3 w-3 flex-shrink-0 opacity-60 ${isStreaming ? "cursor-not-allowed" : ""}`}
+        />
+      </ToolbarButtonWithTooltip>
+    </span>
   );
 }

@@ -65,6 +65,7 @@ describe("UnifiedTerminalCommand", () => {
         command={MOCK_COMMAND}
         output={MOCK_OUTPUT}
         status="completed"
+        displayLines={15}
       />,
     );
 
@@ -113,6 +114,7 @@ describe("UnifiedTerminalCommand", () => {
         command={MOCK_COMMAND}
         output={MOCK_OUTPUT}
         status="completed"
+        displayLines={15}
       />,
     );
 
@@ -227,8 +229,10 @@ describe("UnifiedTerminalCommand", () => {
     const svgIcons = container.querySelectorAll("svg");
     expect(svgIcons.length).toBeGreaterThan(0);
 
-    // Should show "Run" text (may be hidden on small screens)
-    expect(container.textContent).toMatch(/Run/);
+    // Icon-only control keeps the action exposed through its accessible name.
+    expect(
+      screen.getByRole("button", { name: "Run in terminal" }),
+    ).toBeInTheDocument();
   });
 
   test("handles move to background action", async () => {

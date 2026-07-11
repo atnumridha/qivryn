@@ -1,6 +1,7 @@
 import {
-  ArrowLeftIcon,
   ChatBubbleOvalLeftIcon,
+  ChevronDoubleUpIcon,
+  ClockIcon,
 } from "@heroicons/react/24/outline";
 import { Editor, JSONContent } from "@tiptap/react";
 import { ChatHistoryItem, InputModifiers } from "core";
@@ -12,6 +13,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
 } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import styled from "styled-components";
@@ -80,14 +82,30 @@ const StepsDiv = styled.div`
   & > * {
     position: relative;
   }
-
-  .thread-message {
-    margin: 0 0 0 1px;
-  }
 `;
 
 export const MAIN_EDITOR_INPUT_ID = "main-editor-input";
 const INITIAL_RENDERED_HISTORY_ITEMS = 60;
+const CONTINUE_INCOMPLETE_RESPONSE_PROMPT =
+  "Continue your previous response exactly from where it stopped. Do not repeat completed content.";
+
+function createPlainTextEditorState(text: string): JSONContent {
+  return {
+    type: "doc",
+    content: [
+      {
+        type: "paragraph",
+        content: [{ type: "text", text }],
+      },
+    ],
+  };
+}
+
+export function measureScrollbarInset(
+  element: Pick<HTMLElement, "clientWidth" | "offsetWidth">,
+): number {
+  return Math.max(0, element.offsetWidth - element.clientWidth);
+}
 
 function fallbackRender({ error, resetErrorBoundary }: any) {
   // Call resetErrorBoundary() to reset the error boundary and retry the render.
@@ -124,6 +142,7 @@ export function Chat() {
   const [visibleHistoryLimit, setVisibleHistoryLimit] = useState(
     INITIAL_RENDERED_HISTORY_ITEMS,
   );
+  const [scrollbarInset, setScrollbarInset] = useState(0);
   const showChatScrollbar = useAppSelector(
     (state) => state.config.config.ui?.showChatScrollbar,
   );
@@ -139,6 +158,24 @@ export function Chat() {
   }, []);
 
   useAutoScroll(stepsDivRef, history);
+
+  useEffect(() => {
+    const element = stepsDivRef.current;
+    if (!element) return;
+
+    const updateScrollbarInset = () => {
+      const nextInset = measureScrollbarInset(element);
+      setScrollbarInset((currentInset) =>
+        currentInset === nextInset ? currentInset : nextInset,
+      );
+    };
+
+    updateScrollbarInset();
+    const observer = new ResizeObserver(updateScrollbarInset);
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     setVisibleHistoryLimit(INITIAL_RENDERED_HISTORY_ITEMS);
@@ -163,6 +200,10 @@ export function Chat() {
       entries: entries.slice(-visibleHistoryLimit),
     };
   }, [history, visibleHistoryLimit]);
+  const earlierItemsToReveal = Math.min(
+    INITIAL_RENDERED_HISTORY_ITEMS,
+    renderableHistory.hiddenCount,
+  );
 
   useEffect(() => {
     // Cmd + Backspace to delete current step
@@ -304,6 +345,7 @@ export function Chat() {
             contextItems={contextItems}
             appliedRules={appliedRules}
             inputId={message.id}
+            showMessageActions
           />
         );
       }
@@ -316,7 +358,7 @@ export function Chat() {
         return (
           <>
             {/* Always render assistant content through normal path */}
-            <div className="thread-message">
+            <div className="qivryn-assistant-message thread-message">
               <TimelineItem
                 item={item}
                 iconElement={
@@ -334,6 +376,14 @@ export function Chat() {
                   isLast={index === history.length - 1}
                   item={item}
                   latestSummaryIndex={latestSummaryIndex}
+                  onContinueFromIncomplete={() =>
+                    sendInput(
+                      createPlainTextEditorState(
+                        CONTINUE_INCOMPLETE_RESPONSE_PROMPT,
+                      ),
+                      { useCodebase: false, noContext: true },
+                    )
+                  }
                 />
               </TimelineItem>
             </div>
@@ -369,7 +419,7 @@ export function Chat() {
 
       // Default case - regular assistant message
       return (
-        <div className="thread-message">
+        <div className="qivryn-assistant-message thread-message">
           <TimelineItem
             item={item}
             iconElement={<ChatBubbleOvalLeftIcon width="16px" height="16px" />}
@@ -383,6 +433,14 @@ export function Chat() {
               isLast={index === history.length - 1}
               item={item}
               latestSummaryIndex={latestSummaryIndex}
+              onContinueFromIncomplete={() =>
+                sendInput(
+                  createPlainTextEditorState(
+                    CONTINUE_INCOMPLETE_RESPONSE_PROMPT,
+                  ),
+                  { useCodebase: false, noContext: true },
+                )
+              }
             />
           </TimelineItem>
         </div>
@@ -399,6 +457,8 @@ export function Chat() {
   );
 
   const showScrollbar = showChatScrollbar ?? window.innerHeight > 5000;
+  const showLastSessionButton =
+    history.length === 0 && lastSessionId && !isInEdit;
 
   return (
     <>
@@ -407,88 +467,112 @@ export function Chat() {
 
       <StepsDiv
         ref={stepsDivRef}
-        className={`pt-[8px] ${showScrollbar ? "thin-scrollbar" : "no-scrollbar"} ${history.length > 0 ? "min-h-0 flex-1 overflow-y-scroll" : "shrink-0"}`}
+        className={`qivryn-chat-scroll pt-[8px] ${showScrollbar ? "thin-scrollbar" : "no-scrollbar"} min-h-0 flex-1 ${history.length > 0 ? "overflow-y-scroll" : "overflow-y-auto"}`}
       >
-        {highlights}
-        {renderableHistory.hiddenCount > 0 && (
-          <div className="flex justify-center py-3">
-            <button
-              type="button"
-              data-testid="show-earlier-history"
-              className="border-input bg-input hover:bg-list-hover rounded-md border px-3 py-1.5 text-xs"
-              onClick={() =>
-                setVisibleHistoryLimit((current) =>
-                  Math.min(
-                    history.length,
-                    current + INITIAL_RENDERED_HISTORY_ITEMS,
-                  ),
-                )
-              }
-            >
-              Show{" "}
-              {Math.min(
-                INITIAL_RENDERED_HISTORY_ITEMS,
-                renderableHistory.hiddenCount,
-              )}{" "}
-              earlier items
-            </button>
+        {history.length === 0 ? (
+          <div
+            className="qivryn-thread-rail qivryn-empty-thread-rail"
+            data-testid="qivryn-thread-rail"
+          >
+            <EmptyChatBody />
+          </div>
+        ) : (
+          <div className="qivryn-thread-rail" data-testid="qivryn-thread-rail">
+            {highlights}
+            {renderableHistory.hiddenCount > 0 && (
+              <div className="flex justify-center py-3">
+                <button
+                  type="button"
+                  data-testid="show-earlier-history"
+                  className="qivryn-history-load-button"
+                  aria-label={`Show ${earlierItemsToReveal} earlier items`}
+                  title={`Show ${earlierItemsToReveal} earlier items`}
+                  onClick={() =>
+                    setVisibleHistoryLimit((current) =>
+                      Math.min(
+                        history.length,
+                        current + INITIAL_RENDERED_HISTORY_ITEMS,
+                      ),
+                    )
+                  }
+                >
+                  <ChevronDoubleUpIcon
+                    aria-hidden="true"
+                    className="h-3.5 w-3.5"
+                  />
+                  <span aria-hidden="true">+{earlierItemsToReveal}</span>
+                </button>
+              </div>
+            )}
+            {renderableHistory.entries.map(({ item, index }) => (
+              <div
+                key={item.message.id}
+                className="qivryn-history-item-wrap"
+                style={{
+                  minHeight: index === history.length - 1 ? "200px" : 0,
+                }}
+              >
+                <ErrorBoundary
+                  FallbackComponent={fallbackRender}
+                  onReset={() => {
+                    dispatch(newSession());
+                  }}
+                >
+                  {renderChatHistoryItem(item, index)}
+                </ErrorBoundary>
+                {index === history.length - 1 && <InlineErrorMessage />}
+              </div>
+            ))}
           </div>
         )}
-        {renderableHistory.entries.map(({ item, index }) => (
-          <div
-            key={item.message.id}
-            style={{
-              minHeight: index === history.length - 1 ? "200px" : 0,
-            }}
-          >
-            <ErrorBoundary
-              FallbackComponent={fallbackRender}
-              onReset={() => {
-                dispatch(newSession());
-              }}
-            >
-              {renderChatHistoryItem(item, index)}
-            </ErrorBoundary>
-            {index === history.length - 1 && <InlineErrorMessage />}
-          </div>
-        ))}
       </StepsDiv>
       <div
         data-testid="qivryn-chat-composer-layer"
-        className="relative z-0 min-w-0 max-w-full shrink-0 overflow-x-hidden"
+        className="qivryn-chat-composer-layer relative z-0 min-w-0 max-w-full shrink-0 overflow-x-hidden"
+        style={
+          {
+            "--qivryn-chat-scrollbar-inset": `${scrollbarInset}px`,
+          } as CSSProperties
+        }
       >
-        <QivrynInputBox
-          isMainInput
-          isLastUserInput={false}
-          onEnter={(editorState, modifiers, editor) =>
-            sendInput(editorState, modifiers, undefined, editor)
-          }
-          inputId={MAIN_EDITOR_INPUT_ID}
-        />
-
         <div
-          style={{
-            pointerEvents: isStreaming ? "none" : "auto",
-          }}
+          className="qivryn-thread-rail qivryn-composer-rail"
+          data-testid="qivryn-composer-rail"
         >
-          <div className="flex flex-row items-center justify-between pb-1 pl-0.5 pr-2">
-            <div className="xs:inline hidden">
-              {history.length === 0 && lastSessionId && !isInEdit && (
-                <NewSessionButton
-                  onClick={async () => {
-                    await dispatch(loadLastSession());
-                  }}
-                  className="flex items-center gap-2"
-                >
-                  <ArrowLeftIcon className="h-3 w-3" />
-                  <span className="text-xs">Last Session</span>
-                </NewSessionButton>
-              )}
-            </div>
+          <QivrynInputBox
+            isMainInput
+            isLastUserInput={false}
+            onEnter={(editorState, modifiers, editor) =>
+              sendInput(editorState, modifiers, undefined, editor)
+            }
+            inputId={MAIN_EDITOR_INPUT_ID}
+          />
+
+          <div
+            style={{
+              pointerEvents: isStreaming ? "none" : "auto",
+            }}
+          >
+            {showLastSessionButton && (
+              <div className="qivryn-composer-footer flex flex-row items-center justify-between">
+                <div className="xs:inline hidden">
+                  <NewSessionButton
+                    onClick={async () => {
+                      await dispatch(loadLastSession());
+                    }}
+                    type="button"
+                    aria-label="Open last session"
+                    title="Open last session"
+                    className="qivryn-last-session-button"
+                  >
+                    <ClockIcon aria-hidden="true" className="h-3.5 w-3.5" />
+                  </NewSessionButton>
+                </div>
+              </div>
+            )}
+            <FatalErrorIndicator />
+            {!hasDismissedExploreDialog && <ExploreDialogWatcher />}
           </div>
-          <FatalErrorIndicator />
-          {!hasDismissedExploreDialog && <ExploreDialogWatcher />}
-          {history.length === 0 && <EmptyChatBody />}
         </div>
       </div>
     </>

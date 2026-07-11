@@ -344,9 +344,28 @@ export function fromChatResponse(response: ChatCompletion): ChatMessage[] {
   return messages;
 }
 
+function completionMetadataFromFinishReason(
+  finishReason: ChatCompletionChunk.Choice["finish_reason"],
+): Record<string, unknown> | undefined {
+  if (!finishReason) {
+    return undefined;
+  }
+
+  return {
+    completionStatus:
+      finishReason === "length" || finishReason === "content_filter"
+        ? "incomplete"
+        : "complete",
+    completionReason: finishReason,
+  };
+}
+
 export function fromChatCompletionChunk(
   chunk: ChatCompletionChunk,
 ): ChatMessage | undefined {
+  const completionMetadata = completionMetadataFromFinishReason(
+    chunk.choices?.[0]?.finish_reason,
+  );
   const delta = chunk.choices?.[0]?.delta as
     | (ChatCompletionChunk.Choice.Delta & {
         reasoning?: string;
@@ -361,6 +380,7 @@ export function fromChatCompletionChunk(
     return {
       role: "assistant",
       content: delta.content,
+      metadata: completionMetadata,
     };
   } else if (delta?.tool_calls) {
     const toolCalls = delta?.tool_calls
@@ -379,6 +399,7 @@ export function fromChatCompletionChunk(
         role: "assistant",
         content: "",
         toolCalls,
+        metadata: completionMetadata,
       };
     }
   } else if (
@@ -393,6 +414,14 @@ export function fromChatCompletionChunk(
       reasoning_details: delta?.reasoning_details as any[],
     };
     return message;
+  }
+
+  if (completionMetadata) {
+    return {
+      role: "assistant",
+      content: "",
+      metadata: completionMetadata,
+    };
   }
 
   return undefined;
@@ -582,6 +611,40 @@ function handleResponsesStreamEvent(
   e: ResponseStreamEvent,
 ): ChatMessage | undefined {
   const t = (e as any).type as string;
+  if (t === "response.completed") {
+    return {
+      role: "assistant",
+      content: "",
+      metadata: {
+        completionStatus: "complete",
+        completionReason: "stop",
+      },
+    };
+  }
+  if (t === "response.incomplete") {
+    const reason =
+      (e as any).response?.incomplete_details?.reason ?? "incomplete";
+    return {
+      role: "assistant",
+      content: "",
+      metadata: {
+        completionStatus: "incomplete",
+        completionReason: reason,
+      },
+    };
+  }
+  if (t === "response.failed" || t === "error") {
+    const reason =
+      (e as any).response?.error?.code ?? (e as any).error?.code ?? "failed";
+    return {
+      role: "assistant",
+      content: "",
+      metadata: {
+        completionStatus: "incomplete",
+        completionReason: reason,
+      },
+    };
+  }
   if (t === "response.output_text.delta") {
     return handleTextDeltaEvent(e as ResponseTextDeltaEvent);
   }
@@ -622,6 +685,19 @@ function handleResponsesStreamEvent(
 function handleResponsesFinal(
   resp: OpenAIResponse,
 ): ChatMessage | ChatMessage[] | undefined {
+  const responseStatus = (resp as any).status as string | undefined;
+  const completionMetadata: Record<string, unknown> =
+    responseStatus === "incomplete" || responseStatus === "failed"
+      ? {
+          completionStatus: "incomplete",
+          completionReason:
+            (resp as any).incomplete_details?.reason ?? responseStatus,
+        }
+      : {
+          completionStatus: "complete",
+          completionReason: "stop",
+        };
+
   // Prefer structured output items when present
   if (Array.isArray(resp.output) && resp.output.length > 0) {
     const result: ChatMessage[] = [];
@@ -680,10 +756,12 @@ function handleResponsesFinal(
         const assistant: AssistantChatMessage = {
           role: "assistant",
           content: text || "",
-          metadata:
-            typeof item.id === "string"
+          metadata: {
+            ...(typeof item.id === "string"
               ? { responsesOutputItemId: item.id }
-              : undefined,
+              : {}),
+            ...completionMetadata,
+          },
         };
         result.push(assistant);
         continue;
@@ -711,10 +789,12 @@ function handleResponsesFinal(
           role: "assistant",
           content: "",
           toolCalls,
-          metadata:
-            typeof item.id === "string"
+          metadata: {
+            ...(typeof item.id === "string"
               ? { responsesOutputItemId: item.id }
-              : undefined,
+              : {}),
+            ...completionMetadata,
+          },
         };
         result.push(assistant);
         continue;
@@ -725,7 +805,11 @@ function handleResponsesFinal(
 
   // Fallback to output_text when no structured output is present
   if (typeof resp.output_text === "string" && resp.output_text.length > 0) {
-    return { role: "assistant", content: resp.output_text };
+    return {
+      role: "assistant",
+      content: resp.output_text,
+      metadata: completionMetadata,
+    };
   }
 
   return undefined;

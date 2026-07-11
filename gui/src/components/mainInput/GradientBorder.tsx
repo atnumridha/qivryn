@@ -1,11 +1,10 @@
 import styled, { keyframes } from "styled-components";
 
-const gradient = keyframes`
-  0% {
-    background-position: 0px 0;
-  }
-  100% {
-    background-position: 100em 0;
+const progressPulse = keyframes`
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50% {
+    box-shadow: 0 0 0 1px
+      color-mix(in srgb, var(--vscode-focusBorder, #007acc) 48%, transparent);
   }
 `;
 
@@ -17,23 +16,14 @@ export const GradientBorder = styled.div<{
   border-radius: ${(props) => props.borderRadius || "0"};
   padding: 1px;
   background: ${(props) =>
-    props.borderColor
-      ? props.borderColor
-      : `repeating-linear-gradient(
-      101.79deg,
-      #1BBE84 0%,
-      #331BBE 16%,
-      #BE1B55 33%,
-      #A6BE1B 55%,
-      #BE1B55 67%,
-      #331BBE 85%,
-      #1BBE84 99%
-    )`};
-  animation: ${(props) => (props.loading ? gradient : "")} 6s linear infinite;
-  background-size: 200% 200%;
+    props.loading
+      ? "var(--vscode-progressBar-background, var(--vscode-focusBorder, #007acc))"
+      : (props.borderColor ?? "transparent")};
+  animation: ${(props) => (props.loading ? progressPulse : "")} 1.4s ease-in-out
+    infinite;
   width: 100%;
   display: flex;
   flex-direction: row;
   align-items: center;
-  margin-top: ${(props) => (props.loading ? "8px" : "")};
+  margin-top: 0;
 `;

@@ -39,6 +39,7 @@ export const editToolImpl: ClientToolImpl = async (
   const streamId = uuid();
   void extras.dispatch(
     applyForEditTool({
+      ...(extras.sessionId ? { sessionId: extras.sessionId } : {}),
       streamId,
       text: args.changes,
       toolCallId,

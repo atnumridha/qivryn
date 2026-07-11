@@ -48,6 +48,10 @@ describe("Full session lifecycle", () => {
       (session) => session?.sessionId === testSession.sessionId,
     );
     expect(sessionExists).toBe(true);
+    const metadata = sessions.find(
+      (session) => session.sessionId === testSession.sessionId,
+    );
+    expect(metadata?.dateUpdated).toBe(metadata?.dateCreated);
   });
 
   test("Loading session by ID returns correct object", () => {
@@ -60,8 +64,14 @@ describe("Full session lifecycle", () => {
     modifiedSession.title = `Edited: ${testSession.title}`;
     historyManager.save(modifiedSession);
     const session = historyManager.load(testSession.sessionId);
+    const metadata = historyManager
+      .list({})
+      .find((candidate) => candidate.sessionId === testSession.sessionId);
 
     expect(session.title).toBe(modifiedSession.title);
+    expect(Number(metadata?.dateUpdated)).toBeGreaterThanOrEqual(
+      Number(metadata?.dateCreated),
+    );
   });
 
   test("Deleting session", () => {

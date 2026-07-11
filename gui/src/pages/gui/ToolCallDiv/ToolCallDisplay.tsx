@@ -34,24 +34,40 @@ export function ToolCallDisplay({
       openContextItem(shownContextItems[0], ideMessenger);
     }
   }
+
+  const statusContent = (
+    <>
+      <div className="qivryn-tool-status-icon h-4 w-4 flex-shrink-0 font-semibold">
+        {icon}
+      </div>
+      {tool?.faviconUrl && (
+        <img
+          src={tool.faviconUrl}
+          className="h-4 w-4 rounded-sm"
+          alt=""
+          aria-hidden="true"
+        />
+      )}
+      <ToolCallStatusMessage tool={tool} toolCallState={toolCallState} />
+    </>
+  );
+
   return (
-    <div className="flex flex-col justify-center px-4">
+    <div className="qivryn-tool-display flex flex-col justify-center px-4">
       <div className="mb-2 flex flex-col">
-        <div className="flex flex-row items-start justify-between gap-1.5">
-          <div
-            className={`flex min-w-0 flex-row items-center gap-2 transition-colors duration-200 ease-in-out ${
-              isClickable ? "cursor-pointer hover:brightness-125" : ""
-            }`}
-            onClick={isClickable ? handleClick : undefined}
-          >
-            <div className="mt-[1px] h-4 w-4 flex-shrink-0 font-semibold">
-              {icon}
-            </div>
-            {tool?.faviconUrl && (
-              <img src={tool.faviconUrl} className="h-4 w-4 rounded-sm" />
-            )}
-            <ToolCallStatusMessage tool={tool} toolCallState={toolCallState} />
-          </div>
+        <div className="qivryn-tool-status-row">
+          {isClickable ? (
+            <button
+              type="button"
+              className="qivryn-tool-status-trigger"
+              aria-label="Open tool result"
+              onClick={handleClick}
+            >
+              {statusContent}
+            </button>
+          ) : (
+            <div className="qivryn-tool-status-trigger">{statusContent}</div>
+          )}
           {!!toolCallState.output?.length && (
             <ToolTruncateHistoryIcon historyIndex={historyIndex} />
           )}

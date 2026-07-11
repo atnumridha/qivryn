@@ -21,6 +21,10 @@ import {
   streamUpdate,
   updateHistoryItemAtIndex,
 } from "../slices/sessionSlice";
+import {
+  createSessionScopedDispatch,
+  getRootStateForSession,
+} from "../sessionRuntime";
 import { ThunkApiType } from "../store";
 import { constructMessages } from "../util/constructMessages";
 import {
@@ -100,21 +104,38 @@ export const streamNormalInput = createAsyncThunk<
     legacySlashCommandData?: ToCoreProtocol["llm/streamChat"][0]["legacySlashCommandData"];
     depth?: number;
     autoCompactAttempts?: number;
+    sessionId?: string;
   },
   ThunkApiType
 >(
   "chat/streamNormalInput",
   async (
-    { legacySlashCommandData, depth = 0, autoCompactAttempts = 0 },
+    {
+      legacySlashCommandData,
+      depth = 0,
+      autoCompactAttempts = 0,
+      sessionId: requestedSessionId,
+    },
     { dispatch, extra, getState },
   ) => {
+    const sessionId = requestedSessionId ?? getState().session.id;
+    const getScopedState = () => getRootStateForSession(getState(), sessionId);
+    const scopedDispatch = createSessionScopedDispatch(
+      dispatch,
+      sessionId,
+      getState,
+    );
+
     if (process.env.NODE_ENV === "test" && depth > 50) {
       const message = `Max stream depth of ${50} reached in test`;
-      console.error(message, JSON.stringify(getState(), null, 2));
+      console.error(message, JSON.stringify(getScopedState(), null, 2));
       throw new Error(message);
     }
-    let state = getState();
-    const selectedChatModel = selectSelectedChatModel(state);
+    let state = getScopedState();
+    const selectedChatModel =
+      state.config.config?.modelsByRole?.chat?.find(
+        (model) => model.title === state.session.chatModelTitle,
+      ) ?? selectSelectedChatModel(state);
 
     if (!selectedChatModel) {
       throw new Error("No chat model selected");
@@ -127,12 +148,11 @@ export const streamNormalInput = createAsyncThunk<
         return false;
       }
 
-      const latestSessionId = getState().session.id;
-      if (!latestSessionId) {
+      if (!sessionId) {
         return false;
       }
 
-      dispatch(
+      scopedDispatch(
         setCompactionLoading({ index: compactionTarget, loading: true }),
       );
       try {
@@ -140,12 +160,12 @@ export const streamNormalInput = createAsyncThunk<
           "conversation/compact",
           {
             index: compactionTarget,
-            sessionId: latestSessionId,
+            sessionId,
             automatic: true,
           },
         );
         if (compacted?.status === "success" && compacted.content) {
-          dispatch(
+          scopedDispatch(
             updateHistoryItemAtIndex({
               index: compactionTarget,
               updates: {
@@ -154,7 +174,7 @@ export const streamNormalInput = createAsyncThunk<
               },
             }),
           );
-          state = getState();
+          state = getScopedState();
           return true;
         } else if (compacted?.status === "error") {
           console.warn("Automatic context compaction failed", compacted.error);
@@ -164,7 +184,7 @@ export const streamNormalInput = createAsyncThunk<
         // existing pruning/error path handle providers that cannot summarize.
         console.warn("Automatic context compaction failed", error);
       } finally {
-        dispatch(
+        scopedDispatch(
           setCompactionLoading({ index: compactionTarget, loading: false }),
         );
       }
@@ -257,15 +277,15 @@ export const streamNormalInput = createAsyncThunk<
 
     // TODO parallel tool calls will cause issues with this
     // because there will be multiple tool messages, so which one should have applied rules?
-    dispatch(
+    scopedDispatch(
       setAppliedRulesAtIndex({
         index: appliedRuleIndex,
         appliedRules: appliedRules,
       }),
     );
 
-    dispatch(setActive());
-    dispatch(setInlineErrorMessage(undefined));
+    scopedDispatch(setActive());
+    scopedDispatch(setInlineErrorMessage(undefined));
 
     const precompiledRes = await extra.ideMessenger.request("llm/compileChat", {
       messages,
@@ -277,12 +297,13 @@ export const streamNormalInput = createAsyncThunk<
         const didCompact =
           autoCompactAttempts < MAX_GUI_AUTO_COMPACTION_ATTEMPTS &&
           (await compactAutomatically(
-            getAutoCompactionTarget(getState().session.history, 1, true),
+            getAutoCompactionTarget(getScopedState().session.history, 1, true),
           ));
         if (didCompact) {
           unwrapResult(
             await dispatch(
               streamNormalInput({
+                sessionId,
                 legacySlashCommandData,
                 depth: depth + 1,
                 autoCompactAttempts: autoCompactAttempts + 1,
@@ -292,8 +313,8 @@ export const streamNormalInput = createAsyncThunk<
           return;
         }
 
-        dispatch(setInlineErrorMessage("out-of-context"));
-        dispatch(setInactive());
+        scopedDispatch(setInlineErrorMessage("out-of-context"));
+        scopedDispatch(setInactive());
         return;
       } else {
         throw new Error(precompiledRes.error);
@@ -309,10 +330,10 @@ export const streamNormalInput = createAsyncThunk<
       availableTokens,
     } = precompiledRes.content;
 
-    dispatch(setIsPruned(didPrune));
-    dispatch(setContextPercentage(contextPercentage));
+    scopedDispatch(setIsPruned(didPrune));
+    scopedDispatch(setContextPercentage(contextPercentage));
     const configuredContextLength = selectedChatModel.contextLength ?? 32_768;
-    dispatch(
+    scopedDispatch(
       setContextUsage({
         inputTokens:
           inputTokens ??
@@ -329,7 +350,7 @@ export const streamNormalInput = createAsyncThunk<
     ) {
       const didCompact = await compactAutomatically(
         getAutoCompactionTarget(
-          getState().session.history,
+          getScopedState().session.history,
           contextPercentage,
           didPrune,
         ),
@@ -338,6 +359,7 @@ export const streamNormalInput = createAsyncThunk<
         unwrapResult(
           await dispatch(
             streamNormalInput({
+              sessionId,
               legacySlashCommandData,
               depth: depth + 1,
               autoCompactAttempts: autoCompactAttempts + 1,
@@ -351,7 +373,9 @@ export const streamNormalInput = createAsyncThunk<
     const start = Date.now();
     const streamAborter = state.session.streamAborter;
     const toolCallIdsBeforeStream = new Set(
-      selectCurrentToolCalls(getState()).map(({ toolCallId }) => toolCallId),
+      selectCurrentToolCalls(getScopedState()).map(
+        ({ toolCallId }) => toolCallId,
+      ),
     );
     try {
       let gen = extra.ideMessenger.llmStreamChat(
@@ -372,21 +396,16 @@ export const streamNormalInput = createAsyncThunk<
         );
       }
 
-      const streamingSessionId = state.session.id;
       const streamUpdates = createStreamUpdateBatcher((messages) => {
-        // Preserve already-received text after Stop, but never let a delayed
-        // timer write into a newly opened session.
-        if (getState().session.id === streamingSessionId) {
-          dispatch(streamUpdate(messages));
-        }
+        scopedDispatch(streamUpdate(messages));
       });
 
       let next = await gen.next();
       try {
         while (!next.done) {
-          if (!getState().session.isStreaming) {
+          if (!getScopedState().session.isStreaming) {
             streamUpdates.flush();
-            dispatch(abortStream());
+            scopedDispatch(abortStream());
             break;
           }
 
@@ -401,7 +420,7 @@ export const streamNormalInput = createAsyncThunk<
 
       // Attach prompt log and end thinking for reasoning models
       if (next.done && next.value) {
-        dispatch(addPromptCompletionPair([next.value]));
+        scopedDispatch(addPromptCompletionPair([next.value]));
 
         try {
           extra.ideMessenger.post("devdata/log", {
@@ -412,7 +431,7 @@ export const streamNormalInput = createAsyncThunk<
               modelProvider: selectedChatModel.underlyingProviderName,
               modelName: selectedChatModel.title,
               modelTitle: selectedChatModel.title,
-              sessionId: state.session.id,
+              sessionId,
               ...(!!activeTools.length && {
                 tools: activeTools.map((tool) => tool.function.name),
               }),
@@ -429,14 +448,14 @@ export const streamNormalInput = createAsyncThunk<
         }
       }
     } catch (e) {
-      const toolCallsToCancel = selectCurrentToolCalls(getState());
+      const toolCallsToCancel = selectCurrentToolCalls(getScopedState());
       if (
         toolCallsToCancel.length > 0 &&
         e instanceof Error &&
         e.message.toLowerCase().includes("premature close")
       ) {
         for (const tc of toolCallsToCancel) {
-          dispatch(
+          scopedDispatch(
             errorToolCall({
               toolCallId: tc.toolCallId,
               output: [
@@ -457,7 +476,7 @@ export const streamNormalInput = createAsyncThunk<
 
     // Tool call sequence:
     // 1. Mark generating tool calls as generated
-    const state1 = getState();
+    const state1 = getScopedState();
     if (streamAborter.signal.aborted || !state1.session.isStreaming) {
       return;
     }
@@ -471,7 +490,7 @@ export const streamNormalInput = createAsyncThunk<
       (tc) => tc.status === "generating",
     );
     for (const { toolCallId } of generatingCalls) {
-      dispatch(
+      scopedDispatch(
         setToolGenerated({
           toolCallId,
           tools: state1.config.config.tools,
@@ -480,22 +499,26 @@ export const streamNormalInput = createAsyncThunk<
     }
 
     // 2. Pre-process args to catch invalid args before checking policies
-    const state2 = getState();
+    const state2 = getScopedState();
     if (streamAborter.signal.aborted || !state2.session.isStreaming) {
       return;
     }
     const generatedCalls2 = selectPendingToolCalls(state2);
-    await preprocessToolCalls(dispatch, extra.ideMessenger, generatedCalls2);
+    await preprocessToolCalls(
+      scopedDispatch,
+      extra.ideMessenger,
+      generatedCalls2,
+    );
 
     // 3. Security check: evaluate updated policies based on args
-    const state3 = getState();
+    const state3 = getScopedState();
     if (streamAborter.signal.aborted || !state3.session.isStreaming) {
       return;
     }
     const generatedCalls3 = selectPendingToolCalls(state3);
     const toolPolicies = state3.ui.toolSettings;
     const policies = await evaluateToolPolicies(
-      dispatch,
+      scopedDispatch,
       extra.ideMessenger,
       activeTools,
       generatedCalls3,
@@ -511,7 +534,7 @@ export const streamNormalInput = createAsyncThunk<
 
     // 4. Execute remaining tool calls
     if (originalToolCalls.length === 0) {
-      dispatch(setInactive());
+      scopedDispatch(setInactive());
     } else if (needsApprovalPolicies.length > 0) {
       const builtInReadonlyAutoApproved = autoApprovedPolicies.filter(
         ({ toolCallState }) =>
@@ -520,7 +543,7 @@ export const streamNormalInput = createAsyncThunk<
       );
 
       if (builtInReadonlyAutoApproved.length > 0) {
-        const state4 = getState();
+        const state4 = getScopedState();
         if (streamAborter.signal.aborted || !state4.session.isStreaming) {
           return;
         }
@@ -529,6 +552,7 @@ export const streamNormalInput = createAsyncThunk<
             unwrapResult(
               await dispatch(
                 callToolById({
+                  sessionId,
                   toolCallId: toolCallState.toolCallId,
                   isAutoApproved: true,
                   depth: depth + 1,
@@ -540,10 +564,10 @@ export const streamNormalInput = createAsyncThunk<
         );
       }
 
-      dispatch(setInactive());
+      scopedDispatch(setInactive());
     } else {
       // auto stream cases increase thunk depth by 1 for debugging
-      const state4 = getState();
+      const state4 = getScopedState();
       const generatedCalls4 = selectPendingToolCalls(state4);
       if (streamAborter.signal.aborted || !state4.session.isStreaming) {
         return;
@@ -553,6 +577,7 @@ export const streamNormalInput = createAsyncThunk<
           unwrapResult(
             await dispatch(
               callToolById({
+                sessionId,
                 toolCallId: generatedCalls4[0].toolCallId,
                 isAutoApproved: true,
                 depth: depth + 1,
@@ -566,6 +591,7 @@ export const streamNormalInput = createAsyncThunk<
           unwrapResult(
             await dispatch(
               callToolById({
+                sessionId,
                 toolCallId,
                 isAutoApproved: true,
                 depth: depth + 1,
@@ -575,7 +601,7 @@ export const streamNormalInput = createAsyncThunk<
           );
         }
 
-        const stateAfterTools = getState();
+        const stateAfterTools = getScopedState();
         if (
           streamAborter.signal.aborted ||
           !stateAfterTools.session.isStreaming
@@ -594,18 +620,20 @@ export const streamNormalInput = createAsyncThunk<
           unwrapResult(
             await dispatch(
               streamNormalInput({
+                sessionId,
                 depth: depth + 1,
               }),
             ),
           );
         } else {
-          dispatch(setInactive());
+          scopedDispatch(setInactive());
         }
       } else {
         for (const { toolCallId } of originalToolCalls) {
           unwrapResult(
             await dispatch(
               streamResponseAfterToolCall({
+                sessionId,
                 toolCallId,
                 depth: depth + 1,
                 continueAfterToolCall: false,
@@ -614,7 +642,7 @@ export const streamNormalInput = createAsyncThunk<
           );
         }
 
-        const stateAfterToolMessages = getState();
+        const stateAfterToolMessages = getScopedState();
         const currentToolCallsAfterMessages = selectCurrentToolCalls(
           stateAfterToolMessages,
         );
@@ -627,12 +655,13 @@ export const streamNormalInput = createAsyncThunk<
           unwrapResult(
             await dispatch(
               streamNormalInput({
+                sessionId,
                 depth: depth + 1,
               }),
             ),
           );
         } else {
-          dispatch(setInactive());
+          scopedDispatch(setInactive());
         }
       }
     }

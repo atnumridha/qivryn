@@ -1,6 +1,7 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import { ChatHistoryItem, ContextItemWithId } from "core";
 import { CodeBlock } from "../../components/mainInput/TipTapEditor/extensions";
+import { createSessionScopedDispatch } from "../sessionRuntime";
 import { updateFileSymbols } from "../slices/sessionSlice";
 import { ThunkApiType } from "../store";
 
@@ -41,11 +42,21 @@ export function getContextItemsFromHistory(
 */
 export const updateFileSymbolsFromFiles = createAsyncThunk<
   void,
-  string[],
+  string[] | { filepaths: string[]; sessionId?: string },
   ThunkApiType
 >(
   "symbols/updateFromContextItems",
-  async (filepaths, { dispatch, extra, getState }) => {
+  async (input, { dispatch, extra, getState }) => {
+    const filepaths = Array.isArray(input) ? input : input.filepaths;
+    const sessionId =
+      (Array.isArray(input) ? undefined : input.sessionId) ??
+      getState().session.id;
+    const scopedDispatch = createSessionScopedDispatch(
+      dispatch,
+      sessionId,
+      getState,
+    );
+
     try {
       // Get unique file uris from context items
       const uniqueUris = Array.from(new Set(filepaths));
@@ -59,7 +70,7 @@ export const updateFileSymbolsFromFiles = createAsyncThunk<
         if (result.status === "error") {
           throw new Error(result.error);
         }
-        dispatch(updateFileSymbols(result.content));
+        scopedDispatch(updateFileSymbols(result.content));
       }
     } catch (e) {
       console.error("Error updating file symbols from filepaths", e, filepaths);

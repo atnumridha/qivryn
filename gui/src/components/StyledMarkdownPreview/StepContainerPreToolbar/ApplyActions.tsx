@@ -68,14 +68,14 @@ export function ApplyActions(props: ApplyActionsProps) {
             className="!p-0"
           >
             <button
+              type="button"
               data-testid="codeblock-toolbar-apply"
-              className="text-lightgray flex cursor-pointer items-center border-none bg-transparent pl-0 text-xs outline-none hover:brightness-125"
+              aria-label="Apply code"
+              title="Apply code"
+              className="qivryn-code-toolbar-icon text-lightgray flex cursor-pointer items-center justify-center border-none bg-transparent outline-none hover:brightness-125"
               onClick={props.onClickApply}
             >
-              <div className="text-lightgray flex items-center gap-1">
-                <PlayIcon className="h-3.5 w-3.5" />
-                <span className="xs:inline hidden">Apply</span>
-              </div>
+              <PlayIcon aria-hidden="true" className="h-3.5 w-3.5" />
             </button>
           </HoverItem>
         </ToolTip>

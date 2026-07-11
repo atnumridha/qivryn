@@ -5,17 +5,32 @@ import GUI from ".";
 
 afterEach(() => {
   delete (window as any).isFullScreen;
+  delete document.body.dataset.qivrynFullscreen;
 });
 
 test("does not duplicate native view-toolbar actions inside chat", async () => {
   await renderWithProviders(<GUI />);
 
+  expect(screen.queryByPlaceholderText("Search sessions")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Clear history" })).toBeNull();
   expect(screen.queryByTestId("qivryn-chat-header")).toBeNull();
   expect(screen.queryByRole("button", { name: "Open settings" })).toBeNull();
   expect(screen.queryByRole("button", { name: "New chat" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Reload chat" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Open full screen" })).toBeNull();
   expect(screen.getByTestId("qivryn-chat-composer-layer")).toBeVisible();
+});
+
+test("uses one shared rail for the transcript and composer", async () => {
+  await renderWithProviders(<GUI />);
+
+  expect(document.querySelector(".qivryn-chat-route")).not.toBeNull();
+  expect(screen.getByTestId("qivryn-thread-rail")).toHaveClass(
+    "qivryn-thread-rail",
+  );
+  expect(screen.getByTestId("qivryn-composer-rail")).toHaveClass(
+    "qivryn-thread-rail",
+  );
 });
 
 test("attaches every dropped file to the composer", async () => {
@@ -43,12 +58,22 @@ test("uses the full standalone window for chat instead of the history sidebar", 
   (window as any).isFullScreen = true;
   await renderWithProviders(<GUI />);
 
-  expect(screen.queryByPlaceholderText("Search past sessions")).toBeNull();
+  expect(screen.queryByPlaceholderText("Search sessions")).toBeNull();
   expect(
     screen.getByRole("button", { name: "Agents mode dropdown" }),
   ).toBeVisible();
   expect(screen.queryByRole("button", { name: "New chat" })).toBeNull();
   expect(screen.queryByTestId("qivryn-chat-header")).toBeNull();
+});
+
+test("uses the host fullscreen marker when the window flag is unavailable", async () => {
+  document.body.dataset.qivrynFullscreen = "true";
+  await renderWithProviders(<GUI />);
+
+  expect(screen.queryByPlaceholderText("Search sessions")).toBeNull();
+  expect(
+    screen.getByRole("button", { name: "Agents mode dropdown" }),
+  ).toBeVisible();
 });
 
 test("keeps tool permissions and skills inside the primary mode dropdown", async () => {

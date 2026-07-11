@@ -291,6 +291,10 @@ describe("streamResponseThunk", () => {
         payload: undefined,
       },
       {
+        type: "session/setSessionChatModelTitle",
+        payload: "Claude 3.5 Sonnet",
+      },
+      {
         type: "symbols/updateFromContextItems/pending",
         meta: {
           arg: [],
@@ -340,20 +344,20 @@ describe("streamResponseThunk", () => {
         payload: undefined,
       },
       {
-        type: "session/setInlineErrorMessage",
-        payload: "out-of-context",
-      },
-      {
-        type: "session/setInactive",
-        payload: undefined,
-      },
-      {
         type: "symbols/updateFromContextItems/fulfilled",
         meta: {
           arg: [],
           requestId: expect.any(String),
           requestStatus: "fulfilled",
         },
+        payload: undefined,
+      },
+      {
+        type: "session/setInlineErrorMessage",
+        payload: "out-of-context",
+      },
+      {
+        type: "session/setInactive",
         payload: undefined,
       },
       {
@@ -511,6 +515,7 @@ describe("streamResponseThunk", () => {
       ...initialState,
       session: {
         ...initialState.session,
+        chatModelTitle: "Claude 3.5 Sonnet",
         title: "Hello",
         history: [
           {
@@ -631,6 +636,10 @@ describe("streamResponseThunk", () => {
       {
         type: "session/resetNextCodeBlockToApplyIndex",
         payload: undefined,
+      },
+      {
+        type: "session/setSessionChatModelTitle",
+        payload: "Claude 3.5 Sonnet",
       },
       {
         type: "symbols/updateFromContextItems/pending",
@@ -812,6 +821,7 @@ describe("streamResponseThunk", () => {
       ...initialState,
       session: {
         ...initialState.session,
+        chatModelTitle: "Claude 3.5 Sonnet",
         streamAborter: expect.any(AbortController),
         mainEditorContentTrigger: mockEditorState, // Editor content that triggered the request
       },

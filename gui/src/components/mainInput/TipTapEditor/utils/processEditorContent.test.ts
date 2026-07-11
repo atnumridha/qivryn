@@ -156,6 +156,60 @@ describe("processEditorContent", () => {
     ]);
   });
 
+  test("processEditorContent should load selected skills before the user prompt", () => {
+    const editorState: JSONContent = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            {
+              type: "skill-mention",
+              attrs: { id: "ui-ux-pro-max", label: "ui-ux-pro-max" },
+            },
+            { type: "text", text: " Review the composer" },
+          ],
+        },
+      ],
+    };
+
+    expect(processEditorContent(editorState).parts).toEqual([
+      {
+        type: "text",
+        text: 'Use the "ui-ux-pro-max" skill for this task.\n\nReview the composer',
+      },
+    ]);
+  });
+
+  test("processEditorContent should deduplicate skill-only selections", () => {
+    const editorState: JSONContent = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            {
+              type: "skill-mention",
+              attrs: { id: "frontend-design", label: "frontend-design" },
+            },
+            { type: "text", text: " " },
+            {
+              type: "skill-mention",
+              attrs: { id: "frontend-design", label: "frontend-design" },
+            },
+          ],
+        },
+      ],
+    };
+
+    expect(processEditorContent(editorState).parts).toEqual([
+      {
+        type: "text",
+        text: 'Use the "frontend-design" skill for this task.',
+      },
+    ]);
+  });
+
   test("processEditorContent should handle code blocks", () => {
     const codeItem = createContextItem(
       "function test() {\n  return 'hello';\n}",

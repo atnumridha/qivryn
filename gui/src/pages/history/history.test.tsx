@@ -1,5 +1,12 @@
 import { screen } from "@testing-library/dom";
+import { act } from "@testing-library/react";
 import { MockIdeMessenger } from "../../context/MockIdeMessenger";
+import { setupStore } from "../../redux/store";
+import {
+  newSession,
+  setActive,
+  setAllSessionMetadata,
+} from "../../redux/slices/sessionSlice";
 import { renderWithProviders } from "../../util/test/render";
 import HistoryPage from "./index";
 
@@ -38,5 +45,51 @@ describe("history Page test", () => {
       },
     );
     expect(sessionElement).toBeInTheDocument();
+  });
+
+  it("keeps a running chat above a more recently completed chat", async () => {
+    const messenger = new MockIdeMessenger();
+    const store = setupStore({ ideMessenger: messenger });
+    const now = Date.now();
+    store.dispatch(
+      setAllSessionMetadata([
+        {
+          title: "Older running chat",
+          sessionId: "running-session",
+          dateCreated: String(now - 10 * 24 * 60 * 60 * 1000),
+          dateUpdated: String(now - 10 * 24 * 60 * 60 * 1000),
+          workspaceDirectory: "/workspace/app",
+        },
+        {
+          title: "Recent completed chat",
+          sessionId: "completed-session",
+          dateCreated: String(now - 60 * 1000),
+          dateUpdated: String(now - 60 * 1000),
+          workspaceDirectory: "/workspace/app",
+        },
+      ]),
+    );
+    store.dispatch(
+      newSession({
+        sessionId: "running-session",
+        title: "Older running chat",
+        workspaceDirectory: "/workspace/app",
+        history: [],
+      }),
+    );
+    const rendered = await renderWithProviders(<HistoryPage />, {
+      mockIdeMessenger: messenger,
+      store,
+    });
+    await act(async () => {
+      rendered.store.dispatch(setActive());
+    });
+
+    expect(
+      screen.getByRole("heading", { name: "Running" }),
+    ).toBeInTheDocument();
+    const rows = screen.getAllByRole("listitem");
+    expect(rows[0]).toHaveTextContent("Older running chat");
+    expect(rows[0]).toHaveAttribute("data-running", "true");
   });
 });

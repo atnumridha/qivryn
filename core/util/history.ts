@@ -21,6 +21,17 @@ function safeParseArray<T>(
   }
 }
 
+function getSessionActivityTime(session: BaseSessionMetadata): number {
+  const value = session.dateUpdated ?? session.dateCreated;
+  const parsed = new Date(value).getTime();
+  if (!Number.isNaN(parsed)) {
+    return parsed;
+  }
+
+  const numeric = Number.parseInt(value, 10);
+  return Number.isNaN(numeric) ? 0 : numeric;
+}
+
 export class HistoryManager {
   list(options: ListHistoryOptions): BaseSessionMetadata[] {
     const filepath = getSessionsListPath();
@@ -34,9 +45,10 @@ export class HistoryManager {
       .filter((session: any) => {
         // Filter out old format
         return typeof session.session_id !== "string";
-        // Reverse to show newest first; sessions.json is chronological by creation
       })
-      .reverse();
+      // Reverse first to retain newest-created ordering when activity times tie.
+      .reverse()
+      .sort((a, b) => getSessionActivityTime(b) - getSessionActivityTime(a));
 
     // Filter by workspace directory if provided
     if (options.workspaceDirectory) {
@@ -151,6 +163,7 @@ export class HistoryManager {
       }
 
       let found = false;
+      const now = String(Date.now());
       const messageCount = session.history.filter(
         (item) => item.message.role === "assistant",
       ).length;
@@ -159,6 +172,7 @@ export class HistoryManager {
           sessionMetadata.title = session.title;
           sessionMetadata.workspaceDirectory = session.workspaceDirectory;
           sessionMetadata.messageCount = messageCount;
+          sessionMetadata.dateUpdated = now;
           found = true;
           break;
         }
@@ -168,7 +182,8 @@ export class HistoryManager {
         const sessionMetadata: BaseSessionMetadata = {
           sessionId: session.sessionId,
           title: session.title,
-          dateCreated: String(Date.now()),
+          dateCreated: now,
+          dateUpdated: now,
           workspaceDirectory: session.workspaceDirectory,
           messageCount,
         };

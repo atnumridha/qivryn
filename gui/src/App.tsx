@@ -1,10 +1,11 @@
-import { Navigate, RouterProvider, createMemoryRouter } from "react-router-dom";
+import { RouterProvider, createMemoryRouter } from "react-router-dom";
 import Layout from "./components/Layout";
 import { MainEditorProvider } from "./components/mainInput/TipTapEditor";
 import { SubmenuContextProvidersProvider } from "./context/SubmenuContextProviders";
 import { VscThemeProvider } from "./context/VscTheme";
 import ParallelListeners from "./hooks/ParallelListeners";
 import ConfigPage from "./pages/config";
+import Agents from "./pages/agents";
 import ErrorPage from "./pages/error";
 import Chat from "./pages/gui";
 import History from "./pages/history";
@@ -40,7 +41,7 @@ const routes = [
       },
       {
         path: ROUTES.AGENTS,
-        element: <Navigate to={ROUTES.HOME} replace />,
+        element: <Agents />,
       },
       {
         path: ROUTES.REVIEW,

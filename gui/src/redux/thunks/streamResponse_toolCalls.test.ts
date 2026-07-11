@@ -32,6 +32,7 @@ import {
 import { QivrynErrorReason } from "core/util/errors";
 import { resolveEditorContent } from "../../components/mainInput/TipTapEditor/utils/resolveEditorContent";
 import { MockIdeMessenger } from "../../context/MockIdeMessenger";
+import { newSession } from "../slices/sessionSlice";
 import { RootState } from "../store";
 import { getRootStateWithClaude } from "./streamResponse.test";
 
@@ -85,6 +86,123 @@ beforeEach(() => {
 });
 
 describe("streamResponseThunk - tool calls", () => {
+  it("keeps an approved tool running when another session is selected", async () => {
+    const initialState = getRootStateWithClaude();
+    initialState.session.id = "tool-session";
+    initialState.session.chatModelTitle = mockClaudeModel.title;
+    initialState.session.history = [
+      {
+        contextItems: [],
+        message: {
+          id: "assistant-tool-message",
+          role: "assistant",
+          content: "I will run the tool.",
+          toolCalls: [
+            {
+              id: "background-tool",
+              type: "function",
+              function: { name: grepName, arguments: "{}" },
+            },
+          ],
+        },
+        toolCallStates: [
+          {
+            toolCallId: "background-tool",
+            toolCall: {
+              id: "background-tool",
+              type: "function",
+              function: { name: grepName, arguments: "{}" },
+            },
+            parsedArgs: {},
+            status: "generated",
+            tool: grepTool,
+          },
+        ],
+      },
+    ];
+    initialState.config.config.tools = [grepTool];
+
+    const store = createMockStore(initialState);
+    const messenger = store.mockIdeMessenger;
+    let releaseTool!: () => void;
+    const toolGate = new Promise<void>((resolve) => {
+      releaseTool = resolve;
+    });
+    messenger.responseHandlers["tools/call"] = async () => {
+      await toolGate;
+      return {
+        contextItems: [
+          {
+            name: "Tool Result",
+            description: "Background tool completed",
+            content: "BACKGROUND_TOOL_COMPLETE",
+          },
+        ],
+      };
+    };
+
+    const { callToolById } = await import("./callToolById");
+    const runningTool = store.dispatch(
+      callToolById({ toolCallId: "background-tool" }) as any,
+    );
+
+    const waitFor = async (predicate: () => boolean) => {
+      const deadline = Date.now() + 2_000;
+      while (!predicate()) {
+        if (Date.now() > deadline) {
+          throw new Error("Timed out waiting for tool session state");
+        }
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+    };
+    await waitFor(
+      () =>
+        (store.getState() as RootState).session.isStreaming &&
+        (store.getState() as RootState).session.history[0].toolCallStates?.[0]
+          ?.status === "calling",
+    );
+
+    store.dispatch(
+      newSession({
+        sessionId: "visible-session",
+        title: "Visible session",
+        workspaceDirectory: "",
+        history: [],
+        mode: "agent",
+        chatModelTitle: mockClaudeModel.title,
+      }),
+    );
+
+    const navigatedState = store.getState() as RootState;
+    expect(navigatedState.session.id).toBe("visible-session");
+    expect(
+      navigatedState.session.backgroundSessionStates?.["tool-session"]
+        ?.isStreaming,
+    ).toBe(true);
+    expect(
+      navigatedState.session.backgroundSessionStates?.["tool-session"]
+        ?.history[0].toolCallStates?.[0]?.status,
+    ).toBe("calling");
+
+    releaseTool();
+    await runningTool;
+
+    const completedState = store.getState() as RootState;
+    const completedRuntime =
+      completedState.session.backgroundSessionStates?.["tool-session"];
+    expect(completedState.session.id).toBe("visible-session");
+    expect(completedState.session.history).toEqual([]);
+    expect(completedRuntime?.isStreaming).toBe(false);
+    expect(completedRuntime?.history[0].toolCallStates?.[0]?.status).toBe(
+      "done",
+    );
+    expect(
+      completedRuntime?.history.some((item) =>
+        String(item.message.content).includes("This is a test"),
+      ),
+    ).toBe(true);
+  });
+
   it("should execute streaming flow with tool call execution", async () => {
     // Set up auto-approved tool setting for our test tool
     const initialState = getRootStateWithClaude();
@@ -256,6 +374,7 @@ describe("streamResponseThunk - tool calls", () => {
       "chat/streamWrapper/pending",
       "session/submitEditorAndInitAtIndex",
       "session/resetNextCodeBlockToApplyIndex",
+      "session/setSessionChatModelTitle",
       "symbols/updateFromContextItems/pending",
       "session/updateHistoryItemAtIndex",
       "chat/streamNormalInput/pending",
@@ -270,6 +389,7 @@ describe("streamResponseThunk - tool calls", () => {
       "session/addPromptCompletionPair",
       "session/setToolGenerated",
       "chat/callTool/pending",
+      "session/setActive",
       "session/setToolCallCalling",
       "session/updateToolCallOutput",
       "session/acceptToolCall",
@@ -440,6 +560,7 @@ describe("streamResponseThunk - tool calls", () => {
       ...initialState,
       session: {
         ...initialState.session,
+        chatModelTitle: "Claude 3.5 Sonnet",
         history: [
           {
             contextItems: [],
@@ -831,6 +952,10 @@ describe("streamResponseThunk - tool calls", () => {
         payload: undefined,
       },
       {
+        type: "session/setSessionChatModelTitle",
+        payload: "Claude 3.5 Sonnet",
+      },
+      {
         type: "symbols/updateFromContextItems/pending",
         meta: {
           arg: [],
@@ -1129,6 +1254,7 @@ describe("streamResponseThunk - tool calls", () => {
       ...initialState,
       session: {
         ...initialState.session,
+        chatModelTitle: "Claude 3.5 Sonnet",
         history: [
           {
             contextItems: [],
@@ -1396,6 +1522,10 @@ describe("streamResponseThunk - tool calls", () => {
         payload: undefined,
       },
       {
+        type: "session/setSessionChatModelTitle",
+        payload: "Claude 3.5 Sonnet",
+      },
+      {
         type: "symbols/updateFromContextItems/pending",
         meta: {
           arg: [],
@@ -1658,6 +1788,10 @@ describe("streamResponseThunk - tool calls", () => {
           requestId: expect.any(String),
           requestStatus: "pending",
         },
+        payload: undefined,
+      },
+      {
+        type: "session/setActive",
         payload: undefined,
       },
       {
@@ -1937,6 +2071,7 @@ describe("streamResponseThunk - tool calls", () => {
       ...initialState,
       session: {
         ...initialState.session,
+        chatModelTitle: "Claude 3.5 Sonnet",
         title: "Session summary",
         history: [
           {

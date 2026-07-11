@@ -64,7 +64,7 @@ const AnsiLink = styled.a`
 const StyledTerminalContainer = styled.div<{
   fontSize?: number;
 }>`
-  background-color: var(--background);
+  background-color: transparent;
   font-family:
     ui-sans-serif,
     system-ui,
@@ -80,7 +80,7 @@ const StyledTerminalContainer = styled.div<{
   color: var(--foreground);
   line-height: 1.5;
   box-sizing: border-box;
-  width: calc(100% - 1rem);
+  width: 100%;
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
@@ -341,6 +341,8 @@ interface UnifiedTerminalCommandProps {
   displayLines?: number;
 }
 
+const DEFAULT_TERMINAL_DISPLAY_LINES = 4;
+
 export function UnifiedTerminalCommand({
   command,
   output = "",
@@ -348,7 +350,7 @@ export function UnifiedTerminalCommand({
   statusMessage = "",
   toolCallState,
   toolCallId,
-  displayLines = 15,
+  displayLines = DEFAULT_TERMINAL_DISPLAY_LINES,
 }: UnifiedTerminalCommandProps) {
   const dispatch = useAppDispatch();
   const [isExpanded, setIsExpanded] = useState(true);
@@ -425,27 +427,35 @@ export function UnifiedTerminalCommand({
   return (
     <StyledTerminalContainer
       fontSize={getFontSize()}
-      className="mx-2 mb-4"
+      className="qivryn-terminal-container"
       data-testid="terminal-container"
     >
-      <div className="outline-command-border rounded-default bg-editor !my-2 flex min-w-0 flex-col outline outline-1">
+      <div className="qivryn-terminal-card outline-command-border rounded-default bg-editor flex min-w-0 flex-col outline outline-1">
         {/* Toolbar */}
         <div
-          className={`find-widget-skip bg-editor sticky -top-2 z-10 m-0 flex items-center justify-between gap-3 px-1.5 py-1 ${
+          className={`qivryn-terminal-header find-widget-skip bg-editor sticky -top-2 z-10 m-0 flex items-center justify-between gap-3 px-1.5 py-1 ${
             isExpanded
               ? "rounded-t-default border-command-border border-b"
               : "rounded-default"
           }`}
           style={{ fontSize: `${getFontSize() - 2}px` }}
         >
-          <div className="flex max-w-[50%] flex-row items-center">
-            <ChevronDownIcon
+          <div className="flex min-w-0 flex-row items-center">
+            <button
+              type="button"
+              aria-label={isExpanded ? "Collapse Terminal" : "Expand Terminal"}
+              className="qivryn-terminal-toggle"
               onClick={() => setIsExpanded(!isExpanded)}
-              className={`text-description h-3.5 w-3.5 flex-shrink-0 cursor-pointer hover:brightness-125 ${
-                isExpanded ? "rotate-0" : "-rotate-90"
-              }`}
-            />
-            <span className="text-description ml-2 select-none">Terminal</span>
+            >
+              <ChevronDownIcon
+                className={`text-description h-3.5 w-3.5 flex-shrink-0 cursor-pointer hover:brightness-125 ${
+                  isExpanded ? "rotate-0" : "-rotate-90"
+                }`}
+              />
+            </button>
+            <span className="qivryn-terminal-title text-description ml-1.5 select-none">
+              Terminal
+            </span>
           </div>
 
           <div className="flex min-w-0 flex-shrink items-center gap-2.5">
@@ -460,12 +470,13 @@ export function UnifiedTerminalCommand({
 
         {/* Content */}
         {isExpanded && (
-          <TerminalContent>
+          <TerminalContent className="qivryn-terminal-body">
             <pre className="bg-editor">
               <code>
                 {/* Command is always visible */}
-                <div className="text-terminal whitespace-pre-wrap break-words pb-2">
-                  {command}
+                <div className="qivryn-terminal-command text-terminal whitespace-pre-wrap break-words pb-2">
+                  <span aria-hidden="true">$ </span>
+                  <span>{command}</span>
                 </div>
 
                 {/* Running state with cursor */}
@@ -489,7 +500,7 @@ export function UnifiedTerminalCommand({
                       />
                     )}
 
-                    <div className="pt-2">
+                    <div className="qivryn-terminal-output pt-2">
                       {processedTerminalContent.isLimited ? (
                         <CollapsibleOutputContainer
                           limitedContent={

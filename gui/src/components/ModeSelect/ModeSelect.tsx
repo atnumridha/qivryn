@@ -1,6 +1,7 @@
 import {
   CheckIcon,
   ChevronDownIcon,
+  ChevronRightIcon,
   CubeIcon,
   ExclamationTriangleIcon,
   InformationCircleIcon,
@@ -20,6 +21,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/Auth";
 import { useAppDispatch, useAppSelector } from "../../redux/hooks";
 import { selectSelectedChatModel } from "../../redux/slices/configSlice";
@@ -31,9 +33,10 @@ import {
 import { setAgentAccessModeAndReleasePending } from "../../redux/thunks/setAgentAccessMode";
 import { updateSelectedModelByRole } from "../../redux/thunks/updateSelectedModelByRole";
 import { getFontSize, getMetaKeyLabel } from "../../util";
+import { ROUTES } from "../../util/navigation";
 import { ToolTip } from "../gui/Tooltip";
 import { useMainEditor } from "../mainInput/TipTapEditor";
-import { EFFORT_LABELS } from "../modelSelection/ReasoningEffortSelect";
+import { formatReasoningEffort } from "../modelSelection/reasoningEffortLabels";
 import { SkillSummary, useSkillsCatalog } from "../skills/SkillSelect";
 import { ModeIcon } from "./ModeIcon";
 
@@ -119,8 +122,12 @@ function modelSelectTitle(model: any): string {
   return model?.class_name ?? "Select model";
 }
 
+export function compactModelTriggerName(label: string): string {
+  return label.replace(/^Codex:\s*/i, "").replace(/^GPT-/i, "");
+}
+
 const MENU_PANEL_BASE =
-  "qivryn-mode-menu bg-vsc-input-background border-border no-scrollbar fixed flex min-w-0 origin-top-left flex-col overflow-y-auto rounded-xl border border-solid p-1.5 shadow-2xl";
+  "qivryn-mode-menu bg-vsc-input-background border-border no-scrollbar fixed flex min-w-0 origin-top-left flex-col overflow-y-auto rounded-lg border border-solid p-1";
 
 const MENU_VIEWPORT_GAP = 8;
 const MENU_TRIGGER_GAP = 6;
@@ -167,6 +174,7 @@ export function ModeSelect({
   onAgentRuntimeChange,
   includeAgentControls = false,
   includeModelControls = false,
+  modelOnly = false,
 }: {
   skillName?: string;
   onSkillChange?: (name: string | undefined) => void;
@@ -176,6 +184,7 @@ export function ModeSelect({
   onAgentRuntimeChange?: (mode: AgentRuntimeMode) => void;
   includeAgentControls?: boolean;
   includeModelControls?: boolean;
+  modelOnly?: boolean;
 } = {}) {
   const menuId = useId();
   const skillsGroupId = useId();
@@ -196,6 +205,7 @@ export function ModeSelect({
     visibility: "hidden",
   });
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const { selectedProfile } = useAuth();
   const mode = useAppSelector((store) => store.session.mode);
   const isInEdit = useAppSelector((store) => store.session.isInEdit);
@@ -309,6 +319,9 @@ export function ModeSelect({
       : (reasoningLevels[0] ?? "medium"));
   const selectedReasoningEffort =
     reasoningEffortSettings[selectedModelTitle] ?? defaultReasoningEffort;
+  const selectedReasoningLabel = reasoningLevels.length
+    ? formatReasoningEffort(selectedReasoningEffort)
+    : undefined;
 
   const isGoodAtAgentMode = useMemo(() => {
     if (!selectedModel) {
@@ -328,17 +341,26 @@ export function ModeSelect({
     }
 
     const rect = button.getBoundingClientRect();
-    const richMenu = includeAgentControls || includeModelControls;
-    const preferredWidth = richMenu ? RICH_MENU_WIDTH : BASIC_MENU_WIDTH;
-    const preferredMaxHeight = richMenu
-      ? RICH_MENU_MAX_HEIGHT
-      : BASIC_MENU_MAX_HEIGHT;
+    const richMenu = includeAgentControls || includeModelControls || modelOnly;
+    const preferredWidth = modelOnly
+      ? 282
+      : richMenu
+        ? RICH_MENU_WIDTH
+        : BASIC_MENU_WIDTH;
+    const preferredMaxHeight = modelOnly
+      ? 340
+      : richMenu
+        ? RICH_MENU_MAX_HEIGHT
+        : BASIC_MENU_MAX_HEIGHT;
     const width = Math.max(
       168,
       Math.min(preferredWidth, window.innerWidth - MENU_VIEWPORT_GAP * 2),
     );
+    const measuredPanelHeight = panelRef.current?.scrollHeight;
     const panelHeight = Math.min(
-      panelRef.current?.offsetHeight ?? preferredMaxHeight,
+      measuredPanelHeight && measuredPanelHeight > 0
+        ? measuredPanelHeight
+        : preferredMaxHeight,
       preferredMaxHeight,
     );
     const spaceAbove = rect.top - MENU_VIEWPORT_GAP;
@@ -375,7 +397,7 @@ export function ModeSelect({
       top,
       visibility: "visible",
     });
-  }, [includeAgentControls, includeModelControls]);
+  }, [includeAgentControls, includeModelControls, modelOnly]);
 
   const closeModeDropdown = useCallback(() => {
     setIsOpen(false);
@@ -416,6 +438,11 @@ export function ModeSelect({
     },
     [closeModeDropdown, dispatch, mode, mainEditor],
   );
+
+  const openBackgroundTasks = useCallback(() => {
+    closeModeDropdown();
+    navigate(ROUTES.AGENTS);
+  }, [closeModeDropdown, navigate]);
 
   const selectSkill = useCallback(
     (skill: SkillSummary | undefined) => {
@@ -587,6 +614,8 @@ export function ModeSelect({
   useEffect(() => {
     if (isOpen) {
       updateMenuPosition();
+      const frame = window.requestAnimationFrame(updateMenuPosition);
+      return () => window.cancelAnimationFrame(frame);
     }
   }, [
     accessOpen,
@@ -599,6 +628,25 @@ export function ModeSelect({
     sortedSkills.length,
     updateMenuPosition,
   ]);
+
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!isOpen || !panel || typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    let frame = 0;
+    const observer = new ResizeObserver(() => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(updateMenuPosition);
+    });
+    observer.observe(panel);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [isOpen, updateMenuPosition]);
 
   const notGreatAtAgent = (mode: string) => (
     <>
@@ -613,6 +661,17 @@ export function ModeSelect({
       </ToolTip>
     </>
   );
+  const modeLabel =
+    mode === "chat"
+      ? "Ask"
+      : mode === "agent"
+        ? "Agent"
+        : mode === "debug"
+          ? "Debug"
+          : "Plan";
+  const triggerLabel = modelOnly
+    ? compactModelTriggerName(selectedModelLabel)
+    : modeLabel;
 
   return (
     <div
@@ -624,12 +683,16 @@ export function ModeSelect({
         <button
           ref={buttonRef}
           type="button"
-          data-testid="mode-select-button"
-          aria-label="Agents mode dropdown"
+          data-testid={modelOnly ? "model-select-button" : "mode-select-button"}
+          aria-label={modelOnly ? "Model dropdown" : "Agents mode dropdown"}
           aria-haspopup="menu"
           aria-expanded={isOpen}
           aria-controls={isOpen ? menuId : undefined}
-          className={`text-description hover:bg-list-hover hover:text-foreground focus-visible:ring-border-focus inline-flex h-6 max-w-[112px] items-center gap-1 rounded-full border border-solid px-2 py-0.5 shadow-sm transition-colors duration-150 focus-visible:outline-none focus-visible:ring-1 ${
+          className={`qivryn-select-trigger text-description hover:bg-list-hover hover:text-foreground focus-visible:ring-border-focus inline-flex h-6 items-center gap-1 rounded-md border border-solid px-2 py-0.5 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-1 ${
+            modelOnly
+              ? "qivryn-model-select-button max-w-[128px]"
+              : "max-w-[112px]"
+          } ${
             isOpen
               ? "border-border bg-list-hover text-foreground"
               : "bg-lightgray/20 border-transparent"
@@ -643,18 +706,30 @@ export function ModeSelect({
             }
           }}
         >
-          <ModeIcon mode={mode} />
-          <span className="block truncate">
-            {mode === "chat"
-              ? "Ask"
-              : mode === "agent"
-                ? "Agents"
-                : mode === "debug"
-                  ? "Debug"
-                  : "Plan"}
-          </span>
+          {!modelOnly && (
+            <ModeIcon
+              mode={mode}
+              className="qivryn-mode-trigger-icon h-4 w-4"
+            />
+          )}
+          {modelOnly ? (
+            <span className="qivryn-mode-trigger-label flex min-w-0 items-center gap-1">
+              <span className="qivryn-model-trigger-name min-w-0 truncate">
+                {triggerLabel}
+              </span>
+              {selectedReasoningLabel && (
+                <span className="qivryn-model-trigger-reasoning flex-shrink-0">
+                  {selectedReasoningLabel}
+                </span>
+              )}
+            </span>
+          ) : (
+            <span className="qivryn-mode-trigger-label block truncate">
+              {triggerLabel}
+            </span>
+          )}
           <ChevronDownIcon
-            className="h-2 w-2 flex-shrink-0"
+            className="qivryn-select-chevron h-2.5 w-2.5 flex-shrink-0"
             aria-hidden="true"
           />
         </button>
@@ -666,127 +741,151 @@ export function ModeSelect({
               ref={panelRef}
               data-qivryn-interactive="true"
               role="menu"
-              aria-label="Mode, skills, autonomy, model, and reasoning controls"
+              aria-label={
+                modelOnly
+                  ? "Model and reasoning controls"
+                  : "Mode, skills, autonomy, model, and reasoning controls"
+              }
               onKeyDown={handleMenuKeyDown}
-              className={`${MENU_PANEL_BASE} ${
-                includeAgentControls || includeModelControls
+              className={`${MENU_PANEL_BASE} ${modelOnly ? "qivryn-model-menu" : ""} ${
+                includeAgentControls || includeModelControls || modelOnly
                   ? "max-h-[min(72vh,372px)] w-[min(320px,calc(100vw-16px))]"
                   : "max-h-[min(70vh,360px)] w-[min(206px,calc(100vw-16px))]"
               }`}
               style={{
                 ...menuStyle,
                 zIndex: DROPDOWN_LAYER,
-                color:
-                  "var(--vscode-dropdown-foreground, var(--vscode-editor-foreground, #e4e4e4))",
-                background:
-                  "linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0)), var(--vscode-dropdown-background, var(--vscode-quickInput-background, #242424))",
-                borderColor:
-                  "var(--vscode-dropdown-border, rgba(228, 228, 228, 0.16))",
-                boxShadow:
-                  "0 18px 46px rgba(0,0,0,0.44), inset 0 1px 0 rgba(255,255,255,0.06)",
               }}
             >
-              <button
-                type="button"
-                role="menuitemradio"
-                aria-checked={mode === "agent"}
-                className={modeItemClass(mode === "agent")}
-                onClick={() => selectMode("agent")}
-              >
-                <div className="flex flex-row items-center gap-1.5">
-                  <ModeIcon mode="agent" />
-                  <span>Agents</span>
-                  <ToolTip
-                    style={{ zIndex: DROPDOWN_TOOLTIP_LAYER }}
-                    content="All tools available"
+              {!modelOnly && (
+                <>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className={modeItemClass(false)}
+                    onClick={openBackgroundTasks}
                   >
-                    <InformationCircleIcon className="h-2.5 w-2.5 flex-shrink-0" />
-                  </ToolTip>
-                </div>
-                {!isGoodAtAgentMode && notGreatAtAgent("Agents")}
-                <CheckIcon
-                  className={`ml-auto h-3 w-3 ${mode === "agent" ? "" : "opacity-0"}`}
-                />
-              </button>
-
-              <button
-                type="button"
-                role="menuitemradio"
-                aria-checked={mode === "chat"}
-                className={modeItemClass(mode === "chat")}
-                onClick={() => selectMode("chat")}
-              >
-                <div className="flex flex-row items-center gap-1.5">
-                  <ModeIcon mode="chat" />
-                  <span className="">Ask</span>
-                  <ToolTip
-                    style={{
-                      zIndex: DROPDOWN_TOOLTIP_LAYER,
-                    }}
-                    content="All tools disabled"
-                  >
-                    <InformationCircleIcon
-                      data-tooltip-id="chat-tip"
-                      className="h-2.5 w-2.5 flex-shrink-0"
+                    <div className="flex min-w-0 flex-row items-center gap-1.5">
+                      <ModeIcon mode="background" />
+                      <span className="truncate">Background tasks</span>
+                      <ToolTip
+                        style={{ zIndex: DROPDOWN_TOOLTIP_LAYER }}
+                        content="Tasks keep running when you switch between them"
+                      >
+                        <InformationCircleIcon className="h-2.5 w-2.5 flex-shrink-0" />
+                      </ToolTip>
+                    </div>
+                    <ChevronRightIcon
+                      aria-hidden="true"
+                      className="ml-auto h-3 w-3 flex-shrink-0 opacity-70"
                     />
-                  </ToolTip>
-                  <span
-                    className={`text-description-muted text-[${getFontSize() - 3}px] mr-auto`}
-                  >
-                    {getMetaKeyLabel()}L
-                  </span>
-                </div>
-                {mode === "chat" && <CheckIcon className="ml-auto h-3 w-3" />}
-              </button>
-              <button
-                type="button"
-                role="menuitemradio"
-                aria-checked={mode === "plan"}
-                className={modeItemClass(mode === "plan")}
-                onClick={() => selectMode("plan")}
-              >
-                <div className="flex flex-row items-center gap-1.5">
-                  <ModeIcon mode="plan" />
-                  <span className="">Plan</span>
-                  <ToolTip
-                    style={{
-                      zIndex: DROPDOWN_TOOLTIP_LAYER,
-                    }}
-                    content="Read-only/MCP tools available"
-                  >
-                    <InformationCircleIcon className="h-2.5 w-2.5 flex-shrink-0" />
-                  </ToolTip>
-                </div>
-                {!isGoodAtAgentMode && notGreatAtAgent("Plan")}
-                <CheckIcon
-                  className={`ml-auto h-3 w-3 ${mode === "plan" ? "" : "opacity-0"}`}
-                />
-              </button>
+                  </button>
 
-              <button
-                type="button"
-                role="menuitemradio"
-                aria-checked={mode === "debug"}
-                className={modeItemClass(mode === "debug")}
-                onClick={() => selectMode("debug")}
-              >
-                <div className="flex flex-row items-center gap-1.5">
-                  <ModeIcon mode="debug" />
-                  <span>Debug</span>
-                  <ToolTip
-                    style={{ zIndex: DROPDOWN_TOOLTIP_LAYER }}
-                    content="Reproduce, diagnose, fix, and validate"
+                  <button
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={mode === "agent"}
+                    className={modeItemClass(mode === "agent")}
+                    onClick={() => selectMode("agent")}
                   >
-                    <InformationCircleIcon className="h-2.5 w-2.5 flex-shrink-0" />
-                  </ToolTip>
-                </div>
-                {!isGoodAtAgentMode && notGreatAtAgent("Debug")}
-                <CheckIcon
-                  className={`ml-auto h-3 w-3 ${mode === "debug" ? "" : "opacity-0"}`}
-                />
-              </button>
+                    <div className="flex flex-row items-center gap-1.5">
+                      <ModeIcon mode="agent" />
+                      <span>Agents</span>
+                      <ToolTip
+                        style={{ zIndex: DROPDOWN_TOOLTIP_LAYER }}
+                        content="All tools available"
+                      >
+                        <InformationCircleIcon className="h-2.5 w-2.5 flex-shrink-0" />
+                      </ToolTip>
+                    </div>
+                    {!isGoodAtAgentMode && notGreatAtAgent("Agents")}
+                    <CheckIcon
+                      className={`ml-auto h-3 w-3 ${mode === "agent" ? "" : "opacity-0"}`}
+                    />
+                  </button>
 
-              {includeAgentControls && (
+                  <button
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={mode === "chat"}
+                    className={modeItemClass(mode === "chat")}
+                    onClick={() => selectMode("chat")}
+                  >
+                    <div className="flex flex-row items-center gap-1.5">
+                      <ModeIcon mode="chat" />
+                      <span className="">Ask</span>
+                      <ToolTip
+                        style={{
+                          zIndex: DROPDOWN_TOOLTIP_LAYER,
+                        }}
+                        content="All tools disabled"
+                      >
+                        <InformationCircleIcon
+                          data-tooltip-id="chat-tip"
+                          className="h-2.5 w-2.5 flex-shrink-0"
+                        />
+                      </ToolTip>
+                      <span
+                        className={`text-description-muted text-[${getFontSize() - 3}px] mr-auto`}
+                      >
+                        {getMetaKeyLabel()}L
+                      </span>
+                    </div>
+                    {mode === "chat" && (
+                      <CheckIcon className="ml-auto h-3 w-3" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={mode === "plan"}
+                    className={modeItemClass(mode === "plan")}
+                    onClick={() => selectMode("plan")}
+                  >
+                    <div className="flex flex-row items-center gap-1.5">
+                      <ModeIcon mode="plan" />
+                      <span className="">Plan</span>
+                      <ToolTip
+                        style={{
+                          zIndex: DROPDOWN_TOOLTIP_LAYER,
+                        }}
+                        content="Read-only/MCP tools available"
+                      >
+                        <InformationCircleIcon className="h-2.5 w-2.5 flex-shrink-0" />
+                      </ToolTip>
+                    </div>
+                    {!isGoodAtAgentMode && notGreatAtAgent("Plan")}
+                    <CheckIcon
+                      className={`ml-auto h-3 w-3 ${mode === "plan" ? "" : "opacity-0"}`}
+                    />
+                  </button>
+
+                  <button
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={mode === "debug"}
+                    className={modeItemClass(mode === "debug")}
+                    onClick={() => selectMode("debug")}
+                  >
+                    <div className="flex flex-row items-center gap-1.5">
+                      <ModeIcon mode="debug" />
+                      <span>Debug</span>
+                      <ToolTip
+                        style={{ zIndex: DROPDOWN_TOOLTIP_LAYER }}
+                        content="Reproduce, diagnose, fix, and validate"
+                      >
+                        <InformationCircleIcon className="h-2.5 w-2.5 flex-shrink-0" />
+                      </ToolTip>
+                    </div>
+                    {!isGoodAtAgentMode && notGreatAtAgent("Debug")}
+                    <CheckIcon
+                      className={`ml-auto h-3 w-3 ${mode === "debug" ? "" : "opacity-0"}`}
+                    />
+                  </button>
+                </>
+              )}
+
+              {!modelOnly && includeAgentControls && (
                 <div
                   className={CONTROL_SECTION_CLASS}
                   onMouseDown={(event) => {
@@ -1028,50 +1127,65 @@ export function ModeSelect({
                 </div>
               )}
 
-              {includeModelControls && (
+              {(includeModelControls || modelOnly) && (
                 <div
-                  className={CONTROL_SECTION_CLASS}
+                  className={modelOnly ? "space-y-1" : CONTROL_SECTION_CLASS}
                   onMouseDown={(event) => {
                     event.stopPropagation();
                   }}
                   onClick={(event) => event.stopPropagation()}
                 >
-                  <button
-                    type="button"
-                    aria-label="Model dropdown"
-                    aria-expanded={modelOpen}
-                    aria-controls={modelGroupId}
-                    className={controlButtonClass(modelOpen)}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      openOnly("model");
-                    }}
-                  >
-                    <CubeIcon className="h-3 w-3 flex-shrink-0 opacity-70" />
-                    <span className="min-w-0 flex-1">
-                      <span className="text-description-muted block text-[10px] font-medium uppercase tracking-wide">
-                        Model
+                  {!modelOnly && (
+                    <button
+                      type="button"
+                      aria-label="Model dropdown"
+                      aria-expanded={modelOpen}
+                      aria-controls={modelGroupId}
+                      className={controlButtonClass(modelOpen)}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        openOnly("model");
+                      }}
+                    >
+                      <CubeIcon className="h-3 w-3 flex-shrink-0 opacity-70" />
+                      <span className="min-w-0 flex-1">
+                        <span className="text-description-muted block text-[10px] font-medium uppercase tracking-wide">
+                          Model
+                        </span>
+                        <span className="block truncate text-[11px] font-medium">
+                          {selectedModelLabel}
+                        </span>
                       </span>
-                      <span className="block truncate text-[11px] font-medium">
-                        {selectedModelLabel}
-                      </span>
-                    </span>
-                    <ChevronDownIcon
-                      className={`h-3 w-3 flex-shrink-0 transition-transform ${
-                        modelOpen ? "rotate-180" : ""
-                      }`}
-                    />
-                  </button>
+                      <ChevronDownIcon
+                        className={`h-3 w-3 flex-shrink-0 transition-transform ${
+                          modelOpen ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+                  )}
 
-                  {modelOpen && (
+                  {(modelOpen || modelOnly) && (
                     <div
                       id={modelGroupId}
                       role="group"
                       aria-label="Model choices"
-                      className={`${NESTED_PANEL_CLASS} space-y-1`}
+                      className={
+                        modelOnly
+                          ? "qivryn-mode-model-panel space-y-1"
+                          : `${NESTED_PANEL_CLASS} space-y-1`
+                      }
                     >
-                      <div className="no-scrollbar max-h-36 overflow-y-auto">
+                      {modelOnly && (
+                        <div className="qivryn-menu-section-label">
+                          <CubeIcon
+                            aria-hidden="true"
+                            className="h-3.5 w-3.5"
+                          />
+                          <span>Model</span>
+                        </div>
+                      )}
+                      <div className="no-scrollbar max-h-48 overflow-y-auto">
                         {isConfigLoading && sortedModels.length === 0 && (
                           <div className="text-description-muted px-1.5 py-2 text-center text-[11px]">
                             Loading models…
@@ -1090,8 +1204,9 @@ export function ModeSelect({
                               key={`${option.value}:${option.title}`}
                               type="button"
                               aria-label={option.title}
+                              title={option.title}
                               disabled={option.missingApiKey}
-                              className={`${nestedOptionClass(isSelected)} disabled:cursor-not-allowed disabled:opacity-50`}
+                              className={`${nestedOptionClass(isSelected, "items-center")} disabled:cursor-not-allowed disabled:opacity-50`}
                               onClick={(event) => {
                                 event.preventDefault();
                                 event.stopPropagation();
@@ -1099,7 +1214,10 @@ export function ModeSelect({
                                 setModelOpen(false);
                               }}
                             >
-                              <CubeIcon className="mt-0.5 h-3 w-3 flex-shrink-0 opacity-70" />
+                              <CubeIcon
+                                aria-hidden="true"
+                                className="h-3.5 w-3.5 flex-shrink-0 opacity-70"
+                              />
                               <span className="min-w-0 flex-1">
                                 <span className="block truncate text-[11px] font-medium">
                                   {option.title}
@@ -1134,13 +1252,16 @@ export function ModeSelect({
                               setReasoningOpen((open) => !open);
                             }}
                           >
+                            <SparklesIcon
+                              aria-hidden="true"
+                              className="h-3.5 w-3.5 flex-shrink-0 opacity-70"
+                            />
                             <span className="min-w-0 flex-1">
                               <span className="text-description-muted block text-[10px] font-medium uppercase tracking-wide">
                                 Reasoning
                               </span>
                               <span className="block truncate text-[11px] font-medium">
-                                {EFFORT_LABELS[selectedReasoningEffort] ??
-                                  selectedReasoningEffort}
+                                {formatReasoningEffort(selectedReasoningEffort)}
                               </span>
                             </span>
                             <ChevronDownIcon
@@ -1163,7 +1284,7 @@ export function ModeSelect({
                                   <button
                                     key={level}
                                     type="button"
-                                    aria-label={EFFORT_LABELS[level] ?? level}
+                                    aria-label={formatReasoningEffort(level)}
                                     className={`${nestedOptionClass(isSelected, "items-center")} text-[11px]`}
                                     onClick={(event) => {
                                       event.preventDefault();
@@ -1173,7 +1294,7 @@ export function ModeSelect({
                                     }}
                                   >
                                     <span className="truncate">
-                                      {EFFORT_LABELS[level] ?? level}
+                                      {formatReasoningEffort(level)}
                                     </span>
                                     <CheckIcon
                                       className={`ml-auto h-3 w-3 flex-shrink-0 ${
@@ -1192,9 +1313,11 @@ export function ModeSelect({
                 </div>
               )}
 
-              <div className="text-description-muted px-2 py-1">
-                {`${metaKeyLabel} . for next mode`}
-              </div>
+              {!modelOnly && (
+                <div className="text-description-muted px-2 py-1">
+                  {`${metaKeyLabel} . for next mode`}
+                </div>
+              )}
             </div>,
             document.body,
           )}

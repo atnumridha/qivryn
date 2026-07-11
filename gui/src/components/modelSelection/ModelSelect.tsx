@@ -5,6 +5,7 @@ import {
   Cog6ToothIcon,
   CubeIcon,
   PlusIcon,
+  SparklesIcon,
 } from "@heroicons/react/24/outline";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -28,7 +29,7 @@ import {
   useFontSize,
 } from "../ui";
 import { Divider } from "../ui/Divider";
-import { EFFORT_LABELS } from "./ReasoningEffortSelect";
+import { formatReasoningEffort } from "./reasoningEffortLabels";
 
 interface ModelOptionProps {
   option: Option;
@@ -303,8 +304,7 @@ function ModelSelect() {
   const selectedReasoningEffort =
     reasoningEffortSettings[selectedModel?.title ?? ""] ??
     defaultReasoningEffort;
-  const selectedReasoningLabel =
-    EFFORT_LABELS[selectedReasoningEffort] ?? selectedReasoningEffort;
+  const selectedReasoningLabel = formatReasoningEffort(selectedReasoningEffort);
 
   return (
     <Listbox
@@ -327,8 +327,13 @@ function ModelSelect() {
         <ListboxButton
           data-testid="model-select-button"
           ref={buttonRef}
-          className="text-description bg-lightgray/20 h-[20px] min-w-0 max-w-[min(145px,42vw)] gap-1 overflow-hidden rounded-full border-none px-1.5 py-0.5 min-[760px]:max-w-[190px]"
+          aria-label="Select model"
+          className="qivryn-model-listbox-trigger h-7 min-w-0 max-w-[min(168px,48vw)] flex-none gap-1.5 overflow-hidden px-2 py-0 min-[760px]:max-w-[220px]"
         >
+          <CubeIcon
+            aria-hidden="true"
+            className="h-3.5 w-3.5 flex-shrink-0 opacity-75"
+          />
           <span className="min-w-0 truncate hover:brightness-110">
             {modelSelectTitle(selectedModel) ||
               pendingModelTitle ||
@@ -340,9 +345,11 @@ function ModelSelect() {
             aria-hidden="true"
           />
         </ListboxButton>
-        <ListboxOptions className="w-[min(320px,calc(100vw-16px))] min-w-0">
-          <div className="flex items-center justify-between px-1.5 py-1">
-            <span className="text-description text-xs font-medium">Models</span>
+        <ListboxOptions className="qivryn-model-listbox-menu w-[min(320px,calc(100vw-16px))] min-w-0">
+          <div className="flex min-h-8 items-center justify-between px-2 py-1">
+            <span className="text-description text-xs font-semibold">
+              Models
+            </span>
             <div className="flex items-center gap-0.5">
               <Button
                 onClick={(e) => {
@@ -351,9 +358,13 @@ function ModelSelect() {
                 }}
                 variant="ghost"
                 size="sm"
+                aria-label="Configure models"
                 className="my-0 h-5 w-5 p-0"
               >
-                <Cog6ToothIcon className="text-description h-3.5 w-3.5" />
+                <Cog6ToothIcon
+                  aria-hidden="true"
+                  className="text-description h-3.5 w-3.5"
+                />
               </Button>
             </div>
           </div>
@@ -398,7 +409,8 @@ function ModelSelect() {
                 }}
                 onClick={(event) => event.stopPropagation()}
               >
-                <span className="text-description text-xs font-medium">
+                <span className="text-description flex items-center gap-1.5 text-xs font-medium">
+                  <SparklesIcon aria-hidden="true" className="h-3.5 w-3.5" />
                   Reasoning
                 </span>
                 <div className="relative min-w-[92px]">
@@ -407,7 +419,7 @@ function ModelSelect() {
                     aria-haspopup="listbox"
                     aria-expanded={reasoningMenuOpen}
                     aria-label="Select reasoning level"
-                    className="text-description bg-lightgray/20 flex h-6 w-full items-center justify-between gap-1 rounded border-none px-2 py-1 text-[11px] hover:brightness-110"
+                    className="qivryn-reasoning-inline-trigger text-description flex h-7 w-full items-center justify-between gap-1.5 rounded border border-solid px-2 py-1 text-[11px]"
                     onMouseDown={(event) => {
                       event.preventDefault();
                       event.stopPropagation();
@@ -426,7 +438,7 @@ function ModelSelect() {
                     <div
                       role="listbox"
                       aria-label="Reasoning levels"
-                      className="bg-vsc-input-background border-border absolute right-0 top-full z-[200001] mt-1 flex w-28 flex-col rounded border border-solid py-1 shadow-lg"
+                      className="qivryn-reasoning-inline-menu bg-vsc-input-background border-border absolute right-0 top-full z-[200001] mt-1 flex w-32 flex-col rounded border border-solid p-1 shadow-lg"
                       onMouseDown={(event) => {
                         event.preventDefault();
                         event.stopPropagation();
@@ -441,7 +453,7 @@ function ModelSelect() {
                             type="button"
                             role="option"
                             aria-selected={isSelected}
-                            className={`flex items-center gap-1.5 border-none px-2 py-1 text-left text-[11px] ${
+                            className={`qivryn-reasoning-inline-option flex min-h-8 items-center gap-2 rounded border-none px-2 py-1 text-left text-[11px] ${
                               isSelected
                                 ? "bg-list-active text-list-active-foreground"
                                 : "text-description hover:bg-list-hover bg-transparent"
@@ -463,7 +475,7 @@ function ModelSelect() {
                                 isSelected ? "" : "opacity-0"
                               }`}
                             />
-                            <span>{EFFORT_LABELS[level] ?? level}</span>
+                            <span>{formatReasoningEffort(level)}</span>
                           </button>
                         );
                       })}

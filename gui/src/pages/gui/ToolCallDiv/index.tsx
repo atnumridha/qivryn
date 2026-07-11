@@ -20,7 +20,7 @@ export function ToolCallDiv({
   toolCallStates,
   historyIndex,
 }: ToolCallDivProps) {
-  const [open, setOpen] = useState(true);
+  const [manualOpen, setManualOpen] = useState<boolean | null>(null);
   const availableTools = useAppSelector(
     (state: RootState) => state.config.config.tools,
   );
@@ -36,6 +36,7 @@ export function ToolCallDiv({
     (call) => call.status !== "canceled",
   );
   const pendingCalls = toolCallStates.filter((call) => call.status !== "done");
+  const open = manualOpen ?? pendingCalls.length > 0;
 
   const renderToolCall = (toolCallState: ToolCallState) => {
     const tool = availableTools.find(
@@ -97,7 +98,7 @@ export function ToolCallDiv({
       functionName === BuiltInToolNames.RunTerminalCommand
     ) {
       return (
-        <div className="flex flex-col px-1">
+        <div className="qivryn-tool-standalone flex flex-col">
           <FunctionSpecificToolCallDiv
             toolCallState={toolCallState}
             historyIndex={historyIndex}
@@ -123,31 +124,36 @@ export function ToolCallDiv({
 
   if (shouldShowGroupedUI) {
     return (
-      <div className="border-border rounded-lg border px-4 py-3 pb-0">
-        <GroupedToolCallHeader
-          toolCallStates={toolCallStates}
-          activeCalls={pendingCalls.length > 0 ? pendingCalls : activeCalls}
-          open={open}
-          onToggle={() => setOpen(!open)}
-        />
-        <div
-          className={`overflow-y-auto transition-all duration-300 ease-in-out ${
-            open ? "max-h-[50vh] opacity-100" : "max-h-0 opacity-0"
-          }`}
-        >
-          {toolCallStates.map((toolCallState) => (
-            <div className="py-1 pl-6" key={toolCallState.toolCallId}>
-              {renderToolCall(toolCallState)}
-            </div>
-          ))}
+      <div className="qivryn-tool-group-shell">
+        <div className="qivryn-tool-group border-border rounded-lg border px-4 py-3 pb-0">
+          <GroupedToolCallHeader
+            toolCallStates={toolCallStates}
+            activeCalls={pendingCalls.length > 0 ? pendingCalls : activeCalls}
+            open={open}
+            onToggle={() => setManualOpen(!open)}
+          />
+          <div
+            className={`qivryn-tool-group-body overflow-y-auto ${
+              open ? "max-h-[50vh] opacity-100" : "max-h-0 opacity-0"
+            }`}
+          >
+            {toolCallStates.map((toolCallState) => (
+              <div
+                className="qivryn-tool-group-entry"
+                key={toolCallState.toolCallId}
+              >
+                {renderToolCall(toolCallState)}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
   }
 
   return toolCallStates.map((toolCallState) => (
-    <div className="py-1" key={toolCallState.toolCallId}>
-      {renderToolCall(toolCallState)}
+    <div className="qivryn-tool-call-wrap py-1" key={toolCallState.toolCallId}>
+      <div className="qivryn-tool-surface">{renderToolCall(toolCallState)}</div>
     </div>
   ));
 }

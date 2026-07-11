@@ -38,6 +38,7 @@ import { ModelDescription } from "core";
 import { serializeTool } from "core/tools";
 import { grepSearchTool } from "core/tools/definitions";
 import { resolveEditorContent } from "../../components/mainInput/TipTapEditor/utils/resolveEditorContent";
+import { newSession } from "../slices/sessionSlice";
 import { RootState } from "../store";
 
 const mockGetBaseSystemMessage = vi.mocked(getBaseSystemMessage);
@@ -101,6 +102,127 @@ beforeEach(() => {
 });
 
 describe("streamResponseThunk", () => {
+  it("continues one conversation while another conversation is selected", async () => {
+    const initialState = getRootStateWithClaude();
+    initialState.session.id = "session-a";
+    initialState.session.history = [];
+
+    const mockStore = createMockStore(initialState);
+    const mockIdeMessenger = mockStore.mockIdeMessenger;
+    const getState = () => mockStore.getState() as RootState;
+    let releaseA!: () => void;
+    let releaseB!: () => void;
+    const gateA = new Promise<void>((resolve) => {
+      releaseA = resolve;
+    });
+    const gateB = new Promise<void>((resolve) => {
+      releaseB = resolve;
+    });
+
+    async function* streamA(): AsyncGenerator<
+      AssistantChatMessage[],
+      PromptLog | undefined
+    > {
+      yield [{ role: "assistant", content: "A1" }];
+      await gateA;
+      yield [{ role: "assistant", content: "A2" }];
+      return undefined;
+    }
+
+    async function* streamB(): AsyncGenerator<
+      AssistantChatMessage[],
+      PromptLog | undefined
+    > {
+      yield [{ role: "assistant", content: "B1" }];
+      await gateB;
+      yield [{ role: "assistant", content: "B2" }];
+      return undefined;
+    }
+
+    mockIdeMessenger.llmStreamChat = vi
+      .fn()
+      .mockImplementationOnce(() => streamA())
+      .mockImplementationOnce(() => streamB());
+
+    const waitFor = async (predicate: () => boolean) => {
+      const deadline = Date.now() + 2_000;
+      while (!predicate()) {
+        if (Date.now() > deadline) {
+          throw new Error("Timed out waiting for conversation state");
+        }
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+    };
+
+    const runA = mockStore.dispatch(
+      streamResponseThunk({
+        editorState: mockEditorState,
+        modifiers: mockModifiers,
+      }) as any,
+    );
+    await waitFor(() =>
+      String(getState().session.history.at(-1)?.message.content).includes("A1"),
+    );
+
+    const controllerA = getState().session.streamAborter;
+    mockStore.dispatch(
+      newSession({
+        sessionId: "session-b",
+        title: "B",
+        workspaceDirectory: "",
+        history: [],
+        mode: "agent",
+        chatModelTitle: mockClaudeModel.title,
+      }),
+    );
+
+    const runB = mockStore.dispatch(
+      streamResponseThunk({
+        editorState: mockEditorState,
+        modifiers: mockModifiers,
+      }) as any,
+    );
+    await waitFor(() =>
+      String(getState().session.history.at(-1)?.message.content).includes("B1"),
+    );
+
+    releaseA();
+    await runA;
+
+    const stateWhileBIsVisible = getState();
+    expect(controllerA.signal.aborted).toBe(false);
+    expect(stateWhileBIsVisible.session.id).toBe("session-b");
+    expect(
+      stateWhileBIsVisible.session.backgroundSessionStates?.[
+        "session-a"
+      ]?.history.at(-1)?.message.content,
+    ).toBe("A1A2");
+    expect(
+      stateWhileBIsVisible.session.backgroundSessionStates?.["session-a"]
+        ?.isStreaming,
+    ).toBe(false);
+    expect(stateWhileBIsVisible.session.isStreaming).toBe(true);
+    expect(stateWhileBIsVisible.session.history.at(-1)?.message.content).toBe(
+      "B1",
+    );
+
+    releaseB();
+    await runB;
+    mockStore.dispatch(
+      newSession({
+        sessionId: "session-a",
+        title: "A",
+        workspaceDirectory: "",
+        history: [],
+        mode: "agent",
+        chatModelTitle: mockClaudeModel.title,
+      }),
+    );
+
+    expect(getState().session.id).toBe("session-a");
+    expect(getState().session.history.at(-1)?.message.content).toBe("A1A2");
+  });
+
   it("should execute complete streaming flow with all dispatches", async () => {
     const initialState = getRootStateWithClaude();
     initialState.session.history = [
@@ -177,6 +299,10 @@ describe("streamResponseThunk", () => {
       {
         type: "session/resetNextCodeBlockToApplyIndex",
         payload: undefined,
+      },
+      {
+        type: "session/setSessionChatModelTitle",
+        payload: "Claude 3.5 Sonnet",
       },
       {
         type: "symbols/updateFromContextItems/pending",
@@ -429,6 +555,7 @@ describe("streamResponseThunk", () => {
       ...initialState,
       session: {
         ...initialState.session,
+        chatModelTitle: "Claude 3.5 Sonnet",
         streamAborter: expect.any(AbortController),
         title: "Session summary",
         isPruned: false,
@@ -603,6 +730,7 @@ describe("streamResponseThunk", () => {
       "chat/streamWrapper/pending",
       "session/submitEditorAndInitAtIndex",
       "session/resetNextCodeBlockToApplyIndex",
+      "session/setSessionChatModelTitle",
       "symbols/updateFromContextItems/pending",
       "session/updateHistoryItemAtIndex",
       "chat/streamNormalInput/pending",
@@ -617,6 +745,7 @@ describe("streamResponseThunk", () => {
       "session/addPromptCompletionPair",
       "session/setToolGenerated",
       "chat/callTool/pending",
+      "session/setActive",
       "session/setToolCallCalling",
       "session/updateToolCallOutput",
       "session/acceptToolCall",
@@ -775,6 +904,7 @@ describe("streamResponseThunk", () => {
       ...stateWithToolSettings,
       session: {
         ...stateWithToolSettings.session,
+        chatModelTitle: "Claude 3.5 Sonnet",
         history: [
           {
             contextItems: [],
@@ -990,6 +1120,10 @@ describe("streamResponseThunk", () => {
       {
         type: "session/resetNextCodeBlockToApplyIndex",
         payload: undefined,
+      },
+      {
+        type: "session/setSessionChatModelTitle",
+        payload: "Claude 3.5 Sonnet",
       },
       {
         type: "symbols/updateFromContextItems/pending",
@@ -1260,6 +1394,7 @@ describe("streamResponseThunk", () => {
       ...abortState,
       session: {
         ...abortState.session,
+        chatModelTitle: "Claude 3.5 Sonnet",
         history: [
           {
             contextItems: [],

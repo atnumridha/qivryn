@@ -67,6 +67,48 @@ describe("Agents workspace", () => {
     expect(await screen.findByText("Chat screen")).toBeVisible();
   });
 
+  it("keeps active runs running when selecting another task", async () => {
+    const messenger = new MockIdeMessenger();
+    const controlRequests: AgentControlRequest[] = [];
+    messenger.responses["agents/list"] = [
+      run({ id: "task-one", title: "First background task" }),
+      run({ id: "task-two", title: "Second background task" }),
+    ];
+    messenger.responseHandlers["agents/control"] = async (request) => {
+      controlRequests.push(request);
+      return undefined;
+    };
+    const { user } = await renderWithProviders(<Agents />, {
+      mockIdeMessenger: messenger,
+    });
+
+    await user.click(
+      await screen.findByRole("button", { name: /First background task/ }),
+    );
+    expect(screen.getByTitle("Rename agent")).toHaveTextContent(
+      "First background task",
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: /Second background task/ }),
+    );
+    await waitFor(() =>
+      expect(screen.getByTitle("Rename agent")).toHaveTextContent(
+        "Second background task",
+      ),
+    );
+
+    expect(
+      controlRequests.some((request) => request.action === "run.cancel"),
+    ).toBe(false);
+    expect(
+      screen.getByRole("button", { name: /First background task/ }),
+    ).toBeVisible();
+    expect(
+      screen.getAllByRole("button", { name: /Second background task/ })[0],
+    ).toBeVisible();
+  });
+
   it("provides an in-webview reload control in the standalone window", async () => {
     (window as any).isFullScreen = true;
     const messenger = new MockIdeMessenger();
@@ -862,11 +904,11 @@ describe("Agents workspace", () => {
     await user.click(screen.getByRole("button", { name: "Model dropdown" }));
     expect(
       screen.getByRole("button", { name: "Reasoning dropdown" }),
-    ).toHaveTextContent("med");
+    ).toHaveTextContent("Medium");
     await user.click(
       screen.getByRole("button", { name: "Reasoning dropdown" }),
     );
-    await user.click(screen.getByRole("button", { name: "med" }));
+    await user.click(screen.getByRole("button", { name: "Medium" }));
     await waitFor(() =>
       expect(
         window.localStorage.getItem("qivryn.models.catalog.v1"),

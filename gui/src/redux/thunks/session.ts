@@ -7,11 +7,18 @@ import { selectSelectedChatModel } from "../slices/configSlice";
 import { selectSelectedProfile } from "../slices/profilesSlice";
 import {
   deleteSessionMetadata,
+  getSessionRuntimeById,
+  hydratePersistedSession,
   newSession,
   setAllSessionMetadata,
   setIsSessionMetadataLoading,
   updateSessionMetadata,
+  updateSessionTitle,
 } from "../slices/sessionSlice";
+import {
+  createSessionScopedDispatch,
+  getRootStateForSession,
+} from "../sessionRuntime";
 import { ThunkApiType } from "../store";
 import { updateSelectedModelByRole } from "../thunks/updateSelectedModelByRole";
 
@@ -98,11 +105,15 @@ export const loadSession = createAsyncThunk<
   {
     sessionId: string;
     saveCurrentSession: boolean;
+    forceReload?: boolean;
   },
   ThunkApiType
 >(
   "session/load",
-  async ({ sessionId, saveCurrentSession: save }, { extra, dispatch }) => {
+  async (
+    { sessionId, saveCurrentSession: save, forceReload = false },
+    { extra, dispatch, getState },
+  ) => {
     if (save) {
       // save the session in the background
       void dispatch(
@@ -112,8 +123,24 @@ export const loadSession = createAsyncThunk<
         }),
       );
     }
-    const session = await getSession(extra.ideMessenger, sessionId);
-    dispatch(newSession(session));
+    const cachedRuntime = forceReload
+      ? undefined
+      : getSessionRuntimeById(getState().session, sessionId);
+    const session: Session = cachedRuntime
+      ? {
+          sessionId,
+          title: cachedRuntime.title,
+          workspaceDirectory: window.workspacePaths?.[0] || "",
+          history: cachedRuntime.history,
+          mode: cachedRuntime.mode,
+          chatModelTitle: cachedRuntime.chatModelTitle ?? null,
+        }
+      : await getSession(extra.ideMessenger, sessionId);
+    if (forceReload && getState().session.id === sessionId) {
+      dispatch(hydratePersistedSession(session));
+    } else {
+      dispatch(newSession(session));
+    }
 
     // Restore selected chat model from session, if present
     if (session.chatModelTitle) {
@@ -194,21 +221,32 @@ function getChatTitleFromMessage(message: ChatMessage) {
 
 export const saveCurrentSession = createAsyncThunk<
   void,
-  { openNewSession: boolean; generateTitle: boolean },
+  {
+    openNewSession: boolean;
+    generateTitle: boolean;
+    sessionId?: string;
+  },
   ThunkApiType
 >(
   "session/saveCurrent",
-  async ({ openNewSession, generateTitle }, { dispatch, extra, getState }) => {
-    const session = getState().session; // assign to a variable so that even when current session changes, we have the reference to the old session
+  async (
+    { openNewSession, generateTitle, sessionId: requestedSessionId },
+    { dispatch, extra, getState },
+  ) => {
+    const sessionId = requestedSessionId ?? getState().session.id;
+    const session = getRootStateForSession(getState(), sessionId).session;
     if (session.history.length === 0) {
       return;
     }
 
-    if (openNewSession) {
+    if (openNewSession && getState().session.id === sessionId) {
       dispatch(newSession());
     }
 
-    const selectedChatModel = selectSelectedChatModel(getState());
+    const selectedChatModel =
+      getState().config.config?.modelsByRole?.chat?.find(
+        (model) => model.title === session.chatModelTitle,
+      ) ?? selectSelectedChatModel(getState());
 
     // New session has already been dispatched
     // Now save previous session and update chat title if relevant
@@ -262,10 +300,18 @@ export const saveCurrentSession = createAsyncThunk<
       workspaceDirectory: window.workspacePaths?.[0] || "",
       history: session.history,
       mode: session.mode,
-      chatModelTitle: selectedChatModel?.title ?? null,
+      chatModelTitle:
+        session.chatModelTitle ?? selectedChatModel?.title ?? null,
     };
 
     const result = await dispatch(updateSession(updatedSession));
     unwrapResult(result);
+    if (getState().session.id !== sessionId) {
+      createSessionScopedDispatch(
+        dispatch,
+        sessionId,
+        getState,
+      )(updateSessionTitle(title));
+    }
   },
 );

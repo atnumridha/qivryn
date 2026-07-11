@@ -4,15 +4,24 @@ import {
   clearDanglingMessages,
   setInactive,
 } from "../slices/sessionSlice";
+import { createSessionScopedDispatch } from "../sessionRuntime";
 import { ThunkApiType } from "../store";
 
-export const cancelStream = createAsyncThunk<void, undefined, ThunkApiType>(
-  "chat/cancelStream",
-  async (messages, { dispatch, extra, getState }) => {
-    dispatch(setInactive());
-    dispatch(abortStream());
+export const cancelStream = createAsyncThunk<
+  void,
+  { sessionId?: string } | undefined,
+  ThunkApiType
+>("chat/cancelStream", async (input, { dispatch, getState }) => {
+  const sessionId = input?.sessionId ?? getState().session.id;
+  const scopedDispatch = createSessionScopedDispatch(
+    dispatch,
+    sessionId,
+    getState,
+  );
 
-    // Clear any dangling incomplete tool calls, thinking messages, etc.
-    dispatch(clearDanglingMessages());
-  },
-);
+  scopedDispatch(setInactive());
+  scopedDispatch(abortStream());
+
+  // Clear any dangling incomplete tool calls, thinking messages, etc.
+  scopedDispatch(clearDanglingMessages());
+});

@@ -38,6 +38,13 @@ vi.mock("../slices/editState", () => ({
 }));
 
 vi.mock("../slices/sessionSlice", () => ({
+  getSessionRuntimeById: vi.fn((state, sessionId) =>
+    state.id === sessionId ? state : state.backgroundSessionStates?.[sessionId],
+  ),
+  scopeSessionAction: vi.fn((action, sessionId) => ({
+    ...action,
+    meta: { qivrynSessionId: sessionId },
+  })),
   acceptToolCall: vi.fn(() => ({ type: "session/acceptToolCall" })),
   errorToolCall: vi.fn(() => ({ type: "session/errorToolCall" })),
   updateApplyState: vi.fn(() => ({ type: "session/updateApplyState" })),
@@ -71,6 +78,19 @@ const UNUSED_TOOL_CALL_PARAMS = {
   parsedArgs: {},
 };
 
+function createMockRootState() {
+  return {
+    session: {
+      id: "test-session",
+      history: [],
+      codeBlockApplyStates: { states: [] },
+      backgroundSessionStates: {},
+    },
+    ui: { toolSettings: {} },
+    config: { config: {} },
+  };
+}
+
 describe("handleApplyStateUpdate", () => {
   let mockDispatch: any;
   let mockGetState: any;
@@ -80,6 +100,7 @@ describe("handleApplyStateUpdate", () => {
     vi.clearAllMocks();
     mockDispatch = vi.fn();
     mockGetState = vi.fn();
+    mockGetState.mockReturnValue(createMockRootState());
     mockExtra = {
       ideMessenger: {
         post: vi.fn(),
@@ -417,6 +438,7 @@ describe("applyForEditTool", () => {
     vi.clearAllMocks();
     mockDispatch = vi.fn();
     mockGetState = vi.fn();
+    mockGetState.mockReturnValue(createMockRootState());
     mockExtra = {
       ideMessenger: {
         request: vi.fn(),
@@ -477,7 +499,7 @@ describe("applyForEditTool", () => {
 
       vi.mocked(selectToolCallById).mockReturnValue(toolCallState);
       vi.mocked(selectApplyStateByToolCallId).mockReturnValue(applyState);
-      mockGetState.mockReturnValue({});
+      mockGetState.mockReturnValue(createMockRootState());
 
       mockExtra.ideMessenger.request.mockRejectedValue(
         new Error("Request failed"),
@@ -524,7 +546,7 @@ describe("applyForEditTool", () => {
 
       vi.mocked(selectToolCallById).mockReturnValue(toolCallState);
       vi.mocked(selectApplyStateByToolCallId).mockReturnValue(applyState);
-      mockGetState.mockReturnValue({});
+      mockGetState.mockReturnValue(createMockRootState());
 
       mockExtra.ideMessenger.request.mockResolvedValue({ status: "error" });
 
@@ -569,7 +591,7 @@ describe("applyForEditTool", () => {
 
       vi.mocked(selectToolCallById).mockReturnValue(toolCallState);
       vi.mocked(selectApplyStateByToolCallId).mockReturnValue(applyState);
-      mockGetState.mockReturnValue({});
+      mockGetState.mockReturnValue(createMockRootState());
 
       mockExtra.ideMessenger.request.mockRejectedValue(
         new Error("Request failed"),
@@ -603,7 +625,7 @@ describe("applyForEditTool", () => {
 
       vi.mocked(selectToolCallById).mockReturnValue(toolCallState);
       vi.mocked(selectApplyStateByToolCallId).mockReturnValue(applyState);
-      mockGetState.mockReturnValue({});
+      mockGetState.mockReturnValue(createMockRootState());
 
       mockExtra.ideMessenger.request.mockRejectedValue(
         new Error("Request failed"),
@@ -630,7 +652,7 @@ describe("applyForEditTool", () => {
         status: "streaming",
         streamId: "test-stream",
       });
-      mockGetState.mockReturnValue({});
+      mockGetState.mockReturnValue(createMockRootState());
 
       mockExtra.ideMessenger.request.mockRejectedValue(
         new Error("Request failed"),
@@ -653,7 +675,7 @@ describe("applyForEditTool", () => {
       };
 
       vi.mocked(selectApplyStateByToolCallId).mockReturnValue(undefined); // Apply state not found
-      mockGetState.mockReturnValue({});
+      mockGetState.mockReturnValue(createMockRootState());
 
       mockExtra.ideMessenger.request.mockRejectedValue(
         new Error("Request failed"),

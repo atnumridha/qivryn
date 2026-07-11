@@ -85,6 +85,20 @@ function getFullScreenTab() {
   );
 }
 
+function waitForWebviewBoot(webview: vscode.Webview, timeoutMs = 1_000) {
+  return new Promise<void>((resolve) => {
+    let listener: vscode.Disposable | undefined;
+    let timer: NodeJS.Timeout | undefined;
+    const finish = () => {
+      listener?.dispose();
+      if (timer) clearTimeout(timer);
+      resolve();
+    };
+    listener = webview.onDidReceiveMessage(finish);
+    timer = setTimeout(finish, timeoutMs);
+  });
+}
+
 function focusGUI() {
   const fullScreenTab = getFullScreenTab();
   if (fullScreenTab) {
@@ -1005,7 +1019,7 @@ const getCommandsMap: (
     },
     "qivryn.openInNewWindow": async (
       initialPath?: string,
-      moveToNewWindow = true,
+      moveToNewWindow = false,
       resetSidebar = true,
     ) => {
       initialPath = normalizeChatRoute(initialPath) ?? CHAT_ROUTE;
@@ -1058,6 +1072,8 @@ const getCommandsMap: (
       );
       fullScreenPanel = panel;
 
+      const webviewBooted = waitForWebviewBoot(panel.webview, 5_000);
+
       // Add content to the panel
       panel.webview.html = sidebar.getSidebarContent(
         extensionContext,
@@ -1067,25 +1083,12 @@ const getCommandsMap: (
         true,
       );
 
-      const sessionLoader = panel.onDidChangeViewState(() => {
-        if (resetSidebar && sidebar.isReady) {
-          vscode.commands.executeCommand("qivryn.newSession");
-        }
-        if (sessionId) {
-          vscode.commands.executeCommand(
-            "qivryn.focusQivrynSessionId",
-            sessionId,
-          );
-        }
-        if (initialPath) {
-          sidebar.webviewProtocol?.request("navigateTo", {
-            path: initialPath,
-            toggle: false,
-          });
-        }
-        panel.reveal();
-        sessionLoader.dispose();
-      });
+      await webviewBooted;
+      if (sessionId) {
+        await sidebar.webviewProtocol.request("focusQivrynSessionId", {
+          sessionId,
+        });
+      }
 
       // When panel closes, reset the webview and focus
       panel.onDidDispose(
@@ -1130,13 +1133,19 @@ const getCommandsMap: (
       // connected to `fullScreenPanel`, which is why the Agents window could
       // render normally while every click appeared to hang.
       if (moveToNewWindow) {
-        vscode.commands.executeCommand(
+        panel.reveal(vscode.ViewColumn.One, true);
+        await vscode.commands.executeCommand(
+          "workbench.action.closeAuxiliaryBar",
+        );
+        await vscode.commands.executeCommand(
           "workbench.action.moveEditorToNewWindow",
         );
-        vscode.commands.executeCommand("workbench.action.closeAuxiliaryBar");
       } else {
         panel.reveal(vscode.ViewColumn.One);
-        vscode.commands.executeCommand("workbench.action.closeAuxiliaryBar");
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        await vscode.commands.executeCommand(
+          "workbench.action.closeAuxiliaryBar",
+        );
       }
     },
     "qivryn.forceNextEdit": async () => {

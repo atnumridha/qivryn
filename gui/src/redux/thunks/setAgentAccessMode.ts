@@ -2,6 +2,10 @@ import { createAsyncThunk } from "@reduxjs/toolkit";
 import { selectActiveTools } from "../selectors/selectActiveTools";
 import { selectPendingToolCalls } from "../selectors/selectToolCalls";
 import { AgentAccessMode, setAgentAccessMode } from "../slices/uiSlice";
+import {
+  createSessionScopedDispatch,
+  getRootStateForSession,
+} from "../sessionRuntime";
 import { ThunkApiType } from "../store";
 import { callToolById } from "./callToolById";
 import { evaluateToolPolicies } from "./evaluateToolPolicies";
@@ -18,14 +22,20 @@ export const setAgentAccessModeAndReleasePending = createAsyncThunk<
     return;
   }
 
-  const state = api.getState();
+  const sessionId = api.getState().session.id;
+  const state = getRootStateForSession(api.getState(), sessionId);
+  const scopedDispatch = createSessionScopedDispatch(
+    api.dispatch,
+    sessionId,
+    api.getState,
+  );
   const pendingToolCalls = selectPendingToolCalls(state);
   if (pendingToolCalls.length === 0) {
     return;
   }
 
   const policies = await evaluateToolPolicies(
-    api.dispatch,
+    scopedDispatch,
     api.extra.ideMessenger,
     selectActiveTools(state),
     pendingToolCalls,
@@ -39,6 +49,7 @@ export const setAgentAccessModeAndReleasePending = createAsyncThunk<
       .map(({ toolCallState }) =>
         api.dispatch(
           callToolById({
+            sessionId,
             toolCallId: toolCallState.toolCallId,
             isAutoApproved: true,
           }),

@@ -3,6 +3,7 @@ import { ContextProviderDescription, SlashCommandSource } from "core";
 export type ComboBoxItemType =
   | "contextProvider"
   | "slashCommand"
+  | "skill"
   | "file"
   | "query"
   | "folder"

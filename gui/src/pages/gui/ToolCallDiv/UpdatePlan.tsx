@@ -1,9 +1,6 @@
-import {
-  CheckCircleIcon,
-  ClockIcon,
-  PlayCircleIcon,
-} from "@heroicons/react/24/outline";
 import { ToolCallState } from "core";
+import { ChevronDownIcon, ChevronUpIcon } from "@heroicons/react/24/outline";
+import { useMemo, useState } from "react";
 
 type PlanStatus = "pending" | "in_progress" | "completed";
 
@@ -39,14 +36,15 @@ function normalizePlan(rawPlan: unknown): PlanItem[] {
 }
 
 function PlanIcon({ status }: { status: PlanStatus }) {
-  if (status === "completed") {
-    return <CheckCircleIcon className="text-success mt-0.5 h-4 w-4" />;
-  }
-  if (status === "in_progress") {
-    return <PlayCircleIcon className="text-warning mt-0.5 h-4 w-4" />;
-  }
-  return <ClockIcon className="text-description-muted mt-0.5 h-4 w-4" />;
+  return (
+    <span
+      className={`qivryn-plan-status qivryn-plan-status-${status}`}
+      aria-hidden="true"
+    />
+  );
 }
+
+const COMPACT_PLAN_ITEMS = 3;
 
 export function UpdatePlan({
   toolCallState,
@@ -58,13 +56,20 @@ export function UpdatePlan({
   const completed = plan.filter((item) => item.status === "completed").length;
   const explanation =
     typeof args.explanation === "string" ? args.explanation.trim() : "";
+  const [expanded, setExpanded] = useState(false);
+
+  const visiblePlan = useMemo(
+    () => (expanded ? plan : plan.slice(0, COMPACT_PLAN_ITEMS)),
+    [expanded, plan],
+  );
+  const hiddenCount = plan.length - visiblePlan.length;
 
   if (plan.length === 0) {
     return null;
   }
 
   return (
-    <div className="border-border bg-background mt-2 rounded-lg border px-3 py-2.5">
+    <div className="qivryn-plan-card border-border bg-background mt-2 rounded-lg border px-3 py-2.5">
       <div className="mb-2 flex min-w-0 items-center justify-between gap-3">
         <div className="text-foreground truncate text-xs font-medium">Plan</div>
         <div className="text-description flex-shrink-0 text-[11px]">
@@ -79,7 +84,7 @@ export function UpdatePlan({
       )}
 
       <ol className="m-0 space-y-1.5 p-0">
-        {plan.map((item, index) => (
+        {visiblePlan.map((item, index) => (
           <li className="flex min-w-0 items-start gap-2" key={index}>
             <PlanIcon status={item.status} />
             <span
@@ -90,6 +95,30 @@ export function UpdatePlan({
           </li>
         ))}
       </ol>
+
+      {hiddenCount > 0 && (
+        <button
+          type="button"
+          className="qivryn-plan-expand mt-2"
+          aria-label={`Show ${hiddenCount} more plan item${hiddenCount === 1 ? "" : "s"}`}
+          aria-expanded={expanded}
+          onClick={() => setExpanded(true)}
+        >
+          <ChevronDownIcon aria-hidden="true" className="h-3 w-3" />
+          <span aria-hidden="true">+{hiddenCount}</span>
+        </button>
+      )}
+      {expanded && plan.length > COMPACT_PLAN_ITEMS && (
+        <button
+          type="button"
+          className="qivryn-plan-expand mt-2"
+          aria-label="Collapse plan items"
+          aria-expanded={expanded}
+          onClick={() => setExpanded(false)}
+        >
+          <ChevronUpIcon aria-hidden="true" className="h-3 w-3" />
+        </button>
+      )}
     </div>
   );
 }

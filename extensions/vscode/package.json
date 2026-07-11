@@ -323,7 +323,7 @@
         "command": "qivryn.viewHistory",
         "category": "Qivryn",
         "title": "View History",
-        "icon": "$(history)",
+        "icon": "$(list-tree)",
         "group": "Qivryn"
       },
       {
@@ -444,7 +444,7 @@
       {
         "command": "qivryn.openInNewWindow",
         "category": "Qivryn",
-        "title": "Open in new window",
+        "title": "Open Maximized Chat",
         "group": "Qivryn"
       },
       {
@@ -901,11 +901,6 @@
         {
           "command": "qivryn.openConfigPage",
           "group": "navigation@5",
-          "when": "view == qivryn.qivrynGUIView"
-        },
-        {
-          "command": "qivryn.reloadAgentsWindow",
-          "group": "navigation@6",
           "when": "view == qivryn.qivrynGUIView"
         },
         {

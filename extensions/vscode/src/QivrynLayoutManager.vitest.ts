@@ -9,6 +9,7 @@ vi.mock("vscode", () => ({
     showQuickPick: vi.fn(),
     showInputBox: vi.fn(),
     showInformationMessage: vi.fn(),
+    tabGroups: { all: [] },
   },
 }));
 
@@ -42,6 +43,7 @@ describe("QivrynLayoutManager", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    (vscode.window.tabGroups.all as unknown as vscode.TabGroup[]).length = 0;
     delete process.env.QIVRYN_ENABLE_NATIVE_AGENT_SESSIONS;
     Object.assign(state, {
       sideBarVisible: true,
@@ -52,6 +54,7 @@ describe("QivrynLayoutManager", () => {
     executed.length = 0;
     vi.mocked(vscode.commands.getCommands).mockResolvedValue([
       "workbench.action.openAgentsWindow",
+      "getContextKeyValue",
     ]);
     vi.mocked(vscode.commands.executeCommand).mockImplementation(
       async (command: string, ...args: unknown[]) => {
@@ -125,6 +128,7 @@ describe("QivrynLayoutManager", () => {
       "workbench.view.extension.qivryn",
       "workbench.action.focusAuxiliaryBar",
       "qivryn.qivrynGUIView.focus",
+      "qivryn.qivrynGUIView.focus",
       "qivryn.closeRestoredAgentEditors",
       "setContext",
       "setContext",
@@ -142,6 +146,7 @@ describe("QivrynLayoutManager", () => {
       "workbench.action.closeSidebar",
       "workbench.view.extension.qivryn",
       "workbench.action.focusAuxiliaryBar",
+      "qivryn.qivrynGUIView.focus",
       "qivryn.qivrynGUIView.focus",
       "qivryn.closeRestoredAgentEditors",
       "setContext",
@@ -186,9 +191,38 @@ describe("QivrynLayoutManager", () => {
       "workbench.view.extension.qivryn",
       "workbench.action.focusAuxiliaryBar",
       "qivryn.qivrynGUIView.focus",
+      "qivryn.qivrynGUIView.focus",
       "qivryn.closeRestoredAgentEditors",
       "setContext",
       "setContext",
     ]);
+  });
+
+  it("uses public workbench commands when the host has no context-key reader", async () => {
+    vi.mocked(vscode.commands.getCommands).mockResolvedValue([]);
+    const { context } = createContext();
+
+    await new QivrynLayoutManager(context).apply(BUILT_IN_LAYOUTS[4]);
+
+    expect(executed).toEqual([
+      "workbench.action.exitZenMode",
+      "qivryn.openInNewWindow",
+      "setContext",
+      "setContext",
+    ]);
+  });
+
+  it("does not restore a sidebar layout beside an existing Qivryn editor", async () => {
+    const { context } = createContext({ [ACTIVE_KEY]: BUILT_IN_LAYOUTS[0] });
+    const tabGroups = vscode.window.tabGroups
+      .all as unknown as vscode.TabGroup[];
+    tabGroups.push({
+      tabs: [{ input: { viewType: "qivryn.qivrynGUIView" } }],
+    } as unknown as vscode.TabGroup);
+
+    await new QivrynLayoutManager(context).restoreActive();
+
+    expect(executed).toEqual([]);
+    tabGroups.length = 0;
   });
 });

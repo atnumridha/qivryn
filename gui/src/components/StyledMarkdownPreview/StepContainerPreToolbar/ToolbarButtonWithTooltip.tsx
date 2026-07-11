@@ -16,16 +16,19 @@ export function ToolbarButtonWithTooltip({
 }: ToolbarButtonWithTooltipProps) {
   return (
     <ToolTip place="top" content={tooltipContent}>
-      <div
+      <button
+        type="button"
         onClick={(e) => {
           e.stopPropagation();
           onClick();
         }}
+        aria-label={tooltipContent}
+        title={tooltipContent}
         data-testid={testId}
-        className="hover:description-muted/30 flex cursor-pointer select-none items-center justify-center rounded bg-transparent px-0.5 py-0.5 hover:opacity-80"
+        className="qivryn-code-toolbar-icon hover:description-muted/30 flex cursor-pointer select-none items-center justify-center rounded border-none bg-transparent hover:opacity-80"
       >
         {children}
-      </div>
+      </button>
     </ToolTip>
   );
 }

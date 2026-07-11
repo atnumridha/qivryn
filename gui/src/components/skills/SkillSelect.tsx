@@ -1,6 +1,6 @@
 import { ChevronDownIcon, SparklesIcon } from "@heroicons/react/24/outline";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { IdeMessengerContext } from "../../context/IdeMessenger";
+import { IdeMessengerContext, IIdeMessenger } from "../../context/IdeMessenger";
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "../ui";
 
 const SKILL_CACHE_KEY = "qivryn.skills.catalog.v2";
@@ -17,7 +17,11 @@ export interface SkillSummary {
   files: string[];
 }
 
-function readCachedSkills(): SkillSummary[] {
+export function readCachedSkills(): SkillSummary[] {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
   try {
     const value = window.localStorage.getItem(SKILL_CACHE_KEY);
     return value ? (JSON.parse(value) as SkillSummary[]) : [];
@@ -32,6 +36,33 @@ function cacheableSkill(skill: SkillSummary): SkillSummary {
   return { ...skill, content: "", files: [] };
 }
 
+export async function loadSkillsCatalog(ideMessenger: IIdeMessenger): Promise<{
+  skills: SkillSummary[];
+  errors: string[];
+}> {
+  const response = await ideMessenger.request("extensions/skills", undefined);
+  if (response.status === "error") {
+    return { skills: readCachedSkills(), errors: [response.error] };
+  }
+
+  const skills = response.content.skills;
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.setItem(
+        SKILL_CACHE_KEY,
+        JSON.stringify(skills.map(cacheableSkill)),
+      );
+    } catch {
+      // Storage can be disabled in hardened webviews; the live catalog remains usable.
+    }
+  }
+
+  return {
+    skills,
+    errors: response.content.errors.map((error) => error.message),
+  };
+}
+
 export function useSkillsCatalog() {
   const ideMessenger = useContext(IdeMessengerContext);
   const [skills, setSkills] = useState<SkillSummary[]>(readCachedSkills);
@@ -39,23 +70,10 @@ export function useSkillsCatalog() {
   const [errors, setErrors] = useState<string[]>([]);
 
   const refresh = useCallback(async () => {
-    const response = await ideMessenger.request("extensions/skills", undefined);
+    const result = await loadSkillsCatalog(ideMessenger);
     setLoading(false);
-    if (response.status === "error") {
-      setErrors([response.error]);
-      return;
-    }
-    const next = response.content.skills;
-    setSkills(next);
-    setErrors(response.content.errors.map((error) => error.message));
-    try {
-      window.localStorage.setItem(
-        SKILL_CACHE_KEY,
-        JSON.stringify(next.map(cacheableSkill)),
-      );
-    } catch {
-      // Storage can be disabled in hardened webviews; the live catalog remains usable.
-    }
+    setSkills(result.skills);
+    setErrors(result.errors);
   }, [ideMessenger]);
 
   useEffect(() => {

@@ -13,7 +13,11 @@
  *
  * Renders nothing when the model has no reasoning levels.
  */
-import { ChevronDownIcon } from "@heroicons/react/24/outline";
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  SparklesIcon,
+} from "@heroicons/react/24/outline";
 import { useAppDispatch, useAppSelector } from "../../redux/hooks";
 import { selectSelectedChatModel } from "../../redux/slices/configSlice";
 import { setReasoningEffort } from "../../redux/slices/uiSlice";
@@ -23,16 +27,7 @@ import {
   ListboxOption,
   ListboxOptions,
 } from "../ui/Listbox";
-
-export const EFFORT_LABELS: Record<string, string> = {
-  none: "off",
-  low: "low",
-  medium: "med",
-  high: "high",
-  xhigh: "xhigh",
-  max: "max",
-  ultra: "ultra",
-};
+import { formatReasoningEffort } from "./reasoningEffortLabels";
 
 export function ReasoningEffortSelect({
   hideLabel = false,
@@ -62,16 +57,13 @@ export function ReasoningEffortSelect({
 
   const selected: string = effortSettings[model.title ?? ""] ?? configDefault;
 
-  const label = EFFORT_LABELS[selected] ?? selected;
+  const label = formatReasoningEffort(selected);
 
   return (
-    <div className="flex items-center gap-0.5">
+    <div className="qivryn-reasoning-select flex min-w-0 items-center gap-1.5">
       {!hideLabel && (
-        <span
-          className="text-description pointer-events-none select-none"
-          style={{ fontSize: "0.65rem" }}
-        >
-          think:
+        <span className="text-description pointer-events-none select-none text-[11px] font-medium">
+          Reasoning
         </span>
       )}
 
@@ -89,33 +81,45 @@ export function ReasoningEffortSelect({
         <ListboxButton
           data-testid="reasoning-effort-select-button"
           fontSizeModifier={-4}
-          className="flex items-center gap-0.5 border-0 bg-transparent px-0.5 py-0"
+          className="qivryn-reasoning-trigger h-7 min-w-[88px] flex-none justify-between gap-1.5 px-2 py-0"
         >
-          <span>{label}</span>
-          <ChevronDownIcon className="h-2 w-2 opacity-70" />
+          <span className="flex min-w-0 items-center gap-1.5">
+            <SparklesIcon
+              aria-hidden="true"
+              className="h-3 w-3 flex-shrink-0 opacity-75"
+            />
+            <span className="truncate">{label}</span>
+          </span>
+          <ChevronDownIcon
+            aria-hidden="true"
+            className="h-2.5 w-2.5 flex-shrink-0 opacity-70"
+          />
         </ListboxButton>
 
         <ListboxOptions
           anchor={optionsAnchor}
           fontSizeModifier={-3}
-          className="min-w-[5rem]"
+          className="qivryn-reasoning-menu min-w-[8rem]"
         >
           {levels.map((level) => (
             <ListboxOption
               key={level}
               value={level}
               fontSizeModifier={-3}
-              className={
+              className={`qivryn-reasoning-option ${
                 level === selected
                   ? "bg-list-active text-list-active-foreground"
                   : ""
-              }
+              }`}
             >
-              <span className="flex items-center gap-1.5 py-0.5">
-                <span className="w-4 text-center text-[10px] opacity-60">
-                  {level === selected ? "✓" : ""}
-                </span>
-                <span>{EFFORT_LABELS[level] ?? level}</span>
+              <span className="flex min-w-0 items-center gap-2">
+                <CheckIcon
+                  aria-hidden="true"
+                  className={`h-3.5 w-3.5 flex-shrink-0 ${
+                    level === selected ? "opacity-100" : "opacity-0"
+                  }`}
+                />
+                <span className="truncate">{formatReasoningEffort(level)}</span>
               </span>
             </ListboxOption>
           ))}

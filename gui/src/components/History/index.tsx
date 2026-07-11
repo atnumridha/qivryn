@@ -1,19 +1,17 @@
 import { BaseSessionMetadata } from "core";
 import MiniSearch from "minisearch";
-import React, {
-  Fragment,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import Shortcut from "../gui/Shortcut";
 
-import { XMarkIcon } from "@heroicons/react/24/solid";
+import { EllipsisHorizontalIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/solid";
 import { useNavigate } from "react-router-dom";
 import { IdeMessengerContext } from "../../context/IdeMessenger";
 import { useAppDispatch, useAppSelector } from "../../redux/hooks";
+import {
+  selectRunningSessionIdsValue,
+  selectRunningSessionSummaries,
+} from "../../redux/selectors/selectRunningSessions";
 import {
   newSession,
   setAllSessionMetadata,
@@ -25,7 +23,35 @@ import { ROUTES } from "../../util/navigation";
 import ConfirmationDialog from "../dialogs/ConfirmationDialog";
 import { Button } from "../ui";
 import { HistoryTableRow } from "./HistoryTableRow";
-import { groupSessionsByDate, parseDate } from "./util";
+import { getSessionActivityTime, groupSessionsByDate } from "./util";
+
+const loadingPreviewGroups = [
+  { label: "TODAY", rows: [82, 66, 74, 58] },
+  { label: "YESTERDAY", rows: [72, 88, 64] },
+  { label: "EARLIER", rows: [76, 61, 84] },
+];
+
+function HistoryLoadingPreview() {
+  return (
+    <div
+      className="qivryn-history-loading-preview"
+      role="status"
+      aria-label="Loading sessions"
+    >
+      {loadingPreviewGroups.map((group) => (
+        <section key={group.label} aria-hidden="true">
+          <div className="qivryn-history-preview-label">{group.label}</div>
+          {group.rows.map((width, index) => (
+            <div className="qivryn-history-preview-row" key={index}>
+              <span style={{ width: `${width}%` }} />
+              <span style={{ width: `${Math.max(36, width - 24)}%` }} />
+            </div>
+          ))}
+        </section>
+      ))}
+    </div>
+  );
+}
 
 export function History() {
   const dispatch = useAppDispatch();
@@ -34,6 +60,8 @@ export function History() {
   const ideMessenger = useContext(IdeMessengerContext);
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [relativeTimeNow, setRelativeTimeNow] = useState(() => Date.now());
+  const runningActivityTimesRef = useRef(new Map<string, number>());
 
   const minisearch = useRef<MiniSearch>(
     new MiniSearch({
@@ -48,12 +76,81 @@ export function History() {
   const isSessionMetadataLoading = useAppSelector(
     (state) => state.session.isSessionMetadataLoading,
   );
+  const runningSessionSummaries = useAppSelector(selectRunningSessionSummaries);
+  const runningSessionIdsValue = useAppSelector(selectRunningSessionIdsValue);
+  const runningSessionIds = useMemo(
+    () =>
+      new Set(
+        runningSessionIdsValue ? runningSessionIdsValue.split("\u0000") : [],
+      ),
+    [runningSessionIdsValue],
+  );
+
+  const runningActivityTimes = useMemo(() => {
+    const activityTimes = runningActivityTimesRef.current;
+    for (const sessionId of activityTimes.keys()) {
+      if (!runningSessionIds.has(sessionId)) {
+        activityTimes.delete(sessionId);
+      }
+    }
+    for (const session of runningSessionSummaries) {
+      if (!activityTimes.has(session.sessionId)) {
+        activityTimes.set(session.sessionId, Date.now());
+      }
+    }
+    return activityTimes;
+  }, [runningSessionIds, runningSessionSummaries]);
+
+  const sessionMetadata = useMemo(() => {
+    const merged = new Map(
+      allSessionMetadata.map((session) => [session.sessionId, session]),
+    );
+
+    for (const runtime of runningSessionSummaries) {
+      const existing = merged.get(runtime.sessionId);
+      const runningActivityTime =
+        runningActivityTimes.get(runtime.sessionId) ?? Date.now();
+      if (existing) {
+        merged.set(runtime.sessionId, {
+          ...existing,
+          title: runtime.title || existing.title,
+          dateUpdated: String(
+            Math.max(getSessionActivityTime(existing), runningActivityTime),
+          ),
+          messageCount: Math.max(
+            existing.messageCount ?? 0,
+            runtime.messageCount,
+          ),
+        });
+      } else {
+        const activityTime = String(runningActivityTime);
+        merged.set(runtime.sessionId, {
+          sessionId: runtime.sessionId,
+          title: runtime.title,
+          dateCreated: activityTime,
+          dateUpdated: activityTime,
+          workspaceDirectory: window.workspacePaths?.[0] || "",
+          messageCount: runtime.messageCount,
+        });
+      }
+    }
+
+    return Array.from(merged.values());
+  }, [allSessionMetadata, runningActivityTimes, runningSessionSummaries]);
+
+  useEffect(() => {
+    const timer = window.setInterval(
+      () => setRelativeTimeNow(Date.now()),
+      60 * 1000,
+    );
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     try {
       minisearch.removeAll();
       minisearch.addAll(
-        allSessionMetadata.map((session) => ({
+        sessionMetadata.map((session) => ({
           title: session.title,
           sessionId: session.sessionId,
           id: session.sessionId,
@@ -62,7 +159,7 @@ export function History() {
     } catch (e) {
       console.log("error adding sessions to minisearch", e);
     }
-  }, [allSessionMetadata]);
+  }, [sessionMetadata]);
 
   const platform = useMemo(() => getPlatform(), []);
 
@@ -104,20 +201,27 @@ export function History() {
       .sort((a, b) => b.priority - a.priority || b.score - a.score)
       .map((result) => result.id);
 
-    return allSessionMetadata
+    return sessionMetadata
       .filter((session) => {
         return searchTerm === "" || sessionIds.includes(session.sessionId);
       })
-      .sort(
-        (a, b) =>
-          parseDate(b.dateCreated).getTime() -
-          parseDate(a.dateCreated).getTime(),
-      );
-  }, [allSessionMetadata, searchTerm, minisearch]);
+      .sort((a, b) => {
+        const runningOrder =
+          Number(runningSessionIds.has(b.sessionId)) -
+          Number(runningSessionIds.has(a.sessionId));
+        return (
+          runningOrder || getSessionActivityTime(b) - getSessionActivityTime(a)
+        );
+      });
+  }, [sessionMetadata, searchTerm, minisearch, runningSessionIds]);
 
   const sessionGroups = useMemo(() => {
-    return groupSessionsByDate(filteredAndSortedSessions);
-  }, [filteredAndSortedSessions]);
+    return groupSessionsByDate(
+      filteredAndSortedSessions,
+      runningSessionIds,
+      relativeTimeNow,
+    );
+  }, [filteredAndSortedSessions, relativeTimeNow, runningSessionIds]);
 
   const showClearSessionsDialog = () => {
     dispatch(
@@ -146,17 +250,54 @@ export function History() {
   return (
     <div
       style={{ fontSize: getFontSize() }}
-      className="flex flex-1 flex-col overflow-auto overflow-x-hidden px-1"
+      className="qivryn-history-panel flex flex-1 flex-col overflow-auto overflow-x-hidden px-1"
     >
-      <div className="relative my-2 mt-4 flex justify-center space-x-2">
+      <div className="qivryn-history-header">
+        <div className="qivryn-history-brand">
+          <span className="qivryn-history-brand-mark" aria-hidden="true" />
+          <span>Qivryn</span>
+        </div>
+        <div className="qivryn-history-actions">
+          <button
+            type="button"
+            aria-label="Clear history"
+            onClick={showClearSessionsDialog}
+          >
+            <EllipsisHorizontalIcon className="h-4 w-4" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            aria-label="Clear search"
+            disabled={!searchTerm}
+            onClick={() => {
+              setSearchTerm("");
+              searchInputRef.current?.focus();
+            }}
+          >
+            <XMarkIcon className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+
+      <div className="qivryn-history-search relative my-2 flex justify-center space-x-2">
+        <MagnifyingGlassIcon
+          className="qivryn-history-search-icon"
+          aria-hidden="true"
+        />
         <input
-          className="bg-vsc-input-background text-vsc-foreground flex-1 rounded-md border border-none py-1 pl-2 pr-8 text-sm outline-none focus:outline-none"
+          className="bg-vsc-input-background text-vsc-foreground flex-1 rounded-md border border-none py-1 pl-8 pr-14 text-sm outline-none focus:outline-none"
           ref={searchInputRef}
-          placeholder="Search past sessions"
+          aria-label="Search sessions"
+          placeholder="Search sessions"
           type="text"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
+        {!searchTerm && (
+          <span className="qivryn-history-search-shortcut" aria-hidden="true">
+            {platform === "mac" ? "⌘K" : "Ctrl K"}
+          </span>
+        )}
         {searchTerm && (
           <XMarkIcon
             className="text-vsc-foreground hover:bg-vsc-background duration-50 absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 transform cursor-pointer rounded-full p-0.5 transition-colors"
@@ -171,47 +312,56 @@ export function History() {
       </div>
 
       <div className="thin-scrollbar flex w-full flex-1 flex-col overflow-y-auto">
-        {filteredAndSortedSessions.length === 0 && (
-          <div className="m-3 text-center">
-            {isSessionMetadataLoading ? (
-              "Loading Sessions..."
-            ) : (
-              <>
-                No past sessions found. To start a new session, either click the
-                "+" button or use the keyboard shortcut:{" "}
-                <Shortcut>meta L</Shortcut>
-              </>
-            )}
-          </div>
-        )}
+        {filteredAndSortedSessions.length === 0 &&
+          (isSessionMetadataLoading ? (
+            <HistoryLoadingPreview />
+          ) : (
+            <div className="qivryn-history-empty m-3 text-center">
+              No past sessions found. Start a new session with{" "}
+              <Shortcut>meta L</Shortcut>.
+            </div>
+          ))}
 
-        <table className="flex w-full flex-1 flex-col">
-          <tbody className="">
-            {sessionGroups.map((group, groupIndex) => (
-              <Fragment key={group.label}>
-                <tr
-                  className={`user-select-none sticky mb-3 ml-2 flex h-6 justify-start text-left text-base font-bold opacity-75 ${
+        <div
+          className="qivryn-history-table flex w-full flex-1 flex-col"
+          role="list"
+          aria-label="Chat sessions"
+        >
+          {sessionGroups.map((group, groupIndex) => {
+            const headingId = `qivryn-history-${group.label.toLowerCase().replace(/\s+/g, "-")}`;
+            return (
+              <section
+                className="qivryn-history-group"
+                aria-labelledby={headingId}
+                key={group.label}
+              >
+                <h2
+                  id={headingId}
+                  className={`qivryn-history-group-label user-select-none ${
                     groupIndex === 0 ? "mt-2" : "mt-8"
                   }`}
                 >
-                  <td colSpan={3}>{group.label}</td>
-                </tr>
+                  {group.label}
+                </h2>
                 {group.sessions.map((session, sessionIndex) => (
                   <HistoryTableRow
                     key={session.sessionId}
                     sessionMetadata={session}
-                    index={sessionIndex}
+                    index={groupIndex * 1000 + sessionIndex}
+                    isRunning={runningSessionIds.has(session.sessionId)}
+                    now={relativeTimeNow}
                   />
                 ))}
-              </Fragment>
-            ))}
-          </tbody>
-        </table>
+              </section>
+            );
+          })}
+        </div>
       </div>
 
-      <div className="border-border flex flex-col items-end justify-center border-0 border-t border-solid px-2 py-3 text-xs">
+      <div className="qivryn-history-footer border-border flex flex-col items-end justify-center border-0 border-t border-solid px-2 py-3 text-xs">
         <Button variant="secondary" size="sm" onClick={showClearSessionsDialog}>
-          Clear chats
+          <TrashIcon className="h-3.5 w-3.5" aria-hidden="true" />
+          <span>Clear history</span>
         </Button>
         <span
           className="text-description text-2xs"

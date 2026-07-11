@@ -101,6 +101,37 @@ describe("sessionSlice streamUpdate", () => {
       expect(newState.history[1].message.id).toBe("mock-uuid-1");
       expect(newState.history[1].contextItems).toEqual([]);
     });
+
+    it("merges explicit completion metadata into streamed assistant text", () => {
+      const initialState = createInitialState();
+      initialState.history.push({
+        message: {
+          role: "assistant",
+          content: "Validation commands and success criteria",
+          id: "assistant-message",
+        },
+        contextItems: [],
+      });
+
+      const newState = sessionSlice.reducer(initialState, {
+        type: "session/streamUpdate",
+        payload: [
+          {
+            role: "assistant" as const,
+            content: "",
+            metadata: {
+              completionStatus: "incomplete",
+              completionReason: "length",
+            },
+          },
+        ],
+      });
+
+      expect(newState.history[1].message.metadata).toMatchObject({
+        completionStatus: "incomplete",
+        completionReason: "length",
+      });
+    });
   });
 
   describe("Chat Message With Thinking", () => {

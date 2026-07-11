@@ -1,5 +1,6 @@
 import {
   ArrowDownOnSquareIcon,
+  ChatBubbleLeftEllipsisIcon,
   PencilSquareIcon,
   TrashIcon,
 } from "@heroicons/react/24/outline";
@@ -19,16 +20,21 @@ import {
 } from "../../redux/thunks/session";
 import { isShareSessionSupported } from "../../util";
 import HeaderButtonWithToolTip from "../gui/HeaderButtonWithToolTip";
-import { ToolTip } from "../gui/Tooltip";
+import { SessionRunningIndicator } from "../SessionRunningIndicator";
+import { formatCompactRelativeTime, getSessionActivityDate } from "./util";
 
 const shareSessionSupported = isShareSessionSupported();
 
 export function HistoryTableRow({
   sessionMetadata,
   index,
+  isRunning = false,
+  now = Date.now(),
 }: {
   sessionMetadata: BaseSessionMetadata;
   index: number;
+  isRunning?: boolean;
+  now?: number;
 }) {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -41,6 +47,19 @@ export function HistoryTableRow({
     sessionMetadata.title,
   );
   const currentSessionId = useAppSelector((state) => state.session.id);
+  const currentHistoryLength = useAppSelector(
+    (state) => state.session.history.length,
+  );
+  const isCurrentSession = sessionMetadata.sessionId === currentSessionId;
+  const shouldRehydratePersistedSession =
+    isCurrentSession &&
+    currentHistoryLength === 0 &&
+    (sessionMetadata.messageCount ?? 0) > 0;
+  const activityDate = getSessionActivityDate(sessionMetadata);
+  const relativeActivity = formatCompactRelativeTime(activityDate, now);
+  const workspaceName = getUriPathBasename(
+    sessionMetadata.workspaceDirectory || "",
+  );
 
   useEffect(() => {
     setSessionTitleEditValue(sessionMetadata.title);
@@ -82,24 +101,20 @@ export function HistoryTableRow({
     if (opening || editing) return;
     setOpening(true);
 
-    if ((window as any).isFullScreen) {
-      ideMessenger.post("session/openInMain", {
-        sessionId: sessionMetadata.sessionId,
-      });
-      return;
-    }
-
     // Route immediately so a slow session read cannot make the row appear
     // unresponsive. The requested session replaces the chat as soon as it is
     // available.
     navigate("/", { replace: true });
     try {
       await dispatch(exitEdit({})).unwrap();
-      if (sessionMetadata.sessionId !== currentSessionId) {
+      if (!isCurrentSession || shouldRehydratePersistedSession) {
         await dispatch(
           loadSession({
             sessionId: sessionMetadata.sessionId,
-            saveCurrentSession: true,
+            // Persisted tabs restore their session id before the transcript has
+            // been hydrated. Do not save that empty shell over the stored chat.
+            saveCurrentSession: !isCurrentSession,
+            forceReload: shouldRehydratePersistedSession,
           }),
         ).unwrap();
       }
@@ -111,13 +126,17 @@ export function HistoryTableRow({
   };
 
   return (
-    <tr
+    <div
+      role="listitem"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       data-testid={`history-row-${index}`}
-      className="hover:bg-input relative mb-2 box-border flex w-full overflow-hidden rounded-lg p-3"
+      data-selected={isCurrentSession ? "true" : undefined}
+      data-running={isRunning ? "true" : undefined}
+      aria-current={isCurrentSession ? "page" : undefined}
+      className="qivryn-history-row hover:bg-input relative mb-2 box-border flex w-full overflow-hidden rounded-lg p-3"
     >
-      <td className="flex-1 space-y-1">
+      <div className="qivryn-history-row-content min-w-0 flex-1">
         {editing ? (
           <div>
             <Input
@@ -133,49 +152,55 @@ export function HistoryTableRow({
         ) : (
           <button
             type="button"
-            aria-label={`Open chat ${sessionMetadata.title}`}
+            aria-label={`Open chat ${sessionMetadata.title}${isRunning ? ", running" : ""}`}
             disabled={opening}
             onClick={() => void openSession()}
-            className="flex w-full min-w-0 cursor-pointer items-center gap-2 border-none bg-transparent p-0 text-left disabled:cursor-wait disabled:opacity-70"
+            className="qivryn-history-row-button flex w-full min-w-0 cursor-pointer flex-col border-none bg-transparent p-0 text-left disabled:cursor-wait disabled:opacity-70"
           >
-            <span className="line-clamp-1 break-all text-sm font-semibold">
-              {sessionMetadata.title}
+            <span className="qivryn-history-row-primary">
+              <span className="qivryn-history-row-title-wrap">
+                {isRunning && <SessionRunningIndicator />}
+                <span className="qivryn-history-row-title line-clamp-1 break-all text-sm font-semibold">
+                  {sessionMetadata.title}
+                </span>
+              </span>
+              <time
+                className="qivryn-history-row-time"
+                dateTime={activityDate.toISOString()}
+                title={`Last active ${activityDate.toLocaleString()}`}
+                aria-label={`Last active ${relativeActivity} ago`}
+              >
+                {relativeActivity}
+              </time>
             </span>
 
-            {sessionMetadata.messageCount !== undefined && (
-              <ToolTip
-                content={`${sessionMetadata.messageCount} message${
-                  sessionMetadata.messageCount === 1 ? " is" : "s are"
-                } present in this session`}
-              >
-                <span className="bg-vsc-background text-secondary-foreground ml-auto inline-flex items-center rounded-full px-2 py-1 text-xs font-medium">
+            <span className="qivryn-history-row-secondary">
+              {workspaceName && (
+                <span className="qivryn-history-row-workspace line-clamp-1 break-all text-xs">
+                  {workspaceName}
+                </span>
+              )}
+              {sessionMetadata.messageCount !== undefined && (
+                <span
+                  className="qivryn-history-row-message-count"
+                  title={`${sessionMetadata.messageCount} message${
+                    sessionMetadata.messageCount === 1 ? "" : "s"
+                  }`}
+                  aria-label={`${sessionMetadata.messageCount} message${
+                    sessionMetadata.messageCount === 1 ? "" : "s"
+                  }`}
+                >
+                  <ChatBubbleLeftEllipsisIcon aria-hidden="true" />
                   {sessionMetadata.messageCount}
                 </span>
-              </ToolTip>
-            )}
+              )}
+            </span>
           </button>
         )}
-
-        <div className="text-description-muted flex">
-          <span className="line-clamp-1 break-all text-xs">
-            {getUriPathBasename(sessionMetadata.workspaceDirectory || "")}
-          </span>
-          {/* Uncomment to show the date */}
-          {/* <span className="inline-block ml-auto">
-                {date.toLocaleString("en-US", {
-                  year: "2-digit",
-                  month: "2-digit",
-                  day: "2-digit",
-                  hour: "numeric",
-                  minute: "2-digit",
-                  hour12: true,
-                })}
-              </span> */}
-        </div>
-      </td>
+      </div>
 
       {hovered && !editing && (
-        <td className="bg-input absolute right-2 top-12 ml-auto flex -translate-y-1/2 transform items-center gap-x-1 rounded-full px-2 py-1 shadow-md">
+        <div className="qivryn-history-row-actions bg-input absolute right-2 top-1/2 ml-auto flex -translate-y-1/2 transform items-center gap-x-1 rounded-full px-2 py-1 shadow-md">
           {
             <>
               <HeaderButtonWithToolTip
@@ -209,8 +234,8 @@ export function HistoryTableRow({
               </HeaderButtonWithToolTip>
             </>
           }
-        </td>
+        </div>
       )}
-    </tr>
+    </div>
   );
 }

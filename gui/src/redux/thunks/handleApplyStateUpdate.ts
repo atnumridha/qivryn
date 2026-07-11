@@ -13,6 +13,12 @@ import {
   updateApplyState,
   updateToolCallOutput,
 } from "../slices/sessionSlice";
+import {
+  createSessionScopedDispatch,
+  findSessionIdForApplyState,
+  findSessionIdForToolCall,
+  getRootStateForSession,
+} from "../sessionRuntime";
 import { ThunkApiType } from "../store";
 import { findToolCallById, logToolUsage } from "../util";
 import { exitEdit } from "./edit";
@@ -20,7 +26,7 @@ import { streamResponseAfterToolCall } from "./streamResponseAfterToolCall";
 
 export const handleApplyStateUpdate = createAsyncThunk<
   void,
-  ApplyState,
+  ApplyState & { sessionId?: string },
   ThunkApiType
 >(
   "apply/handleStateUpdate",
@@ -40,20 +46,37 @@ export const handleApplyStateUpdate = createAsyncThunk<
       }
     } else {
       // chat or agent
-      dispatch(updateApplyState(applyState));
+      const sessionId =
+        applyState.sessionId ??
+        findSessionIdForApplyState(getState(), applyState) ??
+        (applyState.toolCallId
+          ? findSessionIdForToolCall(getState(), applyState.toolCallId)
+          : undefined) ??
+        getState().session.id;
+      const getScopedState = () =>
+        getRootStateForSession(getState(), sessionId);
+      const scopedDispatch = createSessionScopedDispatch(
+        dispatch,
+        sessionId,
+        getState,
+      );
+      const { sessionId: _sessionId, ...scopedApplyState } = applyState;
+
+      scopedDispatch(updateApplyState(scopedApplyState));
 
       // Handle apply status updates - use toolCallId from event payload
       if (applyState.toolCallId) {
         const toolCallState = findToolCallById(
-          getState().session.history,
+          getScopedState().session.history,
           applyState.toolCallId,
         );
 
         if (
           applyState.status === "done" &&
           toolCallState?.toolCall.function.name &&
-          getState().ui.toolSettings[toolCallState.toolCall.function.name] ===
-            "allowedWithoutPermission"
+          getScopedState().ui.toolSettings[
+            toolCallState.toolCall.function.name
+          ] === "allowedWithoutPermission"
         ) {
           extra.ideMessenger.post("acceptDiff", {
             streamId: applyState.streamId,
@@ -69,10 +92,10 @@ export const handleApplyStateUpdate = createAsyncThunk<
 
             // Log edit outcome for Agent Mode
             const newApplyState =
-              getState().session.codeBlockApplyStates.states.find(
+              getScopedState().session.codeBlockApplyStates.states.find(
                 (s) => s.streamId === applyState.streamId,
               );
-            const newState = getState();
+            const newState = getScopedState();
             if (newApplyState) {
               void logAgentModeEditOutcome(
                 newState.session.history,
@@ -86,7 +109,7 @@ export const handleApplyStateUpdate = createAsyncThunk<
 
             if (accepted) {
               if (toolCallState.status !== "errored") {
-                dispatch(
+                scopedDispatch(
                   acceptToolCall({
                     toolCallId: applyState.toolCallId,
                   }),
@@ -94,7 +117,7 @@ export const handleApplyStateUpdate = createAsyncThunk<
 
                 // Add autoformatting diff to tool output if present
                 if (applyState.autoFormattingDiff) {
-                  dispatch(
+                  scopedDispatch(
                     updateToolCallOutput({
                       toolCallId: applyState.toolCallId,
                       contextItems: [
@@ -109,7 +132,7 @@ export const handleApplyStateUpdate = createAsyncThunk<
                     }),
                   );
                 } else {
-                  dispatch(
+                  scopedDispatch(
                     updateToolCallOutput({
                       toolCallId: applyState.toolCallId,
                       contextItems: [
@@ -124,7 +147,7 @@ export const handleApplyStateUpdate = createAsyncThunk<
                   );
                 }
               } else {
-                dispatch(
+                scopedDispatch(
                   updateToolCallOutput({
                     toolCallId: applyState.toolCallId,
                     contextItems: [
@@ -141,6 +164,7 @@ export const handleApplyStateUpdate = createAsyncThunk<
 
               void dispatch(
                 streamResponseAfterToolCall({
+                  sessionId,
                   toolCallId: applyState.toolCallId,
                 }),
               );
@@ -154,11 +178,22 @@ export const handleApplyStateUpdate = createAsyncThunk<
 
 export const applyForEditTool = createAsyncThunk<
   void,
-  ApplyToFilePayload & { toolCallId: string },
+  ApplyToFilePayload & { toolCallId: string; sessionId?: string },
   ThunkApiType
 >("apply/editTool", async (payload, { dispatch, getState, extra }) => {
-  const { toolCallId, streamId } = payload;
-  dispatch(
+  const { toolCallId, streamId, sessionId: requestedSessionId } = payload;
+  const sessionId =
+    requestedSessionId ??
+    findSessionIdForToolCall(getState(), toolCallId) ??
+    getState().session.id;
+  const getScopedState = () => getRootStateForSession(getState(), sessionId);
+  const scopedDispatch = createSessionScopedDispatch(
+    dispatch,
+    sessionId,
+    getState,
+  );
+
+  scopedDispatch(
     updateApplyState({
       streamId,
       toolCallId,
@@ -169,7 +204,11 @@ export const applyForEditTool = createAsyncThunk<
 
   let didError = false;
   try {
-    const response = await extra.ideMessenger.request("applyToFile", payload);
+    const { sessionId: _sessionId, ...applyPayload } = payload;
+    const response = await extra.ideMessenger.request(
+      "applyToFile",
+      applyPayload,
+    );
     if (response.status === "error") {
       didError = true;
     }
@@ -177,7 +216,7 @@ export const applyForEditTool = createAsyncThunk<
     didError = true;
   }
   if (didError) {
-    const state = getState();
+    const state = getScopedState();
 
     const toolCallState = selectToolCallById(state, toolCallId);
     const applyState = selectApplyStateByToolCallId(state, toolCallId);
@@ -187,12 +226,12 @@ export const applyForEditTool = createAsyncThunk<
       applyState.status !== "closed" &&
       toolCallState.status === "calling"
     ) {
-      dispatch(
+      scopedDispatch(
         errorToolCall({
           toolCallId,
         }),
       );
-      dispatch(
+      scopedDispatch(
         updateToolCallOutput({
           toolCallId,
           contextItems: [
@@ -208,6 +247,7 @@ export const applyForEditTool = createAsyncThunk<
       );
       void dispatch(
         handleApplyStateUpdate({
+          sessionId,
           status: "closed",
           streamId: applyState.streamId,
           toolCallId,

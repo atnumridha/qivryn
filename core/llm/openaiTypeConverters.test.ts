@@ -1,4 +1,4 @@
-import { toResponsesInput, isItemType } from "./openaiTypeConverters";
+import { isItemType, toResponsesInput } from "./openaiTypeConverters";
 import { ChatMessage } from "..";
 import type {
   EasyInputMessage,

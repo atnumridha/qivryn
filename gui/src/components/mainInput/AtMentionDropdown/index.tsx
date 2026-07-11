@@ -3,6 +3,7 @@ import {
   AtSymbolIcon,
   ChatBubbleLeftIcon,
   PlusIcon,
+  SparklesIcon,
 } from "@heroicons/react/24/outline";
 import type { Editor } from "@tiptap/react";
 import type { RangeInFile } from "core";
@@ -41,7 +42,11 @@ export function getIconFromDropdownItem(
   type: ComboBoxItemType,
 ) {
   const typeIcon =
-    type === "contextProvider" ? AtSymbolIcon : ChatBubbleLeftIcon;
+    type === "skill"
+      ? SparklesIcon
+      : type === "contextProvider"
+        ? AtSymbolIcon
+        : ChatBubbleLeftIcon;
   return id ? (NAMED_ICONS[id] ?? typeIcon) : typeIcon;
 }
 
@@ -89,6 +94,7 @@ const ItemsDiv = styled.div`
   overflow-x: hidden;
   overflow-y: auto;
   max-height: 330px;
+  width: min(360px, calc(100vw - 16px));
   padding: 0.2rem;
   position: relative; // absolute to test tippy.js bug
 
@@ -111,6 +117,10 @@ const ItemDiv = styled.div`
   &.is-selected {
     background-color: ${vscListActiveBackground};
     color: ${vscListActiveForeground};
+  }
+
+  &.is-skill {
+    padding: 6px 8px;
   }
 `;
 
@@ -438,7 +448,7 @@ const AtMentionDropdown = forwardRef((props: AtMentionDropdownProps, ref) => {
       }
 
       if (event.key === " ") {
-        if (allItems.length === 1) {
+        if (allItems.length === 1 && allItems[0]?.type !== "skill") {
           enterHandler();
           return true;
         }
@@ -534,11 +544,12 @@ const AtMentionDropdown = forwardRef((props: AtMentionDropdownProps, ref) => {
           {allItems.length ? (
             allItems.map((item, index) => {
               const isSelected = index === selectedIndex;
+              const isSkill = item.type === "skill";
               return (
                 <ItemDiv
                   as="button"
                   ref={(el) => (itemRefs.current[index] = el)}
-                  className={`item cursor-pointer ${isSelected ? "is-selected" : ""}`}
+                  className={`item cursor-pointer ${isSelected ? "is-selected" : ""} ${isSkill ? "is-skill" : ""}`}
                   key={index}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -547,8 +558,8 @@ const AtMentionDropdown = forwardRef((props: AtMentionDropdownProps, ref) => {
                   onMouseEnter={() => setSelectedIndex(index)}
                   data-testid="context-provider-dropdown-item"
                 >
-                  <span className="flex w-full items-center justify-between">
-                    <div className="flex items-center justify-center">
+                  <span className="flex w-full min-w-0 items-center justify-between">
+                    <div className="flex min-w-0 items-center">
                       {showFileIconForItem(item) ? (
                         <FileIcon
                           height="20px"
@@ -558,55 +569,74 @@ const AtMentionDropdown = forwardRef((props: AtMentionDropdownProps, ref) => {
                       ) : (
                         <DropdownIcon item={item} className="mr-2" />
                       )}
-                      <span title={item.id} className="whitespace-nowrap">
-                        {item.title}
-                      </span>
+                      {isSkill ? (
+                        <span className="block min-w-0 text-left">
+                          <span
+                            title={item.id}
+                            className="block truncate font-medium"
+                          >
+                            {item.title}
+                          </span>
+                          <span
+                            title={item.description}
+                            className="text-description-muted mt-0.5 block truncate"
+                          >
+                            {item.description}
+                          </span>
+                        </span>
+                      ) : (
+                        <span title={item.id} className="whitespace-nowrap">
+                          {item.title}
+                        </span>
+                      )}
                       {"  "}
                     </div>
-                    <span
-                      style={{
-                        color: lightGray,
-                        float: "right",
-                        textAlign: "right",
-                        opacity:
-                          subMenuTitle || item.type !== "contextProvider"
-                            ? 1
-                            : isSelected
+                    {!isSkill && (
+                      <span
+                        style={{
+                          color: lightGray,
+                          float: "right",
+                          textAlign: "right",
+                          opacity:
+                            subMenuTitle || item.type !== "contextProvider"
                               ? 1
-                              : 0,
-                        minWidth: "30px",
-                      }}
-                      className="ml-2 flex items-center overflow-hidden overflow-ellipsis whitespace-nowrap"
-                    >
-                      {item.description}
-                      {item.type === "contextProvider" &&
-                        item.contextProvider?.type === "submenu" && (
-                          <ArrowRightIcon
-                            className="ml-2 flex-shrink-0"
-                            width="1.2em"
-                            height="1.2em"
-                          />
-                        )}
-                      {item.subActions?.map((subAction) => {
-                        const Icon = getIconFromDropdownItem(
-                          subAction.icon,
-                          "action",
-                        );
-                        return (
-                          <HeaderButtonWithToolTip
-                            onClick={(e) => {
-                              subAction.action(item);
-                              e.stopPropagation();
-                              e.preventDefault();
-                              props.onClose();
-                            }}
-                            text={undefined}
-                          >
-                            <Icon width="1.2em" height="1.2em" />
-                          </HeaderButtonWithToolTip>
-                        );
-                      })}
-                    </span>
+                              : isSelected
+                                ? 1
+                                : 0,
+                          minWidth: "30px",
+                        }}
+                        className="ml-2 flex items-center overflow-hidden overflow-ellipsis whitespace-nowrap"
+                      >
+                        {item.description}
+                        {item.type === "contextProvider" &&
+                          item.contextProvider?.type === "submenu" && (
+                            <ArrowRightIcon
+                              className="ml-2 flex-shrink-0"
+                              width="1.2em"
+                              height="1.2em"
+                            />
+                          )}
+                        {item.subActions?.map((subAction) => {
+                          const Icon = getIconFromDropdownItem(
+                            subAction.icon,
+                            "action",
+                          );
+                          return (
+                            <HeaderButtonWithToolTip
+                              onClick={(e) => {
+                                subAction.action(item);
+                                e.stopPropagation();
+                                e.preventDefault();
+                                props.onClose();
+                              }}
+                              text={undefined}
+                            >
+                              <Icon width="1.2em" height="1.2em" />
+                            </HeaderButtonWithToolTip>
+                          );
+                        })}
+                      </span>
+                    )}
                   </span>
                 </ItemDiv>
               );

@@ -709,12 +709,7 @@ export function fromResponsesChunk(
       const reason = mapIncompleteReason(event as ResponseIncompleteEvent);
       state.context.pendingFinish = reason;
       const usage = mapUsage((event as ResponseIncompleteEvent).response.usage);
-      if (usage) {
-        return buildChunk(state, {}, null, usage, {
-          includeChoices: false,
-        });
-      }
-      return buildChunk(state, {}, reason);
+      return buildChunk(state, {}, reason, usage);
     }
     case "response.failed":
     case "error": {

@@ -7,9 +7,14 @@ import { resolveEditorContent } from "../../components/mainInput/TipTapEditor/ut
 import { selectSelectedChatModel } from "../slices/configSlice";
 import {
   resetNextCodeBlockToApplyIndex,
+  setSessionChatModelTitle,
   submitEditorAndInitAtIndex,
   updateHistoryItemAtIndex,
 } from "../slices/sessionSlice";
+import {
+  createSessionScopedDispatch,
+  getRootStateForSession,
+} from "../sessionRuntime";
 import { ThunkApiType } from "../store";
 import { streamNormalInput } from "./streamNormalInput";
 import { streamThunkWrapper } from "./streamThunkWrapper";
@@ -21,25 +26,38 @@ export const streamResponseThunk = createAsyncThunk<
     editorState: JSONContent;
     modifiers: InputModifiers;
     index?: number;
+    sessionId?: string;
   },
   ThunkApiType
 >(
   "chat/streamResponse",
-  async ({ editorState, modifiers, index }, { dispatch, extra, getState }) => {
+  async (
+    { editorState, modifiers, index, sessionId: requestedSessionId },
+    { dispatch, extra, getState },
+  ) => {
+    const sessionId = requestedSessionId ?? getState().session.id;
+    const getScopedState = () => getRootStateForSession(getState(), sessionId);
+    const scopedDispatch = createSessionScopedDispatch(
+      dispatch,
+      sessionId,
+      getState,
+    );
+
     await dispatch(
       streamThunkWrapper(async () => {
-        const state = getState();
+        const state = getScopedState();
         const selectedChatModel = selectSelectedChatModel(state);
         const inputIndex = index ?? state.session.history.length; // Either given index or concat to end
 
         if (!selectedChatModel) {
           throw new Error("No chat model selected");
         }
-        dispatch(
+        scopedDispatch(
           submitEditorAndInitAtIndex({ index: inputIndex, editorState }),
         );
 
-        dispatch(resetNextCodeBlockToApplyIndex());
+        scopedDispatch(resetNextCodeBlockToApplyIndex());
+        scopedDispatch(setSessionChatModelTitle(selectedChatModel.title));
 
         const defaultContextProviders =
           state.config.config.experimental?.defaultContext ?? [];
@@ -56,8 +74,8 @@ export const streamResponseThunk = createAsyncThunk<
           ideMessenger: extra.ideMessenger,
           defaultContextProviders,
           availableSlashCommands: state.config.config.slashCommands,
-          dispatch,
-          getState,
+          dispatch: scopedDispatch,
+          getState: getScopedState,
         });
 
         // symbols for both context items AND selected codeblocks
@@ -69,7 +87,7 @@ export const streamResponseThunk = createAsyncThunk<
         ];
         void dispatch(updateFileSymbolsFromFiles(filesForSymbols));
 
-        dispatch(
+        scopedDispatch(
           updateHistoryItemAtIndex({
             index: inputIndex,
             updates: {

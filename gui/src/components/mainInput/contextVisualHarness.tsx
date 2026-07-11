@@ -19,6 +19,7 @@ import InputToolbar from "./InputToolbar";
 
 const messenger = new MockIdeMessenger();
 const store = setupStore({ ideMessenger: messenger });
+const visualParams = new URLSearchParams(window.location.search);
 const historyItem = {
   message: {
     id: "visual-message",
@@ -33,6 +34,12 @@ const visualModel = {
   title: "Codex: GPT-5.6-Sol",
   underlyingProviderName: "openai",
   contextLength: 200_000,
+  requestOptions: {
+    extraBodyProperties: {
+      _reasoningLevels: ["low", "medium", "high", "xhigh", "ultra"],
+      reasoning_effort: "medium",
+    },
+  },
 };
 
 store.dispatch(
@@ -61,7 +68,7 @@ store.dispatch(
     model: visualModel.model,
   }),
 );
-if (new URLSearchParams(window.location.search).get("compacting") !== "false") {
+if (visualParams.get("compacting") !== "false") {
   store.dispatch(setCompactionLoading({ index: 0, loading: true }));
 }
 
@@ -78,7 +85,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
                     Completed response content
                   </div>
                   <ConversationSummary item={historyItem as any} index={0} />
-                  <section className="border-border bg-vsc-input-background rounded-lg border border-solid p-2 shadow-lg">
+                  <section className="qivryn-main-editor-input border-border bg-vsc-input-background rounded-lg border border-solid p-2 shadow-lg">
                     <textarea
                       aria-label="Ask a follow-up"
                       placeholder="Ask a follow-up"
@@ -100,3 +107,25 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     </MemoryRouter>
   </React.StrictMode>,
 );
+
+if (visualParams.get("modelOpen") === "true") {
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLButtonElement>('[data-testid="model-select-button"]')
+        ?.click();
+    });
+  });
+}
+
+if (visualParams.get("attachOpen") === "true") {
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLButtonElement>(
+          '[aria-label="Attach file, image, or context"]',
+        )
+        ?.click();
+    });
+  });
+}

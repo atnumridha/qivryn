@@ -130,6 +130,7 @@ test(
     // Tool call, check that applyToFile was called for edit
     await waitFor(() => {
       expect(messengerRequestSpy).toHaveBeenCalledWith("applyToFile", {
+        background: true,
         streamId: expect.any(String),
         filepath: EDIT_FILE_URI,
         text: EDIT_CHANGES,

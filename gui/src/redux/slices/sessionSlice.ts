@@ -206,15 +206,13 @@ export type ChatHistoryItemWithMessageId = ChatHistoryItem & {
   message: ChatMessage & { id: string };
 };
 
-type SessionState = {
-  lastSessionId?: string;
-  isSessionMetadataLoading: boolean;
-  allSessionMetadata: BaseSessionMetadata[];
+export type SessionRuntimeState = {
   history: ChatHistoryItemWithMessageId[];
   isStreaming: boolean;
   title: string;
   id: string;
   streamAborter: AbortController;
+  chatModelTitle?: string | null;
   mainEditorContentTrigger?: JSONContent | undefined;
   symbols: FileSymbolMap;
   mode: MessageModes;
@@ -232,6 +230,48 @@ type SessionState = {
   compactionLoading: Record<number, boolean>; // Track compaction loading by message index
 };
 
+export type SessionState = SessionRuntimeState & {
+  lastSessionId?: string;
+  isSessionMetadataLoading: boolean;
+  allSessionMetadata: BaseSessionMetadata[];
+  backgroundSessionStates?: Record<string, SessionRuntimeState>;
+};
+
+export const SESSION_SCOPE_META_KEY = "qivrynSessionId";
+
+function runtimeSnapshot(state: SessionState): SessionRuntimeState {
+  const {
+    lastSessionId: _lastSessionId,
+    isSessionMetadataLoading: _isSessionMetadataLoading,
+    allSessionMetadata: _allSessionMetadata,
+    backgroundSessionStates: _backgroundSessionStates,
+    ...runtime
+  } = state;
+  return runtime;
+}
+
+export function getSessionRuntimeById(
+  state: SessionState,
+  sessionId: string,
+): SessionRuntimeState | undefined {
+  return state.id === sessionId
+    ? runtimeSnapshot(state)
+    : state.backgroundSessionStates?.[sessionId];
+}
+
+export function scopeSessionAction<T extends { type: string }>(
+  action: T,
+  sessionId: string,
+): T {
+  return {
+    ...action,
+    meta: {
+      ...((action as T & { meta?: Record<string, unknown> }).meta ?? {}),
+      [SESSION_SCOPE_META_KEY]: sessionId,
+    },
+  };
+}
+
 export const INITIAL_SESSION_STATE: SessionState = {
   isSessionMetadataLoading: false,
   allSessionMetadata: [],
@@ -240,6 +280,7 @@ export const INITIAL_SESSION_STATE: SessionState = {
   title: NEW_SESSION_TITLE,
   id: uuidv4(),
   streamAborter: new AbortController(),
+  chatModelTitle: null,
   symbols: {},
   mode: "agent",
   isInEdit: false,
@@ -250,6 +291,7 @@ export const INITIAL_SESSION_STATE: SessionState = {
   lastSessionId: undefined,
   newestToolbarPreviewForInput: {},
   compactionLoading: {},
+  backgroundSessionStates: {},
 };
 
 export const sessionSlice = createSlice({
@@ -528,9 +570,30 @@ export const sessionSlice = createSlice({
 
       state.isStreaming = false;
     },
+    markResponseContinuationRequested: (
+      state,
+      action: PayloadAction<number>,
+    ) => {
+      const message = state.history[action.payload]?.message;
+      if (message?.role !== "assistant") {
+        return;
+      }
+
+      message.metadata = {
+        ...message.metadata,
+        completionStatus: "continued",
+      };
+      delete message.metadata.completionReason;
+    },
     abortStream: (state) => {
       state.streamAborter.abort();
       state.streamAborter = new AbortController();
+    },
+    setSessionChatModelTitle: (
+      state,
+      { payload }: PayloadAction<string | null>,
+    ) => {
+      state.chatModelTitle = payload;
     },
     streamUpdate: (state, action: PayloadAction<ChatMessage[]>) => {
       if (state.history.length) {
@@ -682,6 +745,23 @@ export const sessionSlice = createSlice({
           }
 
           if (
+            message.role === "assistant" &&
+            lastMessage.role === "assistant" &&
+            typeof message.metadata?.completionStatus === "string"
+          ) {
+            lastMessage.metadata = {
+              ...lastMessage.metadata,
+              completionStatus: message.metadata.completionStatus,
+            };
+            if (typeof message.metadata.completionReason === "string") {
+              lastMessage.metadata.completionReason =
+                message.metadata.completionReason;
+            } else {
+              delete lastMessage.metadata.completionReason;
+            }
+          }
+
+          if (
             message.role === "thinking" &&
             message.reasoning_details &&
             lastMessage.role === "thinking"
@@ -695,9 +775,27 @@ export const sessionSlice = createSlice({
       }
     },
     newSession: (state, { payload }: PayloadAction<Session | undefined>) => {
-      state.lastSessionId = state.id;
+      const previousSessionId = state.id;
+      const backgroundSessionStates = {
+        ...(state.backgroundSessionStates ?? {}),
+        [previousSessionId]: runtimeSnapshot(state as SessionState),
+      };
+      const cachedRuntime = payload
+        ? backgroundSessionStates[payload.sessionId]
+        : undefined;
 
-      state.streamAborter.abort();
+      state.lastSessionId = previousSessionId;
+      state.backgroundSessionStates = backgroundSessionStates;
+
+      if (cachedRuntime) {
+        delete state.backgroundSessionStates[payload!.sessionId];
+        Object.assign(state, cachedRuntime);
+        return;
+      }
+
+      // Session navigation must not cancel another conversation. Each runtime
+      // keeps its own controller in backgroundSessionStates until Stop is
+      // explicitly requested for that session.
       state.streamAborter = new AbortController();
 
       state.isStreaming = false;
@@ -712,6 +810,7 @@ export const sessionSlice = createSlice({
         state.history = recoverInterruptedHistory(payload.history) as any;
         state.title = payload.title;
         state.id = payload.sessionId;
+        state.chatModelTitle = payload.chatModelTitle;
         if (payload.mode) {
           state.mode = payload.mode;
         }
@@ -719,6 +818,16 @@ export const sessionSlice = createSlice({
         state.history = [];
         state.title = NEW_SESSION_TITLE;
         state.id = uuidv4();
+        state.chatModelTitle = null;
+      }
+    },
+    hydratePersistedSession: (state, { payload }: PayloadAction<Session>) => {
+      state.history = recoverInterruptedHistory(payload.history) as any;
+      state.title = payload.title;
+      state.id = payload.sessionId;
+      state.chatModelTitle = payload.chatModelTitle;
+      if (payload.mode) {
+        state.mode = payload.mode;
       }
     },
     updateSessionTitle: (state, { payload }: PayloadAction<string>) => {
@@ -1080,8 +1189,10 @@ export const {
   addContextItemsAtIndex,
   setAppliedRulesAtIndex,
   setInactive,
+  markResponseContinuationRequested,
   streamUpdate,
   newSession,
+  hydratePersistedSession,
   updateSessionTitle,
   addHighlightedCode,
   addPromptCompletionPair,
@@ -1097,6 +1208,7 @@ export const {
   resetNextCodeBlockToApplyIndex,
   updateApplyState,
   abortStream,
+  setSessionChatModelTitle,
   setToolCallCalling,
   cancelToolCall,
   errorToolCall,
@@ -1122,4 +1234,45 @@ export const {
 
 export const { selectIsGatheringContext } = sessionSlice.selectors;
 
-export default sessionSlice.reducer;
+const baseSessionReducer = sessionSlice.reducer;
+
+function sessionReducer(
+  state: SessionState | undefined,
+  action: { type: string; meta?: Record<string, unknown> },
+): SessionState {
+  if (state === undefined) {
+    return baseSessionReducer(state, action) as SessionState;
+  }
+
+  const targetSessionId = action.meta?.[SESSION_SCOPE_META_KEY];
+  if (typeof targetSessionId !== "string" || targetSessionId === state.id) {
+    return baseSessionReducer(state, action) as SessionState;
+  }
+
+  const targetRuntime = state.backgroundSessionStates?.[targetSessionId];
+  if (!targetRuntime) {
+    return state;
+  }
+
+  const targetState: SessionState = {
+    ...targetRuntime,
+    lastSessionId: state.lastSessionId,
+    isSessionMetadataLoading: state.isSessionMetadataLoading,
+    allSessionMetadata: state.allSessionMetadata,
+    backgroundSessionStates: {},
+  };
+  const nextTargetState = baseSessionReducer(
+    targetState,
+    action,
+  ) as SessionState;
+
+  return {
+    ...state,
+    backgroundSessionStates: {
+      ...(state.backgroundSessionStates ?? {}),
+      [targetSessionId]: runtimeSnapshot(nextTargetState),
+    },
+  };
+}
+
+export default sessionReducer;

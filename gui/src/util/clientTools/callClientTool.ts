@@ -11,6 +11,7 @@ export interface ClientToolExtras {
   getState: () => RootState;
   dispatch: AppThunkDispatch;
   ideMessenger: IIdeMessenger;
+  sessionId?: string;
 }
 
 export interface ClientToolOutput {
