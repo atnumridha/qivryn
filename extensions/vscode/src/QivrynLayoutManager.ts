@@ -11,10 +11,17 @@ import {
 const CUSTOM_KEY = "qivryn.customLayouts";
 const ACTIVE_KEY = "qivryn.activeLayout";
 
+export interface QivrynLayoutManagerOptions {
+  nativeAgentSessions?: boolean;
+}
+
 export class QivrynLayoutManager {
   private contextKeyReaderAvailable: boolean | undefined;
 
-  constructor(private readonly context: vscode.ExtensionContext) {}
+  constructor(
+    private readonly context: vscode.ExtensionContext,
+    private readonly options: QivrynLayoutManagerOptions = {},
+  ) {}
 
   async chooseAndApply(): Promise<void> {
     const custom = restoreSavedLayouts(
@@ -85,33 +92,7 @@ export class QivrynLayoutManager {
     if (preset.builtIn !== "zen") await this.ensureZen(false);
     switch (preset.builtIn) {
       case "agent":
-        await vscode.commands.executeCommand("workbench.action.closePanel");
-        await vscode.commands.executeCommand("workbench.action.closeSidebar");
-        try {
-          await vscode.commands.executeCommand(
-            "workbench.view.extension.qivryn",
-          );
-          await vscode.commands.executeCommand(
-            "workbench.action.focusAuxiliaryBar",
-          );
-          await vscode.commands.executeCommand("qivryn.qivrynGUIView.focus");
-          // VS Code can report the contributed container as visible before its
-          // webview has replaced the previously active auxiliary-bar view.
-          await new Promise((resolve) => setTimeout(resolve, 75));
-          await vscode.commands.executeCommand("qivryn.qivrynGUIView.focus");
-        } catch {
-          await vscode.commands.executeCommand(
-            "qivryn.openInNewWindow",
-            "/",
-            false,
-            false,
-          );
-        }
-        try {
-          await vscode.commands.executeCommand(
-            "qivryn.closeRestoredAgentEditors",
-          );
-        } catch {}
+        await this.applyAgentLayout();
         break;
       case "editor":
         await vscode.commands.executeCommand("workbench.action.closeSidebar");
@@ -139,6 +120,46 @@ export class QivrynLayoutManager {
     }
     await this.context.workspaceState.update(ACTIVE_KEY, preset);
     await this.updateLayoutContext(preset);
+  }
+
+  private async applyAgentLayout(): Promise<void> {
+    if (this.options.nativeAgentSessions) {
+      try {
+        const restored = await vscode.commands.executeCommand<boolean>(
+          "qivryn.restoreNativeAgentSurface",
+        );
+        if (restored) return;
+      } catch (error) {
+        console.warn(
+          "[Qivryn] Native Agent layout restore failed; using the React fallback",
+          error,
+        );
+      }
+    }
+
+    await vscode.commands.executeCommand("workbench.action.closePanel");
+    await vscode.commands.executeCommand("workbench.action.closeSidebar");
+    try {
+      await vscode.commands.executeCommand("workbench.view.extension.qivryn");
+      await vscode.commands.executeCommand(
+        "workbench.action.focusAuxiliaryBar",
+      );
+      await vscode.commands.executeCommand("qivryn.qivrynGUIView.focus");
+      // VS Code can report the contributed container as visible before its
+      // webview has replaced the previously active auxiliary-bar view.
+      await new Promise((resolve) => setTimeout(resolve, 75));
+      await vscode.commands.executeCommand("qivryn.qivrynGUIView.focus");
+    } catch {
+      await vscode.commands.executeCommand(
+        "qivryn.openInNewWindow",
+        "/",
+        false,
+        false,
+      );
+    }
+    try {
+      await vscode.commands.executeCommand("qivryn.closeRestoredAgentEditors");
+    } catch {}
   }
 
   private async captureSnapshot(): Promise<QivrynLayoutSnapshot> {
@@ -240,7 +261,11 @@ export class QivrynLayoutManager {
       vscode.commands.executeCommand(
         "setContext",
         "qivryn.composerLocation",
-        preset.builtIn === "maximized-chat" ? "promptBar" : "editorTab",
+        preset.builtIn === "maximized-chat"
+          ? "promptBar"
+          : preset.builtIn === "agent" && this.options.nativeAgentSessions
+            ? "pane"
+            : "editor",
       ),
     ]);
   }

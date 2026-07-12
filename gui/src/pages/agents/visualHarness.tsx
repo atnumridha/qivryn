@@ -13,6 +13,8 @@ import "../../index.css";
 import Agents from ".";
 
 const messenger = new MockIdeMessenger();
+const visualParams = new URLSearchParams(window.location.search);
+const showEmptyState = visualParams.get("empty") === "1";
 const selectedRun: AgentRun = {
   id: "visual-run",
   revision: 1,
@@ -86,15 +88,17 @@ const recentEvents: AgentEvent[] = [
   },
 ];
 
-messenger.responses["agents/list"] = [
-  selectedRun,
-  {
-    ...selectedRun,
-    id: "recent-run",
-    title: "Review the codebase",
-    prompt: "Review the codebase",
-  },
-];
+messenger.responses["agents/list"] = showEmptyState
+  ? []
+  : [
+      selectedRun,
+      {
+        ...selectedRun,
+        id: "recent-run",
+        title: "Review the codebase",
+        prompt: "Review the codebase",
+      },
+    ];
 messenger.responses["agents/events"] = [...earlierEvents, ...recentEvents];
 messenger.responses["agents/checkpoints"] = Array.from(
   { length: 6 },
@@ -134,7 +138,9 @@ store.dispatch(
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <MemoryRouter initialEntries={["/agents?runId=visual-run"]}>
+    <MemoryRouter
+      initialEntries={[showEmptyState ? "/agents" : "/agents?runId=visual-run"]}
+    >
       <IdeMessengerProvider messenger={messenger}>
         <Provider store={store}>
           <AuthProvider>

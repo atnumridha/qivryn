@@ -68,6 +68,7 @@ export function convertJsonMcpConfigToYamlMcpConfig(
       type: "stdio",
       command: jsonConfig.command,
       args: jsonConfig.args,
+      cwd: jsonConfig.cwd,
       env: convertJsonEnvToYamlEnv(jsonConfig.env),
     };
     return {
@@ -90,7 +91,7 @@ export function convertJsonMcpConfigToYamlMcpConfig(
 
     if (jsonConfig.headers) {
       sseOrHttpConfig.requestOptions = {
-        headers: jsonConfig.headers,
+        headers: convertJsonEnvToYamlEnv(jsonConfig.headers),
       };
     }
 
@@ -128,12 +129,6 @@ export function convertYamlMcpConfigToJsonMcpConfig(yamlConfig: MCPServer): {
   if ("command" in yamlConfig) {
     const { command, args, env, cwd } = yamlConfig;
 
-    if (cwd) {
-      warnings.push(
-        `\`cwd\` from YAML MCP config not supported in Claude-style JSON, will be removed from server ${name}`,
-      );
-    }
-
     return {
       name,
       MCP_TIMEOUT,
@@ -142,6 +137,7 @@ export function convertYamlMcpConfigToJsonMcpConfig(yamlConfig: MCPServer): {
         type: "stdio",
         command,
         args,
+        cwd,
         env: convertYamlEnvToJsonEnv(env),
       },
     };

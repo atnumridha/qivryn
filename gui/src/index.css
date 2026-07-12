@@ -16,6 +16,23 @@
   font-style: normal;
 }
 
+@font-face {
+  font-family: "OpenAI Sans";
+  src: url("/fonts/OpenAISans/OpenAISans-Regular-DFZxHTKM.woff2")
+    format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "OpenAI Sans";
+  src: url("/fonts/OpenAISans/OpenAISans-Medium-B7nJY_kG.woff2") format("woff2");
+  font-weight: 500 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --qivryn-violet: #6f7cff;
   --qivryn-violet-hover: #8390ff;
@@ -2886,6 +2903,36 @@ body[data-qivryn-fullscreen="true"] .qivryn-history-shell,
    executable output, floating menus, and the composer. */
 .qivryn-agents-cursor {
   --qivryn-canvas: var(--vscode-editor-background, #111416);
+  --qivryn-codex-surface: color-mix(
+    in oklab,
+    var(--vscode-editor-foreground, #fff) 3%,
+    transparent
+  );
+  --qivryn-codex-surface-raised: color-mix(
+    in oklab,
+    var(--vscode-editor-foreground, #fff) 5%,
+    transparent
+  );
+  --qivryn-codex-border: color-mix(
+    in oklab,
+    var(--vscode-editor-foreground, #fff) 8%,
+    transparent
+  );
+  --qivryn-codex-border-heavy: color-mix(
+    in oklab,
+    var(--vscode-editor-foreground, #fff) 16%,
+    transparent
+  );
+  --qivryn-codex-text-secondary: color-mix(
+    in oklab,
+    var(--vscode-editor-foreground, #fff) 70%,
+    transparent
+  );
+  --qivryn-codex-text-tertiary: color-mix(
+    in oklab,
+    var(--vscode-editor-foreground, #fff) 50%,
+    transparent
+  );
   --qivryn-surface-subtle: color-mix(
     in srgb,
     var(--vscode-editor-foreground, #f2f5f7) 5%,
@@ -2913,15 +2960,17 @@ body[data-qivryn-fullscreen="true"] .qivryn-history-shell,
     --vscode-descriptionForeground,
     var(--md-sys-color-on-surface-variant)
   );
-  --qivryn-chat-inline: 16px;
-  --qivryn-chat-rail-width: none;
+  --qivryn-chat-inline: clamp(12px, 2vw, 20px);
+  --qivryn-chat-rail-width: min(100%, 48rem);
   --qivryn-chat-font-family: var(
-    --vscode-font-family,
+    --qivryn-product-font,
+    "OpenAI Sans",
+    var(--vscode-font-family),
     -apple-system,
     BlinkMacSystemFont,
     sans-serif
   );
-  --qivryn-chat-font-size: var(--vscode-font-size, 13px);
+  --qivryn-chat-font-size: 14px;
   --qivryn-control-radius: 999px;
   --qivryn-output-radius: 8px;
   --qivryn-composer-radius: 25px;
@@ -3223,11 +3272,10 @@ body[data-qivryn-fullscreen="true"] .qivryn-agents-cursor {
 }
 
 .qivryn-chat-composer-layer {
-  padding: 8px 0 10px;
+  padding: 10px 0 14px;
   background: var(--qivryn-canvas);
   border-top: 0;
-  box-shadow: 0 -10px 24px
-    color-mix(in srgb, var(--vscode-widget-shadow, #000) 24%, transparent);
+  box-shadow: none;
 }
 
 .qivryn-main-input-shell {
@@ -3246,34 +3294,29 @@ body[data-qivryn-fullscreen="true"] .qivryn-agents-cursor {
   font-family: var(--qivryn-chat-font-family) !important;
   font-size: var(--qivryn-chat-font-size) !important;
   line-height: 20px !important;
-  background: color-mix(
-    in srgb,
-    var(--vscode-input-background, #1f2021) 90%,
-    transparent
-  ) !important;
-  border: 1px solid var(--qivryn-border-strong) !important;
+  background: var(--qivryn-codex-surface-raised) !important;
+  border: 1px solid var(--qivryn-codex-border-heavy) !important;
   border-radius: var(--qivryn-composer-radius) !important;
   padding-bottom: 0 !important;
-  box-shadow: 0 4px 16px
-    color-mix(in srgb, var(--vscode-widget-shadow, #000) 5%, transparent);
+  box-shadow: 0 8px 16px -4px
+    color-mix(in srgb, var(--vscode-widget-shadow, #000) 22%, transparent);
 }
 
 .qivryn-main-editor-input:focus-within {
-  background: color-mix(
-    in srgb,
-    var(--vscode-input-background, #1f2021) 90%,
-    transparent
-  ) !important;
+  background: var(--qivryn-codex-surface-raised) !important;
   border-color: var(
     --vscode-focusBorder,
     var(--md-sys-color-primary)
   ) !important;
-  box-shadow: 0 4px 16px
-    color-mix(in srgb, var(--vscode-widget-shadow, #000) 5%, transparent);
+  box-shadow:
+    0 0 0 1px
+      color-mix(in srgb, var(--vscode-focusBorder, #339cff) 24%, transparent),
+    0 8px 16px -4px
+      color-mix(in srgb, var(--vscode-widget-shadow, #000) 22%, transparent);
 }
 
 .qivryn-main-editor-input > div:first-child {
-  padding: 14px 8px 8px !important;
+  padding: 15px 12px 10px !important;
 }
 
 .qivryn-main-editor-input .scroll-container {
@@ -3554,6 +3597,172 @@ body[data-qivryn-fullscreen="true"] .qivryn-agents-cursor {
     .qivryn-toolbar-primary-group
     .qivryn-mode-select:not(.qivryn-toolbar-model-slot *)
     .qivryn-mode-trigger-label {
+    display: none;
+  }
+}
+
+/* ChatGPT Codex desktop parity -------------------------------------------
+   The desktop app uses a 48rem reading measure, 14px conversation type,
+   unframed assistant output, and one floating composer surface. */
+.qivryn-agents-cursor.qivryn-chat-route {
+  color: var(--vscode-editor-foreground, #fff);
+  font-family: var(--qivryn-chat-font-family);
+  font-size: var(--qivryn-chat-font-size);
+  line-height: 1.5;
+}
+
+.qivryn-chat-scroll {
+  padding-top: 14px !important;
+  scroll-padding-bottom: 24px;
+}
+
+.qivryn-history-item-wrap {
+  margin-bottom: 16px;
+}
+
+.qivryn-assistant-message,
+.qivryn-assistant-markdown,
+.qivryn-tool-call-wrap,
+.qivryn-tool-group-shell {
+  font-size: var(--qivryn-chat-font-size) !important;
+  line-height: 1.5 !important;
+}
+
+.qivryn-assistant-markdown :where(p, li, blockquote) {
+  line-height: 1.5 !important;
+}
+
+.qivryn-tool-group,
+.qivryn-tool-surface,
+.qivryn-tool-status-row,
+.qivryn-tool-status-trigger {
+  color: var(--qivryn-codex-text-secondary) !important;
+}
+
+.qivryn-transcript-editor-input {
+  background: var(--qivryn-codex-surface) !important;
+  border-radius: 16px !important;
+}
+
+.qivryn-transcript-editor-input > div:first-child {
+  padding: 9px 13px !important;
+}
+
+.qivryn-chat-empty-state {
+  align-items: flex-start;
+  padding: clamp(48px, 12vh, 116px) var(--qivryn-chat-inline) 24px;
+}
+
+.qivryn-chat-empty-panel {
+  width: min(100%, 34rem);
+}
+
+.qivryn-empty-status {
+  min-height: 20px;
+  gap: 6px;
+  margin-bottom: 14px;
+  padding: 0;
+  color: var(--qivryn-codex-text-tertiary);
+  border: 0;
+}
+
+.qivryn-empty-status span {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.qivryn-empty-status-dot {
+  width: 5px;
+  height: 5px;
+  box-shadow: none;
+}
+
+.qivryn-chat-empty-panel h1 {
+  max-width: 18ch;
+  font-size: clamp(24px, 3vw, 28px);
+  font-weight: 500;
+  line-height: 1.12;
+}
+
+.qivryn-empty-starters {
+  margin-top: 22px;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+}
+
+.qivryn-empty-starter-row {
+  min-height: 52px;
+  grid-template-columns: 32px minmax(0, 1fr) 16px;
+  gap: 10px;
+  margin: 0 -8px;
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--qivryn-codex-border);
+  border-radius: 8px;
+}
+
+.qivryn-empty-starter-row:last-child {
+  border-bottom-color: transparent;
+}
+
+.qivryn-empty-starter-icon {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  color: var(--qivryn-codex-text-secondary);
+  background: var(--qivryn-codex-surface);
+  border: 1px solid var(--qivryn-codex-border);
+  border-radius: 8px;
+}
+
+.qivryn-empty-starter-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.qivryn-empty-starter-row span:nth-child(2) span:first-child {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.qivryn-empty-starter-row span:nth-child(2) span:last-child {
+  color: var(--qivryn-codex-text-tertiary);
+  font-size: 12px;
+}
+
+.qivryn-empty-starter-arrow {
+  width: 14px;
+  height: 14px;
+  color: var(--qivryn-codex-text-tertiary);
+}
+
+.qivryn-empty-starter-row:hover,
+.qivryn-empty-starter-row:focus-visible {
+  background: var(--qivryn-codex-surface-raised);
+}
+
+.qivryn-main-editor-input .qivryn-input-toolbar {
+  color: var(--qivryn-codex-text-tertiary);
+}
+
+.qivryn-main-editor-input .qivryn-toolbar-tools button,
+.qivryn-main-editor-input .qivryn-mode-select > div > button {
+  color: var(--qivryn-codex-text-secondary) !important;
+}
+
+@media (max-width: 719px) {
+  .qivryn-agents-cursor {
+    --qivryn-chat-font-size: var(--vscode-font-size, 13px);
+    --qivryn-chat-rail-width: 100%;
+  }
+
+  .qivryn-chat-empty-state {
+    padding-top: 28px;
+  }
+
+  .qivryn-empty-starter-row span:nth-child(2) span:last-child {
     display: none;
   }
 }

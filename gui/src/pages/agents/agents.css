@@ -376,6 +376,468 @@
   color: var(--qivryn-text-primary);
 }
 
+.qivryn-automations-page {
+  color: var(--qivryn-text-primary, var(--vscode-editor-foreground));
+  background: var(--agents-editor, var(--vscode-editor-background));
+  font-family:
+    "OpenAI Sans",
+    var(--vscode-font-family),
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+.qivryn-automations-page-header {
+  background: var(--agents-editor, var(--vscode-editor-background));
+  border-color: var(--qivryn-stroke-tertiary, var(--vscode-widget-border));
+}
+
+.qivryn-automations-layout > aside {
+  background: var(--agents-chrome, var(--vscode-sideBar-background));
+  border-color: var(--qivryn-stroke-tertiary, var(--vscode-widget-border));
+}
+
+.qivryn-automation-list-row {
+  color: inherit;
+  cursor: pointer;
+}
+
+.qivryn-automation-list-row[data-selected="true"] {
+  background: var(
+    --qivryn-bg-tertiary,
+    var(--vscode-list-activeSelectionBackground)
+  );
+}
+
+.qivryn-automation-editor :where(input, textarea, select) {
+  width: 100%;
+  min-height: 36px;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  color: var(--vscode-input-foreground);
+  font: inherit;
+  font-size: 12px;
+  line-height: 18px;
+  background: var(--vscode-input-background);
+  border: 1px solid var(--qivryn-stroke-primary, var(--vscode-input-border));
+  border-radius: 8px;
+  outline: none;
+}
+
+.qivryn-automation-editor textarea {
+  min-height: 132px;
+  resize: vertical;
+}
+
+.qivryn-automation-editor :where(input, textarea, select):focus {
+  border-color: var(--vscode-focusBorder);
+  box-shadow: 0 0 0 1px var(--vscode-focusBorder);
+}
+
+.qivryn-field-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+  color: var(--qivryn-text-secondary, var(--vscode-descriptionForeground));
+  font-size: 11px;
+}
+
+.qivryn-weekday-button {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+  font-size: 11px;
+  background: transparent;
+  border: 1px solid var(--qivryn-stroke-primary, var(--vscode-widget-border));
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.qivryn-weekday-button[aria-pressed="true"] {
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+  border-color: var(--vscode-button-background);
+}
+
+.qivryn-automation-detail-icon {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: var(--qivryn-text-secondary, var(--vscode-descriptionForeground));
+  background: var(
+    --qivryn-bg-quaternary,
+    var(--vscode-editorWidget-background)
+  );
+  border: 1px solid var(--qivryn-stroke-secondary, var(--vscode-widget-border));
+  border-radius: 10px;
+}
+
+.qivryn-automation-metadata dt {
+  color: var(--qivryn-text-tertiary, var(--vscode-descriptionForeground));
+}
+
+.qivryn-automation-metadata dd {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 639px) {
+  .qivryn-automations-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .qivryn-automations-layout > aside {
+    display: none;
+  }
+
+  .qivryn-automation-editor,
+  .qivryn-automation-detail {
+    padding: 16px;
+  }
+}
+
+/* Codex desktop shell ---------------------------------------------------- */
+.qivryn-agents-cursor .cursor-agents-toolbar {
+  min-height: 44px;
+  padding-inline: 12px;
+  background: var(--vscode-editor-background, #181818) !important;
+  border-color: color-mix(
+    in srgb,
+    var(--vscode-editor-foreground, #fff) 10%,
+    transparent
+  ) !important;
+}
+
+.qivryn-agents-cursor .cursor-agents-toolbar > button,
+.qivryn-agents-cursor
+  .cursor-agents-toolbar
+  > button[aria-label="New local agent"] {
+  min-width: 30px;
+  height: 30px;
+  color: var(--vscode-foreground) !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+
+.qivryn-agents-cursor .cursor-agents-toolbar > button:hover {
+  background: color-mix(
+    in srgb,
+    var(--vscode-editor-foreground, #fff) 7%,
+    transparent
+  ) !important;
+}
+
+.qivryn-agents-cursor .cursor-agents-toolbar-title {
+  font-weight: 500;
+}
+
+.qivryn-agents-cursor .cursor-agents-main {
+  background: var(--vscode-editor-background, #181818) !important;
+}
+
+.qivryn-agents-cursor .cursor-agents-main::after {
+  display: none !important;
+}
+
+.qivryn-codex-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 10px 8px;
+}
+
+.qivryn-codex-sidebar-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-height: 34px;
+  padding: 3px 7px 8px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.qivryn-codex-sidebar-brand-accent {
+  color: var(--vscode-textLink-foreground, #4daafc);
+  font-weight: 500;
+}
+
+.qivryn-codex-sidebar-nav > button {
+  display: flex;
+  width: 100%;
+  min-height: 34px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px;
+  color: var(--vscode-foreground);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.qivryn-codex-sidebar-nav > button:hover {
+  background: color-mix(
+    in srgb,
+    var(--vscode-editor-foreground, #fff) 7%,
+    transparent
+  );
+}
+
+.qivryn-agents-cursor .cursor-agents-sidebar {
+  background: var(--vscode-sideBar-background, #1f2f31) !important;
+  border-color: color-mix(
+    in srgb,
+    var(--vscode-editor-foreground, #fff) 10%,
+    transparent
+  ) !important;
+  box-shadow: none !important;
+}
+
+.qivryn-agents-cursor .cursor-agent-sidebar-search {
+  margin: 8px 10px 4px;
+}
+
+.qivryn-agents-cursor .cursor-agent-sidebar-search input {
+  height: 34px;
+  background: color-mix(
+    in srgb,
+    var(--vscode-editor-foreground, #fff) 5%,
+    transparent
+  ) !important;
+  border: 1px solid transparent !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+
+.qivryn-agents-cursor .cursor-agent-sidebar-search input:focus {
+  border-color: var(--vscode-focusBorder) !important;
+  box-shadow: 0 0 0 1px var(--vscode-focusBorder) !important;
+}
+
+.qivryn-codex-new-task {
+  box-sizing: border-box;
+  font-family:
+    "OpenAI Sans",
+    var(--vscode-font-family),
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+.qivryn-codex-new-task-heading {
+  margin-bottom: 18px;
+  padding-inline: 4px;
+}
+
+.qivryn-codex-new-task-heading h1 {
+  margin: 0;
+  color: var(--vscode-editor-foreground);
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 30px;
+  letter-spacing: 0;
+}
+
+.qivryn-codex-new-task-heading p {
+  margin: 4px 0 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 13px;
+  line-height: 19px;
+}
+
+.qivryn-codex-task-composer {
+  overflow: visible;
+  padding: 12px 13px 10px;
+  background: color-mix(
+    in srgb,
+    var(--vscode-input-background, #2a2a2a) 94%,
+    var(--vscode-editor-foreground, #fff)
+  );
+  border: 1px solid
+    color-mix(in srgb, var(--vscode-editor-foreground, #fff) 18%, transparent);
+  border-radius: 22px;
+  box-shadow: 0 8px 26px -14px
+    color-mix(in srgb, var(--vscode-widget-shadow, #000) 60%, transparent);
+}
+
+.qivryn-codex-task-composer:focus-within {
+  border-color: var(--vscode-focusBorder);
+}
+
+.qivryn-codex-task-composer textarea {
+  width: 100%;
+  min-height: 78px;
+  box-sizing: border-box;
+  padding: 2px;
+  color: var(--vscode-input-foreground);
+  font: inherit;
+  font-size: 14px;
+  line-height: 21px;
+  resize: none;
+  background: transparent;
+  border: 0;
+  outline: none;
+}
+
+.qivryn-codex-task-composer textarea::placeholder {
+  color: var(--vscode-input-placeholderForeground);
+}
+
+.qivryn-codex-task-composer-footer {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.qivryn-composer-repository {
+  max-width: 190px;
+  height: 28px;
+  overflow: hidden;
+  padding: 0 8px;
+  color: var(--vscode-descriptionForeground);
+  font: inherit;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.qivryn-composer-repository:hover {
+  color: var(--vscode-foreground);
+  background: color-mix(
+    in srgb,
+    var(--vscode-editor-foreground, #fff) 7%,
+    transparent
+  );
+}
+
+.qivryn-codex-send-button {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.qivryn-codex-send-button:disabled {
+  color: var(--vscode-disabledForeground);
+  background: color-mix(
+    in srgb,
+    var(--vscode-editor-foreground, #fff) 10%,
+    transparent
+  );
+  cursor: default;
+}
+
+.qivryn-codex-new-task-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 10px;
+  padding-inline: 5px;
+}
+
+.qivryn-codex-new-task-actions button {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  color: var(--vscode-descriptionForeground);
+  font: inherit;
+  font-size: 11px;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.qivryn-codex-new-task-actions button:hover {
+  color: var(--vscode-foreground);
+  background: color-mix(
+    in srgb,
+    var(--vscode-editor-foreground, #fff) 7%,
+    transparent
+  );
+}
+
+@media (min-width: 960px) {
+  .qivryn-agents-cursor
+    .cursor-agent-shell-grid[data-wide-navigation-open="true"] {
+    position: relative;
+    grid-template-columns: 274px minmax(0, 1fr) !important;
+  }
+
+  .qivryn-agents-cursor
+    .cursor-agent-shell-grid[data-wide-navigation-open="true"]
+    .cursor-agents-sidebar {
+    position: static !important;
+    inset: auto !important;
+    z-index: auto !important;
+    display: flex !important;
+    width: auto !important;
+    border-right: 1px solid
+      color-mix(in srgb, var(--vscode-editor-foreground, #fff) 10%, transparent) !important;
+    box-shadow: none !important;
+  }
+}
+
+@media (max-width: 719px) {
+  .qivryn-codex-new-task {
+    align-items: flex-end;
+    padding: 16px 10px 18px;
+  }
+
+  .qivryn-codex-new-task-heading h1 {
+    font-size: 20px;
+    line-height: 26px;
+  }
+
+  .qivryn-codex-task-composer {
+    padding: 10px;
+    border-radius: 18px;
+  }
+
+  .qivryn-codex-task-composer-footer > div:first-child {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .qivryn-composer-repository {
+    max-width: 110px;
+  }
+}
+
 .qivryn-agents-cursor .cursor-agent-row .text-2xs {
   color: var(--qivryn-text-tertiary);
   font-size: 11px;
@@ -1497,6 +1959,27 @@
   }
 }
 
+@media (min-width: 960px) {
+  .qivryn-agents-cursor .cursor-agent-shell-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .qivryn-agents-cursor .cursor-agents-sidebar {
+    display: none;
+  }
+
+  .qivryn-agents-cursor
+    .cursor-agent-shell-grid[data-wide-navigation-open="true"] {
+    grid-template-columns: clamp(250px, 25vw, 316px) minmax(0, 1fr);
+  }
+
+  .qivryn-agents-cursor
+    .cursor-agent-shell-grid[data-wide-navigation-open="true"]
+    .cursor-agents-sidebar {
+    display: flex;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .qivryn-agents-cursor *,
   .qivryn-agents-cursor *::before,
@@ -1821,4 +2304,460 @@
   border-color: var(--qivryn-border-strong) !important;
   box-shadow: 0 4px 16px
     color-mix(in srgb, var(--vscode-widget-shadow, #000) 5%, transparent) !important;
+}
+
+/* ChatGPT Codex desktop parity ------------------------------------------- */
+.qivryn-agents-cursor:not(.qivryn-chat-route) {
+  --agents-editor: var(--vscode-editor-background, #181818);
+  --agents-chrome: var(--vscode-sideBar-background, #181818);
+  --agents-panel: var(--qivryn-codex-surface);
+  --agents-panel-raised: var(--qivryn-codex-surface-raised);
+  --agents-hairline: var(--qivryn-codex-border);
+  --agents-signal: var(--vscode-focusBorder, #339cff);
+  color: var(--vscode-editor-foreground, #fff);
+  background: var(--agents-editor);
+  font-family:
+    "OpenAI Sans",
+    var(--vscode-font-family),
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.qivryn-agents-cursor:not(.qivryn-chat-route)::before {
+  display: none;
+}
+
+.qivryn-agents-cursor .cursor-agents-toolbar {
+  min-height: 46px;
+  flex-wrap: nowrap;
+  gap: 4px;
+  padding-inline: 12px;
+  background: var(--agents-editor);
+  border-color: var(--agents-hairline);
+}
+
+.qivryn-agents-cursor .cursor-agents-toolbar-title {
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.qivryn-agents-cursor .cursor-agents-toolbar > button {
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.qivryn-agents-cursor
+  .cursor-agents-toolbar
+  > button[aria-label="New local agent"] {
+  color: var(--vscode-button-foreground, #0d0d0d);
+  background: var(--vscode-button-background, #f3f3f3);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.qivryn-agents-cursor .cursor-agents-main {
+  background: var(--agents-editor) !important;
+  background-image: none !important;
+}
+
+.qivryn-agents-cursor .cursor-agents-main::after {
+  display: none !important;
+}
+
+.qivryn-agents-cursor .cursor-agents-sidebar {
+  background: var(--agents-chrome);
+  background-image: none;
+  border-color: var(--agents-hairline);
+}
+
+.qivryn-agents-cursor .cursor-agent-sidebar-search input {
+  height: 34px;
+  background: var(--qivryn-codex-surface-raised);
+  border-color: var(--agents-hairline);
+  border-radius: 8px;
+}
+
+.qivryn-agents-cursor .cursor-agent-row {
+  min-height: 44px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+}
+
+.qivryn-agents-cursor .cursor-agent-row:hover,
+.qivryn-agents-cursor .cursor-agent-row[data-selected="true"] {
+  background: var(--qivryn-codex-surface-raised);
+}
+
+.qivryn-agents-cursor .cursor-agent-row[data-selected="true"]::before {
+  display: none;
+}
+
+.qivryn-agents-cursor .cursor-agent-row .text-xs {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.qivryn-agents-cursor .cursor-agent-row .text-2xs {
+  color: var(--qivryn-codex-text-tertiary);
+  font-family: inherit;
+  font-size: 11px;
+}
+
+.qivryn-agents-cursor .cursor-agent-empty {
+  justify-content: center;
+  padding: clamp(24px, 6vw, 72px);
+}
+
+.qivryn-agents-cursor .cursor-agent-empty-card {
+  width: min(100%, 48rem);
+  padding: 0;
+  color: var(--vscode-editor-foreground, #fff);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.qivryn-agents-cursor .cursor-agent-empty-index {
+  display: none;
+}
+
+.qivryn-agents-cursor .cursor-agent-empty-icon {
+  width: 36px;
+  height: 36px;
+  margin-bottom: 18px;
+  color: var(--qivryn-codex-text-secondary);
+  background: var(--qivryn-codex-surface-raised);
+  border: 1px solid var(--qivryn-codex-border);
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+.qivryn-agents-cursor .cursor-agent-empty-card h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 500;
+  line-height: 1.12;
+  letter-spacing: 0;
+}
+
+.qivryn-agents-cursor .cursor-agent-empty-card > p {
+  max-width: 560px;
+  margin: 12px 0 0;
+  color: var(--qivryn-codex-text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.qivryn-agents-cursor .cursor-agent-empty-actions {
+  margin-top: 22px;
+}
+
+.qivryn-agents-cursor .cursor-agent-primary-action,
+.qivryn-agents-cursor .cursor-agent-secondary-action {
+  min-height: 36px;
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+.qivryn-agents-cursor .cursor-agent-primary-action {
+  color: var(--vscode-button-foreground, #0d0d0d);
+  background: var(--vscode-button-background, #f3f3f3);
+}
+
+.qivryn-agents-cursor .cursor-agent-secondary-action {
+  color: var(--qivryn-codex-text-secondary);
+  background: transparent;
+  border-color: var(--qivryn-codex-border-heavy);
+}
+
+.qivryn-agents-cursor .cursor-agent-empty-rail {
+  margin-top: 28px;
+  padding-top: 14px;
+  border-top: 1px solid var(--qivryn-codex-border);
+}
+
+.qivryn-agents-cursor .cursor-agent-empty-rail span {
+  color: var(--qivryn-codex-text-tertiary);
+  font-size: 11px;
+}
+
+.qivryn-agents-cursor .cursor-agent-detail-shell {
+  width: min(100%, 48rem);
+  max-width: 48rem;
+  margin-inline: auto;
+  padding: 22px 20px 18px !important;
+}
+
+.qivryn-agents-cursor .cursor-agent-detail-header {
+  width: 100%;
+  max-width: none;
+  padding-right: 34px !important;
+}
+
+.qivryn-agents-cursor .cursor-agent-actions-menu {
+  z-index: 20;
+  width: 100%;
+  max-width: none;
+  align-self: center;
+  margin: -35px 0 8px auto !important;
+  pointer-events: none;
+}
+
+.qivryn-agents-cursor .cursor-agent-actions-menu > summary {
+  margin-left: auto;
+  pointer-events: auto;
+}
+
+.qivryn-agents-cursor .cursor-agent-actions-menu[open] {
+  pointer-events: auto;
+}
+
+.qivryn-agents-cursor .cursor-agent-actions-menu .cursor-agent-menu {
+  right: 0;
+  left: auto;
+}
+
+.qivryn-agents-cursor
+  .cursor-agent-actions-menu:not([open])
+  > .cursor-agent-menu,
+.qivryn-agents-cursor
+  .cursor-checkpoint-menu:not([open])
+  > .cursor-checkpoint-popover {
+  display: none !important;
+}
+
+.qivryn-agents-cursor .cursor-human-message,
+.qivryn-agents-cursor .cursor-event-user,
+.qivryn-agents-cursor .cursor-assistant-message,
+.qivryn-agents-cursor .cursor-agent-activity-drawer,
+.qivryn-agents-cursor .cursor-reasoning-card {
+  width: 100%;
+  max-width: 100%;
+  font-size: 14px;
+}
+
+.qivryn-agents-cursor .cursor-human-message,
+.qivryn-agents-cursor .cursor-event-user {
+  width: fit-content;
+  max-width: min(77%, 38rem);
+  margin-left: auto;
+  padding: 10px 34px 10px 13px;
+  background: var(--qivryn-codex-surface-raised);
+  border: 0;
+  border-radius: 16px;
+}
+
+.qivryn-agents-cursor .cursor-assistant-message {
+  padding-right: 0;
+  padding-left: 0;
+  background: transparent;
+  border: 0;
+}
+
+.qivryn-agents-cursor .cursor-agent-composer,
+.qivryn-agents-cursor .cursor-agent-create-composer {
+  width: min(100%, 48rem) !important;
+  max-width: 48rem !important;
+  padding: 11px 12px 9px !important;
+  background: var(--qivryn-codex-surface-raised) !important;
+  border: 1px solid var(--qivryn-codex-border-heavy) !important;
+  border-radius: 24px !important;
+  box-shadow: 0 8px 16px -4px
+    color-mix(in srgb, var(--vscode-widget-shadow, #000) 22%, transparent) !important;
+}
+
+.qivryn-agents-cursor .cursor-agent-composer:focus-within,
+.qivryn-agents-cursor .cursor-agent-create-composer:focus-within {
+  border-color: var(--vscode-focusBorder, #339cff) !important;
+}
+
+.qivryn-agents-cursor .qivryn-codex-send-button,
+.qivryn-agents-cursor .cursor-agent-composer button[aria-label="Send"],
+.qivryn-neutral-primary {
+  color: var(--vscode-editor-background, #181818) !important;
+  background: var(--vscode-editor-foreground, #f2f2f2) !important;
+}
+
+.qivryn-neutral-primary:disabled {
+  opacity: 0.38;
+}
+
+.qivryn-agents-cursor .cursor-agent-launch-overlay {
+  background: var(--agents-editor) !important;
+}
+
+.qivryn-agents-cursor .cursor-agent-launch-card,
+.qivryn-agents-cursor .cursor-agent-launch-heading {
+  width: min(100%, 48rem) !important;
+  max-width: 48rem !important;
+}
+
+@media (min-width: 960px) {
+  .qivryn-agents-cursor .cursor-agent-shell-grid {
+    position: relative;
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .qivryn-agents-cursor .cursor-agent-shell-grid .cursor-agents-sidebar {
+    display: none !important;
+  }
+
+  .qivryn-agents-cursor
+    .cursor-agent-shell-grid[data-wide-navigation-open="true"]
+    .cursor-agents-sidebar {
+    position: absolute;
+    z-index: 45;
+    inset: 0 auto 0 0;
+    display: flex !important;
+    width: 275px;
+    border-right: 1px solid var(--qivryn-codex-border);
+    box-shadow: 16px 0 32px -16px
+      color-mix(in srgb, var(--vscode-widget-shadow, #000) 55%, transparent);
+  }
+}
+
+@media (max-width: 719px) {
+  .qivryn-agents-cursor:not(.qivryn-chat-route) {
+    font-size: var(--vscode-font-size, 13px);
+  }
+
+  .qivryn-agents-cursor .cursor-agents-toolbar {
+    min-height: 40px;
+    padding-inline: 8px;
+  }
+
+  .qivryn-agents-cursor .cursor-agent-empty {
+    padding: 24px 18px;
+  }
+
+  .qivryn-agents-cursor .cursor-agent-empty-card h1 {
+    font-size: 24px;
+  }
+
+  .qivryn-agents-cursor .cursor-agent-detail-shell {
+    padding: 14px 12px !important;
+  }
+
+  .qivryn-agents-cursor .cursor-human-message,
+  .qivryn-agents-cursor .cursor-event-user {
+    max-width: 88%;
+  }
+}
+
+.qivryn-agent-capabilities-menu {
+  background: var(
+    --vscode-dropdown-background,
+    var(--qivryn-codex-surface-raised, #242424)
+  ) !important;
+  border-color: var(--qivryn-codex-border-heavy) !important;
+  box-shadow: 0 14px 32px -10px
+    color-mix(in srgb, var(--vscode-widget-shadow, #000) 58%, transparent) !important;
+}
+
+.qivryn-automations-backdrop {
+  background: color-mix(
+    in srgb,
+    var(--vscode-editor-background, #181818) 72%,
+    transparent
+  );
+  backdrop-filter: blur(2px);
+}
+
+.qivryn-automations-panel {
+  color: var(--vscode-editor-foreground, #fff);
+  background: var(
+    --vscode-editorWidget-background,
+    var(--vscode-editor-background, #181818)
+  ) !important;
+  border-color: var(--qivryn-codex-border-heavy) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 16px 32px -8px
+    color-mix(in srgb, var(--vscode-widget-shadow, #000) 48%, transparent) !important;
+}
+
+.qivryn-automations-header {
+  min-height: 54px;
+  border-color: var(--qivryn-codex-border) !important;
+}
+
+.qivryn-automations-header h2 {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.qivryn-automation-form {
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+}
+
+.qivryn-automation-form :where(input, textarea, select) {
+  min-height: 36px;
+  background: var(--qivryn-codex-surface-raised) !important;
+  border-color: var(--qivryn-codex-border-heavy) !important;
+  border-radius: 8px !important;
+}
+
+.qivryn-automation-row {
+  min-height: 52px;
+  background: var(--qivryn-codex-surface) !important;
+  border-color: var(--qivryn-codex-border) !important;
+  border-radius: 10px !important;
+}
+
+/* Keep desktop parity overrides last; earlier legacy themes are intentionally
+   superseded while their component-specific chat styles remain available. */
+.qivryn-agents-cursor .cursor-agents-main {
+  background: var(--vscode-editor-background, #181818) !important;
+}
+
+.qivryn-agents-cursor .cursor-agents-main::after {
+  display: none !important;
+}
+
+.qivryn-agents-cursor .cursor-agents-toolbar,
+.qivryn-agents-cursor .cursor-agents-sidebar {
+  background-image: none !important;
+}
+
+.qivryn-agents-cursor
+  .cursor-agents-toolbar
+  > button[aria-label="New local agent"] {
+  color: var(--vscode-foreground) !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+@media (min-width: 960px) {
+  .qivryn-agents-cursor
+    .cursor-agent-shell-grid[data-wide-navigation-open="true"] {
+    position: relative !important;
+    grid-template-columns: 274px minmax(0, 1fr) !important;
+  }
+
+  .qivryn-agents-cursor
+    .cursor-agent-shell-grid[data-wide-navigation-open="true"]
+    .cursor-agents-sidebar {
+    position: static !important;
+    inset: auto !important;
+    z-index: auto !important;
+    display: flex !important;
+    width: auto !important;
+    border-right: 1px solid
+      color-mix(in srgb, var(--vscode-editor-foreground, #fff) 10%, transparent) !important;
+    box-shadow: none !important;
+  }
+
+  .qivryn-agents-cursor .cursor-agent-launch-overlay {
+    left: 274px !important;
+  }
 }

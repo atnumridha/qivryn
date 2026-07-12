@@ -1,0 +1,569 @@
+.qivryn-config-page {
+  --config-surface: color-mix(
+    in oklab,
+    var(--vscode-editor-foreground, #fff) 3%,
+    transparent
+  );
+  --config-surface-raised: color-mix(
+    in oklab,
+    var(--vscode-editor-foreground, #fff) 5%,
+    transparent
+  );
+  --config-border: color-mix(
+    in oklab,
+    var(--vscode-editor-foreground, #fff) 8%,
+    transparent
+  );
+  --config-border-heavy: color-mix(
+    in oklab,
+    var(--vscode-editor-foreground, #fff) 16%,
+    transparent
+  );
+  color: var(--vscode-editor-foreground, #fff);
+  background: var(--vscode-editor-background, #181818);
+  font-family:
+    "OpenAI Sans",
+    var(--vscode-font-family),
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.qivryn-config-nav {
+  background: var(--vscode-sideBar-background, #181818);
+}
+
+.qivryn-config-nav-inner {
+  border-right-width: 1px;
+  border-color: var(--config-border);
+}
+
+.qivryn-config-nav-inner > div > div {
+  border-radius: 8px;
+}
+
+.qivryn-config-content {
+  background: var(--vscode-editor-background, #181818);
+}
+
+.qivryn-config-body {
+  width: min(100%, 48rem);
+  box-sizing: border-box;
+  margin-inline: auto;
+  padding: 24px clamp(14px, 3vw, 28px);
+}
+
+.qivryn-config-body h2 {
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.qivryn-config-body h3 {
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.qivryn-settings-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.qivryn-settings-heading h2 {
+  margin: 0;
+}
+
+.qivryn-settings-heading p {
+  max-width: 38rem;
+  margin: 4px 0 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.qivryn-primary-button,
+.qivryn-icon-button {
+  box-sizing: border-box;
+  min-height: 32px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.qivryn-primary-button {
+  padding: 0 12px;
+  color: var(--vscode-editor-background, #181818);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  background: var(--vscode-editor-foreground, #f2f2f2);
+}
+
+.qivryn-primary-button:hover:not(:disabled) {
+  filter: brightness(0.9);
+}
+
+.qivryn-icon-button {
+  display: inline-flex;
+  width: 32px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: var(--vscode-foreground);
+  background: transparent;
+  border-color: var(--config-border);
+}
+
+.qivryn-icon-button:hover:not(:disabled) {
+  background: var(--config-surface-raised);
+}
+
+.qivryn-primary-button:disabled,
+.qivryn-icon-button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.qivryn-codex-import {
+  margin-bottom: 32px;
+}
+
+.qivryn-import-status {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  margin-bottom: 12px;
+  padding: 0 10px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  background: var(--config-surface);
+  border: 1px solid var(--config-border);
+  border-radius: 8px;
+}
+
+.qivryn-status-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  background: var(--vscode-descriptionForeground);
+  border-radius: 999px;
+}
+
+.qivryn-status-dot[data-state="ready"] {
+  background: var(--vscode-testing-iconPassed, #73c991);
+}
+
+.qivryn-status-dot[data-state="error"] {
+  background: var(--vscode-testing-iconFailed, #f14c4c);
+}
+
+.qivryn-status-dot[data-state="muted"] {
+  opacity: 0.35;
+}
+
+.qivryn-inline-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 9px 10px;
+  color: var(--vscode-editorWarning-foreground, #cca700);
+  font-size: 12px;
+  line-height: 18px;
+  background: color-mix(
+    in srgb,
+    var(--vscode-editorWarning-foreground, #cca700) 8%,
+    transparent
+  );
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--vscode-editorWarning-foreground, #cca700) 35%,
+      transparent
+    );
+  border-radius: 8px;
+}
+
+.qivryn-settings-search {
+  display: flex;
+  height: 34px;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  margin-bottom: 12px;
+  padding: 0 10px;
+  color: var(--vscode-descriptionForeground);
+  background: var(--config-surface);
+  border: 1px solid var(--config-border);
+  border-radius: 8px;
+}
+
+.qivryn-settings-search input {
+  min-width: 0;
+  flex: 1;
+  padding: 0;
+  color: var(--vscode-input-foreground, inherit);
+  font: inherit;
+  font-size: 12px;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  outline: 0;
+}
+
+.qivryn-settings-rows {
+  border-top: 1px solid var(--config-border);
+}
+
+.qivryn-settings-row-wrap {
+  border-bottom: 1px solid var(--config-border);
+}
+
+.qivryn-settings-row {
+  display: flex;
+  width: 100%;
+  min-height: 64px;
+  align-items: center;
+  gap: 12px;
+  box-sizing: border-box;
+  padding: 10px 4px;
+  color: inherit;
+  font: inherit;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.qivryn-settings-row:hover {
+  background: var(--config-surface);
+}
+
+.qivryn-settings-row-icon {
+  display: flex;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: var(--vscode-descriptionForeground);
+  background: var(--config-surface-raised);
+  border: 1px solid var(--config-border);
+  border-radius: 7px;
+}
+
+.qivryn-settings-row strong,
+.qivryn-settings-row span > span {
+  display: block;
+}
+
+.qivryn-settings-row strong {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.qivryn-settings-row span > span {
+  overflow: hidden;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qivryn-count-badge {
+  min-width: 24px;
+  box-sizing: border-box;
+  padding: 2px 6px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+  background: var(--config-surface-raised);
+  border-radius: 999px;
+}
+
+.qivryn-import-items {
+  padding: 0 4px 10px 44px;
+}
+
+.qivryn-import-item {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+
+.qivryn-import-item-wrap + .qivryn-import-item-wrap {
+  border-top: 1px solid var(--config-border);
+}
+
+.qivryn-import-state {
+  flex: 0 0 auto;
+  color: var(--vscode-descriptionForeground);
+  font-size: 10px;
+  text-transform: capitalize;
+}
+
+.qivryn-secondary-button {
+  height: 26px;
+  flex: 0 0 auto;
+  padding: 0 9px;
+  color: var(--vscode-foreground);
+  font: inherit;
+  font-size: 11px;
+  background: transparent;
+  border: 1px solid var(--config-border-heavy);
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.qivryn-switch {
+  position: relative;
+  width: 30px;
+  height: 18px;
+  flex: 0 0 auto;
+  padding: 0;
+  background: var(--vscode-input-background, #2b2b2b);
+  border: 1px solid var(--config-border-heavy);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.qivryn-switch span {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 10px;
+  height: 10px;
+  background: var(--vscode-descriptionForeground);
+  border-radius: 50%;
+  transition: transform 120ms ease;
+}
+
+.qivryn-switch[aria-checked="true"] {
+  background: var(--vscode-button-background);
+  border-color: var(--vscode-button-background);
+}
+
+.qivryn-switch[aria-checked="true"] span {
+  background: var(--vscode-button-foreground);
+  transform: translateX(12px);
+}
+
+.qivryn-plugin-toggle {
+  cursor: pointer;
+}
+
+.qivryn-plugin-toggle-track {
+  position: relative;
+  width: 30px;
+  height: 18px;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  background: var(--vscode-input-background, #2b2b2b);
+  border: 1px solid var(--config-border-heavy);
+  border-radius: 999px;
+}
+
+.qivryn-plugin-toggle-track > span {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 10px;
+  height: 10px;
+  background: var(--vscode-descriptionForeground);
+  border-radius: 50%;
+  transition: transform 120ms ease;
+}
+
+.qivryn-plugin-toggle input:checked + .qivryn-plugin-toggle-track {
+  background: var(--vscode-button-background);
+  border-color: var(--vscode-button-background);
+}
+
+.qivryn-plugin-toggle input:checked + .qivryn-plugin-toggle-track > span {
+  background: var(--vscode-button-foreground);
+  transform: translateX(12px);
+}
+
+.qivryn-plugin-toggle input:focus-visible + .qivryn-plugin-toggle-track {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+.qivryn-hook-review {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 8px 10px;
+  padding: 10px;
+  color: var(--vscode-editorWarning-foreground, #cca700);
+  font-size: 11px;
+  background: color-mix(
+    in srgb,
+    var(--vscode-editorWarning-foreground, #cca700) 7%,
+    transparent
+  );
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--vscode-editorWarning-foreground, #cca700) 28%,
+      transparent
+    );
+  border-radius: 8px;
+}
+
+.qivryn-hook-review strong,
+.qivryn-hook-review p,
+.qivryn-hook-review code {
+  display: block;
+}
+
+.qivryn-hook-review p {
+  margin: 2px 0 6px;
+  color: var(--vscode-descriptionForeground);
+  line-height: 16px;
+}
+
+.qivryn-hook-review code {
+  overflow: hidden;
+  color: var(--vscode-editor-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qivryn-import-item:hover {
+  background: var(--config-surface);
+}
+
+.qivryn-import-empty {
+  padding: 7px 8px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+}
+
+.qivryn-import-issues {
+  margin-top: 10px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+}
+
+.qivryn-import-issues summary {
+  cursor: pointer;
+}
+
+.qivryn-import-issues ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.qivryn-config-body :where(input, textarea, select) {
+  background: var(--config-surface-raised);
+  border-color: var(--config-border-heavy);
+  border-radius: 8px;
+}
+
+.qivryn-config-body :where(input, textarea, select):focus {
+  border-color: var(--vscode-focusBorder, #339cff);
+}
+
+.qivryn-config-list-row {
+  padding: 11px 4px !important;
+  background: transparent !important;
+  border-width: 0 0 1px !important;
+  border-color: var(--config-border) !important;
+  border-radius: 0 !important;
+}
+
+.qivryn-config-list-row:hover {
+  background: var(--config-surface) !important;
+}
+
+.qivryn-capability-links {
+  gap: 0;
+  border-top: 1px solid var(--config-border);
+  border-bottom: 1px solid var(--config-border);
+}
+
+.qivryn-capability-links > * {
+  min-height: 40px;
+  padding: 8px 10px !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+}
+
+.qivryn-capability-links > button:hover {
+  background: var(--config-surface-raised) !important;
+}
+
+@media (max-width: 639px) {
+  .qivryn-config-page {
+    font-size: var(--vscode-font-size, 13px);
+  }
+
+  .qivryn-config-nav {
+    width: 44px;
+  }
+
+  .qivryn-config-nav-inner {
+    padding: 4px;
+  }
+
+  .qivryn-config-body {
+    padding: 16px 10px;
+  }
+
+  .qivryn-config-body h2 {
+    font-size: 18px;
+  }
+
+  .qivryn-feature-tour-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .qivryn-settings-heading {
+    align-items: center;
+    gap: 8px;
+  }
+
+  .qivryn-settings-heading p {
+    display: none;
+  }
+
+  .qivryn-settings-heading h2 {
+    font-size: 18px;
+  }
+
+  .qivryn-import-items {
+    padding-left: 4px;
+  }
+
+  .qivryn-import-state {
+    display: none;
+  }
+
+  .qivryn-hook-review {
+    display: grid;
+    grid-template-columns: 16px minmax(0, 1fr);
+  }
+
+  .qivryn-hook-review .qivryn-primary-button {
+    grid-column: 2;
+    justify-self: start;
+    margin-left: 0;
+  }
+}

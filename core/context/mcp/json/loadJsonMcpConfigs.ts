@@ -65,6 +65,10 @@ export async function loadJsonMcpConfigs(
         return;
       }
       try {
+        if (dir.endsWith(".json")) {
+          jsonFiles.push({ uri: dir, content: await ide.readFile(dir) });
+          return;
+        }
         const uris = await walkDir(dir, ide, {
           overrideDefaultIgnores,
           source: "get mcp json files",

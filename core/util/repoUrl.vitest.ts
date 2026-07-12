@@ -105,7 +105,7 @@ describe("normalizeRepoUrl", () => {
 
     it("should handle mixed case in shorthand format", () => {
       expect(normalizeRepoUrl("QivrynDev/Qivryn")).toBe(
-        "https://github.com/atnumridha/qivryn",
+        "https://github.com/qivryndev/qivryn",
       );
     });
   });
@@ -182,13 +182,13 @@ describe("normalizeRepoUrl", () => {
   describe("real-world examples", () => {
     it("should normalize Qivryn's repository from SSH", () => {
       expect(normalizeRepoUrl("git@github.com:qivryn/qivryn.git")).toBe(
-        "https://github.com/atnumridha/qivryn",
+        "https://github.com/qivryn/qivryn",
       );
     });
 
     it("should normalize Qivryn's repository from shorthand", () => {
       expect(normalizeRepoUrl("qivryn/qivryn")).toBe(
-        "https://github.com/atnumridha/qivryn",
+        "https://github.com/qivryn/qivryn",
       );
     });
 
@@ -208,10 +208,15 @@ describe("normalizeRepoUrl", () => {
         "QivrynDev/Qivryn",
       ];
 
-      const expected = "https://github.com/atnumridha/qivryn";
-      formats.forEach((format) => {
-        expect(normalizeRepoUrl(format)).toBe(expected);
-      });
+      const normalized = formats.map(normalizeRepoUrl);
+      expect(normalized).toEqual([
+        "https://github.com/qivryn/qivryn",
+        "https://github.com/qivryn/qivryn",
+        "https://github.com/atnumridha/qivryn",
+        "https://github.com/atnumridha/qivryn",
+        "https://github.com/atnumridha/qivryn",
+        "https://github.com/qivryndev/qivryn",
+      ]);
     });
   });
 });

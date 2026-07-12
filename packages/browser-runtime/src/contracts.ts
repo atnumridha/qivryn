@@ -8,7 +8,8 @@ export type BrowserPermissionAction =
   | "authentication"
   | "certificate"
   | "clipboard"
-  | "geolocation";
+  | "geolocation"
+  | "interaction";
 
 export interface CreateBrowserSessionRequest {
   runId?: string;
@@ -71,6 +72,27 @@ export interface BrowserAdapter {
     session: BrowserSession,
     recording: BrowserSession["recording"],
   ): Promise<Partial<BrowserSession> | void>;
+  click(
+    session: BrowserSession,
+    target: { selector?: string; x?: number; y?: number },
+  ): Promise<{ url: string; title?: string }>;
+  typeText(
+    session: BrowserSession,
+    request: { selector?: string; text: string; replace?: boolean },
+  ): Promise<{ url: string; title?: string }>;
+  pressKey(
+    session: BrowserSession,
+    key: string,
+  ): Promise<{ url: string; title?: string }>;
+  scroll(
+    session: BrowserSession,
+    deltaX: number,
+    deltaY: number,
+  ): Promise<{ url: string; title?: string }>;
+  wait(
+    session: BrowserSession,
+    request: { selector?: string; milliseconds?: number },
+  ): Promise<{ url: string; title?: string }>;
 }
 
 export interface BrowserStore {
@@ -107,6 +129,42 @@ export type BrowserActionRequest =
   | { action: "dom"; sessionId: string; actor?: BrowserActor }
   | { action: "console"; sessionId: string; actor?: BrowserActor }
   | { action: "network"; sessionId: string; actor?: BrowserActor }
+  | {
+      action: "click";
+      sessionId: string;
+      selector?: string;
+      x?: number;
+      y?: number;
+      actor?: BrowserActor;
+    }
+  | {
+      action: "type";
+      sessionId: string;
+      selector?: string;
+      text: string;
+      replace?: boolean;
+      actor?: BrowserActor;
+    }
+  | {
+      action: "press";
+      sessionId: string;
+      key: string;
+      actor?: BrowserActor;
+    }
+  | {
+      action: "scroll";
+      sessionId: string;
+      deltaX?: number;
+      deltaY: number;
+      actor?: BrowserActor;
+    }
+  | {
+      action: "wait";
+      sessionId: string;
+      selector?: string;
+      milliseconds?: number;
+      actor?: BrowserActor;
+    }
   | {
       action: "viewport";
       sessionId: string;

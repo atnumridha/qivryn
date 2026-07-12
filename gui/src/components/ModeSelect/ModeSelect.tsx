@@ -137,6 +137,33 @@ const RICH_MENU_MAX_HEIGHT = 372;
 const BASIC_MENU_MAX_HEIGHT = 360;
 const DROPDOWN_LAYER = 10000;
 const DROPDOWN_TOOLTIP_LAYER = DROPDOWN_LAYER + 10;
+const NESTED_MENU_REVEAL_GAP = 4;
+
+export function scrollTopToReveal({
+  currentScrollTop,
+  viewportTop,
+  viewportBottom,
+  targetTop,
+  targetBottom,
+  gap = NESTED_MENU_REVEAL_GAP,
+}: {
+  currentScrollTop: number;
+  viewportTop: number;
+  viewportBottom: number;
+  targetTop: number;
+  targetBottom: number;
+  gap?: number;
+}): number {
+  if (targetBottom + gap > viewportBottom) {
+    return Math.max(0, currentScrollTop + targetBottom + gap - viewportBottom);
+  }
+
+  if (targetTop - gap < viewportTop) {
+    return Math.max(0, currentScrollTop - (viewportTop - targetTop + gap));
+  }
+
+  return currentScrollTop;
+}
 
 const modeItemClass = (selected: boolean) =>
   `qivryn-mode-row group relative flex w-full cursor-pointer select-none flex-row items-center justify-between gap-1 rounded-lg border border-solid px-2 py-1.5 text-left transition-colors duration-150 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-border-focus ${
@@ -195,6 +222,7 @@ export function ModeSelect({
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const reasoningPanelRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [skillsOpen, setSkillsOpen] = useState(false);
   const [runtimeOpen, setRuntimeOpen] = useState(false);
@@ -647,6 +675,39 @@ export function ModeSelect({
       observer.disconnect();
     };
   }, [isOpen, updateMenuPosition]);
+
+  useEffect(() => {
+    if (!isOpen || !reasoningOpen) {
+      return;
+    }
+
+    let revealFrame = 0;
+    const positionFrame = window.requestAnimationFrame(() => {
+      updateMenuPosition();
+      revealFrame = window.requestAnimationFrame(() => {
+        const panel = panelRef.current;
+        const reasoningPanel = reasoningPanelRef.current;
+        if (!panel || !reasoningPanel) {
+          return;
+        }
+
+        const viewport = panel.getBoundingClientRect();
+        const target = reasoningPanel.getBoundingClientRect();
+        panel.scrollTop = scrollTopToReveal({
+          currentScrollTop: panel.scrollTop,
+          viewportTop: viewport.top,
+          viewportBottom: viewport.bottom,
+          targetTop: target.top,
+          targetBottom: target.bottom,
+        });
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(positionFrame);
+      window.cancelAnimationFrame(revealFrame);
+    };
+  }, [isOpen, reasoningOpen, updateMenuPosition]);
 
   const notGreatAtAgent = (mode: string) => (
     <>
@@ -1272,6 +1333,7 @@ export function ModeSelect({
                           </button>
                           {reasoningOpen && (
                             <div
+                              ref={reasoningPanelRef}
                               id={reasoningGroupId}
                               role="group"
                               aria-label="Reasoning choices"

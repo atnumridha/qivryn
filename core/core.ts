@@ -44,6 +44,11 @@ import {
   setLocalPluginEnabled,
   uninstallLocalPlugin,
 } from "./config/plugins/localPluginManager";
+import {
+  applyCodexImport,
+  scanCodexImport,
+  setCodexImportItemEnabled,
+} from "./config/codex/codexImportManager";
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import * as URI from "uri-js";
@@ -125,6 +130,7 @@ import {
 } from "./config/workspace/workspaceBlocks";
 import { MCPManagerSingleton } from "./context/mcp/MCPManagerSingleton";
 import { performAuth, removeMCPAuth } from "./context/mcp/MCPOauth";
+import { registerBrowserService } from "./context/browser/BrowserServiceSingleton";
 import { myersDiff } from "./diff/myers";
 import { ApplyAbortManager } from "./edit/applyAbortManager";
 import { streamDiffLines } from "./edit/streamDiffLines";
@@ -374,6 +380,7 @@ export class Core {
       ),
     );
     const browserServiceReady = browserService.initialize();
+    registerBrowserService(browserService, browserServiceReady);
     const terminalJobs = new TerminalJobService(
       path.join(getQivrynGlobalPath(), "terminal-jobs"),
     );
@@ -916,6 +923,19 @@ export class Core {
       invalidateMarkdownSkillsCache();
       await this.configHandler.reloadConfig("Local plugin uninstalled");
     });
+    on("extensions/codexImportPreview", async () => scanCodexImport());
+    on("extensions/codexImportApply", async (msg) => {
+      const result = await applyCodexImport(msg.data);
+      invalidateMarkdownSkillsCache();
+      await this.configHandler.reloadConfig("Codex capabilities imported");
+      return result;
+    });
+    on("extensions/codexImportSetEnabled", async (msg) => {
+      const result = await setCodexImportItemEnabled(msg.data);
+      invalidateMarkdownSkillsCache();
+      await this.configHandler.reloadConfig("Codex capability updated");
+      return result;
+    });
 
     on("browser/list", async () => {
       await browserServiceReady;
@@ -978,6 +998,44 @@ export class Core {
           return browserService.console(action.sessionId, actor);
         case "network":
           return browserService.network(action.sessionId, actor);
+        case "click":
+          return browserService.click(
+            action.sessionId,
+            {
+              selector: action.selector,
+              x: action.x,
+              y: action.y,
+            },
+            actor,
+          );
+        case "type":
+          return browserService.typeText(
+            action.sessionId,
+            {
+              selector: action.selector,
+              text: action.text,
+              replace: action.replace,
+            },
+            actor,
+          );
+        case "press":
+          return browserService.pressKey(action.sessionId, action.key, actor);
+        case "scroll":
+          return browserService.scroll(
+            action.sessionId,
+            action.deltaX ?? 0,
+            action.deltaY,
+            actor,
+          );
+        case "wait":
+          return browserService.wait(
+            action.sessionId,
+            {
+              selector: action.selector,
+              milliseconds: action.milliseconds,
+            },
+            actor,
+          );
         case "viewport":
           return browserService.viewport(
             action.sessionId,

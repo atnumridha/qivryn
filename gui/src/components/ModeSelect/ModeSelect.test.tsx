@@ -2,7 +2,11 @@ import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { Route, Routes } from "react-router-dom";
 import { renderWithProviders } from "../../util/test/render";
-import { compactModelTriggerName, ModeSelect } from "./ModeSelect";
+import {
+  compactModelTriggerName,
+  ModeSelect,
+  scrollTopToReveal,
+} from "./ModeSelect";
 
 describe("ModeSelect", () => {
   it.each([
@@ -30,5 +34,43 @@ describe("ModeSelect", () => {
     );
 
     expect(await screen.findByText("Background workspace")).toBeVisible();
+  });
+
+  it.each([
+    {
+      name: "scrolls down when the nested menu extends below the viewport",
+      input: {
+        currentScrollTop: 24,
+        viewportTop: 100,
+        viewportBottom: 400,
+        targetTop: 350,
+        targetBottom: 460,
+      },
+      expected: 88,
+    },
+    {
+      name: "scrolls up when the nested menu extends above the viewport",
+      input: {
+        currentScrollTop: 80,
+        viewportTop: 100,
+        viewportBottom: 400,
+        targetTop: 70,
+        targetBottom: 180,
+      },
+      expected: 46,
+    },
+    {
+      name: "keeps the current position when the nested menu is visible",
+      input: {
+        currentScrollTop: 42,
+        viewportTop: 100,
+        viewportBottom: 400,
+        targetTop: 150,
+        targetBottom: 350,
+      },
+      expected: 42,
+    },
+  ])("$name", ({ input, expected }) => {
+    expect(scrollTopToReveal(input)).toBe(expected);
   });
 });

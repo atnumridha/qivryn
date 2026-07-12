@@ -38,7 +38,14 @@ export function buildAgentChatArgs(
   run: AgentRun,
   imagePaths = imagePathsForAgentRun(run),
 ): string[] {
-  const args = [run.prompt, "--print", "--beta-subagent-tool"];
+  const hookContext =
+    typeof run.metadata?.hookAdditionalContext === "string"
+      ? run.metadata.hookAdditionalContext.trim()
+      : "";
+  const prompt = hookContext
+    ? `${run.prompt}\n\n<system-reminder>\n${hookContext}\n</system-reminder>`
+    : run.prompt;
+  const args = [prompt, "--print", "--beta-subagent-tool"];
   for (const imagePath of imagePaths) {
     args.push("--image", imagePath);
   }

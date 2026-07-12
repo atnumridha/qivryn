@@ -642,7 +642,17 @@ export class LocalAgentRuntime implements AgentRuntimeAdapter {
         queuedRun?.statusReason === "resumed" &&
         (await this.controls.listQueue(runId)).length > 0;
       let run = await transitionAgentRun(this.store, runId, "running");
-      await this.runHooks("agent.before", { run });
+      const beforeHooks = await this.runHooks("agent.before", { run });
+      if (beforeHooks.additionalContext.length > 0) {
+        run = await this.updateRun(runId, (current) => ({
+          ...current,
+          metadata: {
+            ...current.metadata,
+            hookAdditionalContext: beforeHooks.additionalContext.join("\n\n"),
+          },
+          updatedAt: this.now().toISOString(),
+        }));
+      }
       const workspace = await this.workspaceProvider.prepare(run);
       run = await this.updateRun(runId, (current) => ({
         ...current,
@@ -801,8 +811,8 @@ export class LocalAgentRuntime implements AgentRuntimeAdapter {
   private async runHooks(
     event: "agent.before" | "agent.after",
     payload: { run: AgentRun },
-  ): Promise<void> {
-    if (!this.hooks) return;
+  ): Promise<{ additionalContext: string[]; blockReasons: string[] }> {
+    if (!this.hooks) return { additionalContext: [], blockReasons: [] };
     const results = await this.hooks.run(event, payload);
     for (const result of results) {
       await this.store.appendEvent({
@@ -813,5 +823,13 @@ export class LocalAgentRuntime implements AgentRuntimeAdapter {
         payload: { type: "hook.result", result },
       });
     }
+    return {
+      additionalContext: results
+        .map((result) => result.additionalContext)
+        .filter((context): context is string => Boolean(context)),
+      blockReasons: results
+        .filter((result) => result.blocked)
+        .map((result) => result.blockReason ?? "Hook blocked completion"),
+    };
   }
 }

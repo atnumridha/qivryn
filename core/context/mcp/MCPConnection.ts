@@ -1,6 +1,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { homedir } from "os";
+import path from "node:path";
 import { fileURLToPath } from "url";
 
 import {
@@ -451,7 +452,7 @@ Org-level secrets can only be used for MCP by Background Agents (https://docs.qi
    * @param cwd The cwd parameter provided by user.
    * @returns Current working directory (user-provided cwd or workspace root).
    */
-  private async resolveCwd(cwd?: string) {
+  private async resolveCwd(cwd?: string, sourceFile?: string) {
     if (!cwd) {
       return this.resolveWorkspaceCwd(undefined);
     }
@@ -463,6 +464,17 @@ Org-level secrets can only be used for MCP by Background Agents (https://docs.qi
     // Return cwd if cwd is an absolute path.
     if (cwd.charAt(0) === "/") {
       return cwd;
+    }
+
+    if (sourceFile) {
+      try {
+        const sourcePath = sourceFile.startsWith("file://")
+          ? fileURLToPath(sourceFile)
+          : sourceFile.includes("://")
+            ? undefined
+            : sourceFile;
+        if (sourcePath) return path.resolve(path.dirname(sourcePath), cwd);
+      } catch {}
     }
 
     return this.resolveWorkspaceCwd(cwd);
@@ -594,7 +606,7 @@ Org-level secrets can only be used for MCP by Background Agents (https://docs.qi
       options.args || [],
     );
 
-    const cwd = await this.resolveCwd(options.cwd);
+    const cwd = await this.resolveCwd(options.cwd, options.sourceFile);
 
     const transport = new StdioClientTransport({
       command,

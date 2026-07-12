@@ -40,6 +40,12 @@ import type {
 } from "@qivryn/slack-connector";
 import { ToCoreFromIdeOrWebviewProtocol } from "./core.js";
 import { ToWebviewFromIdeOrCoreProtocol } from "./webview.js";
+import type {
+  ApplyCodexImportRequest,
+  ApplyCodexImportResult,
+  CodexImportInventory,
+  SetCodexImportItemEnabledRequest,
+} from "../config/codex/codexImportManager";
 
 export interface InstalledLocalPlugin {
   id: string;
@@ -53,6 +59,8 @@ export interface InstalledLocalPlugin {
   installedPath: string;
   installedAt: string;
   updatedAt: string;
+  sourceKind?: "local" | "codex";
+  installMode?: "copied" | "linked";
   contributions: {
     skills: number;
     rules: number;
@@ -125,6 +133,15 @@ export type ToCoreFromWebviewProtocol = ToCoreFromIdeOrWebviewProtocol & {
     InstalledLocalPlugin,
   ];
   "extensions/pluginUninstall": [{ id: string }, void];
+  "extensions/codexImportPreview": [undefined, CodexImportInventory];
+  "extensions/codexImportApply": [
+    ApplyCodexImportRequest,
+    ApplyCodexImportResult,
+  ];
+  "extensions/codexImportSetEnabled": [
+    SetCodexImportItemEnabledRequest,
+    ApplyCodexImportResult,
+  ];
   "extensions/skillSave": [
     {
       name: string;

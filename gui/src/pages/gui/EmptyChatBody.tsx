@@ -1,3 +1,10 @@
+import {
+  BeakerIcon,
+  ChevronRightIcon,
+  CodeBracketIcon,
+  CommandLineIcon,
+  DocumentMagnifyingGlassIcon,
+} from "@heroicons/react/24/outline";
 import { ConversationStarterCards } from "../../components/ConversationStarters";
 import { useMainEditor } from "../../components/mainInput/TipTapEditor";
 
@@ -6,24 +13,28 @@ const starterPrompts = [
     label: "Review Current File",
     description: "Find bugs, edge cases, and risky changes.",
     prompt: "Review the current file for bugs, edge cases, and risky changes.",
+    Icon: DocumentMagnifyingGlassIcon,
   },
   {
     label: "Find Failing Test",
     description: "Trace the failure and propose the smallest fix.",
     prompt:
       "Find the failing test path, explain the failure, and propose the smallest fix.",
+    Icon: BeakerIcon,
   },
   {
     label: "Explain Error",
     description: "Ground the cause in workspace evidence.",
     prompt:
       "Explain the current error from the workspace evidence and point to the likely code path.",
+    Icon: CommandLineIcon,
   },
   {
     label: "Create Patch",
     description: "Make the focused change and run relevant checks.",
     prompt:
       "Create a focused patch for this task, then run the relevant checks.",
+    Icon: CodeBracketIcon,
   },
 ];
 
@@ -57,23 +68,24 @@ export function EmptyChatBody() {
           role="group"
           aria-label="Starter prompts"
         >
-          {starterPrompts.map(({ label, description, prompt }, index) => (
+          {starterPrompts.map(({ label, description, prompt, Icon }) => (
             <button
               key={label}
               type="button"
               className="qivryn-empty-starter-row"
               onClick={() => insertStarter(prompt)}
             >
-              <span className="qivryn-empty-starter-index" aria-hidden="true">
-                {String(index + 1).padStart(2, "0")}
+              <span className="qivryn-empty-starter-icon" aria-hidden="true">
+                <Icon />
               </span>
               <span>
                 <span>{label}</span>
                 <span>{description}</span>
               </span>
-              <span className="qivryn-empty-starter-arrow" aria-hidden="true">
-                ›
-              </span>
+              <ChevronRightIcon
+                className="qivryn-empty-starter-arrow"
+                aria-hidden="true"
+              />
             </button>
           ))}
         </div>

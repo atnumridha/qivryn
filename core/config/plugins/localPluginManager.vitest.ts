@@ -106,6 +106,29 @@ describe("localPluginManager", () => {
     );
   });
 
+  it("loads Codex-style mcpServers file contributions", async () => {
+    const { root, manager } = await setup();
+    const bundle = await createBundle(root);
+    await writeFile(
+      path.join(bundle, ".mcp.json"),
+      JSON.stringify({ mcpServers: {} }),
+    );
+    await writeFile(
+      path.join(bundle, ".codex-plugin", "plugin.json"),
+      JSON.stringify({
+        name: "codex-style-plugin",
+        version: "1.0.0",
+        mcpServers: "./.mcp.json",
+      }),
+    );
+
+    const installed = await manager.installLocalPlugin(bundle);
+    expect(installed.contributions.mcp).toBe(1);
+    expect(
+      (await manager.getEnabledLocalPluginContributionPaths()).mcp,
+    ).toEqual([path.join(installed.installedPath, ".mcp.json")]);
+  });
+
   it("rejects symbolic links in imported bundles", async () => {
     const { root, manager } = await setup();
     const bundle = await createBundle(root);

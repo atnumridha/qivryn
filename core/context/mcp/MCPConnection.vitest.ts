@@ -176,6 +176,14 @@ describe("MCPConnection", () => {
       expect(mockResolve).toHaveBeenCalledWith("src", ide);
     });
 
+    it("should resolve plugin cwd relative to its MCP config file", async () => {
+      const conn = new MCPConnection(baseOptions);
+
+      await expect(
+        (conn as any).resolveCwd(".", "file:///plugins/computer-use/.mcp.json"),
+      ).resolves.toBe("/plugins/computer-use");
+    });
+
     it("should fall back to homedir for remote URIs that cannot be used as local cwd", async () => {
       const ide = {} as any;
       vi.spyOn(ideUtils, "resolveRelativePathInDir").mockResolvedValue(

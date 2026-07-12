@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "package": {
+    "path": "ide/.build/VSCode-darwin-arm64",
+    "sourceExtensionVersion": "1.3.46"
+  },
+  "scenarios": [
+    {
+      "id": "agent-workspace-empty-startup",
+      "area": "agent-first-workbench-layout",
+      "status": "not-run",
+      "acceptance": "A clean Qivryn profile opens the native Agent workspace with the primary sidebar and auxiliary bar hidden, an empty native composer visible, and no React chat editor tab.",
+      "steps": [
+        "Launch the packaged app with a clean user-data directory and an empty workspace.",
+        "Wait for extension activation and the native Agent provider registration.",
+        "Verify that the native Agent pane and composer are visible and keyboard focus can enter the composer."
+      ],
+      "viewports": ["1440x900", "320x900"]
+    },
+    {
+      "id": "agent-workspace-restores-last-run",
+      "area": "native-agent-sessions",
+      "status": "not-run",
+      "acceptance": "Restarting the packaged app restores the last active non-archived Qivryn run in the native Agent pane without opening the React fallback.",
+      "steps": [
+        "Create two native Qivryn sessions and select the older session.",
+        "Reload the workbench, then restart the packaged app.",
+        "Verify that the selected run, transcript, composer, and active row are restored."
+      ],
+      "viewports": ["1440x900", "320x900"]
+    },
+    {
+      "id": "agent-session-state-restart",
+      "area": "native-agent-session-state",
+      "status": "not-run",
+      "acceptance": "Pinned and unread state survives workbench reload and process restart, and changes made in the native list are synchronized to durable Qivryn run metadata.",
+      "steps": [
+        "Pin one run and mark a different run unread in the native Agent list.",
+        "Reload the workbench and restart the packaged app.",
+        "Verify both states in the native list and in the runtime session metadata."
+      ]
+    },
+    {
+      "id": "agent-window-selected-run-handoff",
+      "area": "qivryn-agent-window-handoff",
+      "status": "not-run",
+      "acceptance": "Open in Agents Window transfers the selected qivryn-agent session resource, opens that same run in the dedicated window, and clears the one-shot handoff state after restoration.",
+      "steps": [
+        "Open a Qivryn run with a distinctive title and transcript.",
+        "Invoke Open Agent in Agents Window from the native editor title action.",
+        "Verify that the dedicated window opens the same run and accepts a follow-up prompt."
+      ],
+      "viewports": ["1440x900"]
+    },
+    {
+      "id": "agent-window-background-runs",
+      "area": "qivryn-agent-window-handoff",
+      "status": "not-run",
+      "acceptance": "Navigating between native sessions and moving one session to the Agents Window does not stop other running Qivryn sessions; their status and streamed events continue updating in both windows.",
+      "steps": [
+        "Start at least two independent Qivryn runs.",
+        "Move one run to the Agents Window and navigate to another run in the main window.",
+        "Verify both runs complete or remain independently cancelable without transcript loss."
+      ],
+      "viewports": ["1440x900"]
+    }
+  ]
+}

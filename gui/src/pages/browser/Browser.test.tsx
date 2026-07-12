@@ -49,7 +49,7 @@ describe("Browser workspace", () => {
     );
   });
 
-  it("navigates, captures a screenshot, inspects DOM, and takes over", async () => {
+  it("navigates, inspects, takes over, and exposes computer-use actions", async () => {
     const messenger = new MockIdeMessenger();
     let current = session({ locked: true, lockOwner: "agent" });
     messenger.responses["browser/list"] = [current];
@@ -93,20 +93,47 @@ describe("Browser workspace", () => {
       mockIdeMessenger: messenger,
     });
     await screen.findByText("Local app");
-    await user.click(screen.getByRole("button", { name: "Screenshot" }));
+    await user.click(
+      screen.getByRole("button", { name: "Capture screenshot" }),
+    );
     expect(
       await screen.findByRole("img", { name: "Browser screenshot" }),
     ).toHaveAttribute("src", "data:image/png;base64,cG5n");
-    await user.click(screen.getByRole("button", { name: "DOM" }));
+    await user.click(screen.getByRole("button", { name: "Inspect DOM" }));
     expect(await screen.findByText("<main>Ready</main>")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Take over" }));
+    await user.click(
+      screen.getByRole("button", { name: "Take over browser control" }),
+    );
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: "Release" }),
+        screen.getByRole("button", { name: "Release browser control" }),
       ).toBeInTheDocument(),
     );
+    await user.click(
+      screen.getByRole("button", { name: "Computer use controls" }),
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "Element selector" }),
+      "#submit",
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "Text to type" }),
+      "ready",
+    );
+    await user.click(screen.getByRole("button", { name: "Click element" }));
+    await user.click(screen.getByRole("button", { name: "Type into element" }));
+    await user.click(screen.getByRole("button", { name: "Press key" }));
+    await user.click(screen.getByRole("button", { name: "Scroll down" }));
     expect(actions).toEqual(
-      expect.arrayContaining(["screenshot", "dom", "takeover"]),
+      expect.arrayContaining([
+        "screenshot",
+        "dom",
+        "takeover",
+        "click",
+        "type",
+        "press",
+        "scroll",
+      ]),
     );
   });
 });

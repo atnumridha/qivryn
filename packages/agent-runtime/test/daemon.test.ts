@@ -17,6 +17,10 @@ afterEach(async () => {
 });
 
 describe("agent daemon protocol migration", () => {
+  it("uses the current hooks and read-only transport compatible protocol", () => {
+    expect(AGENT_DAEMON_PROTOCOL_VERSION).toBe(6);
+  });
+
   it("terminates a healthy version-2 worker instead of reusing it", async () => {
     const fixture = await daemonFixture(2);
     const kill = vi

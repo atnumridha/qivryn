@@ -33,13 +33,17 @@ import {
   ChatBubbleLeftRightIcon,
   CheckCircleIcon,
   ChevronRightIcon,
-  DocumentPlusIcon,
+  CursorArrowRaysIcon,
   DocumentDuplicateIcon,
+  EllipsisHorizontalIcon,
   ExclamationTriangleIcon,
   MagnifyingGlassIcon,
   PencilSquareIcon,
   PlusIcon,
+  QueueListIcon,
+  SquaresPlusIcon,
   Squares2X2Icon,
+  WrenchScrewdriverIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 import {
@@ -551,14 +555,19 @@ function AgentContextPicker({
           aria-label="Add agent context"
           aria-expanded={open}
           aria-haspopup="dialog"
+          title="Add context"
           onClick={() => {
             setMessage(undefined);
             setOpen((value) => !value);
           }}
-          className="border-input bg-input hover:bg-list-hover flex cursor-pointer items-center gap-1 rounded-md border px-2 py-1 text-xs"
+          className="border-input bg-input hover:bg-list-hover relative flex h-7 w-7 flex-shrink-0 cursor-pointer items-center justify-center rounded-full border p-0"
         >
-          <DocumentPlusIcon className="h-3.5 w-3.5" /> Context
-          {items.length > 0 ? ` · ${items.length}` : ""}
+          <PlusIcon className="h-3.5 w-3.5" />
+          {items.length > 0 && (
+            <span className="bg-button text-button-foreground absolute -right-1 -top-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full px-0.5 text-[8px]">
+              {items.length}
+            </span>
+          )}
         </button>
         {items.map((item) => {
           const label =
@@ -2125,12 +2134,12 @@ function AgentDetails({
           </div>
         </section>
       )}
-      <details className="relative mt-2 w-fit text-xs">
+      <details className="cursor-agent-actions-menu relative mt-2 w-fit text-xs">
         <summary
           aria-label="Agent actions"
           className="text-description hover:bg-list-hover flex h-6 w-7 cursor-pointer list-none items-center justify-center rounded-md"
         >
-          •••
+          <EllipsisHorizontalIcon aria-hidden="true" className="h-4 w-4" />
         </summary>
         <div className="cursor-agent-menu absolute left-0 top-7 z-30 grid w-52 grid-cols-1 gap-0.5 p-1.5">
           <div className="text-description px-2 py-1 text-[11px]">
@@ -2373,9 +2382,9 @@ function AgentDetails({
               aria-label="Edit and resend initial message"
               title="Edit and rerun from this message"
               onClick={() => beginResubmit(run.prompt)}
-              className="text-description hover:text-foreground absolute right-2 top-2 flex cursor-pointer items-center gap-1 rounded border-none bg-transparent px-1.5 py-0.5 text-[11px] opacity-70 hover:bg-white/5 hover:opacity-100"
+              className="text-description hover:text-foreground absolute bottom-1 right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 opacity-70 hover:bg-white/5 hover:opacity-100"
             >
-              <PencilSquareIcon className="h-3 w-3" /> Edit
+              <PencilSquareIcon className="h-3.5 w-3.5" />
             </button>
             {promptNeedsCollapse && (
               <button
@@ -2515,10 +2524,11 @@ function AgentDetails({
           <button
             type="submit"
             aria-label="Send"
+            title="Send"
             disabled={!followUp.trim()}
-            className="bg-primary text-primary-foreground hover:bg-primary-hover flex-shrink-0 cursor-pointer rounded-md border-none px-3 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50"
+            className="bg-primary text-primary-foreground hover:bg-primary-hover flex h-8 w-8 flex-shrink-0 cursor-pointer items-center justify-center rounded-full border-none p-0 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Send
+            <ArrowUpIcon className="h-4 w-4" />
           </button>
         </div>
       </form>
@@ -2628,6 +2638,8 @@ export default function Agents() {
   const [showCreate, setShowCreate] = useState(false);
   const [showAutomations, setShowAutomations] = useState(false);
   const [showMultitask, setShowMultitask] = useState(false);
+  const [showCapabilities, setShowCapabilities] = useState(false);
+  const [showWideNavigation, setShowWideNavigation] = useState(false);
   const [newPrompt, setNewPrompt] = useState("");
   const [newRepository, setNewRepository] = useState("");
   const [newRuntime, setNewRuntime] = useState<"local" | "docker" | "ssh">(
@@ -2656,6 +2668,7 @@ export default function Agents() {
   const lastEventSequenceRef = useRef(0);
   const eventPollInFlightRef = useRef(false);
   const openedCreateFromRouteRef = useRef(false);
+  const openedScheduleFromRouteRef = useRef(false);
 
   const appendEvents = useCallback((incoming: AgentEvent[]) => {
     if (incoming.length === 0) return;
@@ -2913,6 +2926,7 @@ export default function Agents() {
       setSelectedChatId(undefined);
       setChatOpenError(undefined);
       setSelectedId(run.id);
+      setShowWideNavigation(false);
       if (run.unread) {
         void ideMessenger
           .request("agents/control", {
@@ -3041,6 +3055,21 @@ export default function Agents() {
     void openCreate(undefined);
     navigate(ROUTES.AGENTS, { replace: true });
   }, [navigate, openCreate, searchParams]);
+
+  useEffect(() => {
+    const scheduleParam =
+      searchParams.get("scheduled") ?? searchParams.get("automations");
+    const shouldOpenSchedule =
+      scheduleParam === "1" || scheduleParam === "true";
+    if (!shouldOpenSchedule) {
+      openedScheduleFromRouteRef.current = false;
+      return;
+    }
+    if (openedScheduleFromRouteRef.current) return;
+    openedScheduleFromRouteRef.current = true;
+    setShowAutomations(true);
+    navigate(ROUTES.AGENTS, { replace: true });
+  }, [navigate, searchParams]);
 
   const chooseRepository = useCallback(async () => {
     const response = await ideMessenger.request(
@@ -3386,6 +3415,7 @@ export default function Agents() {
     if (event.key === "Escape") {
       setShowCreate(false);
       setShowMultitask(false);
+      setShowCapabilities(false);
       setSelectedId(undefined);
       setSelectedChatId(undefined);
       return;
@@ -3412,7 +3442,7 @@ export default function Agents() {
       onKeyDown={onWorkspaceKeyDown}
       className="qivryn-agents-cursor relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden outline-none"
     >
-      <header className="cursor-agents-toolbar flex flex-shrink-0 items-center gap-2 border-b px-3">
+      <header className="cursor-agents-toolbar relative flex flex-shrink-0 items-center gap-2 border-b px-3">
         <button
           type="button"
           aria-label="Back to chat"
@@ -3435,7 +3465,8 @@ export default function Agents() {
         </button>
         <div className="cursor-agents-toolbar-title min-w-0 flex-1 truncate text-sm font-semibold tracking-tight">
           <span className="cursor-agents-brand-mark" aria-hidden="true" />
-          <span>Agent workspace</span>
+          <span className="hidden min-[520px]:inline">Agent workspace</span>
+          <span className="min-[520px]:hidden">Qivryn</span>
         </div>
         <div
           role="status"
@@ -3478,20 +3509,119 @@ export default function Agents() {
           aria-label="Start multiple agents"
           title="Start several local tasks in parallel"
           onClick={() => void openMultitask()}
-          className="border-input hover:bg-list-hover flex h-7 cursor-pointer items-center justify-center gap-1.5 rounded-md border bg-transparent px-2 text-xs"
+          className="border-input hover:bg-list-hover hidden h-7 cursor-pointer items-center justify-center gap-1.5 rounded-md border bg-transparent px-2 text-xs min-[620px]:flex"
         >
           <Squares2X2Icon className="h-3.5 w-3.5" />
           <span className="hidden min-[620px]:inline">Multitask</span>
         </button>
         <button
           type="button"
-          aria-label="Agent automations"
-          title="Local agent automations"
+          aria-label="Scheduled agent tasks"
+          title="Scheduled local agent tasks"
           onClick={() => setShowAutomations(true)}
-          className="hover:bg-list-hover focus-visible:ring-border-focus flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border-none bg-transparent outline-none focus-visible:ring-1"
+          className="hover:bg-list-hover focus-visible:ring-border-focus hidden h-7 w-7 cursor-pointer items-center justify-center rounded-md border-none bg-transparent outline-none focus-visible:ring-1 min-[520px]:flex min-[960px]:w-auto min-[960px]:gap-1.5 min-[960px]:px-2"
         >
           <ClockIcon className="h-3.5 w-3.5" />
+          <span className="hidden text-xs min-[960px]:inline">Scheduled</span>
         </button>
+        <button
+          type="button"
+          aria-label="Agent capabilities"
+          aria-expanded={showCapabilities}
+          title="Browser, tools, MCP, skills, plugins, and subagents"
+          onClick={() => setShowCapabilities((current) => !current)}
+          className="hover:bg-list-hover focus-visible:ring-border-focus flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border-none bg-transparent outline-none focus-visible:ring-1"
+        >
+          <SquaresPlusIcon className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          aria-label={
+            showWideNavigation
+              ? "Hide agents and chats"
+              : "Show agents and chats"
+          }
+          aria-expanded={showWideNavigation}
+          title={
+            showWideNavigation
+              ? "Hide agents and chats"
+              : "Show agents and chats"
+          }
+          onClick={() => setShowWideNavigation((current) => !current)}
+          className="hover:bg-list-hover focus-visible:ring-border-focus hidden h-7 w-7 cursor-pointer items-center justify-center rounded-md border-none bg-transparent outline-none focus-visible:ring-1 min-[960px]:flex"
+        >
+          <QueueListIcon className="h-3.5 w-3.5" />
+        </button>
+        {showCapabilities && (
+          <div
+            role="menu"
+            aria-label="Agent capabilities menu"
+            className="qivryn-agent-capabilities-menu border-input bg-background absolute right-2 top-9 z-[70] w-[min(256px,calc(100vw-16px))] overflow-hidden rounded-lg border p-1 shadow-xl"
+          >
+            {[
+              {
+                label: "Browser & computer use",
+                title: "Open an auditable local browser session",
+                Icon: CursorArrowRaysIcon,
+                action: () =>
+                  navigate(
+                    selected
+                      ? `${ROUTES.BROWSER}?runId=${encodeURIComponent(selected.id)}`
+                      : ROUTES.BROWSER,
+                  ),
+              },
+              {
+                label: "Tools & MCP",
+                title: "Configure built-in and MCP tools",
+                Icon: WrenchScrewdriverIcon,
+                action: () => navigate(`${ROUTES.CONFIG}?tab=tools`),
+              },
+              {
+                label: "Skills & plugins",
+                title: "Install and manage local capabilities",
+                Icon: SquaresPlusIcon,
+                action: () => navigate(`${ROUTES.CONFIG}?tab=extensions`),
+              },
+              {
+                label: "Scheduled tasks",
+                title: "Schedule recurring agent work",
+                Icon: ClockIcon,
+                action: () => setShowAutomations(true),
+              },
+              {
+                label: selected ? "New subagent" : "New agent",
+                title: selected
+                  ? "Start a child task with inherited context"
+                  : "Start a durable local task",
+                Icon: PlusIcon,
+                action: () => void openCreate(selected?.id),
+              },
+              {
+                label: "Multitask",
+                title: "Launch independent agents in parallel",
+                Icon: Squares2X2Icon,
+                action: () => void openMultitask(),
+              },
+            ].map(({ label, title, Icon, action }) => (
+              <button
+                key={label}
+                type="button"
+                role="menuitem"
+                title={title}
+                onClick={() => {
+                  setShowCapabilities(false);
+                  action();
+                }}
+                className="hover:bg-list-hover grid h-9 w-full cursor-pointer grid-cols-[24px_minmax(0,1fr)] items-center gap-2 rounded-md border-none bg-transparent px-2 text-left"
+              >
+                <span className="flex h-6 w-6 items-center justify-center">
+                  <Icon className="h-3.5 w-3.5" />
+                </span>
+                <span className="min-w-0 truncate text-xs">{label}</span>
+              </button>
+            ))}
+          </div>
+        )}
         <input
           ref={importRef}
           type="file"
@@ -3513,19 +3643,21 @@ export default function Agents() {
         >
           Import
         </button>
-        <button
-          type="button"
-          aria-label="Refresh agents"
-          onClick={() => {
-            void loadRuns();
-            void loadChatSessions();
-          }}
-          className="hover:bg-list-hover focus-visible:ring-border-focus flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border-none bg-transparent outline-none focus-visible:ring-1"
-        >
-          <ArrowPathIcon
-            className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
-          />
-        </button>
+        {!Boolean((window as any).isFullScreen) && (
+          <button
+            type="button"
+            aria-label="Refresh agents"
+            onClick={() => {
+              void loadRuns();
+              void loadChatSessions();
+            }}
+            className="hover:bg-list-hover focus-visible:ring-border-focus flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border-none bg-transparent outline-none focus-visible:ring-1"
+          >
+            <ArrowPathIcon
+              className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
+            />
+          </button>
+        )}
         {Boolean((window as any).isFullScreen) && (
           <button
             type="button"
@@ -3542,19 +3674,21 @@ export default function Agents() {
             <span className="hidden min-[520px]:inline">Reload</span>
           </button>
         )}
-        <button
-          type="button"
-          aria-label="Open Agents Window"
-          onClick={() =>
-            void ideMessenger.request("toggleFullScreen", {
-              newWindow: true,
-              path: ROUTES.AGENTS,
-            })
-          }
-          className="hover:bg-list-hover focus-visible:ring-border-focus flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border-none bg-transparent outline-none focus-visible:ring-1"
-        >
-          <ArrowsPointingOutIcon className="h-3.5 w-3.5" />
-        </button>
+        {!Boolean((window as any).isFullScreen) && (
+          <button
+            type="button"
+            aria-label="Open Agents Window"
+            onClick={() =>
+              void ideMessenger.request("toggleFullScreen", {
+                newWindow: true,
+                path: ROUTES.AGENTS,
+              })
+            }
+            className="hover:bg-list-hover focus-visible:ring-border-focus flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border-none bg-transparent outline-none focus-visible:ring-1"
+          >
+            <ArrowsPointingOutIcon className="h-3.5 w-3.5" />
+          </button>
+        )}
       </header>
 
       {showAutomations && (
@@ -3760,11 +3894,18 @@ export default function Agents() {
         </form>
       )}
 
-      <div className="cursor-agent-shell-grid grid min-h-0 min-w-0 flex-1 grid-cols-1">
+      <div
+        className="cursor-agent-shell-grid grid min-h-0 min-w-0 flex-1 grid-cols-1"
+        data-wide-navigation-open={showWideNavigation ? "true" : "false"}
+      >
         <aside
           aria-label="Agents and chats"
           className={`cursor-agents-sidebar ${showCreate ? "cursor-agents-sidebar-creating" : ""} flex min-h-0 min-w-0 flex-col border-r ${
-            selected || selectedChat ? "max-[719px]:hidden" : ""
+            selected ||
+            selectedChat ||
+            (runs.length === 0 && chatSessions.length === 0)
+              ? "max-[719px]:hidden"
+              : ""
           }`}
         >
           {showCreate && (
@@ -3947,6 +4088,39 @@ export default function Agents() {
             </form>
           )}
 
+          <nav
+            className="qivryn-codex-sidebar-nav"
+            aria-label="Qivryn navigation"
+          >
+            <div className="qivryn-codex-sidebar-brand">
+              <span>Qivryn</span>
+              <span className="qivryn-codex-sidebar-brand-accent">Code</span>
+            </div>
+            <button type="button" onClick={() => void openCreate(undefined)}>
+              <PlusIcon className="h-4 w-4" />
+              <span>New task</span>
+            </button>
+            <button type="button" onClick={() => setShowAutomations(true)}>
+              <ClockIcon className="h-4 w-4" />
+              <span>Scheduled</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate(`${ROUTES.CONFIG}?tab=extensions`)}
+            >
+              <SquaresPlusIcon className="h-4 w-4" />
+              <span>Plugins</span>
+            </button>
+            <button type="button" onClick={() => navigate(ROUTES.BROWSER)}>
+              <CursorArrowRaysIcon className="h-4 w-4" />
+              <span>Browser</span>
+            </button>
+            <button type="button" onClick={() => navigate(ROUTES.HOME)}>
+              <ChatBubbleLeftRightIcon className="h-4 w-4" />
+              <span>Chat</span>
+            </button>
+          </nav>
+
           <div className="cursor-agent-sidebar-search relative mx-3 mt-3 flex-shrink-0">
             <MagnifyingGlassIcon className="text-description pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2" />
             <input
@@ -4085,6 +4259,7 @@ export default function Agents() {
                       setSelectedId(undefined);
                       setSelectedChatId(session.sessionId);
                       setChatOpenError(undefined);
+                      setShowWideNavigation(false);
                       void openChatSession(session.sessionId);
                     }}
                   />
@@ -4095,9 +4270,7 @@ export default function Agents() {
         </aside>
         <main
           aria-label="Agent workspace details"
-          className={`cursor-agents-main min-h-0 min-w-0 overflow-hidden ${
-            !selected && !selectedChat ? "max-[719px]:hidden" : ""
-          }`}
+          className="cursor-agents-main min-h-0 min-w-0 overflow-hidden"
         >
           {selected && (
             <AgentDetails
@@ -4307,49 +4480,85 @@ export default function Agents() {
               onBack={() => setSelectedChatId(undefined)}
             />
           )}
-          {!selected && !selectedChat && (
-            <div className="cursor-agent-empty flex h-full min-h-64 items-center justify-center p-8">
-              <div className="cursor-agent-empty-card">
-                <div className="cursor-agent-empty-index">Q / 01</div>
-                <div className="cursor-agent-empty-icon" aria-hidden="true">
-                  <Squares2X2Icon className="h-5 w-5" />
+          {!selected && !selectedChat && !showCreate && (
+            <div className="qivryn-codex-new-task flex h-full min-h-64 items-center justify-center px-5 py-8">
+              <div className="w-full max-w-3xl">
+                <div className="qivryn-codex-new-task-heading">
+                  <h1>What should we work on?</h1>
+                  <p>
+                    Start a durable task in this workspace or an isolated
+                    worktree.
+                  </p>
                 </div>
-                <h1>Build in parallel.</h1>
-                <p>
-                  Launch durable coding agents, inspect their live activity, and
-                  return to any run without losing context.
-                </p>
-                <div className="cursor-agent-empty-actions">
-                  <button
-                    type="button"
-                    onClick={() => void openCreate(undefined)}
-                    className="cursor-agent-primary-action"
-                  >
-                    <PlusIcon className="h-4 w-4" />
-                    Launch an agent
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void openMultitask()}
-                    className="cursor-agent-secondary-action"
-                  >
-                    <Squares2X2Icon className="h-4 w-4" />
-                    Run in parallel
-                  </button>
-                </div>
-                <div
-                  className="cursor-agent-empty-rail"
-                  aria-label="Agent capabilities"
+                <form
+                  className="qivryn-codex-task-composer"
+                  aria-label="New agent task"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void createRun();
+                  }}
                 >
-                  <span>
-                    <b>01</b> Isolated worktree
-                  </span>
-                  <span>
-                    <b>02</b> Live execution
-                  </span>
-                  <span>
-                    <b>03</b> Durable context
-                  </span>
+                  <textarea
+                    aria-label="New task prompt"
+                    value={newPrompt}
+                    onChange={(event) => setNewPrompt(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.shiftKey) {
+                        event.preventDefault();
+                        event.currentTarget.form?.requestSubmit();
+                      }
+                    }}
+                    placeholder="Ask Qivryn to build, review, debug, or investigate"
+                    rows={4}
+                  />
+                  <div className="qivryn-codex-task-composer-footer">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <ModeSelect
+                        skillName={newSkill}
+                        onSkillChange={setNewSkill}
+                        agentAccessMode={newPermissionMode}
+                        onAgentAccessModeChange={setNewPermissionMode}
+                        agentRuntime={newRuntime}
+                        onAgentRuntimeChange={setNewRuntime}
+                        includeAgentControls
+                        includeModelControls
+                      />
+                      <button
+                        type="button"
+                        className="qivryn-composer-repository"
+                        title={newRepository || "Choose repository"}
+                        onClick={() => void chooseRepository()}
+                      >
+                        {newRepository
+                          ? newRepository.split(/[\\/]/).filter(Boolean).at(-1)
+                          : "Choose workspace"}
+                      </button>
+                    </div>
+                    <button
+                      type="submit"
+                      aria-label="Start task"
+                      disabled={
+                        starting ||
+                        !newPrompt.trim() ||
+                        !newRepository.trim() ||
+                        (newRuntime === "ssh" && !newSshHost.trim())
+                      }
+                      className="qivryn-codex-send-button"
+                    >
+                      <ArrowUpIcon className="h-4 w-4" />
+                    </button>
+                  </div>
+                </form>
+                <div className="qivryn-codex-new-task-actions">
+                  <button type="button" onClick={() => void openMultitask()}>
+                    <Squares2X2Icon className="h-4 w-4" /> Run in parallel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowAutomations(true)}
+                  >
+                    <ClockIcon className="h-4 w-4" /> Schedule a task
+                  </button>
                 </div>
               </div>
             </div>

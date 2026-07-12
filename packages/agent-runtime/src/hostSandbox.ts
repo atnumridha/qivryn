@@ -4,7 +4,7 @@ import type { AgentProcessCommand } from "./processExecutor.js";
 
 export interface HostSandboxPolicy {
   filesystem: "read-only";
-  network: "deny";
+  network: "allow" | "deny";
   required?: boolean;
 }
 
@@ -72,15 +72,16 @@ export function applyHostSandbox(
   }
 
   if (platform === "darwin" && exists("sandbox-exec", env)) {
+    const profile = [
+      "(version 1)",
+      "(allow default)",
+      ...(policy.network === "deny" ? ["(deny network*)"] : []),
+      "(deny file-write*)",
+    ].join(" ");
     return {
       ...command,
       command: "sandbox-exec",
-      args: [
-        "-p",
-        "(version 1) (allow default) (deny network*) (deny file-write*)",
-        command.command,
-        ...(command.args ?? []),
-      ],
+      args: ["-p", profile, command.command, ...(command.args ?? [])],
     };
   }
 
@@ -92,7 +93,7 @@ export function applyHostSandbox(
       args: [
         "--die-with-parent",
         "--new-session",
-        "--unshare-net",
+        ...(policy.network === "deny" ? ["--unshare-net"] : []),
         "--ro-bind",
         "/",
         "/",

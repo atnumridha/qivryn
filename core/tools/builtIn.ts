@@ -12,6 +12,7 @@ export enum BuiltInToolNames {
   GrepSearch = "grep_search",
   FileGlobSearch = "file_glob_search",
   SearchWeb = "search_web",
+  ComputerUse = "computer_use",
   ViewDiff = "view_diff",
   LSTool = "ls",
   CreateRuleBlock = "create_rule_block",

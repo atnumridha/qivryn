@@ -153,9 +153,14 @@ export class BrowserSessionService {
     sessionId: string,
     url: string,
     actor: BrowserActor,
+    preauthorized = false,
   ): Promise<BrowserSession> {
     const session = await this.require(sessionId, actor);
-    await this.authorize(session, actor, "navigate", url);
+    if (preauthorized) {
+      await this.auditPreauthorized(session, actor, "navigate", url);
+    } else {
+      await this.authorize(session, actor, "navigate", url);
+    }
     const result = await this.adapter.navigate(session, url);
     const saved = await this.save({
       ...session,
@@ -229,6 +234,143 @@ export class BrowserSessionService {
       requests.map((payload) => this.event(sessionId, "network", payload)),
     );
     return requests;
+  }
+
+  async click(
+    sessionId: string,
+    target: { selector?: string; x?: number; y?: number },
+    actor: BrowserActor,
+    preauthorized = false,
+  ): Promise<BrowserSession> {
+    const selector = target.selector?.trim();
+    const hasCoordinates =
+      Number.isFinite(target.x) && Number.isFinite(target.y);
+    if (!selector && !hasCoordinates) {
+      throw new Error("Browser click needs a selector or x/y coordinates");
+    }
+    const session = await this.requireInteraction(
+      sessionId,
+      actor,
+      preauthorized,
+    );
+    const result = await this.adapter.click(session, {
+      selector,
+      x: target.x,
+      y: target.y,
+    });
+    const saved = await this.save({ ...session, ...result });
+    await this.event(sessionId, "interaction", {
+      actor,
+      action: "click",
+      selector,
+      x: target.x,
+      y: target.y,
+    });
+    return saved;
+  }
+
+  async typeText(
+    sessionId: string,
+    request: { selector?: string; text: string; replace?: boolean },
+    actor: BrowserActor,
+    preauthorized = false,
+  ): Promise<BrowserSession> {
+    if (!request.text) throw new Error("Browser type needs text");
+    const session = await this.requireInteraction(
+      sessionId,
+      actor,
+      preauthorized,
+    );
+    const result = await this.adapter.typeText(session, {
+      selector: request.selector?.trim() || undefined,
+      text: request.text,
+      replace: request.replace,
+    });
+    const saved = await this.save({ ...session, ...result });
+    await this.event(sessionId, "interaction", {
+      actor,
+      action: "type",
+      selector: request.selector?.trim() || undefined,
+      replace: request.replace === true,
+      textLength: request.text.length,
+    });
+    return saved;
+  }
+
+  async pressKey(
+    sessionId: string,
+    key: string,
+    actor: BrowserActor,
+    preauthorized = false,
+  ): Promise<BrowserSession> {
+    if (!key.trim()) throw new Error("Browser key is required");
+    const session = await this.requireInteraction(
+      sessionId,
+      actor,
+      preauthorized,
+    );
+    const result = await this.adapter.pressKey(session, key.trim());
+    const saved = await this.save({ ...session, ...result });
+    await this.event(sessionId, "interaction", {
+      actor,
+      action: "press",
+      key: key.trim(),
+    });
+    return saved;
+  }
+
+  async scroll(
+    sessionId: string,
+    deltaX: number,
+    deltaY: number,
+    actor: BrowserActor,
+    preauthorized = false,
+  ): Promise<BrowserSession> {
+    if (!Number.isFinite(deltaX) || !Number.isFinite(deltaY)) {
+      throw new Error("Browser scroll deltas must be finite numbers");
+    }
+    const session = await this.requireInteraction(
+      sessionId,
+      actor,
+      preauthorized,
+    );
+    const result = await this.adapter.scroll(session, deltaX, deltaY);
+    const saved = await this.save({ ...session, ...result });
+    await this.event(sessionId, "interaction", {
+      actor,
+      action: "scroll",
+      deltaX,
+      deltaY,
+    });
+    return saved;
+  }
+
+  async wait(
+    sessionId: string,
+    request: { selector?: string; milliseconds?: number },
+    actor: BrowserActor,
+  ): Promise<BrowserSession> {
+    const selector = request.selector?.trim() || undefined;
+    const milliseconds = request.milliseconds ?? (selector ? 30_000 : 1_000);
+    if (!Number.isFinite(milliseconds) || milliseconds < 0) {
+      throw new Error("Browser wait duration must be a non-negative number");
+    }
+    if (milliseconds > 30_000) {
+      throw new Error("Browser waits cannot exceed 30 seconds");
+    }
+    const session = await this.require(sessionId, actor);
+    const result = await this.adapter.wait(session, {
+      selector,
+      milliseconds,
+    });
+    const saved = await this.save({ ...session, ...result });
+    await this.event(sessionId, "interaction", {
+      actor,
+      action: "wait",
+      selector,
+      milliseconds,
+    });
+    return saved;
   }
 
   async viewport(
@@ -391,6 +533,36 @@ export class BrowserSessionService {
       throw new Error(`Browser session is controlled by ${session.lockOwner}`);
     }
     return session;
+  }
+
+  private async requireInteraction(
+    sessionId: string,
+    actor: BrowserActor,
+    preauthorized: boolean,
+  ): Promise<BrowserSession> {
+    const session = await this.require(sessionId, actor);
+    if (preauthorized) {
+      await this.auditPreauthorized(session, actor, "interaction", session.url);
+    } else {
+      await this.authorize(session, actor, "interaction", session.url, true);
+    }
+    return session;
+  }
+
+  private async auditPreauthorized(
+    session: BrowserSession,
+    actor: BrowserActor,
+    action: BrowserPermissionAction,
+    url?: string,
+  ): Promise<void> {
+    await this.event(session.id, "permission", {
+      actor,
+      action,
+      url,
+      risk: "sensitive",
+      allowed: true,
+      source: "tool-policy",
+    });
   }
 
   private save(session: BrowserSession): Promise<BrowserSession> {

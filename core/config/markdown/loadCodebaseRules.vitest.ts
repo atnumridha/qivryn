@@ -27,6 +27,7 @@ describe("loadCodebaseRules", () => {
       path.join(home, ".cursor", "rules"),
       path.join(home, ".claude", "rules"),
       path.join(home, ".codex", "rules"),
+      path.join(home, ".codex", "AGENTS.md"),
       path.join(home, ".agents", "rules"),
     ]);
   });

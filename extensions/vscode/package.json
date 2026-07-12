@@ -448,6 +448,12 @@
         "group": "Qivryn"
       },
       {
+        "command": "qivryn.openAgentsWindow",
+        "category": "Qivryn",
+        "title": "Open Agent Workspace",
+        "group": "Qivryn"
+      },
+      {
         "command": "qivryn.openNativeAgent",
         "category": "Qivryn",
         "title": "Open Native Agent Session",

@@ -54,6 +54,8 @@ import { QivrynLayoutManager } from "./QivrynLayoutManager";
 import { NativeReviewEditor } from "./native/NativeReviewEditor";
 import { NativeBrowserEditor } from "./native/NativeBrowserEditor";
 import { NativeTerminalJobs } from "./native/NativeTerminalJobs";
+import { toAgentsWindowOpenArguments } from "./native/agentsWindowHandoff";
+import { normalizeQivrynWebviewRoute } from "./native/webviewRoute";
 import { processDiff } from "./diff/processDiff";
 import { VerticalDiffManager } from "./diff/vertical/manager";
 import { partialSuggestionCommand } from "./partialSuggestionAcceptance";
@@ -73,10 +75,7 @@ let fullScreenPanel: vscode.WebviewPanel | undefined;
 let fullScreenRecoverySessionId: string | undefined;
 
 const CHAT_ROUTE = "/";
-
-function normalizeChatRoute(path: string | undefined): string | undefined {
-  return path?.startsWith("/agents") ? CHAT_ROUTE : path;
-}
+const AGENTS_ROUTE = "/agents";
 
 function getFullScreenTab() {
   const tabs = vscode.window.tabGroups.all.flatMap((tabGroup) => tabGroup.tabs);
@@ -684,7 +683,7 @@ const getCommandsMap: (
     },
     "qivryn.navigateTo": (path: string, toggle: boolean) => {
       sidebar.webviewProtocol?.request("navigateTo", {
-        path: normalizeChatRoute(path) ?? CHAT_ROUTE,
+        path: normalizeQivrynWebviewRoute(path) ?? CHAT_ROUTE,
         toggle,
       });
       focusGUI();
@@ -694,16 +693,16 @@ const getCommandsMap: (
       if (available.includes("workbench.action.openAgentsWindow")) {
         return vscode.commands.executeCommand(
           "workbench.action.openAgentsWindow",
-          resource,
+          toAgentsWindowOpenArguments(resource),
         );
       }
       return vscode.commands.executeCommand(
         "qivryn.openInNewWindow",
-        CHAT_ROUTE,
+        AGENTS_ROUTE,
       );
     },
     "qivryn.reloadAgentsWindow": async (initialPath?: string) => {
-      const reloadPath = normalizeChatRoute(initialPath) ?? CHAT_ROUTE;
+      const reloadPath = normalizeQivrynWebviewRoute(initialPath) ?? CHAT_ROUTE;
       if (!fullScreenPanel) {
         sidebar.reload(reloadPath);
         return;
@@ -1022,7 +1021,7 @@ const getCommandsMap: (
       moveToNewWindow = false,
       resetSidebar = true,
     ) => {
-      initialPath = normalizeChatRoute(initialPath) ?? CHAT_ROUTE;
+      initialPath = normalizeQivrynWebviewRoute(initialPath) ?? CHAT_ROUTE;
       if (moveToNewWindow) {
         focusGUI();
       }
@@ -1229,7 +1228,7 @@ export function registerAllCommands(
 
         fullScreenPanel = panel;
         const restoredState = state as { page?: unknown } | undefined;
-        const restoredPath = normalizeChatRoute(
+        const restoredPath = normalizeQivrynWebviewRoute(
           typeof restoredState?.page === "string"
             ? restoredState.page
             : undefined,

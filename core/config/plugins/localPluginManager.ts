@@ -1,4 +1,5 @@
 import path from "node:path";
+import os from "node:os";
 import {
   cp,
   lstat,
@@ -15,7 +16,7 @@ import { getQivrynGlobalPath } from "../../util/paths";
 
 const REGISTRY_VERSION = 1;
 const MAX_PLUGIN_FILES = 1_000;
-const MAX_PLUGIN_BYTES = 50 * 1024 * 1024;
+const MAX_PLUGIN_BYTES = 128 * 1024 * 1024;
 const PLUGIN_ID_PATTERN = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/;
 
 export interface LocalPluginManifest {
@@ -26,6 +27,7 @@ export interface LocalPluginManifest {
   rules?: string;
   agents?: string;
   mcp?: string;
+  mcpServers?: string;
   interface?: { displayName?: string; developerName?: string };
 }
 
@@ -41,6 +43,8 @@ export interface InstalledLocalPlugin {
   installedPath: string;
   installedAt: string;
   updatedAt: string;
+  sourceKind?: "local" | "codex";
+  installMode?: "copied" | "linked";
   contributions: { skills: number; rules: number; agents: number; mcp: number };
 }
 
@@ -56,14 +60,17 @@ interface PluginRegistry {
   plugins: InstalledLocalPlugin[];
 }
 
-const pluginRoot = () => path.join(getQivrynGlobalPath(), "plugins");
-const installedRoot = () => path.join(pluginRoot(), "installed");
-const registryPath = () => path.join(pluginRoot(), "registry.json");
+const pluginRoot = (qivrynHome = getQivrynGlobalPath()) =>
+  path.join(qivrynHome, "plugins");
+const installedRoot = (qivrynHome?: string) =>
+  path.join(pluginRoot(qivrynHome), "installed");
+const registryPath = (qivrynHome?: string) =>
+  path.join(pluginRoot(qivrynHome), "registry.json");
 
-async function readRegistry(): Promise<PluginRegistry> {
+async function readRegistry(qivrynHome?: string): Promise<PluginRegistry> {
   try {
     const parsed = JSON.parse(
-      await readFile(registryPath(), "utf8"),
+      await readFile(registryPath(qivrynHome), "utf8"),
     ) as Partial<PluginRegistry>;
     if (parsed.version !== REGISTRY_VERSION || !Array.isArray(parsed.plugins)) {
       throw new Error("Unsupported local plugin registry format");
@@ -76,13 +83,16 @@ async function readRegistry(): Promise<PluginRegistry> {
   }
 }
 
-async function writeRegistry(registry: PluginRegistry): Promise<void> {
-  await mkdir(pluginRoot(), { recursive: true });
-  const temporaryPath = `${registryPath()}.tmp`;
+async function writeRegistry(
+  registry: PluginRegistry,
+  qivrynHome?: string,
+): Promise<void> {
+  await mkdir(pluginRoot(qivrynHome), { recursive: true });
+  const temporaryPath = `${registryPath(qivrynHome)}.tmp`;
   await writeFile(temporaryPath, `${JSON.stringify(registry, null, 2)}\n`, {
     mode: 0o600,
   });
-  await rename(temporaryPath, registryPath());
+  await rename(temporaryPath, registryPath(qivrynHome));
 }
 
 function resolveContribution(
@@ -101,6 +111,10 @@ function resolveContribution(
 async function countFiles(root: string | undefined, suffix?: string) {
   if (!root) return 0;
   try {
+    const rootStat = await stat(root);
+    if (rootStat.isFile()) {
+      return !suffix || root.endsWith(suffix) ? 1 : 0;
+    }
     let count = 0;
     const visit = async (directory: string): Promise<void> => {
       const entries = await readdir(directory, { withFileTypes: true });
@@ -171,9 +185,113 @@ async function inspectBundle(sourcePath: string) {
         resolveContribution(root, validManifest.agents),
         ".md",
       ),
-      mcp: await countFiles(resolveContribution(root, validManifest.mcp)),
+      mcp: await countFiles(
+        resolveContribution(
+          root,
+          validManifest.mcp ?? validManifest.mcpServers,
+        ),
+      ),
     },
   };
+}
+
+function isWithin(parent: string, candidate: string): boolean {
+  const relative = path.relative(parent, candidate);
+  return (
+    relative === "" ||
+    (!relative.startsWith("..") && !path.isAbsolute(relative))
+  );
+}
+
+function isExcludedCodexCachePath(candidate: string): boolean {
+  return candidate
+    .split(path.sep)
+    .some((segment) =>
+      /(?:^|[-_.])(backup|staging|installing|tmp)(?:$|[-_.])/i.test(segment),
+    );
+}
+
+/**
+ * Register an active Codex plugin in place. Codex plugin bundles can be much
+ * larger than Qivryn's copied-plugin limit, so trusted cache entries remain
+ * read-only and are never removed from the Codex installation.
+ */
+export async function linkCodexPlugin(
+  sourcePath: string,
+  enabled: boolean,
+  codexHome = process.env.CODEX_HOME ?? path.join(os.homedir(), ".codex"),
+  qivrynHome = getQivrynGlobalPath(),
+): Promise<InstalledLocalPlugin> {
+  const root = await realpath(path.resolve(sourcePath));
+  const codexCacheRoot = await realpath(
+    path.join(codexHome, "plugins", "cache"),
+  );
+  if (!isWithin(codexCacheRoot, root) || isExcludedCodexCachePath(root)) {
+    throw new Error(
+      "Codex plugins may only be linked from the active Codex cache",
+    );
+  }
+  if (!(await stat(root)).isDirectory()) {
+    throw new Error("Codex plugin source must be a directory");
+  }
+
+  const manifest = JSON.parse(
+    await readFile(path.join(root, ".codex-plugin", "plugin.json"), "utf8"),
+  ) as Partial<LocalPluginManifest>;
+  if (!manifest.name?.trim() || !PLUGIN_ID_PATTERN.test(manifest.name)) {
+    throw new Error(
+      "Codex plugin manifest name must be a lowercase identifier",
+    );
+  }
+  if (!manifest.version?.trim()) {
+    throw new Error("Codex plugin manifest version is required");
+  }
+
+  const validManifest = manifest as LocalPluginManifest;
+  const contributions = {
+    skills: await countFiles(
+      resolveContribution(root, validManifest.skills),
+      "SKILL.md",
+    ),
+    rules: await countFiles(
+      resolveContribution(root, validManifest.rules),
+      ".md",
+    ),
+    agents: await countFiles(
+      resolveContribution(root, validManifest.agents),
+      ".md",
+    ),
+    mcp: await countFiles(
+      resolveContribution(root, validManifest.mcp ?? validManifest.mcpServers),
+    ),
+  };
+  const registry = await readRegistry(qivrynHome);
+  const existing = registry.plugins.find(
+    (plugin) => plugin.id === validManifest.name,
+  );
+  const now = new Date().toISOString();
+  const plugin: InstalledLocalPlugin = {
+    id: validManifest.name,
+    name: validManifest.name,
+    displayName: validManifest.interface?.displayName ?? validManifest.name,
+    version: validManifest.version,
+    description: validManifest.description,
+    developerName: validManifest.interface?.developerName,
+    enabled,
+    sourcePath: root,
+    installedPath: root,
+    installedAt: existing?.installedAt ?? now,
+    updatedAt: now,
+    sourceKind: "codex",
+    installMode: "linked",
+    contributions,
+  };
+  registry.plugins = [
+    ...registry.plugins.filter((candidate) => candidate.id !== plugin.id),
+    plugin,
+  ];
+  await writeRegistry(registry, qivrynHome);
+  return plugin;
 }
 
 export async function listLocalPlugins(): Promise<InstalledLocalPlugin[]> {
@@ -211,6 +329,8 @@ export async function installLocalPlugin(
     installedPath: destination,
     installedAt: existing?.installedAt ?? now,
     updatedAt: now,
+    sourceKind: "local",
+    installMode: "copied",
     contributions,
   };
   registry.plugins = [
@@ -235,12 +355,14 @@ export async function uninstallLocalPlugin(id: string): Promise<void> {
   const registry = await readRegistry();
   const plugin = registry.plugins.find((candidate) => candidate.id === id);
   if (!plugin) throw new Error(`Local plugin not found: ${id}`);
-  const expectedPath = path.join(installedRoot(), id);
-  if (path.resolve(plugin.installedPath) !== path.resolve(expectedPath))
-    throw new Error(
-      "Refusing to remove a plugin outside the managed directory",
-    );
-  await rm(expectedPath, { recursive: true, force: true });
+  if (plugin.installMode !== "linked") {
+    const expectedPath = path.join(installedRoot(), id);
+    if (path.resolve(plugin.installedPath) !== path.resolve(expectedPath))
+      throw new Error(
+        "Refusing to remove a plugin outside the managed directory",
+      );
+    await rm(expectedPath, { recursive: true, force: true });
+  }
   registry.plugins = registry.plugins.filter(
     (candidate) => candidate.id !== id,
   );
@@ -268,9 +390,13 @@ export async function getEnabledLocalPluginContributionPaths(): Promise<LocalPlu
       for (const kind of Object.keys(paths) as Array<
         keyof LocalPluginContributionPaths
       >) {
+        const manifestPath =
+          kind === "mcp"
+            ? (manifest.mcp ?? manifest.mcpServers)
+            : manifest[kind];
         const contributionPath = resolveContribution(
           plugin.installedPath,
-          manifest[kind],
+          manifestPath,
         );
         if (contributionPath) paths[kind].push(contributionPath);
       }

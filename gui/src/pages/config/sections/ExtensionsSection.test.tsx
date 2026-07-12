@@ -24,6 +24,101 @@ const plugin = {
 };
 
 describe("ExtensionsSection", () => {
+  it("manages imported Codex MCP and reviewed hook state", async () => {
+    const messenger = new MockIdeMessenger();
+    const counts = {
+      mcp: 1,
+      plugin: 0,
+      skill: 0,
+      hook: 1,
+      rule: 0,
+      agent: 0,
+      automation: 0,
+    };
+    const inventory = {
+      version: 1 as const,
+      sourceRoot: "/Users/user/.codex",
+      scannedAt: "2026-07-12T00:00:00.000Z",
+      counts,
+      issues: [],
+      items: [
+        {
+          id: "playwright",
+          name: "playwright",
+          kind: "mcp" as const,
+          enabled: true,
+          sourceEnabled: true,
+          reviewed: true,
+          canToggle: true,
+          detail: "stdio",
+          state: "imported" as const,
+        },
+        {
+          id: "UserPromptSubmit:0:0",
+          name: "guard.py",
+          kind: "hook" as const,
+          enabled: false,
+          sourceEnabled: true,
+          reviewed: false,
+          canToggle: true,
+          detail: "UserPromptSubmit · python3 guard.py",
+          state: "needs-review" as const,
+        },
+      ],
+    };
+    messenger.responses["extensions/codexImportPreview"] = inventory;
+    const changes: Array<{ kind: string; id: string; enabled: boolean }> = [];
+    messenger.responseHandlers["extensions/codexImportSetEnabled"] = async (
+      request,
+    ) => {
+      changes.push(request);
+      const next = {
+        ...inventory,
+        items: inventory.items.map((item) =>
+          item.kind === request.kind && item.id === request.id
+            ? {
+                ...item,
+                enabled: request.enabled,
+                reviewed: request.reviewed ?? item.reviewed,
+                state: "imported" as const,
+              }
+            : item,
+        ),
+      };
+      messenger.responses["extensions/codexImportPreview"] = next;
+      return { inventory: next, imported: counts, issues: [] };
+    };
+    const { user } = await renderWithProviders(<ExtensionsSection />, {
+      mockIdeMessenger: messenger,
+    });
+
+    await user.click(
+      await screen.findByRole("button", { name: /MCP servers/ }),
+    );
+    await user.click(
+      screen.getByRole("switch", { name: "Disable playwright" }),
+    );
+    await waitFor(() =>
+      expect(changes).toContainEqual({
+        kind: "mcp",
+        id: "playwright",
+        enabled: false,
+      }),
+    );
+
+    await user.click(screen.getByRole("button", { name: /^Hooks/ }));
+    await user.click(screen.getByRole("button", { name: "Review" }));
+    await user.click(screen.getByRole("button", { name: "Trust and enable" }));
+    await waitFor(() =>
+      expect(changes).toContainEqual({
+        kind: "hook",
+        id: "UserPromptSubmit:0:0",
+        enabled: true,
+        reviewed: true,
+      }),
+    );
+  });
+
   it("imports a local plugin and displays its contributions", async () => {
     const messenger = new MockIdeMessenger();
     let sourcePath: string | undefined;

@@ -80,8 +80,47 @@ function managedPluginAgentRoots(home: string): string[] {
   }
 }
 
+function importedCodexAgentFiles(home: string): string[] {
+  const qivrynHome =
+    process.env.QIVRYN_GLOBAL_DIR ?? path.join(home, ".qivryn");
+  try {
+    const inventory = JSON.parse(
+      fs.readFileSync(
+        path.join(qivrynHome, "codex-import", "inventory.json"),
+        "utf8",
+      ),
+    ) as {
+      version?: number;
+      items?: Array<{
+        kind?: string;
+        enabled?: boolean;
+        sourcePath?: string;
+      }>;
+    };
+    if (inventory.version !== 1 || !Array.isArray(inventory.items)) return [];
+    return inventory.items.flatMap((item) =>
+      item.kind === "agent" &&
+      item.enabled !== false &&
+      item.sourcePath &&
+      /\.(md|mdc)$/i.test(item.sourcePath) &&
+      fs.existsSync(item.sourcePath)
+        ? [item.sourcePath]
+        : [],
+    );
+  } catch {
+    return [];
+  }
+}
+
 function agentFiles(root: string): string[] {
   if (!fs.existsSync(root)) return [];
+  try {
+    if (fs.statSync(root).isFile()) {
+      return /\.(md|mdc)$/i.test(root) ? [root] : [];
+    }
+  } catch {
+    return [];
+  }
   const files: string[] = [];
   const pending = [root];
   while (pending.length) {
@@ -111,6 +150,7 @@ export function loadPortableSubagents(
   const roots = [
     ...WORKSPACE_ROOTS.map((name) => path.join(cwd, name, "agents")),
     ...managedPluginAgentRoots(home),
+    ...importedCodexAgentFiles(home),
     ...WORKSPACE_ROOTS.map((name) => path.join(home, name, "agents")),
   ];
   const definitions: PortableSubagentDefinition[] = [];

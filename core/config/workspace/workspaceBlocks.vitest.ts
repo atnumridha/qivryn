@@ -5,8 +5,8 @@ import { findAvailableFilename, getFileContent } from "./workspaceBlocks";
 describe("getFileContent", () => {
   test("returns markdown content for rules block type", () => {
     const result = getFileContent("rules");
-    expect(result).toContain("Your rule content");
-    expect(result).toContain("A description of your rule");
+    expect(result).toContain("Add durable project guidance");
+    expect(result).toContain("Always included in model context");
   });
 
   test("returns YAML content for non-rules block types", () => {

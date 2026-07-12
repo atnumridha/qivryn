@@ -8,8 +8,16 @@ import {
   ArrowLeftIcon,
   ArrowPathIcon,
   ArrowRightIcon,
+  ArrowDownIcon,
+  ArrowUpIcon,
   CameraIcon,
   CodeBracketIcon,
+  CommandLineIcon,
+  CursorArrowRaysIcon,
+  GlobeAltIcon,
+  InformationCircleIcon,
+  KeyIcon,
+  PencilSquareIcon,
   LockClosedIcon,
   LockOpenIcon,
   PlusIcon,
@@ -19,6 +27,7 @@ import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { IdeMessengerContext } from "../../context/IdeMessenger";
 import { ROUTES } from "../../util/navigation";
+import "./browser.css";
 
 function BrowserWorkspace() {
   const ideMessenger = useContext(IdeMessengerContext);
@@ -37,6 +46,11 @@ function BrowserWorkspace() {
   const [grants, setGrants] = useState<BrowserPermissionGrant[]>([]);
   const [grantAction, setGrantAction] =
     useState<BrowserPermissionGrant["action"]>("download");
+  const [showComputerUse, setShowComputerUse] = useState(false);
+  const [showInspector, setShowInspector] = useState(false);
+  const [selector, setSelector] = useState("");
+  const [inputText, setInputText] = useState("");
+  const [key, setKey] = useState("Enter");
 
   const selected = useMemo(
     () => sessions.find((session) => session.id === selectedId),
@@ -125,11 +139,12 @@ function BrowserWorkspace() {
       setDetails(String(result.content));
     } else if (Array.isArray(result))
       setDetails(JSON.stringify(result, null, 2));
+    setShowInspector(true);
   };
 
   return (
-    <div className="bg-editor flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-      <header className="border-input flex h-10 flex-shrink-0 items-center gap-2 border-b px-2">
+    <div className="qivryn-browser-workspace bg-editor flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+      <header className="qivryn-browser-header border-input flex h-10 flex-shrink-0 items-center gap-2 border-b px-2">
         <button
           aria-label="Back to chat"
           onClick={() => navigate(ROUTES.HOME)}
@@ -148,13 +163,14 @@ function BrowserWorkspace() {
             Agent {associatedRunId}
           </span>
         )}
-        <label className="text-description-muted text-2xs flex items-center gap-1">
+        <label className="qivryn-browser-visible-toggle text-description-muted text-2xs flex items-center gap-2">
           <input
             type="checkbox"
             checked={visible}
             onChange={(event) => setVisible(event.target.checked)}
           />
-          Visible
+          <span aria-hidden="true" className="qivryn-browser-switch" />
+          <span>Visible</span>
         </label>
         <button
           aria-label="New browser session"
@@ -166,7 +182,7 @@ function BrowserWorkspace() {
         </button>
       </header>
 
-      <div className="border-input flex min-w-0 flex-shrink-0 gap-1 overflow-x-auto border-b p-1">
+      <div className="qivryn-browser-tabs border-input flex min-w-0 flex-shrink-0 gap-1 overflow-x-auto border-b p-1">
         {sessions.map((session) => (
           <button
             key={session.id}
@@ -190,7 +206,7 @@ function BrowserWorkspace() {
 
       {selected && (
         <>
-          <div className="border-input grid min-w-0 flex-shrink-0 grid-cols-[auto_auto_auto_minmax(0,1fr)_auto] gap-1 border-b p-1">
+          <div className="qivryn-browser-navigation border-input grid min-w-0 flex-shrink-0 grid-cols-[auto_auto_auto_minmax(0,1fr)_auto] gap-1 border-b p-1">
             <button
               aria-label="Back"
               onClick={() =>
@@ -231,38 +247,54 @@ function BrowserWorkspace() {
             />
             <button
               onClick={() => void navigateTo()}
-              className="bg-button text-2xs rounded border-none px-2 text-white"
+              className="qivryn-browser-go-button text-2xs rounded border-none px-3"
             >
               Go
             </button>
           </div>
 
-          <div className="border-input flex min-w-0 flex-shrink-0 flex-wrap gap-1 border-b p-1">
+          <div className="qivryn-browser-actionbar border-input flex min-w-0 flex-shrink-0 flex-wrap gap-1 border-b p-1">
             <button
+              aria-label="Capture screenshot"
+              title="Capture screenshot"
               onClick={() => void capture()}
-              className="border-input hover:bg-list-hover text-2xs flex items-center gap-1 rounded border bg-transparent px-2 py-1"
+              className="qivryn-browser-icon-button border-input hover:bg-list-hover flex items-center justify-center rounded border bg-transparent"
             >
-              <CameraIcon className="h-3 w-3" />
-              Screenshot
+              <CameraIcon className="h-3.5 w-3.5" />
             </button>
             <button
+              aria-label="Inspect DOM"
+              title="Inspect DOM"
               onClick={() => void inspect("dom")}
-              className="border-input hover:bg-list-hover text-2xs flex items-center gap-1 rounded border bg-transparent px-2 py-1"
+              className="qivryn-browser-icon-button border-input hover:bg-list-hover flex items-center justify-center rounded border bg-transparent"
             >
-              <CodeBracketIcon className="h-3 w-3" />
-              DOM
+              <CodeBracketIcon className="h-3.5 w-3.5" />
             </button>
             <button
+              aria-label="Inspect console"
+              title="Inspect console"
               onClick={() => void inspect("console")}
-              className="border-input hover:bg-list-hover text-2xs rounded border bg-transparent px-2 py-1"
+              className="qivryn-browser-icon-button border-input hover:bg-list-hover flex items-center justify-center rounded border bg-transparent"
             >
-              Console
+              <CommandLineIcon className="h-3.5 w-3.5" />
             </button>
             <button
+              aria-label="Inspect network"
+              title="Inspect network"
               onClick={() => void inspect("network")}
-              className="border-input hover:bg-list-hover text-2xs rounded border bg-transparent px-2 py-1"
+              className="qivryn-browser-icon-button border-input hover:bg-list-hover flex items-center justify-center rounded border bg-transparent"
             >
-              Network
+              <GlobeAltIcon className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              aria-label="Computer use controls"
+              aria-expanded={showComputerUse}
+              title="Computer use controls"
+              onClick={() => setShowComputerUse((current) => !current)}
+              className={`border-input hover:bg-list-hover flex h-7 w-7 items-center justify-center rounded border bg-transparent ${showComputerUse ? "bg-list-active" : ""}`}
+            >
+              <CursorArrowRaysIcon className="h-3.5 w-3.5" />
             </button>
             <select
               aria-label="Recording"
@@ -281,20 +313,39 @@ function BrowserWorkspace() {
               <option value="full">Full recording</option>
             </select>
             <button
+              type="button"
+              aria-label="Toggle inspector"
+              aria-expanded={showInspector}
+              title="Inspector"
+              onClick={() => setShowInspector((current) => !current)}
+              className={`qivryn-browser-icon-button qivryn-browser-inspector-toggle border-input hover:bg-list-hover flex items-center justify-center rounded border bg-transparent ${showInspector ? "bg-list-active" : ""}`}
+            >
+              <InformationCircleIcon className="h-3.5 w-3.5" />
+            </button>
+            <button
+              aria-label={
+                selected.lockOwner === "user"
+                  ? "Release browser control"
+                  : "Take over browser control"
+              }
+              title={
+                selected.lockOwner === "user"
+                  ? "Release browser control"
+                  : "Take over browser control"
+              }
               onClick={() =>
                 void action({
                   action: selected.lockOwner === "user" ? "unlock" : "takeover",
                   sessionId: selected.id,
                 })
               }
-              className="border-input hover:bg-list-hover text-2xs ml-auto flex items-center gap-1 rounded border bg-transparent px-2 py-1"
+              className="qivryn-browser-icon-button border-input hover:bg-list-hover ml-auto flex items-center justify-center rounded border bg-transparent"
             >
               {selected.lockOwner === "user" ? (
                 <LockOpenIcon className="h-3 w-3" />
               ) : (
                 <LockClosedIcon className="h-3 w-3" />
               )}
-              {selected.lockOwner === "user" ? "Release" : "Take over"}
             </button>
             <button
               aria-label="Close browser session"
@@ -306,67 +357,125 @@ function BrowserWorkspace() {
               <XMarkIcon className="h-3.5 w-3.5" />
             </button>
           </div>
-          <div className="border-input flex min-w-0 flex-shrink-0 flex-wrap items-center gap-1 border-b p-1">
-            <span className="text-description-muted text-2xs">
-              Agent permissions
-            </span>
-            <select
-              aria-label="Browser permission"
-              value={grantAction}
-              onChange={(event) =>
-                setGrantAction(
-                  event.target.value as BrowserPermissionGrant["action"],
-                )
-              }
-              className="border-input bg-input text-2xs rounded border px-1"
+          {showComputerUse && (
+            <div
+              aria-label="Computer use"
+              className="qivryn-browser-computer-use border-input bg-editor grid min-w-0 flex-shrink-0 grid-cols-[minmax(100px,1fr)_auto] gap-1 border-b p-2 min-[620px]:grid-cols-[minmax(140px,1fr)_auto_minmax(140px,1fr)_auto_auto_auto_auto]"
             >
-              <option value="download">Downloads</option>
-              <option value="dialog">Dialogs</option>
-              <option value="authentication">Authentication</option>
-              <option value="clipboard">Clipboard</option>
-              <option value="geolocation">Geolocation</option>
-              <option value="certificate">Certificate exceptions</option>
-              <option value="navigate">Cross-origin navigation</option>
-            </select>
-            <button
-              onClick={async () => {
-                let origin: string | undefined;
-                try {
-                  origin = selected.url
-                    ? new URL(selected.url).origin
-                    : undefined;
-                } catch {}
-                const response = await ideMessenger.request("browser/grant", {
-                  sessionId: selected.id,
-                  action: grantAction,
-                  origin,
-                });
-                if (response.status === "error") setError(response.error);
-                else setGrants((current) => [...current, response.content]);
-              }}
-              className="border-input hover:bg-list-hover text-2xs rounded border bg-transparent px-2 py-1"
-            >
-              Allow for origin
-            </button>
-            {grants.map((grant) => (
+              <input
+                aria-label="Element selector"
+                value={selector}
+                onChange={(event) => setSelector(event.target.value)}
+                placeholder="CSS selector"
+                className="border-input bg-input h-7 min-w-0 rounded border px-2 text-xs outline-none"
+              />
               <button
-                key={grant.id}
-                title={grant.origin}
-                onClick={async () => {
-                  await ideMessenger.request("browser/revokeGrant", {
+                type="button"
+                aria-label="Click element"
+                title="Click element"
+                disabled={!selector.trim()}
+                onClick={() =>
+                  selected &&
+                  void action({
+                    action: "click",
                     sessionId: selected.id,
-                    grantId: grant.id,
-                  });
-                  setGrants((current) =>
-                    current.filter((item) => item.id !== grant.id),
-                  );
-                }}
-                className="border-input bg-input text-2xs rounded border px-2 py-1"
+                    selector: selector.trim(),
+                  })
+                }
+                className="border-input hover:bg-list-hover flex h-7 w-7 items-center justify-center rounded border bg-transparent disabled:opacity-40"
               >
-                {grant.action} ×
+                <CursorArrowRaysIcon className="h-3.5 w-3.5" />
               </button>
-            ))}
-          </div>
+              <input
+                aria-label="Text to type"
+                value={inputText}
+                onChange={(event) => setInputText(event.target.value)}
+                placeholder="Text"
+                className="border-input bg-input h-7 min-w-0 rounded border px-2 text-xs outline-none"
+              />
+              <button
+                type="button"
+                aria-label="Type into element"
+                title="Replace selected field text"
+                disabled={!selector.trim() || !inputText}
+                onClick={() =>
+                  selected &&
+                  void action({
+                    action: "type",
+                    sessionId: selected.id,
+                    selector: selector.trim(),
+                    text: inputText,
+                    replace: true,
+                  })
+                }
+                className="border-input hover:bg-list-hover flex h-7 w-7 items-center justify-center rounded border bg-transparent disabled:opacity-40"
+              >
+                <PencilSquareIcon className="h-3.5 w-3.5" />
+              </button>
+              <select
+                aria-label="Key to press"
+                value={key}
+                onChange={(event) => setKey(event.target.value)}
+                className="border-input bg-input h-7 min-w-0 rounded border px-1 text-xs"
+              >
+                <option value="Enter">Enter</option>
+                <option value="Tab">Tab</option>
+                <option value="Escape">Escape</option>
+                <option value="ArrowUp">Arrow up</option>
+                <option value="ArrowDown">Arrow down</option>
+              </select>
+              <button
+                type="button"
+                aria-label="Press key"
+                title={`Press ${key}`}
+                onClick={() =>
+                  selected &&
+                  void action({
+                    action: "press",
+                    sessionId: selected.id,
+                    key,
+                  })
+                }
+                className="border-input hover:bg-list-hover flex h-7 w-7 items-center justify-center rounded border bg-transparent"
+              >
+                <KeyIcon className="h-3.5 w-3.5" />
+              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  aria-label="Scroll up"
+                  title="Scroll up"
+                  onClick={() =>
+                    selected &&
+                    void action({
+                      action: "scroll",
+                      sessionId: selected.id,
+                      deltaY: -600,
+                    })
+                  }
+                  className="border-input hover:bg-list-hover flex h-7 w-7 items-center justify-center rounded border bg-transparent"
+                >
+                  <ArrowUpIcon className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Scroll down"
+                  title="Scroll down"
+                  onClick={() =>
+                    selected &&
+                    void action({
+                      action: "scroll",
+                      sessionId: selected.id,
+                      deltaY: 600,
+                    })
+                  }
+                  className="border-input hover:bg-list-hover flex h-7 w-7 items-center justify-center rounded border bg-transparent"
+                >
+                  <ArrowDownIcon className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -378,8 +487,8 @@ function BrowserWorkspace() {
           {error}
         </div>
       )}
-      <main className="grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-hidden min-[760px]:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="flex min-h-0 min-w-0 items-center justify-center overflow-auto p-2">
+      <main className="qivryn-browser-main grid min-h-0 min-w-0 flex-1 grid-cols-1 overflow-hidden min-[760px]:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="qivryn-browser-preview flex min-h-0 min-w-0 items-center justify-center overflow-auto p-2">
           {screenshot ? (
             <img
               alt="Browser screenshot"
@@ -387,41 +496,120 @@ function BrowserWorkspace() {
               className="border-input max-h-full max-w-full rounded border object-contain"
             />
           ) : (
-            <div className="text-description-muted text-center text-xs">
-              Capture a screenshot to preview the current page.
-              <br />
-              Visible sessions also open a controlled browser window.
+            <div className="qivryn-browser-empty text-description-muted text-center text-xs">
+              <span className="qivryn-browser-empty-icon" aria-hidden="true">
+                <GlobeAltIcon />
+              </span>
+              <strong>No preview captured</strong>
+              <span>
+                Capture the current page to inspect its rendered state.
+              </span>
             </div>
           )}
         </div>
-        <aside className="border-input min-h-0 min-w-0 overflow-auto border-t p-2 min-[760px]:border-l min-[760px]:border-t-0">
-          <div className="mb-1 text-xs font-semibold">Inspector</div>
-          {details ? (
-            <pre className="text-2xs m-0 whitespace-pre-wrap break-words">
-              {details}
-            </pre>
-          ) : (
-            <div className="text-description-muted text-2xs">
-              DOM, console, and network output appears here.
-            </div>
-          )}
-          <div className="border-input text-2xs mt-3 border-t pt-2 font-semibold">
-            Audit events
-          </div>
-          {events
-            .slice(-20)
-            .reverse()
-            .map((event) => (
-              <div
-                key={event.id}
-                className="border-input text-2xs mt-1 flex min-w-0 gap-2 border-b pb-1"
-              >
-                <span className="min-w-0 flex-1 truncate">{event.kind}</span>
-                <span className="text-description-muted">
-                  #{event.sequence}
-                </span>
+        <aside
+          className={`qivryn-browser-inspector border-input min-h-0 min-w-0 overflow-auto border-t p-2 min-[760px]:border-l min-[760px]:border-t-0 ${showInspector ? "is-open" : ""}`}
+        >
+          <section className="qivryn-browser-inspector-section">
+            <div className="mb-1 text-xs font-medium">Inspector</div>
+            {details ? (
+              <pre className="text-2xs m-0 whitespace-pre-wrap break-words">
+                {details}
+              </pre>
+            ) : (
+              <div className="text-description-muted text-2xs">
+                DOM, console, and network output appears here.
               </div>
-            ))}
+            )}
+          </section>
+
+          {selected && (
+            <section className="qivryn-browser-inspector-section">
+              <div className="mb-2 text-xs font-medium">Agent permissions</div>
+              <div className="flex min-w-0 gap-1">
+                <select
+                  aria-label="Browser permission"
+                  value={grantAction}
+                  onChange={(event) =>
+                    setGrantAction(
+                      event.target.value as BrowserPermissionGrant["action"],
+                    )
+                  }
+                  className="border-input bg-input text-2xs min-w-0 flex-1 rounded border px-1"
+                >
+                  <option value="download">Downloads</option>
+                  <option value="dialog">Dialogs</option>
+                  <option value="authentication">Authentication</option>
+                  <option value="clipboard">Clipboard</option>
+                  <option value="geolocation">Geolocation</option>
+                  <option value="certificate">Certificate exceptions</option>
+                  <option value="navigate">Cross-origin navigation</option>
+                  <option value="interaction">Computer use</option>
+                </select>
+                <button
+                  onClick={async () => {
+                    let origin: string | undefined;
+                    try {
+                      origin = selected.url
+                        ? new URL(selected.url).origin
+                        : undefined;
+                    } catch {}
+                    const response = await ideMessenger.request(
+                      "browser/grant",
+                      {
+                        sessionId: selected.id,
+                        action: grantAction,
+                        origin,
+                      },
+                    );
+                    if (response.status === "error") setError(response.error);
+                    else setGrants((current) => [...current, response.content]);
+                  }}
+                  className="border-input hover:bg-list-hover text-2xs rounded border bg-transparent px-2 py-1"
+                >
+                  Allow
+                </button>
+              </div>
+              <div className="mt-2 flex min-w-0 flex-wrap gap-1">
+                {grants.map((grant) => (
+                  <button
+                    key={grant.id}
+                    title={grant.origin}
+                    onClick={async () => {
+                      await ideMessenger.request("browser/revokeGrant", {
+                        sessionId: selected.id,
+                        grantId: grant.id,
+                      });
+                      setGrants((current) =>
+                        current.filter((item) => item.id !== grant.id),
+                      );
+                    }}
+                    className="border-input bg-input text-2xs rounded border px-2 py-1"
+                  >
+                    {grant.action} ×
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section className="qivryn-browser-inspector-section">
+            <div className="text-2xs font-medium">Audit events</div>
+            {events
+              .slice(-20)
+              .reverse()
+              .map((event) => (
+                <div
+                  key={event.id}
+                  className="border-input text-2xs mt-1 flex min-w-0 gap-2 border-b pb-1"
+                >
+                  <span className="min-w-0 flex-1 truncate">{event.kind}</span>
+                  <span className="text-description-muted">
+                    #{event.sequence}
+                  </span>
+                </div>
+              ))}
+          </section>
         </aside>
       </main>
     </div>

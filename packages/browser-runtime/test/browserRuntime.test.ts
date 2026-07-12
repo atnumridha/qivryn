@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -10,6 +10,7 @@ import type {
 import { FileBrowserStore } from "../src/fileStore.js";
 import { BrowserSessionService } from "../src/service.js";
 import { FileBrowserPermissionPolicy } from "../src/permissionPolicy.js";
+import { resolveBrowserExecutable } from "../src/puppeteerAdapter.js";
 
 const roots: string[] = [];
 
@@ -39,6 +40,26 @@ function adapter(): BrowserAdapter {
     networkRequests: vi.fn(async () => [
       { method: "GET", url: "http://localhost:3000/api" },
     ]),
+    click: vi.fn(async (session) => ({
+      url: session.url ?? "about:blank",
+      title: "Clicked",
+    })),
+    typeText: vi.fn(async (session) => ({
+      url: session.url ?? "about:blank",
+      title: "Typed",
+    })),
+    pressKey: vi.fn(async (session) => ({
+      url: session.url ?? "about:blank",
+      title: "Pressed",
+    })),
+    scroll: vi.fn(async (session) => ({
+      url: session.url ?? "about:blank",
+      title: "Scrolled",
+    })),
+    wait: vi.fn(async (session) => ({
+      url: session.url ?? "about:blank",
+      title: "Ready",
+    })),
     setViewport: vi.fn(async () => undefined),
     setRecording: vi.fn(async (session, recording) => ({
       metadata: {
@@ -69,6 +90,24 @@ afterEach(async () => {
   await Promise.all(
     roots.splice(0).map((root) => rm(root, { recursive: true, force: true })),
   );
+});
+
+describe("resolveBrowserExecutable", () => {
+  it("prefers an explicitly configured browser executable", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "qivryn-browser-bin-"));
+    roots.push(root);
+    const executable = path.join(root, "browser");
+    await writeFile(executable, "");
+    await chmod(executable, 0o755);
+    const previous = process.env.QIVRYN_BROWSER_EXECUTABLE;
+    process.env.QIVRYN_BROWSER_EXECUTABLE = executable;
+    try {
+      await expect(resolveBrowserExecutable()).resolves.toBe(executable);
+    } finally {
+      if (previous === undefined) delete process.env.QIVRYN_BROWSER_EXECUTABLE;
+      else process.env.QIVRYN_BROWSER_EXECUTABLE = previous;
+    }
+  });
 });
 
 describe("BrowserSessionService", () => {
@@ -219,6 +258,45 @@ describe("BrowserSessionService", () => {
       "viewport",
       "recording",
     ]);
+  });
+
+  it("executes auditable browser computer-use interactions", async () => {
+    const { browser, requests } = await service(true);
+    const session = await browser.create();
+    expect(
+      await browser.click(
+        session.id,
+        { selector: "button[type=submit]" },
+        "agent",
+      ),
+    ).toMatchObject({ title: "Clicked" });
+    expect(
+      await browser.typeText(
+        session.id,
+        { selector: "input", text: "secret", replace: true },
+        "agent",
+      ),
+    ).toMatchObject({ title: "Typed" });
+    expect(await browser.pressKey(session.id, "Enter", "agent")).toMatchObject({
+      title: "Pressed",
+    });
+    expect(await browser.scroll(session.id, 0, 600, "agent")).toMatchObject({
+      title: "Scrolled",
+    });
+    expect(
+      await browser.wait(session.id, { selector: "main" }, "agent"),
+    ).toMatchObject({ title: "Ready" });
+    expect(requests.map((request) => request.action)).toEqual([
+      "interaction",
+      "interaction",
+      "interaction",
+      "interaction",
+    ]);
+    const events = await browser.events(session.id);
+    expect(events.filter((event) => event.kind === "interaction")).toHaveLength(
+      5,
+    );
+    expect(JSON.stringify(events)).not.toContain("secret");
   });
 
   it("closes the driver and removes the session while retaining its audit log", async () => {

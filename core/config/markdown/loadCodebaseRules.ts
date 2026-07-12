@@ -6,6 +6,7 @@ import { walkDir, walkDirs } from "../../indexing/walkDir";
 import { RULES_MARKDOWN_FILENAME } from "../../llm/rules/constants";
 import { localPathToUri } from "../../util/pathToUri";
 import { findUriInDirs, getUriPathBasename } from "../../util/uri";
+import { getDisabledCodexImportSourcePaths } from "../codex/codexImportManager";
 
 const PORTABLE_AGENT_RULE_FILES = new Set([
   ".cursorrules",
@@ -59,6 +60,7 @@ export function getGlobalCrossAgentRulePaths(homeDir = os.homedir()) {
     path.join(homeDir, ".cursor", "rules"),
     path.join(homeDir, ".claude", "rules"),
     path.join(homeDir, ".codex", "rules"),
+    path.join(homeDir, ".codex", "AGENTS.md"),
     path.join(homeDir, ".agents", "rules"),
   ];
 }
@@ -68,7 +70,10 @@ async function getGlobalCrossAgentRuleFiles(ide: IDE): Promise<string[]> {
     getGlobalCrossAgentRulePaths().map(async (rulePath) => {
       const uri = localPathToUri(rulePath);
       if (!(await ide.fileExists(uri))) return [];
-      if (getUriPathBasename(uri).toLowerCase() === ".cursorrules") {
+      if (
+        getUriPathBasename(uri).toLowerCase() === ".cursorrules" ||
+        getUriPathBasename(uri).toLowerCase() === "agents.md"
+      ) {
         return [uri];
       }
       return (
@@ -150,7 +155,10 @@ export async function loadCodebaseRules(ide: IDE): Promise<{
       ...(await getGlobalCrossAgentRuleFiles(ide)),
     ];
 
-    const rulesMdFiles = allFiles.filter(isCrossAgentRuleFile);
+    const disabled = await getDisabledCodexImportSourcePaths("rule");
+    const rulesMdFiles = allFiles.filter(
+      (file) => isCrossAgentRuleFile(file) && !disabled.has(file),
+    );
 
     // Process each rules.md file
     for (const filePath of rulesMdFiles) {

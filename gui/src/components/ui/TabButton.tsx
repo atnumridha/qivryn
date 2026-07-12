@@ -17,18 +17,22 @@ export function TabButton({
 }: TabButtonProps) {
   return (
     <ToolTip content={label} place="right" className="text-xs md:!hidden">
-      <div
-        className={`flex cursor-pointer items-center justify-center gap-1.5 rounded-md hover:brightness-125 md:justify-start ${
+      <button
+        type="button"
+        aria-current={isActive ? "page" : undefined}
+        className={`hover:bg-list-hover box-border flex h-8 w-full cursor-pointer items-center justify-center gap-2 rounded-md border-none text-left outline-none md:justify-start ${
           isActive
-            ? "bg-vsc-input-background px-2 py-2"
-            : "text-description px-2 py-2"
+            ? "bg-vsc-input-background px-2"
+            : "text-description bg-transparent px-2"
         }`}
         onClick={onClick}
         data-testid={tabId ? `tab-${tabId}` : undefined}
       >
         {icon}
-        <span className="text-description hidden md:inline">{label}</span>
-      </div>
+        <span className="text-description hidden min-w-0 truncate md:inline">
+          {label}
+        </span>
+      </button>
     </ToolTip>
   );
 }

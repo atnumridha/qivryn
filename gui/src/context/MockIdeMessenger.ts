@@ -69,6 +69,22 @@ const DEFAULT_MOCK_CORE_RESPONSES: MockResponses = {
   "terminal/jobs": [],
   "extensions/skills": { skills: [], errors: [] },
   "extensions/plugins": [],
+  "extensions/codexImportPreview": {
+    version: 1,
+    sourceRoot: "/Users/user/.codex",
+    scannedAt: "2026-07-12T00:00:00.000Z",
+    items: [],
+    counts: {
+      mcp: 0,
+      plugin: 0,
+      skill: 0,
+      hook: 0,
+      rule: 0,
+      agent: 0,
+      automation: 0,
+    },
+    issues: [],
+  },
   "extensions/skillSave": {
     name: "Example skill",
     description: "Example skill",

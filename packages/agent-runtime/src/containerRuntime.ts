@@ -69,7 +69,7 @@ export function buildDockerRunSpec(
     "--volume",
     `${workspace}:/workspace${readOnly ? ":ro" : ""}`,
     "--network",
-    readOnly ? "none" : (spec.network ?? "bridge"),
+    spec.network ?? "bridge",
     "--env",
     `QIVRYN_PERMISSION_MODE=${run.permissionMode}`,
   ];

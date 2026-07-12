@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import { applyHostSandbox } from "../src/hostSandbox.js";
 
 const policy = { filesystem: "read-only", network: "deny" } as const;
+const connectedPolicy = {
+  filesystem: "read-only",
+  network: "allow",
+} as const;
 
 describe("applyHostSandbox", () => {
   it("wraps macOS commands with a deny-write and deny-network Seatbelt profile", () => {
@@ -44,6 +48,26 @@ describe("applyHostSandbox", () => {
         "worker.js",
       ]),
     );
+  });
+
+  it("keeps model transport available while denying writes on macOS", () => {
+    const command = applyHostSandbox(
+      { command: "node", args: ["worker.js"], cwd: "/repo" },
+      connectedPolicy,
+      { platform: "darwin", commandExists: () => true },
+    );
+    expect(command.args?.[1]).toContain("(deny file-write*)");
+    expect(command.args?.[1]).not.toContain("(deny network*)");
+  });
+
+  it("keeps model transport available in a read-only Linux sandbox", () => {
+    const command = applyHostSandbox(
+      { command: "node", args: ["worker.js"], cwd: "/repo" },
+      connectedPolicy,
+      { platform: "linux", commandExists: () => true },
+    );
+    expect(command.args).toContain("--ro-bind");
+    expect(command.args).not.toContain("--unshare-net");
   });
 
   it("falls back to host execution on Windows when strict mode is not enabled", () => {

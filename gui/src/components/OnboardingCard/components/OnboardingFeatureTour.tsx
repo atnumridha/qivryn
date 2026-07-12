@@ -13,6 +13,11 @@ export function OnboardingFeatureTour() {
       action: () => navigate(ROUTES.AGENTS),
     },
     {
+      title: "Scheduled tasks",
+      detail: "Run agents now, daily, weekly, or on an interval",
+      action: () => navigate(`${ROUTES.AGENTS}?scheduled=1`),
+    },
+    {
       title: "Permissions",
       detail: "Choose Ask, Autonomous, Read Only, or Full Access",
       action: () => navigate(CONFIG_ROUTES.SETTINGS),
@@ -59,7 +64,7 @@ export function OnboardingFeatureTour() {
           Import VS Code profile
         </button>
       </div>
-      <div className="grid grid-cols-2 gap-1">
+      <div className="qivryn-feature-tour-grid grid grid-cols-2 gap-1">
         {items.map((item) => (
           <button
             key={item.title}

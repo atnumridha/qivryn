@@ -13,6 +13,7 @@ import {
 } from "../../../components/skills/SkillSelect";
 import { IdeMessengerContext } from "../../../context/IdeMessenger";
 import { CONFIG_ROUTES } from "../../../util/navigation";
+import { CodexImportPanel } from "./CodexImportPanel";
 
 interface SkillDraft {
   name: string;
@@ -151,17 +152,23 @@ export function ExtensionsSection() {
   };
 
   return (
-    <div className="min-w-0">
+    <div className="qivryn-extensions-section min-w-0">
+      <CodexImportPanel
+        onApplied={() => {
+          void Promise.all([loadPlugins(), refresh()]);
+        }}
+      />
+
       <section aria-labelledby="local-plugins-heading" className="mb-6">
         <div className="mb-2">
           <h2 id="local-plugins-heading" className="mb-1 mt-0 text-base">
             Local plugins
           </h2>
           <p className="text-description m-0 text-xs">
-            Import a trusted local plugin directory containing
+            Install a trusted local plugin directory containing
             <code className="mx-1">.codex-plugin/plugin.json</code>. Qivryn
-            copies it into managed storage; importing the same plugin again
-            updates it.
+            copies local bundles into managed storage. Codex imports above stay
+            linked read-only so updates remain in sync.
           </p>
         </div>
         <form onSubmit={installPlugin} className="mb-2 flex gap-2">
@@ -175,7 +182,7 @@ export function ExtensionsSection() {
           <button
             type="submit"
             disabled={!pluginSourcePath.trim() || Boolean(pluginOperation)}
-            className="bg-button text-button-foreground cursor-pointer rounded-md border-none px-3 py-2 text-xs disabled:opacity-50"
+            className="qivryn-primary-button"
           >
             {pluginOperation === "install" ? "Importing…" : "Import or update"}
           </button>
@@ -192,7 +199,7 @@ export function ExtensionsSection() {
           {plugins.map((plugin) => (
             <article
               key={plugin.id}
-              className="border-input bg-input min-w-0 rounded border p-2"
+              className="qivryn-config-list-row border-input bg-input min-w-0 rounded border p-2"
             >
               <div className="flex min-w-0 items-center gap-2">
                 <div className="min-w-0 flex-1">
@@ -201,11 +208,13 @@ export function ExtensionsSection() {
                   </strong>
                   <span className="text-description-muted text-2xs">
                     {plugin.developerName ?? "Local plugin"} · v{plugin.version}
+                    {plugin.sourceKind === "codex" ? " · Codex" : ""}
                   </span>
                 </div>
-                <label className="flex items-center gap-1 text-xs">
+                <label className="qivryn-plugin-toggle flex items-center gap-1.5 text-xs">
                   <input
                     type="checkbox"
+                    className="sr-only"
                     aria-label={`Enable ${plugin.displayName}`}
                     checked={plugin.enabled}
                     disabled={pluginOperation === plugin.id}
@@ -213,7 +222,13 @@ export function ExtensionsSection() {
                       void setPluginEnabled(plugin, event.target.checked)
                     }
                   />
-                  Enabled
+                  <span
+                    className="qivryn-plugin-toggle-track"
+                    aria-hidden="true"
+                  >
+                    <span />
+                  </span>
+                  <span className="hidden min-[520px]:inline">Enabled</span>
                 </label>
                 <button
                   type="button"
@@ -270,7 +285,7 @@ export function ExtensionsSection() {
           <PlusIcon className="h-3.5 w-3.5" /> New skill
         </button>
       </div>
-      <div className="mb-3 grid grid-cols-2 gap-2 min-[700px]:grid-cols-3">
+      <div className="qivryn-capability-links mb-3 grid grid-cols-2 gap-2 min-[700px]:grid-cols-3">
         <button
           onClick={() => navigate(CONFIG_ROUTES.RULES)}
           className="border-input bg-input rounded border p-2 text-left text-xs"
@@ -300,7 +315,7 @@ export function ExtensionsSection() {
         {skills.map((skill) => (
           <article
             key={`${skill.name}:${skill.path}`}
-            className="border-input bg-input group min-w-0 rounded border p-2"
+            className="qivryn-config-list-row border-input bg-input group min-w-0 rounded border p-2"
           >
             <div className="flex min-w-0 items-center gap-2">
               <strong className="min-w-0 flex-1 truncate text-xs">

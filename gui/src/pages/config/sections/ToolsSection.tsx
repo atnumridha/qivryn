@@ -470,7 +470,7 @@ export function ToolsSection() {
   return (
     <>
       <ConfigHeader
-        title="Tools"
+        title="MCP & tools"
         subtext="Manage MCP servers and tool policies"
         className="mb-2"
       />

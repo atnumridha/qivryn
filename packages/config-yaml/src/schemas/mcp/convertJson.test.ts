@@ -44,6 +44,7 @@ describe("convertJsonMcpConfigToYamlMcpConfig", () => {
           API_KEY: "test-key",
           DEBUG: "true",
         },
+        cwd: "./server",
       };
 
       const result = convertJsonMcpConfigToYamlMcpConfig(
@@ -60,6 +61,7 @@ describe("convertJsonMcpConfigToYamlMcpConfig", () => {
           API_KEY: "test-key",
           DEBUG: "true",
         },
+        cwd: "./server",
       });
       expect(result.warnings).toHaveLength(0);
     });
@@ -180,6 +182,29 @@ describe("convertJsonMcpConfigToYamlMcpConfig", () => {
       expect(result.warnings).toHaveLength(0);
     });
 
+    test("converts HTTP header environment references to Qivryn secrets", () => {
+      const jsonConfig: HttpMcpJsonConfig = {
+        type: "http",
+        url: "https://api.example.com/http",
+        headers: {
+          Authorization: "Bearer ${TOKEN}",
+        },
+      };
+
+      const result = convertJsonMcpConfigToYamlMcpConfig(
+        "http-secret",
+        jsonConfig,
+      );
+
+      expect(result.yamlConfig).toMatchObject({
+        requestOptions: {
+          headers: {
+            Authorization: "Bearer ${{ secrets.TOKEN }}",
+          },
+        },
+      });
+    });
+
     test("converts HTTP config from parsed JSON string", () => {
       const jsonString = JSON.stringify({
         type: "http",
@@ -262,7 +287,7 @@ describe("convertYamlMcpConfigToJsonMcpConfig", () => {
       expect(result.warnings).toHaveLength(0);
     });
 
-    test("warns about unsupported cwd field", () => {
+    test("preserves cwd for Claude-style JSON", () => {
       const yamlConfig: StdioMcpServer = {
         name: "cwd-server",
         command: "node",
@@ -274,11 +299,9 @@ describe("convertYamlMcpConfigToJsonMcpConfig", () => {
       expect(result.jsonConfig).toEqual({
         type: "stdio",
         command: "node",
+        cwd: "/path/to/dir",
       });
-      expect(result.warnings).toHaveLength(1);
-      expect(result.warnings[0]).toBe(
-        "`cwd` from YAML MCP config not supported in Claude-style JSON, will be removed from server cwd-server",
-      );
+      expect(result.warnings).toHaveLength(0);
     });
 
     test("warns about unsupported faviconUrl", () => {

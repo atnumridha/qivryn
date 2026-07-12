@@ -281,7 +281,6 @@ export class VsCodeExtension {
       vscode.window.registerFileDecorationProvider(worktreeDecorations),
     );
     const agentScmGraphManager = new AgentScmGraphManager();
-    const layoutManager = new QivrynLayoutManager(context);
     context.subscriptions.push(agentScmGraphManager);
     resolveWebviewProtocol(this.sidebar.webviewProtocol);
 
@@ -318,6 +317,9 @@ export class VsCodeExtension {
         false,
       );
     }
+    const layoutManager = new QivrynLayoutManager(context, {
+      nativeAgentSessions: Boolean(nativeAgentSessionsProvider),
+    });
     context.subscriptions.push(
       new AgentNotificationManager(context),
       new AgentRuntimeRecoveryManager(inProcessMessenger),

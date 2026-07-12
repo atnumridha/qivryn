@@ -83,7 +83,7 @@ export const CURSOR_LOCAL_CAPABILITIES = {
   CLIENT_SIDE_TOOL_V2_AWAIT_TASK: runtime("agent-runtime"),
   CLIENT_SIDE_TOOL_V2_BACKGROUND_COMPOSER_FOLLOWUP: runtime("agent-queue"),
   CLIENT_SIDE_TOOL_V2_CALL_MCP_TOOL: provider("mcp-tools"),
-  CLIENT_SIDE_TOOL_V2_COMPUTER_USE: runtime("browser-automation"),
+  CLIENT_SIDE_TOOL_V2_COMPUTER_USE: tool(BuiltInToolNames.ComputerUse),
   CLIENT_SIDE_TOOL_V2_CREATE_DIAGRAM: renderer("markdown-mermaid"),
   CLIENT_SIDE_TOOL_V2_CREATE_PLAN: tool(BuiltInToolNames.UpdatePlan),
   CLIENT_SIDE_TOOL_V2_DEEP_SEARCH: tool(BuiltInToolNames.CodebaseTool),

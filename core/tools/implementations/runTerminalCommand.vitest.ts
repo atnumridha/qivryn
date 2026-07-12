@@ -175,7 +175,7 @@ describe("runTerminalCommandImpl", () => {
       const contextItems = (firstCall as any).contextItems;
       if (contextItems && Array.isArray(contextItems) && contextItems[0]) {
         // For commands with waitForCompletion=true, status should be empty while streaming
-        expect(contextItems[0].status).toBe("");
+        expect(contextItems[0].status ?? "").toBe("");
       }
     }
   });

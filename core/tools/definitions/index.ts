@@ -1,4 +1,5 @@
 export { codebaseTool } from "./codebaseTool";
+export { computerUseTool } from "./computerUse";
 export { createNewFileTool } from "./createNewFile";
 export { createRuleBlock } from "./createRuleBlock";
 export {

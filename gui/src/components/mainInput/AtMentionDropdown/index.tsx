@@ -21,8 +21,6 @@ import {
   defaultBorderRadius,
   lightGray,
   vscForeground,
-  vscListActiveBackground,
-  vscListActiveForeground,
   vscQuickInputBackground,
 } from "../..";
 import { IdeMessengerContext } from "../../../context/IdeMessenger";
@@ -115,8 +113,17 @@ const ItemDiv = styled.div`
   font-size: ${fontSize(-2)};
 
   &.is-selected {
-    background-color: ${vscListActiveBackground};
-    color: ${vscListActiveForeground};
+    color: var(--vscode-editor-foreground, #fff);
+    background: color-mix(
+      in srgb,
+      var(--vscode-editor-foreground, #fff) 11%,
+      transparent
+    );
+    border-color: color-mix(
+      in srgb,
+      var(--vscode-editor-foreground, #fff) 13%,
+      transparent
+    );
   }
 
   &.is-skill {

@@ -1,7 +1,11 @@
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
   AgentHookError,
   AgentHookRunner,
+  FileAgentHookRegistry,
   LocalAgentRuntime,
   MemoryAgentStore,
   type AgentHookExecutor,
@@ -83,5 +87,77 @@ describe("shared lifecycle hooks", () => {
         run: expect.objectContaining({ status: "completed" }),
       }),
     );
+  });
+
+  it("loads Codex hook groups and returns additional context", async () => {
+    const root = await fs.mkdtemp(
+      path.join(os.tmpdir(), "qivryn-codex-hooks-"),
+    );
+    const filepath = path.join(root, "hooks.json");
+    await fs.writeFile(
+      filepath,
+      JSON.stringify({
+        hooks: {
+          UserPromptSubmit: [
+            {
+              matcher: "",
+              hooks: [
+                {
+                  type: "command",
+                  command: `${JSON.stringify(process.execPath)} -e ${JSON.stringify("let s='';process.stdin.on('data',c=>s+=c);process.stdin.on('end',()=>{let p=JSON.parse(s);process.stdout.write(JSON.stringify({hookSpecificOutput:{hookEventName:'UserPromptSubmit',additionalContext:'verified '+p.prompt}}))})")}`,
+                  timeout: 5,
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    );
+    const registry = new FileAgentHookRegistry(filepath);
+    const runner = new AgentHookRunner(() => registry.list());
+    const [result] = await runner.run("agent.before", {
+      run: {
+        id: "run-1",
+        prompt: "request",
+        permissionMode: "autonomous",
+        workspace: { repositoryPath: root },
+      },
+    });
+    expect(result).toMatchObject({
+      status: "completed",
+      additionalContext: "verified request",
+    });
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it("keeps imported Codex hooks inert until they are enabled", async () => {
+    const root = await fs.mkdtemp(
+      path.join(os.tmpdir(), "qivryn-codex-hooks-disabled-"),
+    );
+    const filepath = path.join(root, "hooks.json");
+    await fs.writeFile(
+      filepath,
+      JSON.stringify({
+        hooks: {
+          Stop: [
+            {
+              hooks: [
+                {
+                  type: "command",
+                  command: `${JSON.stringify(process.execPath)} -e ${JSON.stringify("process.stdout.write('unexpected')")}`,
+                  enabled: false,
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    );
+    const registry = new FileAgentHookRegistry(filepath);
+    const runner = new AgentHookRunner(() => registry.list());
+    expect(await runner.run("agent.after", { run: { id: "run-1" } })).toEqual(
+      [],
+    );
+    await fs.rm(root, { recursive: true, force: true });
   });
 });

@@ -13,6 +13,7 @@ export const getBaseToolDefinitions = () => [
   toolDefinitions.createNewFileTool,
   toolDefinitions.writeFileTool,
   toolDefinitions.deleteFileTool,
+  toolDefinitions.computerUseTool,
   toolDefinitions.runTerminalCommandTool,
   toolDefinitions.globSearchTool,
   toolDefinitions.viewDiffTool,

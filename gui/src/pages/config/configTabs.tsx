@@ -28,6 +28,7 @@ interface TabOption {
 
 interface TabSection {
   id: string;
+  label?: string;
   tabs: TabOption[];
   showTopDivider?: boolean;
   showBottomDivider?: boolean;
@@ -47,9 +48,20 @@ export const topTabSections: TabSection[] = [
     ],
   },
   {
-    id: "blocks",
+    id: "personal",
+    label: "Personal",
     showTopDivider: true,
     tabs: [
+      {
+        id: "settings",
+        label: "General",
+        component: (
+          <ConfigSection>
+            <UserSettingsSection />
+          </ConfigSection>
+        ),
+        icon: <Cog6ToothIcon className="xs:h-4 xs:w-4 h-3 w-3 flex-shrink-0" />,
+      },
       {
         id: "models",
         label: "Models",
@@ -60,19 +72,16 @@ export const topTabSections: TabSection[] = [
         ),
         icon: <CubeIcon className="xs:h-4 xs:w-4 h-3 w-3 flex-shrink-0" />,
       },
-      {
-        id: "rules",
-        label: "Rules",
-        component: (
-          <ConfigSection>
-            <RulesSection />
-          </ConfigSection>
-        ),
-        icon: <PencilIcon className="xs:h-4 xs:w-4 h-3 w-3 flex-shrink-0" />,
-      },
+    ],
+  },
+  {
+    id: "integrations",
+    label: "Integrations",
+    showTopDivider: true,
+    tabs: [
       {
         id: "tools",
-        label: "Tools",
+        label: "MCP & tools",
         component: (
           <ConfigSection>
             <ToolsSection />
@@ -84,7 +93,7 @@ export const topTabSections: TabSection[] = [
       },
       {
         id: "extensions",
-        label: "Skills",
+        label: "Plugins & skills",
         component: (
           <ConfigSection>
             <ExtensionsSection />
@@ -97,9 +106,20 @@ export const topTabSections: TabSection[] = [
     ],
   },
   {
-    id: "agents-orgs",
+    id: "workspace",
+    label: "Workspace",
     showTopDivider: true,
     tabs: [
+      {
+        id: "rules",
+        label: "Instructions",
+        component: (
+          <ConfigSection>
+            <RulesSection />
+          </ConfigSection>
+        ),
+        icon: <PencilIcon className="xs:h-4 xs:w-4 h-3 w-3 flex-shrink-0" />,
+      },
       {
         id: "configs",
         label: "Configs",
@@ -110,12 +130,6 @@ export const topTabSections: TabSection[] = [
         ),
         icon: <DocumentIcon className="xs:h-4 xs:w-4 h-3 w-3 flex-shrink-0" />,
       },
-    ],
-  },
-  {
-    id: "indexing",
-    showTopDivider: true,
-    tabs: [
       {
         id: "indexing",
         label: "Indexing",
@@ -136,16 +150,6 @@ export const bottomTabSections: TabSection[] = [
   {
     id: "bottom",
     tabs: [
-      {
-        id: "settings",
-        label: "Settings",
-        component: (
-          <ConfigSection>
-            <UserSettingsSection />
-          </ConfigSection>
-        ),
-        icon: <Cog6ToothIcon className="xs:h-4 xs:w-4 h-3 w-3 flex-shrink-0" />,
-      },
       {
         id: "help",
         label: "Help",

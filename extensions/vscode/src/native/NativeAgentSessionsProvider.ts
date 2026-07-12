@@ -11,6 +11,12 @@ import type { FromCoreProtocol, ToCoreProtocol } from "core/protocol";
 import type { InProcessMessenger } from "core/protocol/messenger";
 import * as vscode from "vscode";
 
+import {
+  NATIVE_AGENT_HANDOFF_RUN_KEY,
+  NATIVE_AGENT_LAST_RUN_KEY,
+  selectNativeAgentRestoreRun,
+} from "./nativeAgentRestore";
+
 const SESSION_SCHEME = "qivryn-agent";
 const PARTICIPANT_ID = "qivryn.agent";
 const TERMINAL_STATUSES = new Set<AgentRun["status"]>([
@@ -158,7 +164,6 @@ export class NativeAgentSessionsProvider implements vscode.Disposable {
   private refreshTimer?: NodeJS.Timeout;
   private disposed = false;
   private isAgentsWindow = false;
-  private initialSessionRestored = false;
   private currentRunId?: string;
 
   static registerIfSupported(
@@ -268,7 +273,7 @@ export class NativeAgentSessionsProvider implements vscode.Disposable {
             runId,
           );
           await this.context.workspaceState.update(
-            "qivryn.nativeAgent.lastRunId",
+            NATIVE_AGENT_LAST_RUN_KEY,
             runId,
           );
           await vscode.commands.executeCommand("vscode.open", resource);
@@ -367,11 +372,11 @@ export class NativeAgentSessionsProvider implements vscode.Disposable {
           this.currentRunId = runId;
           await Promise.all([
             this.context.workspaceState.update(
-              "qivryn.nativeAgent.lastRunId",
+              NATIVE_AGENT_LAST_RUN_KEY,
               runId,
             ),
             this.context.globalState.update(
-              "qivryn.nativeAgent.handoffRunId",
+              NATIVE_AGENT_HANDOFF_RUN_KEY,
               runId,
             ),
             vscode.commands.executeCommand(
@@ -402,15 +407,32 @@ export class NativeAgentSessionsProvider implements vscode.Disposable {
   async restoreDefaultSurface(): Promise<boolean> {
     await this.closeStartupPlaceholders();
     try {
-      this.initialSessionRestored = true;
-      await vscode.commands.executeCommand(
-        "qivryn.openInNewWindow",
-        "/",
-        false,
-        false,
-      );
+      const runs = filterAgentRuns(await this.listRuns(), undefined);
+      const targetRun = selectNativeAgentRestoreRun(runs, [
+        this.currentRunId,
+        this.context.workspaceState.get<string>(NATIVE_AGENT_LAST_RUN_KEY),
+      ]);
+      if (targetRun) {
+        this.currentRunId = targetRun.id;
+        await vscode.commands.executeCommand(
+          "qivryn.openNativeAgent",
+          this.resourceForRun(targetRun.id),
+        );
+      } else {
+        const availableCommands = await vscode.commands.getCommands(true);
+        if (!availableCommands.includes("workbench.action.chat.open")) {
+          return false;
+        }
+        await vscode.commands.executeCommand("workbench.action.chat.open");
+      }
       await vscode.commands.executeCommand(
         "workbench.action.closeAuxiliaryBar",
+      );
+      await vscode.commands.executeCommand("workbench.action.closeSidebar");
+      await vscode.commands.executeCommand(
+        "setContext",
+        "qivryn.composerLocation",
+        this.isAgentsWindow ? "agentsWindow" : "pane",
       );
       await this.closeStartupPlaceholders();
       return true;
@@ -556,14 +578,11 @@ export class NativeAgentSessionsProvider implements vscode.Disposable {
       "qivryn.activeAgentSession",
       runId,
     );
-    await this.context.workspaceState.update(
-      "qivryn.nativeAgent.lastRunId",
-      runId,
-    );
+    await this.context.workspaceState.update(NATIVE_AGENT_LAST_RUN_KEY, runId);
     await vscode.commands.executeCommand(
       "setContext",
       "qivryn.composerLocation",
-      this.isAgentsWindow ? "dedicatedWindow" : "editorTab",
+      this.isAgentsWindow ? "agentsWindow" : "pane",
     );
     const runs = await this.listRuns();
     const run = runs.find((candidate) => candidate.id === runId);
@@ -981,8 +1000,8 @@ export class NativeAgentSessionsProvider implements vscode.Disposable {
 
   private async restoreHandoffSession(): Promise<void> {
     const runId =
-      this.context.globalState.get<string>("qivryn.nativeAgent.handoffRunId") ??
-      this.context.workspaceState.get<string>("qivryn.nativeAgent.lastRunId");
+      this.context.globalState.get<string>(NATIVE_AGENT_HANDOFF_RUN_KEY) ??
+      this.context.workspaceState.get<string>(NATIVE_AGENT_LAST_RUN_KEY);
     if (!runId) return;
     this.currentRunId = runId;
     await vscode.commands.executeCommand(
@@ -996,7 +1015,7 @@ export class NativeAgentSessionsProvider implements vscode.Disposable {
       this.resourceForRun(runId),
     );
     await this.context.globalState.update(
-      "qivryn.nativeAgent.handoffRunId",
+      NATIVE_AGENT_HANDOFF_RUN_KEY,
       undefined,
     );
   }

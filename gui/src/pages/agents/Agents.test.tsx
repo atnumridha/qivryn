@@ -67,6 +67,22 @@ describe("Agents workspace", () => {
     expect(await screen.findByText("Chat screen")).toBeVisible();
   });
 
+  it("keeps the wide task navigator collapsed until requested", async () => {
+    await renderWithProviders(<Agents />);
+
+    const workspace = await screen.findByTestId("agents-workspace");
+    const shell = workspace.querySelector(".cursor-agent-shell-grid");
+    expect(shell).toHaveAttribute("data-wide-navigation-open", "false");
+
+    const showNavigation = screen.getByLabelText("Show agents and chats");
+    await act(async () => showNavigation.click());
+    expect(shell).toHaveAttribute("data-wide-navigation-open", "true");
+
+    const hideNavigation = screen.getByLabelText("Hide agents and chats");
+    await act(async () => hideNavigation.click());
+    expect(shell).toHaveAttribute("data-wide-navigation-open", "false");
+  });
+
   it("keeps active runs running when selecting another task", async () => {
     const messenger = new MockIdeMessenger();
     const controlRequests: AgentControlRequest[] = [];
@@ -1351,18 +1367,25 @@ describe("Agents workspace", () => {
       mockIdeMessenger: messenger,
     });
     await user.click(
-      await screen.findByRole("button", { name: "Agent automations" }),
+      await screen.findByRole("button", { name: "Scheduled agent tasks" }),
     );
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "Automation schedule type" }),
+      "daily",
+    );
+    const scheduleTime = screen.getByLabelText("Automation local time");
+    await user.clear(scheduleTime);
+    await user.type(scheduleTime, "10:30");
     await user.type(
-      screen.getByRole("textbox", { name: "Automation name" }),
+      screen.getByRole("textbox", { name: "Scheduled task name" }),
       "Review nightly",
     );
     await user.type(
-      screen.getByRole("textbox", { name: "Automation prompt" }),
+      screen.getByRole("textbox", { name: "Scheduled task prompt" }),
       "Review the working tree",
     );
     await user.type(
-      screen.getByRole("textbox", { name: "Automation repository" }),
+      screen.getByRole("textbox", { name: "Scheduled task repository" }),
       "/workspace/app",
     );
     await user.click(screen.getByRole("button", { name: "Create" }));
@@ -1375,11 +1398,44 @@ describe("Agents workspace", () => {
     await waitFor(() =>
       expect(requests).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ action: "create" }),
+          expect.objectContaining({
+            action: "create",
+            request: expect.objectContaining({
+              trigger: { type: "daily", at: "10:30" },
+            }),
+          }),
           { action: "run", automationId: "automation-1" },
         ]),
       ),
     );
+  });
+
+  it("opens scheduled tasks from a first-class route", async () => {
+    await renderWithProviders(<Agents />, {
+      routerProps: { initialEntries: ["/agents?scheduled=1"] },
+    });
+    expect(
+      await screen.findByRole("dialog", { name: "Scheduled agent tasks" }),
+    ).toBeVisible();
+  });
+
+  it("opens real agent capability surfaces from the compact menu", async () => {
+    const { user } = await renderWithProviders(<Agents />);
+    await user.click(
+      await screen.findByRole("button", { name: "Agent capabilities" }),
+    );
+    const menu = screen.getByRole("menu", {
+      name: "Agent capabilities menu",
+    });
+    expect(menu).toHaveTextContent("Browser & computer use");
+    expect(menu).toHaveTextContent("Tools & MCP");
+    expect(menu).toHaveTextContent("Skills & plugins");
+    expect(menu).toHaveTextContent("New agent");
+    expect(menu).toHaveTextContent("Multitask");
+    await user.click(screen.getByRole("menuitem", { name: "Scheduled tasks" }));
+    expect(
+      await screen.findByRole("dialog", { name: "Scheduled agent tasks" }),
+    ).toBeVisible();
   });
 
   it("starts skill-backed tasks as independent concurrent agent runs", async () => {

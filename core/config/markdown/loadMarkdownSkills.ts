@@ -8,6 +8,7 @@ import { walkDir } from "../../indexing/walkDir";
 import { localPathToUri } from "../../util/pathToUri";
 import { findUriInDirs, joinPathsToUri } from "../../util/uri";
 import { getAllDotQivrynDefinitionFiles } from "../loadLocalAssistants";
+import { getDisabledCodexImportSourcePaths } from "../codex/codexImportManager";
 import { getEnabledLocalPluginSkillPaths } from "../plugins/localPluginManager";
 
 const skillFrontmatterSchema = z.object({
@@ -115,7 +116,7 @@ async function getCrossAgentSkillFiles(ide: IDE) {
     ),
   );
 
-  return (
+  const files = (
     await Promise.all(
       fullDirs.map(async (dir) => {
         const exists = await ide.fileExists(dir);
@@ -127,6 +128,8 @@ async function getCrossAgentSkillFiles(ide: IDE) {
       }),
     )
   ).flat();
+  const disabled = await getDisabledCodexImportSourcePaths("skill");
+  return files.filter((file) => !disabled.has(file));
 }
 
 async function loadMarkdownSkillsUncached(ide: IDE): Promise<LoadSkillsResult> {

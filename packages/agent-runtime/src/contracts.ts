@@ -376,6 +376,7 @@ export interface BrowserEvent {
     | "dom"
     | "viewport"
     | "recording"
+    | "interaction"
     | "lock"
     | "permission"
     | "closed";

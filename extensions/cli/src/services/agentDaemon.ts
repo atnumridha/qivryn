@@ -229,7 +229,9 @@ export async function runAgentDaemon(): Promise<void> {
           ? {
               hostSandbox: {
                 filesystem: "read-only" as const,
-                network: "deny" as const,
+                // The agent process still needs its configured model endpoint.
+                // Read-only constrains filesystem/tool writes, not transport.
+                network: "allow" as const,
               },
             }
           : {}),

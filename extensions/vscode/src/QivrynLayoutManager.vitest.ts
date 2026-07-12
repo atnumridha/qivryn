@@ -179,13 +179,57 @@ describe("QivrynLayoutManager", () => {
     ]);
   });
 
-  it("keeps the Agent layout on the Qivryn right sidebar chat surface", async () => {
-    process.env.QIVRYN_ENABLE_NATIVE_AGENT_SESSIONS = "true";
+  it("restores the native Agent pane when the provider is available", async () => {
     const { context } = createContext();
+    vi.mocked(vscode.commands.executeCommand).mockImplementation(
+      async (command: string, ...args: unknown[]) => {
+        if (command === "getContextKeyValue") {
+          return state[String(args[0])] as never;
+        }
+        executed.push(command);
+        if (command === "qivryn.restoreNativeAgentSurface") {
+          return true as never;
+        }
+        return undefined as never;
+      },
+    );
 
-    await new QivrynLayoutManager(context).apply(BUILT_IN_LAYOUTS[0]);
+    await new QivrynLayoutManager(context, {
+      nativeAgentSessions: true,
+    }).apply(BUILT_IN_LAYOUTS[0]);
 
     expect(executed).toEqual([
+      "qivryn.restoreNativeAgentSurface",
+      "setContext",
+      "setContext",
+    ]);
+    expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
+      "setContext",
+      "qivryn.composerLocation",
+      "pane",
+    );
+  });
+
+  it("falls back to the React Agent surface when native restore declines", async () => {
+    const { context } = createContext();
+    vi.mocked(vscode.commands.executeCommand).mockImplementation(
+      async (command: string, ...args: unknown[]) => {
+        if (command === "getContextKeyValue") {
+          return state[String(args[0])] as never;
+        }
+        executed.push(command);
+        return (
+          command === "qivryn.restoreNativeAgentSurface" ? false : undefined
+        ) as never;
+      },
+    );
+
+    await new QivrynLayoutManager(context, {
+      nativeAgentSessions: true,
+    }).apply(BUILT_IN_LAYOUTS[0]);
+
+    expect(executed).toEqual([
+      "qivryn.restoreNativeAgentSurface",
       "workbench.action.closePanel",
       "workbench.action.closeSidebar",
       "workbench.view.extension.qivryn",

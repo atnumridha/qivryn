@@ -36,7 +36,7 @@ describe("Docker container runtime", () => {
     expect(spec.args).toEqual(
       expect.arrayContaining([
         "/workspace/worktrees/agent-1:/workspace:ro",
-        "none",
+        "bridge",
         "QIVRYN_PERMISSION_MODE=readOnly",
       ]),
     );

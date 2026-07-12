@@ -30,7 +30,9 @@ export function parseMarkdownRule(content: string): {
 } {
   // Normalize line endings to \n
   const normalizedContent = content.replace(/\r\n/g, "\n");
-  const openingDelimiter = normalizedContent.match(/^\uFEFF?---[\t ]*\n/);
+  const openingDelimiter = normalizedContent.match(
+    /^\uFEFF?(?:[\t ]*\n)*---[\t ]*\n/,
+  );
   if (!openingDelimiter) {
     return { frontmatter: {}, markdown: normalizedContent };
   }

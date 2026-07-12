@@ -6,6 +6,7 @@ import { canParseUrl } from "../util/url";
 import { BuiltInToolNames } from "./builtIn";
 
 import { codebaseToolImpl } from "./implementations/codebaseTool";
+import { computerUseImpl } from "./implementations/computerUse";
 import { createNewFileImpl } from "./implementations/createNewFile";
 import { createRuleBlockImpl } from "./implementations/createRuleBlock";
 import {
@@ -216,6 +217,8 @@ export async function callBuiltInTool(
       return await runTerminalCommandImpl(args, extras);
     case BuiltInToolNames.SearchWeb:
       return await searchWebImpl(args, extras);
+    case BuiltInToolNames.ComputerUse:
+      return await computerUseImpl(args, extras);
     case BuiltInToolNames.FetchUrlContent:
       return await fetchUrlContentImpl(args, extras);
     case BuiltInToolNames.ViewDiff:

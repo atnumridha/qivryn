@@ -9,7 +9,10 @@ import type {
 
 export type AgentAutomationTrigger =
   | { type: "manual" }
-  | { type: "interval"; everyMinutes: number };
+  | { type: "interval"; everyMinutes: number }
+  | { type: "daily"; at: string }
+  | { type: "weekly"; at: string; daysOfWeek: number[] }
+  | { type: "rrule"; rrule: string; timezone?: string };
 
 export interface AgentAutomation {
   id: string;
@@ -27,6 +30,7 @@ export interface AgentAutomation {
   lastRunAt?: string;
   lastRunId?: string;
   nextRunAt?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export type CreateAgentAutomationRequest = Pick<
@@ -43,15 +47,154 @@ export type AgentAutomationControlRequest =
   | { action: "remove"; automationId: string }
   | { action: "enabled"; automationId: string; enabled: boolean };
 
-function nextRun(
+function parseLocalTime(value: string): { hours: number; minutes: number } {
+  const match = /^(\d{2}):(\d{2})$/.exec(value);
+  if (!match) throw new Error("Automation time must use HH:MM format");
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours > 23 || minutes > 59) {
+    throw new Error("Automation time must be a valid local time");
+  }
+  return { hours, minutes };
+}
+
+const RRULE_WEEKDAYS: Record<string, number> = {
+  SU: 0,
+  MO: 1,
+  TU: 2,
+  WE: 3,
+  TH: 4,
+  FR: 5,
+  SA: 6,
+};
+
+function parseRruleList(value: string | undefined): number[] | undefined {
+  if (!value) return undefined;
+  const values = value.split(",").map(Number);
+  if (values.some((candidate) => !Number.isInteger(candidate))) {
+    throw new Error(`Invalid RRULE numeric list: ${value}`);
+  }
+  return values;
+}
+
+function nextRruleRun(rrule: string, from: Date): string {
+  const fields = new Map(
+    rrule
+      .replace(/^RRULE:/i, "")
+      .split(";")
+      .filter(Boolean)
+      .map((part) => {
+        const [key, ...value] = part.split("=");
+        return [key.toUpperCase(), value.join("=")];
+      }),
+  );
+  const frequency = fields.get("FREQ")?.toUpperCase();
+  if (
+    !frequency ||
+    !["MINUTELY", "HOURLY", "DAILY", "WEEKLY"].includes(frequency)
+  ) {
+    throw new Error(
+      `Unsupported automation RRULE frequency: ${frequency ?? "missing"}`,
+    );
+  }
+  const interval = Number(fields.get("INTERVAL") ?? "1");
+  if (!Number.isInteger(interval) || interval <= 0) {
+    throw new Error("Automation RRULE interval must be a positive integer");
+  }
+  const minutes = parseRruleList(fields.get("BYMINUTE"));
+  const hours = parseRruleList(fields.get("BYHOUR"));
+  const weekdays = fields
+    .get("BYDAY")
+    ?.split(",")
+    .map((day) => RRULE_WEEKDAYS[day.toUpperCase()]);
+  if (weekdays?.some((day) => day === undefined)) {
+    throw new Error(`Invalid automation RRULE weekday: ${fields.get("BYDAY")}`);
+  }
+
+  const candidate = new Date(from);
+  candidate.setSeconds(0, 0);
+  candidate.setMinutes(candidate.getMinutes() + 1);
+  const maxMinutes = 370 * 24 * 60;
+  for (let offset = 0; offset < maxMinutes; offset += 1) {
+    const minute = candidate.getMinutes();
+    const hour = candidate.getHours();
+    const day = candidate.getDay();
+    const elapsedMinutes = Math.floor(candidate.getTime() / 60_000);
+    const elapsedHours = Math.floor(elapsedMinutes / 60);
+    const elapsedDays = Math.floor(elapsedHours / 24);
+    const elapsedWeeks = Math.floor(elapsedDays / 7);
+    const intervalMatches =
+      frequency === "MINUTELY"
+        ? elapsedMinutes % interval === 0
+        : frequency === "HOURLY"
+          ? elapsedHours % interval === 0
+          : frequency === "DAILY"
+            ? elapsedDays % interval === 0
+            : elapsedWeeks % interval === 0;
+    if (
+      intervalMatches &&
+      (!minutes || minutes.includes(minute)) &&
+      (!hours || hours.includes(hour)) &&
+      (!weekdays || weekdays.includes(day))
+    ) {
+      return candidate.toISOString();
+    }
+    candidate.setMinutes(candidate.getMinutes() + 1);
+  }
+  throw new Error("Unable to calculate the next RRULE automation run");
+}
+
+export function nextAgentAutomationRun(
   trigger: AgentAutomationTrigger,
   from: Date,
 ): string | undefined {
-  if (trigger.type !== "interval") return undefined;
-  if (!Number.isFinite(trigger.everyMinutes) || trigger.everyMinutes <= 0) {
-    throw new Error("Automation interval must be greater than zero minutes");
+  if (trigger.type === "manual") return undefined;
+  if (trigger.type === "interval") {
+    if (!Number.isFinite(trigger.everyMinutes) || trigger.everyMinutes <= 0) {
+      throw new Error("Automation interval must be greater than zero minutes");
+    }
+    return new Date(
+      from.getTime() + trigger.everyMinutes * 60_000,
+    ).toISOString();
   }
-  return new Date(from.getTime() + trigger.everyMinutes * 60_000).toISOString();
+  if (trigger.type === "rrule") {
+    return nextRruleRun(trigger.rrule, from);
+  }
+
+  const { hours, minutes } = parseLocalTime(trigger.at);
+  const days =
+    trigger.type === "daily"
+      ? undefined
+      : new Set(
+          trigger.daysOfWeek.map((day) => {
+            if (!Number.isInteger(day) || day < 0 || day > 6) {
+              throw new Error(
+                "Automation weekdays must be integers between 0 and 6",
+              );
+            }
+            return day;
+          }),
+        );
+  if (days?.size === 0) {
+    throw new Error("A weekly automation needs at least one weekday");
+  }
+
+  for (let offset = 0; offset <= 7; offset += 1) {
+    const candidate = new Date(
+      from.getFullYear(),
+      from.getMonth(),
+      from.getDate() + offset,
+      hours,
+      minutes,
+      0,
+      0,
+    );
+    if (candidate.getTime() <= from.getTime()) continue;
+    if (days && !days.has(candidate.getDay())) continue;
+    return candidate.toISOString();
+  }
+
+  throw new Error("Unable to calculate the next automation run");
 }
 
 export class FileAgentAutomationStore {
@@ -100,7 +243,9 @@ export class FileAgentAutomationStore {
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
       nextRunAt:
-        request.enabled === false ? undefined : nextRun(request.trigger, now),
+        request.enabled === false
+          ? undefined
+          : nextAgentAutomationRun(request.trigger, now),
     };
     if (!automation.name || !automation.prompt) {
       throw new Error("Automation name and prompt are required");
@@ -113,7 +258,9 @@ export class FileAgentAutomationStore {
     return this.update(id, (current) => ({
       ...current,
       enabled,
-      nextRunAt: enabled ? nextRun(current.trigger, new Date()) : undefined,
+      nextRunAt: enabled
+        ? nextAgentAutomationRun(current.trigger, new Date())
+        : undefined,
     }));
   }
 
@@ -123,7 +270,7 @@ export class FileAgentAutomationStore {
       lastRunAt: new Date().toISOString(),
       lastRunId: run.id,
       nextRunAt: current.enabled
-        ? nextRun(current.trigger, new Date())
+        ? nextAgentAutomationRun(current.trigger, new Date())
         : undefined,
     }));
   }

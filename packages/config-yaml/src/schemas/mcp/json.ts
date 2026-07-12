@@ -13,6 +13,7 @@ const stdioMcpJsonSchema = z.object({
   type: z.literal("stdio").optional(),
   command: z.string(),
   args: z.array(z.string()).optional(),
+  cwd: z.string().optional(),
   env: z.record(z.string(), z.string()).optional(),
   envFile: z.string().optional(),
 });
