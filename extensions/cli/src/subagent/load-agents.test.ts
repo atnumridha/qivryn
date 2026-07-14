@@ -1,7 +1,9 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
 import { afterEach, describe, expect, it } from "vitest";
+
 import { loadPortableSubagents } from "./load-agents.js";
 
 const temporary: string[] = [];
@@ -23,7 +25,7 @@ describe("loadPortableSubagents", () => {
     fs.mkdirSync(path.join(home, ".cursor", "agents"), { recursive: true });
     fs.writeFileSync(
       path.join(cwd, ".cursor", "agents", "review.md"),
-      `---\nname: reviewer\ndescription: Review changes\ntools: [Read, Search]\npermission_mode: readonly\nis_background: true\n---\nReview the repository.`,
+      `---\nname: reviewer\ndescription: Review changes\ntools: [Read, Search]\nmodel: fast-model\npermission_mode: readonly\nis_background: true\n---\nReview the repository.`,
     );
     fs.writeFileSync(
       path.join(home, ".cursor", "agents", "review.md"),
@@ -35,6 +37,7 @@ describe("loadPortableSubagents", () => {
         name: "reviewer",
         prompt: "Review the repository.",
         tools: ["Read", "Search"],
+        model: "fast-model",
         permissionMode: "readonly",
         background: true,
       }),

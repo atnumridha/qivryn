@@ -49,6 +49,12 @@ export interface LocalAgentExecutor {
     context: AgentExecutionContext,
   ): Promise<AgentExecutionResult | void>;
   cancel?(run: AgentRun): Promise<void>;
+  resolveApproval?(
+    run: AgentRun,
+    approvalId: string,
+    decision: AgentApprovalDecision,
+  ): Promise<void>;
+  steer?(run: AgentRun, queueItemId: string, prompt: string): Promise<void>;
 }
 
 export interface AgentWorkspaceProvider {
@@ -75,6 +81,10 @@ export interface LocalAgentRuntimeOptions {
   hooks?: AgentHookExecutor;
 }
 
+interface AtomicAgentRunStore {
+  createRunAtomic(run: AgentRun): Promise<{ run: AgentRun; created: boolean }>;
+}
+
 export class LocalAgentRuntime implements AgentRuntimeAdapter {
   readonly capabilities: RuntimeCapabilities;
   private readonly maxConcurrency: number;
@@ -86,6 +96,8 @@ export class LocalAgentRuntime implements AgentRuntimeAdapter {
   private readonly hooks?: AgentHookExecutor;
   private readonly queue: string[] = [];
   private readonly active = new Map<string, AbortController>();
+  private readonly pendingCreates = new Map<string, Promise<AgentRun>>();
+  private readonly resumeAfterActive = new Set<string>();
   private readonly controls: AgentControlService;
   private pumping = false;
 
@@ -137,6 +149,26 @@ export class LocalAgentRuntime implements AgentRuntimeAdapter {
   }
 
   async createRun(request: CreateAgentRunRequest): Promise<AgentRun> {
+    if (!request.idempotencyKey) {
+      return this.createRunOnce(request);
+    }
+    const pending = this.pendingCreates.get(request.idempotencyKey);
+    if (pending) return pending;
+
+    const creation = this.createRunOnce(request);
+    this.pendingCreates.set(request.idempotencyKey, creation);
+    try {
+      return await creation;
+    } finally {
+      if (this.pendingCreates.get(request.idempotencyKey) === creation) {
+        this.pendingCreates.delete(request.idempotencyKey);
+      }
+    }
+  }
+
+  private async createRunOnce(
+    request: CreateAgentRunRequest,
+  ): Promise<AgentRun> {
     if (request.idempotencyKey) {
       const existing = await this.store.findRunByIdempotencyKey(
         request.idempotencyKey,
@@ -173,7 +205,25 @@ export class LocalAgentRuntime implements AgentRuntimeAdapter {
       unread: false,
     };
 
-    const created = await this.store.createRun(run);
+    const atomicStore = this.store as AgentStore & Partial<AtomicAgentRunStore>;
+    let created: AgentRun;
+    let wasCreated: boolean;
+    if (atomicStore.createRunAtomic) {
+      const result = await atomicStore.createRunAtomic(run);
+      created = result.run;
+      wasCreated = result.created;
+    } else {
+      const existing = await this.store.getRun(run.id);
+      if (existing) {
+        created = existing;
+        wasCreated = false;
+      } else {
+        created = await this.store.createRun(run);
+        wasCreated = created.id === run.id;
+      }
+    }
+    if (!wasCreated) return created;
+
     await this.store.appendEvent({
       id: this.idFactory(),
       runId: created.id,
@@ -333,8 +383,9 @@ export class LocalAgentRuntime implements AgentRuntimeAdapter {
       "queued",
       "resumed",
     );
-    if (!this.queue.includes(runId) && !this.active.has(runId)) {
-      this.queue.push(runId);
+    if (!this.queue.includes(runId)) {
+      if (this.active.has(runId)) this.resumeAfterActive.add(runId);
+      else this.queue.push(runId);
     }
     void this.pump();
     return run;
@@ -352,6 +403,7 @@ export class LocalAgentRuntime implements AgentRuntimeAdapter {
     if (queueIndex >= 0) {
       this.queue.splice(queueIndex, 1);
     }
+    this.resumeAfterActive.delete(runId);
     this.active.get(runId)?.abort(reason);
     if (this.executor.cancel) {
       await this.executor.cancel(current);
@@ -465,11 +517,41 @@ export class LocalAgentRuntime implements AgentRuntimeAdapter {
     approvalId: string,
     decision: AgentApprovalDecision,
   ): Promise<AgentApprovalResolution> {
+    const runBeforeResolution = await this.requireRun(runId);
+    const resolvesLiveProcess =
+      this.active.has(runId) && Boolean(this.executor.resolveApproval);
     const resolution = await this.controls.resolveApproval(
       runId,
       approvalId,
       decision,
     );
+    if (resolvesLiveProcess) {
+      const events = await this.store.readEvents(runId, { limit: Infinity });
+      const pending = new Set<string>();
+      for (const event of events) {
+        if (!event.payload || typeof event.payload !== "object") continue;
+        const payload = event.payload as { id?: string; approvalId?: string };
+        const id = payload.id ?? payload.approvalId;
+        if (!id) continue;
+        if (event.kind === "approval.requested") pending.add(id);
+        if (event.kind === "approval.resolved") pending.delete(id);
+      }
+      const current = await this.requireRun(runId);
+      if (pending.size === 0 && current.status === "waiting") {
+        await transitionAgentRun(this.store, runId, "running");
+      }
+      try {
+        await this.executor.resolveApproval!(
+          runBeforeResolution,
+          approvalId,
+          decision,
+        );
+      } catch (error) {
+        await this.cancelRun(runId, "approval-delivery-failed");
+        throw error;
+      }
+      return resolution;
+    }
     const run = await this.requireRun(runId);
     if (
       decision !== "reject" &&
@@ -504,10 +586,33 @@ export class LocalAgentRuntime implements AgentRuntimeAdapter {
     const item = await this.controls.enqueuePrompt(runId, prompt, behavior);
     const run = await this.store.getRun(runId);
     if (
+      behavior === "steer" &&
       run &&
-      ["completed", "failed", "canceled"].includes(run.status) &&
-      !this.queue.includes(runId) &&
-      !this.active.has(runId)
+      this.active.has(runId) &&
+      this.executor.steer
+    ) {
+      try {
+        await this.executor.steer(run, item.id, item.prompt);
+      } catch (error) {
+        await this.store.appendEvent({
+          id: this.idFactory(),
+          runId,
+          kind: "runtime.notice",
+          createdAt: this.now().toISOString(),
+          payload: {
+            type: "steering.deferred",
+            queueItemId: item.id,
+            text: "Follow-up queued for the next agent turn",
+            error: error instanceof Error ? error.message : String(error),
+          },
+        });
+      }
+    }
+    if (
+      run &&
+      ["attention", "completed", "draft", "failed", "canceled"].includes(
+        run.status,
+      )
     ) {
       await this.resumeRun(runId);
     }
@@ -624,6 +729,12 @@ export class LocalAgentRuntime implements AgentRuntimeAdapter {
         this.active.set(runId, controller);
         void this.executeRun(runId, controller).finally(() => {
           this.active.delete(runId);
+          if (
+            this.resumeAfterActive.delete(runId) &&
+            !this.queue.includes(runId)
+          ) {
+            this.queue.push(runId);
+          }
           void this.pump();
         });
       }
@@ -643,6 +754,16 @@ export class LocalAgentRuntime implements AgentRuntimeAdapter {
         (await this.controls.listQueue(runId)).length > 0;
       let run = await transitionAgentRun(this.store, runId, "running");
       const beforeHooks = await this.runHooks("agent.before", { run });
+      if (beforeHooks.blockReasons.length > 0) {
+        const blocked = await transitionAgentRun(
+          this.store,
+          runId,
+          "attention",
+          beforeHooks.blockReasons.join("\n"),
+        );
+        await this.notifyFinishedRun(blocked, false);
+        return;
+      }
       if (beforeHooks.additionalContext.length > 0) {
         run = await this.updateRun(runId, (current) => ({
           ...current,
@@ -678,15 +799,41 @@ export class LocalAgentRuntime implements AgentRuntimeAdapter {
         const result = await this.executor.execute(run, {
           signal: controller.signal,
           emit: async (event) => {
+            const payload =
+              event.payload && typeof event.payload === "object"
+                ? (event.payload as Record<string, unknown>)
+                : undefined;
+            if (
+              event.kind === "runtime.notice" &&
+              payload?.type === "steering.accepted" &&
+              typeof payload.queueItemId === "string"
+            ) {
+              const queued = await this.controls.listQueue(runId);
+              if (queued.some((item) => item.id === payload.queueItemId)) {
+                await this.controls.removeQueueItem(runId, payload.queueItemId);
+              }
+            }
             await this.store.appendEvent({
               ...event,
               id: this.idFactory(),
               runId,
             });
+            if (event.kind === "approval.requested") {
+              await transitionAgentRun(
+                this.store,
+                runId,
+                "waiting",
+                "approval-required",
+              );
+            }
           },
         });
         const latest = await this.store.getRun(runId);
         if (!latest || latest.status === "canceled") return;
+        if (latest.status === "queued") {
+          this.resumeAfterActive.add(runId);
+          return;
+        }
         if (
           result?.diffAdded !== undefined ||
           result?.diffRemoved !== undefined ||
@@ -729,26 +876,21 @@ export class LocalAgentRuntime implements AgentRuntimeAdapter {
           resultStatus,
           result?.reason,
         );
-        if (["completed", "failed", "attention"].includes(finished.status)) {
-          const unread = await this.controls.setRunUnread(runId, true);
-          if (this.onRunFinished) {
-            try {
-              await this.onRunFinished(unread);
-            } catch (error) {
-              await this.store.appendEvent({
-                id: this.idFactory(),
-                runId,
-                kind: "runtime.notice",
-                createdAt: this.now().toISOString(),
-                payload: {
-                  type: "attribution.capture.failed",
-                  error: error instanceof Error ? error.message : String(error),
-                },
-              });
-            }
+        if ((await this.controls.listQueue(runId)).length > 0) {
+          const current = await this.requireRun(runId);
+          if (current.status === "queued") {
+            this.resumeAfterActive.add(runId);
+          } else {
+            await this.resumeRun(runId);
           }
-          await this.runHooks("agent.after", { run: unread });
+          return;
         }
+        const current = await this.requireRun(runId);
+        if (current.status === "queued") {
+          this.resumeAfterActive.add(runId);
+          return;
+        }
+        await this.notifyFinishedRun(finished);
         break;
       }
     } catch (error) {
@@ -802,6 +944,32 @@ export class LocalAgentRuntime implements AgentRuntimeAdapter {
     };
   }
 
+  private async notifyFinishedRun(
+    run: AgentRun,
+    runAfterHooks = true,
+  ): Promise<void> {
+    const unread = await this.controls.setRunUnread(run.id, true);
+    if (this.onRunFinished) {
+      try {
+        await this.onRunFinished(unread);
+      } catch (error) {
+        await this.store.appendEvent({
+          id: this.idFactory(),
+          runId: run.id,
+          kind: "runtime.notice",
+          createdAt: this.now().toISOString(),
+          payload: {
+            type: "attribution.capture.failed",
+            error: error instanceof Error ? error.message : String(error),
+          },
+        });
+      }
+    }
+    if (runAfterHooks) {
+      await this.runHooks("agent.after", { run: unread });
+    }
+  }
+
   private async requireRun(runId: string): Promise<AgentRun> {
     const run = await this.store.getRun(runId);
     if (!run) throw new Error(`Agent run ${runId} does not exist`);
@@ -829,7 +997,7 @@ export class LocalAgentRuntime implements AgentRuntimeAdapter {
         .filter((context): context is string => Boolean(context)),
       blockReasons: results
         .filter((result) => result.blocked)
-        .map((result) => result.blockReason ?? "Hook blocked completion"),
+        .map((result) => result.blockReason ?? "Blocked by hook"),
     };
   }
 }

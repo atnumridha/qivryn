@@ -668,6 +668,11 @@ export class Core {
       switch (request.action) {
         case "create":
           return agentAutomationStore.create(request.request);
+        case "update":
+          return agentAutomationStore.updateAutomation(
+            request.automationId,
+            request.request,
+          );
         case "remove":
           return agentAutomationStore.remove(request.automationId);
         case "enabled":

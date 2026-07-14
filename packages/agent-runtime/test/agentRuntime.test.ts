@@ -138,6 +138,31 @@ describe("agent stores", () => {
     expect(events.map((event) => event.sequence)).toEqual([1, 2]);
   });
 
+  it("atomically deduplicates concurrent file-store idempotency keys", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "qivryn-agents-"));
+    temporaryDirectories.push(directory);
+    const stores = [
+      new FileAgentStore(directory),
+      new FileAgentStore(directory),
+    ];
+
+    const created = await Promise.all(
+      Array.from({ length: 12 }, (_, index) =>
+        stores[index % stores.length].createRun(
+          createRun({
+            id: `concurrent-${index}`,
+            idempotencyKey: "same-request",
+          }),
+        ),
+      ),
+    );
+
+    expect(new Set(created.map((run) => run.id)).size).toBe(1);
+    await expect(
+      stores[0].listRuns({ includeArchived: true }),
+    ).resolves.toHaveLength(1);
+  });
+
   it("persists queues and checkpoints across file store instances", async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "qivryn-agents-"));
     temporaryDirectories.push(directory);
@@ -303,6 +328,45 @@ describe("local agent runtime", () => {
     expect(canceledAgain.status).toBe("canceled");
   });
 
+  it("collapses concurrent runtime creates with one idempotency key", async () => {
+    const store = new MemoryAgentStore();
+    let executions = 0;
+    let id = 0;
+    const runtime = new LocalAgentRuntime(
+      store,
+      {
+        execute: async () => {
+          executions++;
+          return { status: "completed" };
+        },
+      },
+      { prepare: async (run) => run.workspace },
+      { idFactory: () => `concurrent-id-${++id}` },
+    );
+    await runtime.initialize();
+
+    const runs = await Promise.all(
+      Array.from({ length: 20 }, (_, index) =>
+        runtime.createRun({
+          idempotencyKey: "concurrent-request",
+          prompt: `Prompt ${index}`,
+          workspace: {
+            location: "local",
+            repositoryPath: "/workspace/repo",
+          },
+        }),
+      ),
+    );
+    await runtime.waitForIdle();
+
+    expect(new Set(runs.map((run) => run.id)).size).toBe(1);
+    expect(executions).toBe(1);
+    const events = await runtime.readEvents(runs[0].id);
+    expect(events.filter((event) => event.kind === "run.created")).toHaveLength(
+      1,
+    );
+  });
+
   it("manages metadata, follow-up queues, and checkpoint restore", async () => {
     const store = new MemoryAgentStore();
     let restoredCheckpointId: string | undefined;
@@ -442,6 +506,79 @@ describe("local agent runtime", () => {
         }),
       ]),
     );
+  });
+
+  it("resumes queued follow-ups from attention and draft runs", async () => {
+    const store = new MemoryAgentStore();
+    await store.createRun(
+      createRun({ id: "attention-run", status: "attention" }),
+    );
+    await store.createRun(createRun({ id: "draft-run", status: "draft" }));
+    const prompts = new Map<string, string[]>();
+    const runtime = new LocalAgentRuntime(
+      store,
+      {
+        execute: async (run) => {
+          prompts.set(run.id, [...(prompts.get(run.id) ?? []), run.prompt]);
+          return { status: "completed" };
+        },
+      },
+      { prepare: async (run) => run.workspace },
+    );
+    await runtime.initialize();
+
+    await Promise.all([
+      runtime.enqueuePrompt("attention-run", "Resume attention"),
+      runtime.enqueuePrompt("draft-run", "Start draft"),
+    ]);
+    await runtime.waitForIdle();
+
+    expect(prompts.get("attention-run")).toEqual(["Resume attention"]);
+    expect(prompts.get("draft-run")).toEqual(["Start draft"]);
+    await expect(runtime.getRun("attention-run")).resolves.toMatchObject({
+      status: "completed",
+    });
+    await expect(runtime.getRun("draft-run")).resolves.toMatchObject({
+      status: "completed",
+    });
+  });
+
+  it("does not strand a follow-up queued while a run finishes with attention", async () => {
+    const store = new MemoryAgentStore();
+    const prompts: string[] = [];
+    let release!: () => void;
+    const firstExecution = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const runtime = new LocalAgentRuntime(
+      store,
+      {
+        execute: async (run) => {
+          prompts.push(run.prompt);
+          if (prompts.length === 1) {
+            await firstExecution;
+            return { status: "attention", reason: "needs input" };
+          }
+          return { status: "completed" };
+        },
+      },
+      { prepare: async (run) => run.workspace },
+    );
+    await runtime.initialize();
+    const run = await runtime.createRun({
+      prompt: "Initial",
+      workspace: { location: "local", repositoryPath: "/workspace/repo" },
+    });
+
+    await runtime.enqueuePrompt(run.id, "Continue after attention");
+    release();
+    await runtime.waitForIdle();
+
+    expect(prompts).toEqual(["Initial", "Continue after attention"]);
+    await expect(runtime.listQueue(run.id)).resolves.toEqual([]);
+    await expect(runtime.getRun(run.id)).resolves.toMatchObject({
+      status: "completed",
+    });
   });
 
   it("duplicates runs and cleans persisted state idempotently", async () => {
@@ -1042,6 +1179,127 @@ describe("process agent executor", () => {
         expect.objectContaining({
           kind: "file.changed",
           payload: expect.objectContaining({ path: "/repo/file.ts" }),
+        }),
+      ]),
+    );
+  });
+
+  it("pauses a live process for approval and resumes that same process", async () => {
+    const runtime = new LocalAgentRuntime(
+      new MemoryAgentStore(),
+      new ProcessAgentExecutor({
+        stdoutEventKind: "message.assistant",
+        stdoutProtocol: "qivryn-agent-events",
+        progressIntervalMs: 0,
+        resolveProcess: () => ({
+          command: process.execPath,
+          args: [
+            "-e",
+            [
+              "const readline = require('node:readline');",
+              "const emit = (kind, payload) => console.log(JSON.stringify({ kind, payload }));",
+              "emit('approval.requested', { id: 'approval-1', title: 'Run tests?' });",
+              "const lines = readline.createInterface({ input: process.stdin });",
+              "lines.on('line', (line) => {",
+              "  const decision = JSON.parse(line);",
+              "  if (decision.action !== 'approval.resolve') return;",
+              "  process.stdout.write(JSON.stringify({ kind: 'message.assistant', payload: { text: decision.decision } }) + '\\n', () => process.exit(0));",
+              "});",
+            ].join(" "),
+          ],
+        }),
+      }),
+      { prepare: async (run) => run.workspace },
+    );
+    await runtime.initialize();
+    const run = await runtime.createRun({
+      prompt: "Approve tests",
+      permissionMode: "ask",
+      workspace: { location: "local", repositoryPath: process.cwd() },
+    });
+    for (let attempt = 0; attempt < 100; attempt++) {
+      if ((await runtime.getRun(run.id))?.status === "waiting") break;
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    await expect(runtime.getRun(run.id)).resolves.toMatchObject({
+      status: "waiting",
+      statusReason: "approval-required",
+    });
+
+    await runtime.resolveApproval(run.id, "approval-1", "approveAlways");
+    await runtime.waitForIdle();
+
+    await expect(runtime.getRun(run.id)).resolves.toMatchObject({
+      status: "completed",
+    });
+    const events = await runtime.readEvents(run.id);
+    expect(events.map((event) => event.kind)).toEqual(
+      expect.arrayContaining([
+        "approval.requested",
+        "approval.resolved",
+        "message.assistant",
+      ]),
+    );
+    expect(
+      events.find((event) => event.kind === "message.assistant")?.payload,
+    ).toMatchObject({ text: "approveAlways" });
+  });
+
+  it("delivers a steering follow-up to the same live process", async () => {
+    const runtime = new LocalAgentRuntime(
+      new MemoryAgentStore(),
+      new ProcessAgentExecutor({
+        stdoutEventKind: "message.assistant",
+        stdoutProtocol: "qivryn-agent-events",
+        progressIntervalMs: 0,
+        resolveProcess: () => ({
+          command: process.execPath,
+          args: [
+            "-e",
+            [
+              "const readline = require('node:readline');",
+              "const emit = (kind, payload) => console.log(JSON.stringify({ kind, payload }));",
+              "emit('runtime.notice', { type: 'ready', text: 'Ready' });",
+              "const lines = readline.createInterface({ input: process.stdin });",
+              "lines.on('line', (line) => {",
+              "  const control = JSON.parse(line);",
+              "  if (control.action !== 'message.enqueue') return;",
+              "  emit('message.user', { text: control.message, queueItemId: control.queueItemId });",
+              "  emit('runtime.notice', { type: 'steering.accepted', queueItemId: control.queueItemId });",
+              "  process.stdout.write(JSON.stringify({ kind: 'message.assistant', payload: { text: 'Steered: ' + control.message } }) + '\\n', () => process.exit(0));",
+              "});",
+            ].join(" "),
+          ],
+        }),
+      }),
+      { prepare: async (run) => run.workspace },
+    );
+    await runtime.initialize();
+    const run = await runtime.createRun({
+      prompt: "Initial task",
+      workspace: { location: "local", repositoryPath: process.cwd() },
+    });
+    for (let attempt = 0; attempt < 100; attempt++) {
+      if ((await runtime.getRun(run.id))?.status === "running") break;
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+
+    await runtime.enqueuePrompt(run.id, "Prioritize auth", "steer");
+    await runtime.waitForIdle();
+
+    await expect(runtime.listQueue(run.id)).resolves.toEqual([]);
+    const events = await runtime.readEvents(run.id);
+    expect(events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "message.user",
+          payload: expect.objectContaining({ text: "Prioritize auth" }),
+        }),
+        expect.objectContaining({
+          kind: "message.assistant",
+          payload: expect.objectContaining({
+            text: "Steered: Prioritize auth",
+          }),
         }),
       ]),
     );

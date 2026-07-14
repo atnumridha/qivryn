@@ -15,12 +15,13 @@ import Agents from ".";
 const messenger = new MockIdeMessenger();
 const visualParams = new URLSearchParams(window.location.search);
 const showEmptyState = visualParams.get("empty") === "1";
+const showRunningState = visualParams.get("running") === "1";
 const selectedRun: AgentRun = {
   id: "visual-run",
   revision: 1,
   title: "Make sure our application has all core business logic implemented",
   prompt: `${"Make sure our application matches the reference agent workspace exactly. ".repeat(8)}\n\nCore business logic\nReview the runtime, context handling, and UI behavior.`,
-  status: "completed",
+  status: showRunningState ? "running" : "completed",
   createdAt: "2026-06-30T20:00:00.000Z",
   updatedAt: "2026-06-30T21:00:00.000Z",
   permissionMode: "autonomous",
@@ -34,28 +35,22 @@ const selectedRun: AgentRun = {
   },
 };
 
-const earlierEvents: AgentEvent[] = Array.from({ length: 42 }, (_, index) => ({
-  id: `old-${index}`,
-  runId: selectedRun.id,
-  sequence: index + 1,
-  kind: "runtime.notice",
-  createdAt: `2026-06-30T20:${String(index).padStart(2, "0")}:00.000Z`,
-  payload: { text: `Earlier recovery activity ${index + 1}` },
-}));
 const recentEvents: AgentEvent[] = [
   {
-    id: "compacted",
+    id: "plan",
     runId: selectedRun.id,
-    sequence: 43,
-    kind: "runtime.notice",
+    sequence: 1,
+    kind: "message.assistant",
     createdAt: "2026-06-30T21:00:00.000Z",
-    payload: { text: "Chat history auto-compacted successfully." },
+    payload: {
+      text: "I’ll inspect the runtime boundaries, verify the agent event flow, and then run the focused checks.",
+    },
   },
-  ...Array.from({ length: 7 }, (_, index): AgentEvent[] => [
+  ...Array.from({ length: 4 }, (_, index): AgentEvent[] => [
     {
       id: `tool-${index}`,
       runId: selectedRun.id,
-      sequence: 44 + index * 2,
+      sequence: 2 + index * 2,
       kind: "tool.started",
       createdAt: `2026-06-30T21:0${index}:00.000Z`,
       payload: {
@@ -67,7 +62,7 @@ const recentEvents: AgentEvent[] = [
     {
       id: `tool-${index}-complete`,
       runId: selectedRun.id,
-      sequence: 45 + index * 2,
+      sequence: 3 + index * 2,
       kind: "tool.completed",
       createdAt: `2026-06-30T21:0${index}:01.000Z`,
       payload: {
@@ -76,16 +71,20 @@ const recentEvents: AgentEvent[] = [
       },
     },
   ]).flat(),
-  {
-    id: "answer",
-    runId: selectedRun.id,
-    sequence: 58,
-    kind: "message.assistant",
-    createdAt: "2026-06-30T21:08:00.000Z",
-    payload: {
-      text: "## Completed\n\nThe implementation and focused verification are complete.",
-    },
-  },
+  ...(showRunningState
+    ? []
+    : [
+        {
+          id: "answer",
+          runId: selectedRun.id,
+          sequence: 10,
+          kind: "message.assistant" as const,
+          createdAt: "2026-06-30T21:08:00.000Z",
+          payload: {
+            text: "## Completed\n\nThe implementation and focused verification are complete.",
+          },
+        },
+      ]),
 ];
 
 messenger.responses["agents/list"] = showEmptyState
@@ -99,7 +98,7 @@ messenger.responses["agents/list"] = showEmptyState
         prompt: "Review the codebase",
       },
     ];
-messenger.responses["agents/events"] = [...earlierEvents, ...recentEvents];
+messenger.responses["agents/events"] = recentEvents;
 messenger.responses["agents/checkpoints"] = Array.from(
   { length: 6 },
   (_, index) => ({

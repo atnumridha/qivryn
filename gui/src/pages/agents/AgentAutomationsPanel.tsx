@@ -1,6 +1,7 @@
 import type {
   AgentAutomation,
   AgentAutomationControlRequest,
+  AgentRun,
   AgentAutomationTrigger,
   AgentPermissionMode,
 } from "@qivryn/agent-runtime";
@@ -12,10 +13,18 @@ import {
   PlusIcon,
   TrashIcon,
 } from "@heroicons/react/24/outline";
-import { FormEvent, useCallback, useContext, useEffect, useState } from "react";
+import {
+  FormEvent,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { IdeMessengerContext } from "../../context/IdeMessenger";
 import { useAppSelector } from "../../redux/hooks";
 import { selectSelectedChatModel } from "../../redux/slices/configSlice";
+import { formatReasoningEffort } from "../../components/modelSelection/reasoningEffortLabels";
 
 const WEEKDAYS = [
   { value: 1, label: "M" },
@@ -41,17 +50,56 @@ function triggerLabel(trigger: AgentAutomationTrigger): string {
   return `${labels} at ${trigger.at}`;
 }
 
+function reasoningLevels(model: unknown): string[] {
+  const extra = (model as any)?.requestOptions?.extraBodyProperties as
+    | Record<string, unknown>
+    | undefined;
+  return Array.isArray(extra?._reasoningLevels)
+    ? extra._reasoningLevels.filter(
+        (value): value is string => typeof value === "string",
+      )
+    : [];
+}
+
+function defaultReasoningEffort(model: unknown, levels: string[]): string {
+  const extra = (model as any)?.requestOptions?.extraBodyProperties as
+    | Record<string, unknown>
+    | undefined;
+  const configured = extra?.reasoning_effort;
+  if (typeof configured === "string" && levels.includes(configured)) {
+    return configured;
+  }
+  return levels.includes("medium") ? "medium" : (levels[0] ?? "");
+}
+
+function automationRunId(value: unknown): string | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const record = value as Partial<AgentRun & AgentAutomation>;
+  if (typeof record.id === "string" && "workspace" in record) {
+    return record.id;
+  }
+  return typeof record.lastRunId === "string" ? record.lastRunId : undefined;
+}
+
 export function AgentAutomationsPanel({
   defaultRepository,
   onClose,
   onRunStarted,
+  onOpenRun,
 }: {
   defaultRepository: string;
   onClose: () => void;
   onRunStarted: () => void;
+  onOpenRun: (runId: string) => void;
 }) {
   const ideMessenger = useContext(IdeMessengerContext);
   const selectedModel = useAppSelector(selectSelectedChatModel);
+  const chatModels = useAppSelector(
+    (state) => state.config.config.modelsByRole.chat,
+  );
+  const reasoningSettings = useAppSelector(
+    (state) => state.ui.reasoningEffortSettings,
+  );
   const [items, setItems] = useState<AgentAutomation[]>([]);
   const [name, setName] = useState("");
   const [prompt, setPrompt] = useState("");
@@ -60,13 +108,17 @@ export function AgentAutomationsPanel({
   const [triggerType, setTriggerType] =
     useState<AgentAutomationTrigger["type"]>("interval");
   const [scheduleTime, setScheduleTime] = useState("09:00");
+  const [rrule, setRrule] = useState("FREQ=DAILY;BYHOUR=9;BYMINUTE=0");
   const [daysOfWeek, setDaysOfWeek] = useState<number[]>([1, 2, 3, 4, 5]);
   const [permissionMode, setPermissionMode] =
     useState<AgentPermissionMode>("autonomous");
+  const [model, setModel] = useState(selectedModel?.title ?? "");
+  const [reasoningEffort, setReasoningEffort] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [selectedId, setSelectedId] = useState<string>();
   const [showDraft, setShowDraft] = useState(false);
+  const [editingId, setEditingId] = useState<string>();
 
   const load = useCallback(async () => {
     const response = await ideMessenger.request(
@@ -88,6 +140,33 @@ export function AgentAutomationsPanel({
 
   useEffect(() => void load(), [load]);
 
+  useEffect(() => {
+    if (!model && selectedModel?.title) setModel(selectedModel.title);
+  }, [model, selectedModel]);
+
+  const activeModel = useMemo(
+    () =>
+      chatModels.find((candidate) => candidate.title === model) ??
+      selectedModel,
+    [chatModels, model, selectedModel],
+  );
+  const availableReasoning = useMemo(
+    () => reasoningLevels(activeModel),
+    [activeModel],
+  );
+
+  useEffect(() => {
+    if (!activeModel?.title) {
+      setReasoningEffort("");
+      return;
+    }
+    if (reasoningEffort && availableReasoning.includes(reasoningEffort)) return;
+    setReasoningEffort(
+      reasoningSettings[activeModel.title] ??
+        defaultReasoningEffort(activeModel, availableReasoning),
+    );
+  }, [activeModel, availableReasoning, reasoningEffort, reasoningSettings]);
+
   const control = async (request: AgentAutomationControlRequest) => {
     setError(undefined);
     const response = await ideMessenger.request(
@@ -96,10 +175,10 @@ export function AgentAutomationsPanel({
     );
     if (response.status === "error") {
       setError(response.error);
-      return false;
+      return undefined;
     }
     await load();
-    return true;
+    return response.content;
   };
 
   const selected = items.find((item) => item.id === selectedId);
@@ -130,24 +209,55 @@ export function AgentAutomationsPanel({
             ? { type: "daily", at: scheduleTime }
             : triggerType === "weekly"
               ? { type: "weekly", at: scheduleTime, daysOfWeek }
-              : { type: "rrule", rrule: "FREQ=DAILY;BYHOUR=9;BYMINUTE=0" };
-    const created = await control({
-      action: "create",
-      request: {
-        name,
-        prompt,
-        repositoryPath: repository,
-        permissionMode,
-        model: selectedModel?.title,
-        trigger,
-      },
-    });
-    if (created) {
+              : { type: "rrule", rrule: rrule.trim() };
+    const request = {
+      name,
+      prompt,
+      repositoryPath: repository,
+      permissionMode,
+      model: model || undefined,
+      reasoningEffort: reasoningEffort || undefined,
+      trigger,
+    };
+    const saved = await control(
+      editingId
+        ? { action: "update", automationId: editingId, request }
+        : { action: "create", request },
+    );
+    if (saved) {
       setName("");
       setPrompt("");
       setShowDraft(false);
+      setEditingId(undefined);
     }
     setBusy(false);
+  };
+
+  const editAutomation = (automation: AgentAutomation) => {
+    setEditingId(automation.id);
+    setName(automation.name);
+    setPrompt(automation.prompt);
+    setRepository(automation.repositoryPath);
+    setPermissionMode(automation.permissionMode);
+    setModel(automation.model ?? selectedModel?.title ?? "");
+    setReasoningEffort(automation.reasoningEffort ?? "");
+    setTriggerType(automation.trigger.type);
+    if (automation.trigger.type === "interval") {
+      setMinutes(String(automation.trigger.everyMinutes));
+    }
+    if (
+      automation.trigger.type === "daily" ||
+      automation.trigger.type === "weekly"
+    ) {
+      setScheduleTime(automation.trigger.at);
+    }
+    if (automation.trigger.type === "weekly") {
+      setDaysOfWeek(automation.trigger.daysOfWeek);
+    }
+    if (automation.trigger.type === "rrule") {
+      setRrule(automation.trigger.rrule);
+    }
+    setShowDraft(true);
   };
 
   return (
@@ -173,7 +283,10 @@ export function AgentAutomationsPanel({
         </div>
         <button
           type="button"
-          onClick={() => setShowDraft(true)}
+          onClick={() => {
+            setEditingId(undefined);
+            setShowDraft(true);
+          }}
           className="qivryn-neutral-primary flex h-8 items-center gap-1.5 rounded-lg border-none px-3 text-xs font-medium"
         >
           <PlusIcon className="h-4 w-4" />
@@ -232,7 +345,7 @@ export function AgentAutomationsPanel({
             >
               <div className="mb-6">
                 <h3 className="m-0 text-xl font-medium">
-                  Create scheduled task
+                  {editingId ? "Edit scheduled task" : "Create scheduled task"}
                 </h3>
                 <p className="text-description mb-0 mt-1 text-xs">
                   The task runs in its own durable conversation and keeps its
@@ -284,6 +397,7 @@ export function AgentAutomationsPanel({
                     <option value="interval">Interval</option>
                     <option value="daily">Daily</option>
                     <option value="weekly">Weekly</option>
+                    <option value="rrule">Advanced RRULE</option>
                   </select>
                 </label>
                 <label className="qivryn-field-label">
@@ -301,6 +415,54 @@ export function AgentAutomationsPanel({
                     <option value="autonomous">Autonomous</option>
                     <option value="fullAccess">Full access</option>
                     <option value="readOnly">Read only</option>
+                  </select>
+                </label>
+              </div>
+              <div className="grid grid-cols-1 gap-3 min-[620px]:grid-cols-2">
+                <label className="qivryn-field-label">
+                  <span>Model</span>
+                  <select
+                    aria-label="Automation model"
+                    value={model}
+                    onChange={(event) => {
+                      const next = event.target.value;
+                      setModel(next);
+                      const nextModel = chatModels.find(
+                        (candidate) => candidate.title === next,
+                      );
+                      const levels = reasoningLevels(nextModel);
+                      setReasoningEffort(
+                        reasoningSettings[next] ??
+                          defaultReasoningEffort(nextModel, levels),
+                      );
+                    }}
+                  >
+                    {chatModels.length === 0 && (
+                      <option value="">Current default</option>
+                    )}
+                    {chatModels.map((candidate) => (
+                      <option key={candidate.title} value={candidate.title}>
+                        {candidate.title}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="qivryn-field-label">
+                  <span>Reasoning</span>
+                  <select
+                    aria-label="Automation reasoning"
+                    value={reasoningEffort}
+                    disabled={availableReasoning.length === 0}
+                    onChange={(event) => setReasoningEffort(event.target.value)}
+                  >
+                    {availableReasoning.length === 0 && (
+                      <option value="">Provider default</option>
+                    )}
+                    {availableReasoning.map((effort) => (
+                      <option key={effort} value={effort}>
+                        {formatReasoningEffort(effort)}
+                      </option>
+                    ))}
                   </select>
                 </label>
               </div>
@@ -354,23 +516,43 @@ export function AgentAutomationsPanel({
                   </div>
                 </div>
               )}
+              {triggerType === "rrule" && (
+                <label className="qivryn-field-label">
+                  <span>RRULE</span>
+                  <input
+                    aria-label="Automation RRULE"
+                    value={rrule}
+                    onChange={(event) => setRrule(event.target.value)}
+                    placeholder="FREQ=DAILY;BYHOUR=9;BYMINUTE=0"
+                  />
+                </label>
+              )}
               <div className="border-input mt-6 flex items-center justify-end gap-2 border-t pt-4">
                 <button
                   type="button"
-                  onClick={() => setShowDraft(false)}
+                  onClick={() => {
+                    setShowDraft(false);
+                    setEditingId(undefined);
+                  }}
                   className="hover:bg-list-hover h-8 rounded-lg border-none bg-transparent px-3 text-xs"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  aria-label="Create"
+                  aria-label={editingId ? "Save scheduled task" : "Create"}
                   disabled={
                     busy || !name.trim() || !prompt.trim() || !repository.trim()
                   }
                   className="qivryn-neutral-primary h-8 rounded-lg border-none px-3 text-xs font-medium disabled:opacity-50"
                 >
-                  {busy ? "Creating…" : "Create task"}
+                  {busy
+                    ? editingId
+                      ? "Saving…"
+                      : "Creating…"
+                    : editingId
+                      ? "Save task"
+                      : "Create task"}
                 </button>
               </div>
             </form>
@@ -389,25 +571,36 @@ export function AgentAutomationsPanel({
                       : " · Paused"}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  aria-label={`${selected.enabled ? "Pause" : "Resume"} ${selected.name}`}
-                  onClick={() =>
-                    void control({
-                      action: "enabled",
-                      automationId: selected.id,
-                      enabled: !selected.enabled,
-                    })
-                  }
-                  className="border-input hover:bg-list-hover flex h-8 items-center gap-1.5 rounded-lg border bg-transparent px-3 text-xs"
-                >
-                  {selected.enabled ? (
-                    <PauseIcon className="h-4 w-4" />
-                  ) : (
-                    <PlayIcon className="h-4 w-4" />
-                  )}
-                  {selected.enabled ? "Pause" : "Resume"}
-                </button>
+                <div className="flex flex-shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    aria-label={`Edit ${selected.name}`}
+                    title="Edit scheduled task"
+                    onClick={() => editAutomation(selected)}
+                    className="border-input hover:bg-list-hover h-8 rounded-lg border bg-transparent px-3 text-xs"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`${selected.enabled ? "Pause" : "Resume"} ${selected.name}`}
+                    onClick={() =>
+                      void control({
+                        action: "enabled",
+                        automationId: selected.id,
+                        enabled: !selected.enabled,
+                      })
+                    }
+                    className="border-input hover:bg-list-hover flex h-8 items-center gap-1.5 rounded-lg border bg-transparent px-3 text-xs"
+                  >
+                    {selected.enabled ? (
+                      <PauseIcon className="h-4 w-4" />
+                    ) : (
+                      <PlayIcon className="h-4 w-4" />
+                    )}
+                    {selected.enabled ? "Pause" : "Resume"}
+                  </button>
+                </div>
               </header>
               <section className="border-input border-b py-5">
                 <h4 className="mb-2 mt-0 text-xs font-medium">Instructions</h4>
@@ -422,6 +615,12 @@ export function AgentAutomationsPanel({
                 </dd>
                 <dt>Model</dt>
                 <dd>{selected.model ?? "Current default"}</dd>
+                <dt>Reasoning</dt>
+                <dd>
+                  {selected.reasoningEffort
+                    ? formatReasoningEffort(selected.reasoningEffort)
+                    : "Provider default"}
+                </dd>
                 <dt>Permissions</dt>
                 <dd>{selected.permissionMode}</dd>
                 <dt>Last run</dt>
@@ -431,7 +630,7 @@ export function AgentAutomationsPanel({
                     : "Never"}
                 </dd>
               </dl>
-              <div className="flex items-center justify-between pt-5">
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-5">
                 <button
                   type="button"
                   onClick={() =>
@@ -444,21 +643,37 @@ export function AgentAutomationsPanel({
                 >
                   <TrashIcon className="h-4 w-4" /> Delete
                 </button>
-                <button
-                  type="button"
-                  aria-label={`Run ${selected.name}`}
-                  onClick={() =>
-                    void control({
-                      action: "run",
-                      automationId: selected.id,
-                    }).then((ok) => {
-                      if (ok) onRunStarted();
-                    })
-                  }
-                  className="qivryn-neutral-primary flex h-8 items-center gap-1.5 rounded-lg border-none px-3 text-xs font-medium"
-                >
-                  <PlayIcon className="h-4 w-4" /> Run now
-                </button>
+                <div className="flex items-center gap-2">
+                  {selected.lastRunId && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenRun(selected.lastRunId!)}
+                      className="border-input hover:bg-list-hover h-8 rounded-lg border bg-transparent px-3 text-xs"
+                    >
+                      Open last run
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    aria-label={`Run ${selected.name}`}
+                    onClick={() =>
+                      void control({
+                        action: "run",
+                        automationId: selected.id,
+                      }).then((ok) => {
+                        const runId = automationRunId(ok);
+                        if (runId) {
+                          onOpenRun(runId);
+                          return;
+                        }
+                        onRunStarted();
+                      })
+                    }
+                    className="qivryn-neutral-primary flex h-8 items-center gap-1.5 rounded-lg border-none px-3 text-xs font-medium"
+                  >
+                    <PlayIcon className="h-4 w-4" /> Run now
+                  </button>
+                </div>
               </div>
             </article>
           ) : (
@@ -475,7 +690,10 @@ export function AgentAutomationsPanel({
               </p>
               <button
                 type="button"
-                onClick={() => setShowDraft(true)}
+                onClick={() => {
+                  setEditingId(undefined);
+                  setShowDraft(true);
+                }}
                 className="bg-button text-button-foreground flex h-8 items-center gap-1.5 rounded-lg border-none px-3 text-xs font-medium"
               >
                 <PlusIcon className="h-4 w-4" /> New task

@@ -198,6 +198,10 @@ addCommonOptions(program)
     "Strip <think></think> tags and excess whitespace from output. Only works with -p/--print flag.",
   )
   .option("--resume", "Resume from last session")
+  .option(
+    "--session-id <sessionId>",
+    "Load or create an exact session ID in headless mode",
+  )
   .option("--fork <sessionId>", "Fork from an existing session ID")
   .option(
     "--beta-subagent-tool",
@@ -230,6 +234,12 @@ addCommonOptions(program)
     const isHeadless = options.print;
     configureConsoleForHeadless(isHeadless);
     logger.configureHeadlessMode(isHeadless);
+
+    if (options.sessionId && !options.print) {
+      safeStderr("Error: --session-id requires -p/--print.\n");
+      await gracefulExit(1);
+      return;
+    }
 
     // Validate all command line flags
     const validation = validateFlags({
@@ -282,11 +292,16 @@ addCommonOptions(program)
       }
     }
 
-    // In headless mode, ensure we have a prompt unless using --agent flag or --resume flag
-    // Agent files can provide their own prompts, and resume can work without new input
-    if (options.print && !prompt && !options.agent && !options.resume) {
+    // Agent files and explicit/resumed sessions can start without new input.
+    if (
+      options.print &&
+      !prompt &&
+      !options.agent &&
+      !options.resume &&
+      !options.sessionId
+    ) {
       safeStderr(
-        "Error: A prompt is required when using the -p/--print flag, unless --prompt, --agent, or --resume is provided.\n\n",
+        "Error: A prompt is required when using the -p/--print flag, unless --prompt, --agent, --resume, or --session-id is provided.\n\n",
       );
       safeStderr("Usage examples:\n");
       safeStderr('  qivryn -p "please review my current git diff"\n');
@@ -295,6 +310,7 @@ addCommonOptions(program)
       safeStderr("  qivryn -p --agent my-org/my-agent\n");
       safeStderr("  qivryn -p --prompt my-org/my-prompt\n");
       safeStderr("  qivryn -p --resume\n");
+      safeStderr("  qivryn -p --session-id my-session\n");
       await gracefulExit(1);
     }
 

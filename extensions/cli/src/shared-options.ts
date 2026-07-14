@@ -1,4 +1,4 @@
-import { Command } from "commander";
+import { Command, Option } from "commander";
 
 // Function to add common options to any command
 export function addCommonOptions(command: Command): Command {
@@ -11,7 +11,12 @@ export function addCommonOptions(command: Command): Command {
       "--org <slug>",
       "Organization slug to use for this session (supported only in headless mode)",
     )
-    .option("--readonly", "Start in plan mode (read-only tools)")
+    .addOption(
+      new Option(
+        "--readonly",
+        "Start in plan mode with strictly read-only tools",
+      ).conflicts("agent"),
+    )
     .option(
       "--autonomous",
       "Run tools autonomously while retaining dynamic command security",

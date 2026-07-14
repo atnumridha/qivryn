@@ -79,7 +79,7 @@ vi.mock("./streamChatResponse.compactionHelpers.js", () => ({
   ),
 }));
 
-describe("streamChatResponse - auto-continuation after compaction", () => {
+describe("streamChatResponse - compaction request control", () => {
   const mockModel: ModelConfig = {
     provider: "openai",
     name: "gpt-4",
@@ -133,7 +133,7 @@ describe("streamChatResponse - auto-continuation after compaction", () => {
     } as unknown as AbortController;
   });
 
-  it("forces compaction and retries once when provider token accounting rejects the request", async () => {
+  it("forces one compaction and bounds provider recovery to one retry", async () => {
     const { services } = await import("../services/index.js");
     const { handlePreApiCompaction } = await import(
       "./streamChatResponse.compactionHelpers.js"
@@ -154,35 +154,27 @@ describe("streamChatResponse - auto-continuation after compaction", () => {
         wasCompacted: options.force === true,
       }),
     );
-    const onSystemMessage = vi.fn();
-
     const response = await streamChatResponse(
       chatHistory,
       mockModel,
       mockLlmApi,
       mockAbortController,
-      { onSystemMessage },
     );
 
-    expect(apiCalls).toBe(3);
+    expect(apiCalls).toBe(2);
     expect(handlePreApiCompaction).toHaveBeenCalledWith(
       expect.any(Array),
       expect.objectContaining({ force: true }),
     );
-    expect(onSystemMessage).toHaveBeenCalledWith(
-      expect.stringContaining("retrying automatically"),
-    );
-    expect(services.chatHistory.addUserMessage).toHaveBeenCalledWith("qivryn");
+    expect(services.chatHistory.addUserMessage).not.toHaveBeenCalled();
     expect(response).toContain("Recovered");
   });
 
-  it("should automatically continue after compaction when no tool calls remain", async () => {
+  it("does not synthesize a continuation after compaction", async () => {
     const { services } = await import("../services/index.js");
     const { handleNormalAutoCompaction } = await import(
       "./streamChatResponse.compactionHelpers.js"
     );
-    const { logger } = await import("../util/logger.js");
-
     // Track history modifications
     const historyUpdates: string[] = [];
     vi.mocked(services.chatHistory.addUserMessage).mockImplementation((msg) => {
@@ -193,18 +185,13 @@ describe("streamChatResponse - auto-continuation after compaction", () => {
       };
     });
 
-    // First call: compaction happens
-    // Second call (after continuation): no compaction
-    let compactionCallCount = 0;
     vi.mocked(handleNormalAutoCompaction).mockImplementation(() => {
-      compactionCallCount++;
       return Promise.resolve({
         chatHistory,
-        wasCompacted: compactionCallCount === 1, // Only first call has compaction
+        wasCompacted: true,
       });
     });
 
-    // Simulate: first response completes (no tool calls), triggering auto-qivryn
     let callCount = 0;
     mockLlmApi.chatCompletionStream = vi
       .fn()
@@ -213,9 +200,6 @@ describe("streamChatResponse - auto-continuation after compaction", () => {
         if (callCount === 1) {
           // First call: just content, no tool calls (shouldContinue = false)
           yield contentChunk("First response");
-        } else if (callCount === 2) {
-          // Second call: after auto-continuation
-          yield contentChunk("Continued after compaction");
         }
       }) as any;
 
@@ -226,19 +210,8 @@ describe("streamChatResponse - auto-continuation after compaction", () => {
       mockAbortController,
     );
 
-    // Verify "qivryn" message was added
-    expect(historyUpdates).toContain("qivryn");
-
-    // Verify logging occurred
-    expect(logger.debug).toHaveBeenCalledWith(
-      "Auto-compaction occurred during this turn - automatically continuing session",
-    );
-    expect(logger.debug).toHaveBeenCalledWith(
-      "Added continuation message after compaction",
-    );
-
-    // Verify the LLM was called multiple times (continuing the conversation)
-    expect(callCount).toBeGreaterThan(1);
+    expect(historyUpdates).not.toContain("qivryn");
+    expect(callCount).toBe(1);
   });
 
   it("should not auto-qivryn if compaction occurs with tool calls pending", async () => {
@@ -309,7 +282,7 @@ describe("streamChatResponse - auto-continuation after compaction", () => {
     expect(historyUpdates).not.toContain("qivryn");
   });
 
-  it("should not create infinite loops - flag is reset after continuation", async () => {
+  it("does not loop when compaction completes a content-only turn", async () => {
     const { services } = await import("../services/index.js");
     const { handleNormalAutoCompaction } = await import(
       "./streamChatResponse.compactionHelpers.js"
@@ -324,14 +297,10 @@ describe("streamChatResponse - auto-continuation after compaction", () => {
       };
     });
 
-    // Track calls - compaction happens on 1st turn, then again on 2nd turn
-    let normalCompactionCallCount = 0;
     vi.mocked(handleNormalAutoCompaction).mockImplementation(() => {
-      normalCompactionCallCount++;
-      // Compaction happens on first two calls
       return Promise.resolve({
         chatHistory,
-        wasCompacted: normalCompactionCallCount <= 1,
+        wasCompacted: true,
       });
     });
 
@@ -350,12 +319,46 @@ describe("streamChatResponse - auto-continuation after compaction", () => {
       mockAbortController,
     );
 
-    // Should only add "qivryn" once
-    // The flag is reset after the first continuation
     const qivrynCount = historyUpdates.filter((msg) => msg === "qivryn").length;
-    expect(qivrynCount).toBeLessThanOrEqual(1);
+    expect(qivrynCount).toBe(0);
+    expect(streamCallCount).toBe(1);
+  });
 
-    // Should have called the LLM at least once
-    expect(streamCallCount).toBeGreaterThanOrEqual(1);
+  it("uses one isolated request with zero tools and no shared-history access", async () => {
+    const { services } = await import("../services/index.js");
+    const { handleToolCalls } = await import("./handleToolCalls.js");
+    const { handlePreApiCompaction, handleNormalAutoCompaction } = await import(
+      "./streamChatResponse.compactionHelpers.js"
+    );
+    let capturedRequest: any;
+    const isolatedApi = {
+      chatCompletionStream: vi
+        .fn()
+        .mockImplementation(async function* (request) {
+          capturedRequest = request;
+          yield contentChunk("Summary");
+        }),
+    } as unknown as BaseLlmApi;
+    const originalHistory = structuredClone(chatHistory);
+
+    const response = await streamChatResponse(
+      chatHistory,
+      mockModel,
+      isolatedApi,
+      mockAbortController,
+      { onContent: vi.fn() },
+      true,
+    );
+
+    expect(response).toBe("Summary");
+    expect(isolatedApi.chatCompletionStream).toHaveBeenCalledTimes(1);
+    expect(capturedRequest.tools).toEqual([]);
+    expect(chatHistory).toEqual(originalHistory);
+    expect(services.chatHistory.getHistory).not.toHaveBeenCalled();
+    expect(services.chatHistory.setHistory).not.toHaveBeenCalled();
+    expect(services.chatHistory.addUserMessage).not.toHaveBeenCalled();
+    expect(handleToolCalls).not.toHaveBeenCalled();
+    expect(handlePreApiCompaction).not.toHaveBeenCalled();
+    expect(handleNormalAutoCompaction).not.toHaveBeenCalled();
   });
 });

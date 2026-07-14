@@ -27,6 +27,8 @@ describe("agent automations", () => {
       prompt: "Review the working tree",
       repositoryPath: root,
       trigger: { type: "interval", everyMinutes: 30 },
+      model: "gpt-test",
+      reasoningEffort: "high",
     });
     expect(automation.nextRunAt).toBeTruthy();
 
@@ -36,9 +38,25 @@ describe("agent automations", () => {
     expect(createRun).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: "Review the working tree",
-        metadata: { automationId: automation.id },
+        model: "gpt-test",
+        metadata: { automationId: automation.id, reasoningEffort: "high" },
       }),
     );
+
+    const updated = await store.updateAutomation(automation.id, {
+      name: "Review every morning",
+      prompt: "Review the repository and summarize findings",
+      trigger: { type: "daily", at: "09:30" },
+      permissionMode: "ask",
+    });
+    expect(updated).toMatchObject({
+      revision: 2,
+      name: "Review every morning",
+      prompt: "Review the repository and summarize findings",
+      trigger: { type: "daily", at: "09:30" },
+      permissionMode: "ask",
+    });
+    expect(updated.nextRunAt).toBeTruthy();
   });
 
   it("calculates daily and weekly schedules in the host local timezone", () => {

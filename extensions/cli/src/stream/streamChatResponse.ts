@@ -1,7 +1,10 @@
 import { ModelConfig } from "@qivryn/config-yaml";
 import { BaseLlmApi } from "@qivryn/openai-adapters";
 import type { ChatHistoryItem } from "core/index.js";
-import { convertFromUnifiedHistoryWithSystemMessage } from "core/util/messageConversion.js";
+import {
+  convertFromUnifiedHistory,
+  convertFromUnifiedHistoryWithSystemMessage,
+} from "core/util/messageConversion.js";
 import * as dotenv from "dotenv";
 import type {
   ChatCompletionMessageParam,
@@ -90,42 +93,6 @@ function refreshChatHistoryFromService(
   return chatHistory;
 }
 
-// Helper function to handle auto-continuation after compaction
-function handleAutoContinuation(
-  compactionOccurred: boolean,
-  shouldContinue: boolean,
-  chatHistory: ChatHistoryItem[],
-): { shouldAutoContinue: boolean; chatHistory: ChatHistoryItem[] } {
-  if (!compactionOccurred || shouldContinue) {
-    return { shouldAutoContinue: false, chatHistory };
-  }
-
-  logger.debug(
-    "Auto-compaction occurred during this turn - automatically continuing session",
-  );
-
-  // Add a continuation message to the history
-  const chatHistorySvc = services.chatHistory;
-  if (
-    typeof chatHistorySvc?.isReady === "function" &&
-    chatHistorySvc.isReady()
-  ) {
-    chatHistorySvc.addUserMessage("qivryn");
-    chatHistory = chatHistorySvc.getHistory();
-  } else {
-    chatHistory.push({
-      message: {
-        role: "user",
-        content: "qivryn",
-      },
-      contextItems: [],
-    });
-  }
-
-  logger.debug("Added continuation message after compaction");
-  return { shouldAutoContinue: true, chatHistory };
-}
-
 // Helper function to process a single chunk
 interface ProcessChunkOptions {
   chunk: any;
@@ -188,11 +155,11 @@ interface ProcessStreamingResponseOptions {
   callbacks?: StreamCallbacks;
   isHeadless?: boolean;
   tools?: ChatCompletionTool[];
-  systemMessage: string;
+  systemMessage?: string;
 }
 
 // Process a single streaming response and return whether we need to continue
-// eslint-disable-next-line max-statements, complexity
+// eslint-disable-next-line max-statements
 export async function processStreamingResponse(
   options: ProcessStreamingResponseOptions,
 ): Promise<{
@@ -230,10 +197,12 @@ export async function processStreamingResponse(
     throw new Error(`Context length validation failed: ${validation.error}`);
   }
 
-  // Create OpenAI format history with validated system message
-  const openaiChatHistory = convertFromUnifiedHistoryWithSystemMessage(
-    chatHistory,
-    systemMessage,
+  // Isolated requests can carry their own system item in history instead of
+  // consulting or injecting the shared runtime system message.
+  const openaiChatHistory = (
+    systemMessage === undefined
+      ? convertFromUnifiedHistory(chatHistory)
+      : convertFromUnifiedHistoryWithSystemMessage(chatHistory, systemMessage)
   ) as ChatCompletionMessageParam[];
   const requestStartTime = Date.now();
 
@@ -402,6 +371,32 @@ export async function processStreamingResponse(
   };
 }
 
+/**
+ * Run one request against caller-owned history without tools, shared-history
+ * writes, auto-compaction, or conversation continuation.
+ */
+export async function streamIsolatedChatResponse(
+  chatHistory: ChatHistoryItem[],
+  model: ModelConfig,
+  llmApi: BaseLlmApi,
+  abortController: AbortController,
+  callbacks?: StreamCallbacks,
+): Promise<string> {
+  const result = await processStreamingResponse({
+    chatHistory: [...chatHistory],
+    model,
+    llmApi,
+    abortController,
+    callbacks,
+    isHeadless: true,
+    tools: [],
+    systemMessage: undefined,
+  });
+
+  callbacks?.onContentComplete?.(result.content);
+  return result.content;
+}
+
 // Main function that handles the conversation loop
 // eslint-disable-next-line max-params
 export async function streamChatResponse(
@@ -418,11 +413,20 @@ export async function streamChatResponse(
     hasCallbacks: !!callbacks,
   });
 
+  if (isCompacting) {
+    return streamIsolatedChatResponse(
+      chatHistory,
+      model,
+      llmApi,
+      abortController,
+      callbacks,
+    );
+  }
+
   const isHeadless = services.toolPermissions.isHeadless();
 
   let fullResponse = "";
   let finalResponse = "";
-  let compactionOccurredThisTurn = false; // Track if compaction happened during this conversation turn
 
   while (true) {
     // If ChatHistoryService is available, refresh local chatHistory view
@@ -452,9 +456,6 @@ export async function streamChatResponse(
       tools,
     });
     chatHistory = preCompactionResult.chatHistory;
-    if (preCompactionResult.wasCompacted) {
-      compactionOccurredThisTurn = true;
-    }
 
     logger.debug("Tools prepared", {
       toolCount: tools.length,
@@ -483,9 +484,6 @@ export async function streamChatResponse(
       logger.warn(
         "Provider rejected estimated context size; forcing compaction and retrying once",
       );
-      callbacks?.onSystemMessage?.(
-        "The provider reported a fuller context window than estimated. Compacting now and retrying automatically.",
-      );
       const recovery = await handlePreApiCompaction(chatHistory, {
         isHeadless,
         model,
@@ -499,7 +497,6 @@ export async function streamChatResponse(
       if (!recovery.wasCompacted) throw error;
 
       chatHistory = recovery.chatHistory;
-      compactionOccurredThisTurn = true;
       streamingResult = await processStreamingResponse({
         ...requestOptions,
         chatHistory,
@@ -553,9 +550,6 @@ export async function streamChatResponse(
       },
     );
     chatHistory = postToolResult.chatHistory;
-    if (postToolResult.wasCompacted) {
-      compactionOccurredThisTurn = true;
-    }
 
     // Normal auto-compaction check at 80% threshold
     const compactionResult = await handleNormalAutoCompaction(
@@ -572,27 +566,7 @@ export async function streamChatResponse(
       },
     );
     chatHistory = compactionResult.chatHistory;
-    if (compactionResult.wasCompacted) {
-      compactionOccurredThisTurn = true;
-    }
-
-    // If compaction happened during this turn and we're about to stop,
-    // automatically send a continuation message to keep the agent going
-    const autoContinueResult = handleAutoContinuation(
-      compactionOccurredThisTurn,
-      shouldContinue,
-      chatHistory,
-    );
-    chatHistory = autoContinueResult.chatHistory;
-    const shouldAutoContinue = autoContinueResult.shouldAutoContinue;
-
-    // Reset flag to avoid infinite continuation
-    if (shouldAutoContinue) {
-      compactionOccurredThisTurn = false;
-    }
-
-    // Check if we should continue (skip break if auto-continuing after compaction)
-    if (!shouldContinue && !shouldAutoContinue) {
+    if (!shouldContinue) {
       break;
     }
   }

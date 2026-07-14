@@ -65,6 +65,9 @@ export async function handlePreApiCompaction(
       callbacks: {
         onSystemMessage: callbacks?.onSystemMessage,
         onContent: callbacks?.onContent,
+        onCompactionStart: callbacks?.onCompactionStart,
+        onCompactionComplete: callbacks?.onCompactionComplete,
+        onRecoveryComplete: callbacks?.onRecoveryComplete,
       },
       systemMessage,
       tools,
@@ -78,7 +81,6 @@ export async function handlePreApiCompaction(
       typeof chatHistorySvc?.isReady === "function" &&
       chatHistorySvc.isReady()
     ) {
-      chatHistorySvc.setHistory(preCompactHistory);
       return { chatHistory: chatHistorySvc.getHistory(), wasCompacted: true };
     }
     return { chatHistory: [...preCompactHistory], wasCompacted: true };
@@ -134,6 +136,9 @@ export async function handlePostToolValidation(
         callbacks: {
           onSystemMessage: callbacks?.onSystemMessage,
           onContent: callbacks?.onContent,
+          onCompactionStart: callbacks?.onCompactionStart,
+          onCompactionComplete: callbacks?.onCompactionComplete,
+          onRecoveryComplete: callbacks?.onRecoveryComplete,
         },
         systemMessage,
         tools,
@@ -141,9 +146,11 @@ export async function handlePostToolValidation(
       });
 
     if (wasCompacted) {
-      // Use the service to update history if available, otherwise use local copy
-      if (chatHistorySvc && typeof chatHistorySvc.setHistory === "function") {
-        chatHistorySvc.setHistory(compactedHistory);
+      // Auto-compaction already updated the active scoped history service.
+      if (
+        typeof chatHistorySvc?.isReady === "function" &&
+        chatHistorySvc.isReady()
+      ) {
         chatHistory = chatHistorySvc.getHistory();
       } else {
         // Fallback: use the compacted history directly when service unavailable
@@ -218,15 +225,20 @@ export async function handleNormalAutoCompaction(
       callbacks: {
         onSystemMessage: callbacks?.onSystemMessage,
         onContent: callbacks?.onContent,
+        onCompactionStart: callbacks?.onCompactionStart,
+        onCompactionComplete: callbacks?.onCompactionComplete,
+        onRecoveryComplete: callbacks?.onRecoveryComplete,
       },
       systemMessage,
       tools,
     });
 
   if (wasCompacted) {
-    // Use the service to update history if available, otherwise use local copy
-    if (chatHistorySvc && typeof chatHistorySvc.setHistory === "function") {
-      chatHistorySvc.setHistory(updatedChatHistory);
+    // Auto-compaction already updated the active scoped history service.
+    if (
+      typeof chatHistorySvc?.isReady === "function" &&
+      chatHistorySvc.isReady()
+    ) {
       return {
         chatHistory: chatHistorySvc.getHistory(),
         wasCompacted: true,

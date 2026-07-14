@@ -76,7 +76,7 @@ describe("ToolPermissionService - Real Tool Permission Test", () => {
       expect(result.permission).toBe("allow");
     });
 
-    it("should allow unknown tools in plan mode (for MCP tools via wildcard)", () => {
+    it("should deny unknown tools in plan mode", () => {
       const permissions = service.getPermissions();
       const toolCall = {
         name: "some_mcp_tool",
@@ -85,8 +85,7 @@ describe("ToolPermissionService - Real Tool Permission Test", () => {
       const result = checkToolPermission(toolCall, permissions);
 
       console.log(`some_mcp_tool permission check result:`, result);
-      // Plan mode allows MCP and other non-write tools via wildcard
-      expect(result.permission).toBe("allow");
+      expect(result.permission).toBe("exclude");
     });
   });
 

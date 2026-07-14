@@ -1,3 +1,5 @@
+import { AsyncLocalStorage } from "node:async_hooks";
+
 import { HookService } from "../hooks/HookService.js";
 import { initializeWithOnboarding } from "../onboarding.js";
 import {
@@ -361,7 +363,7 @@ export function getServiceStates() {
 /**
  * Direct access to service instances for complex operations
  */
-export const services = {
+const baseServices = {
   auth: authService,
   config: configService,
   model: modelService,
@@ -382,7 +384,26 @@ export const services = {
   hooks: hookService,
 } as const;
 
-export type ServicesType = typeof services;
+export type ServicesType = typeof baseServices;
+
+const serviceOverrides = new AsyncLocalStorage<Partial<ServicesType>>();
+
+export const services = new Proxy(baseServices, {
+  get(target, property, receiver) {
+    const override = serviceOverrides.getStore();
+    if (override && property in override) {
+      return override[property as keyof ServicesType];
+    }
+    return Reflect.get(target, property, receiver);
+  },
+}) as ServicesType;
+
+export function runWithServiceOverrides<T>(
+  overrides: Partial<ServicesType>,
+  callback: () => T,
+): T {
+  return serviceOverrides.run(overrides, callback);
+}
 
 // Export the service container for advanced usage
 export { serviceContainer };

@@ -1,4 +1,5 @@
 import {
+  getShellEnvironment,
   isRunningInWsl,
   runTerminalCommandTool,
 } from "./runTerminalCommand.js";
@@ -7,6 +8,16 @@ describe("runTerminalCommandTool", () => {
   const isWindows = process.platform === "win32";
   const isMac = process.platform === "darwin";
   const isLinux = process.platform === "linux";
+
+  it("removes npm prefix contamination before starting a login shell", () => {
+    expect(
+      getShellEnvironment({
+        PATH: "/usr/bin",
+        npm_config_prefix: "/workspace/cli",
+        NPM_CONFIG_PREFIX: "/workspace/CLI",
+      }),
+    ).toEqual({ PATH: "/usr/bin" });
+  });
 
   describe("basic platform-specific terminal execution", () => {
     it("should execute a simple echo command", async () => {

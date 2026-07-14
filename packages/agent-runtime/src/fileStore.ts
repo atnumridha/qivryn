@@ -27,6 +27,11 @@ export interface FileAgentStoreOptions {
   staleLockMs?: number;
 }
 
+export interface FileAgentRunCreation {
+  run: AgentRun;
+  created: boolean;
+}
+
 export class FileAgentStore implements AgentStore {
   private readonly runsDirectory: string;
   private readonly lockTimeoutMs: number;
@@ -47,10 +52,22 @@ export class FileAgentStore implements AgentStore {
   }
 
   async createRun(run: AgentRun): Promise<AgentRun> {
+    return (await this.createRunAtomic(run)).run;
+  }
+
+  async createRunAtomic(run: AgentRun): Promise<FileAgentRunCreation> {
     return this.withLock("store", async () => {
+      if (run.idempotencyKey) {
+        const idempotent = await this.findRunByIdempotencyKey(
+          run.idempotencyKey,
+        );
+        if (idempotent) {
+          return { run: idempotent, created: false };
+        }
+      }
       const existing = await this.getRun(run.id);
       if (existing) {
-        return existing;
+        return { run: existing, created: false };
       }
       const directory = this.runDirectory(run.id);
       await mkdir(directory, { recursive: true });
@@ -62,7 +79,7 @@ export class FileAgentStore implements AgentStore {
       await this.writeJsonAtomic(path.join(directory, "queue.json"), []);
       await this.writeJsonAtomic(path.join(directory, "checkpoints.json"), []);
       await this.writeJsonAtomic(path.join(directory, "plans.json"), []);
-      return structuredClone(run);
+      return { run: structuredClone(run), created: true };
     });
   }
 
@@ -80,7 +97,10 @@ export class FileAgentStore implements AgentStore {
   }
 
   async findRunByIdempotencyKey(key: string): Promise<AgentRun | undefined> {
-    const runs = await this.listRuns({ includeArchived: true });
+    const runs = await this.listRuns({
+      includeArchived: true,
+      limit: Number.MAX_SAFE_INTEGER,
+    });
     return runs.find((run) => run.idempotencyKey === key);
   }
 
@@ -106,7 +126,7 @@ export class FileAgentStore implements AgentStore {
           }
         }),
     );
-    return runs
+    const filtered = runs
       .filter((run): run is AgentRun => !!run)
       .filter((run) => options.includeArchived || !run.archived)
       .filter(
@@ -117,8 +137,10 @@ export class FileAgentStore implements AgentStore {
           !options.repositoryPath ||
           run.workspace.repositoryPath === options.repositoryPath,
       )
-      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-      .slice(0, options.limit);
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    return options.limit === undefined
+      ? filtered
+      : filtered.slice(0, options.limit);
   }
 
   async saveRun(run: AgentRun, expectedRevision: number): Promise<AgentRun> {

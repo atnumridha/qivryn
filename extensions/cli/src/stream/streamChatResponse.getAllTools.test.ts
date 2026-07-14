@@ -3,8 +3,10 @@ import { describe, expect, test } from "vitest";
 import {
   getServiceSync,
   initializeServices,
+  runWithServiceOverrides,
   SERVICE_NAMES,
   serviceContainer,
+  services,
 } from "../services/index.js";
 import type { ToolPermissionServiceState } from "../services/ToolPermissionService.js";
 
@@ -129,6 +131,41 @@ describe("getRequestTools - Tool Filtering", () => {
     expect(toolNames).toContain("Bash");
     expect(toolNames).toContain("Write");
     expect(toolNames).toContain("List");
+  });
+
+  test("uses async-scoped permissions for subagent tool discovery", async () => {
+    await initializeServices({
+      headless: false,
+      toolPermissionOverrides: { mode: "normal" },
+    });
+    const parentService = services.toolPermissions;
+    const scopedState = {
+      ...parentService.getState(),
+      permissions: {
+        policies: [
+          { tool: "Read", permission: "allow" as const },
+          { tool: "*", permission: "exclude" as const },
+        ],
+      },
+    };
+    const scopedService = new Proxy(parentService, {
+      get(target, property, receiver) {
+        if (property === "getState") return () => scopedState;
+        const value = Reflect.get(target, property, receiver);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+
+    const tools = await runWithServiceOverrides(
+      { toolPermissions: scopedService },
+      () => getRequestTools(false),
+    );
+    const toolNames = tools.map((tool) => tool.function.name);
+
+    expect(toolNames).toContain("Read");
+    expect(toolNames).not.toContain("List");
+    expect(toolNames).not.toContain("Write");
+    expect(services.toolPermissions).toBe(parentService);
   });
 
   test("plan mode should override allow flags (regression test for GitHub Actions issue)", async () => {

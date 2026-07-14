@@ -1,15 +1,9 @@
 import type { ChatHistoryItem, ToolStatus } from "core/index.js";
 import { stripImages } from "core/util/messageContent.js";
 import { createHistoryItem } from "core/util/messageConversion.js";
-
 import { checkToolPermission } from "src/permissions/permissionChecker.js";
 
-import {
-  SERVICE_NAMES,
-  serviceContainer,
-  services,
-} from "../services/index.js";
-import type { ToolPermissionServiceState } from "../services/ToolPermissionService.js";
+import { services } from "../services/index.js";
 import {
   convertToolToChatCompletionTool,
   getAllAvailableTools,
@@ -18,6 +12,7 @@ import {
 } from "../tools/index.js";
 import { logger } from "../util/logger.js";
 
+import { isAgentControlStreamEnabled } from "./agentEventStream.js";
 import {
   executeStreamedToolCalls,
   preprocessStreamedToolCalls,
@@ -171,11 +166,9 @@ export async function handleToolCalls(
 
 export async function getRequestTools(isHeadless: boolean) {
   const availableTools = await getAllAvailableTools(isHeadless);
+  const canRequestPermission = !isHeadless || isAgentControlStreamEnabled();
 
-  const permissionsState =
-    await serviceContainer.get<ToolPermissionServiceState>(
-      SERVICE_NAMES.TOOL_PERMISSIONS,
-    );
+  const permissionsState = services.toolPermissions.getState();
 
   const allowedTools: Tool[] = [];
   for (const tool of availableTools) {
@@ -186,7 +179,7 @@ export async function getRequestTools(isHeadless: boolean) {
 
     if (
       result.permission === "allow" ||
-      (result.permission === "ask" && !isHeadless)
+      (result.permission === "ask" && canRequestPermission)
     ) {
       allowedTools.push(tool);
     }

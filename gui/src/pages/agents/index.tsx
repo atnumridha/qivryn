@@ -1,4 +1,6 @@
 import type {
+  AgentApprovalDecision,
+  AgentApprovalRequest,
   AgentCheckpoint,
   AgentControlRequest,
   AgentEvent,
@@ -33,16 +35,20 @@ import {
   ChatBubbleLeftRightIcon,
   CheckCircleIcon,
   ChevronRightIcon,
+  CommandLineIcon,
   CursorArrowRaysIcon,
   DocumentDuplicateIcon,
+  DocumentTextIcon,
   EllipsisHorizontalIcon,
   ExclamationTriangleIcon,
+  FolderIcon,
+  GlobeAltIcon,
   MagnifyingGlassIcon,
   PencilSquareIcon,
   PlusIcon,
   QueueListIcon,
   SquaresPlusIcon,
-  Squares2X2Icon,
+  StarIcon,
   WrenchScrewdriverIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
@@ -65,6 +71,7 @@ import { ROUTES } from "../../util/navigation";
 import ModelSelect from "../../components/modelSelection/ModelSelect";
 import { ReasoningEffortSelect } from "../../components/modelSelection/ReasoningEffortSelect";
 import { ModeSelect } from "../../components/ModeSelect";
+import { VoiceInputButton } from "../../components/mainInput/VoiceInputButton";
 import StyledMarkdownPreview from "../../components/StyledMarkdownPreview";
 import "./agents.css";
 import { AgentAutomationsPanel } from "./AgentAutomationsPanel";
@@ -72,6 +79,8 @@ import { SkillSelect } from "../../components/skills/SkillSelect";
 
 const CHAT_OPEN_TIMEOUT_MS = 15_000;
 const AGENT_FOLLOW_UP_RESUME_STATUSES = new Set<AgentRun["status"]>([
+  "draft",
+  "attention",
   "completed",
   "failed",
   "canceled",
@@ -120,13 +129,65 @@ function withSkill(prompt: string, skillName?: string): string {
     : prompt;
 }
 
-function normalizeFilePath(value: string): string {
+function appendVoiceTranscript(current: string, transcript: string): string {
+  const existing = current.trimEnd();
+  return existing ? `${existing} ${transcript}` : transcript;
+}
+
+function repositoryDisplayName(repositoryPath: string): string | undefined {
+  return repositoryPath
+    .replace(/[\\/]+$/, "")
+    .split(/[\\/]/)
+    .filter(Boolean)
+    .at(-1);
+}
+
+const LAST_AGENT_REPOSITORY_KEY = "qivryn.agents.lastRepository";
+const AGENT_REPOSITORY_CHANGED_EVENT = "qivryn:agent-repository-changed";
+
+function initialAgentRepositoryPath(): string {
+  const stored = window.localStorage.getItem(LAST_AGENT_REPOSITORY_KEY);
+  if (stored?.trim()) {
+    return normalizeFilePath(stored);
+  }
+  return normalizeFilePath(window.workspacePaths?.[0] ?? "");
+}
+
+export function normalizeFilePath(value: string): string {
+  if (value.startsWith("file:")) {
+    try {
+      const uri = new URL(value);
+      const pathname = decodeURIComponent(uri.pathname).replace(/\\/g, "/");
+      if (uri.hostname && uri.hostname !== "localhost") {
+        return `//${uri.hostname}${pathname}`;
+      }
+      return /^\/[A-Za-z]:\//.test(pathname) ? pathname.slice(1) : pathname;
+    } catch {
+      // Fall through for malformed legacy values.
+    }
+  }
   const withoutScheme = value.replace(/^file:\/\//, "");
   try {
     return decodeURIComponent(withoutScheme).replace(/\\/g, "/");
   } catch {
     return withoutScheme.replace(/\\/g, "/");
   }
+}
+
+export function fileUriFromPath(value: string): string {
+  const normalized = normalizeFilePath(value);
+  if (normalized.startsWith("//")) {
+    const [host, ...segments] = normalized.slice(2).split("/");
+    return `file://${host}/${segments.map(encodeURIComponent).join("/")}`;
+  }
+  const drivePath = /^[A-Za-z]:\//.test(normalized);
+  const segments = normalized
+    .split("/")
+    .map((segment, index) =>
+      drivePath && index === 0 ? segment : encodeURIComponent(segment),
+    );
+  const encoded = segments.join("/");
+  return drivePath ? `file:///${encoded}` : `file://${encoded}`;
 }
 
 function repositoryFileReference(
@@ -331,9 +392,10 @@ function AgentContextPicker({
       }
       references = [reference];
     }
-    const uris = references.map(
-      (reference) =>
-        `file://${repositoryPath.replace(/\/$/, "")}/${reference.replace(/^\//, "")}`,
+    const uris = references.map((reference) =>
+      fileUriFromPath(
+        `${repositoryPath.replace(/[\\/]$/, "")}/${reference.replace(/^[\\/]/, "")}`,
+      ),
     );
     const response = await ideMessenger.request("context/getSymbolsForFiles", {
       uris,
@@ -789,8 +851,7 @@ function parseMultitaskItems(value: string): string[] {
   return value
     .split(/\r?\n/)
     .map((item) => item.replace(/^\s*(?:[-*]|\d+[.)])\s+/, "").trim())
-    .filter(Boolean)
-    .slice(0, 12);
+    .filter(Boolean);
 }
 
 function configuredReasoningEffort(model: unknown): string | undefined {
@@ -844,8 +905,8 @@ function agentDepth(run: AgentRun, runs: AgentRun[]): number {
   return depth;
 }
 
-const EVENT_ROW_HEIGHT = 58;
-const EVENT_VIEWPORT_HEIGHT = 348;
+const EVENT_BATCH_SIZE = 200;
+const MAX_PARALLEL_TASKS = 12;
 
 type ConversationItem =
   | { type: "event"; event: AgentEvent }
@@ -870,10 +931,101 @@ function eventSummary(event: AgentEvent): string {
       payload.reason ??
       payload.error ??
       payload.status ??
-      payload.to;
+      payload.to ??
+      payload.result;
     if (typeof value === "string") return value;
   }
   return "";
+}
+
+function isInternalRuntimeEvent(event: AgentEvent): boolean {
+  if (event.kind === "run.progress" || event.kind === "run.status") {
+    return true;
+  }
+  if (event.kind !== "runtime.notice") return false;
+  const payload = eventPayload(event);
+  if (payload.type === "hook.result" && !eventSummary(event)) return true;
+  return /approaching context limit|auto-compact|history compacted|context optimized|bounded local summary/i.test(
+    eventSummary(event),
+  );
+}
+
+function pendingAgentApprovals(events: AgentEvent[]): AgentApprovalRequest[] {
+  const pending = new Map<string, AgentApprovalRequest>();
+  for (const event of [...events].sort((a, b) => a.sequence - b.sequence)) {
+    const payload = eventPayload(event);
+    if (event.kind === "approval.requested") {
+      const id = String(payload.id ?? payload.approvalId ?? event.id);
+      pending.set(id, {
+        id,
+        runId: event.runId,
+        createdAt: event.createdAt,
+        title:
+          typeof payload.title === "string"
+            ? payload.title
+            : "Approval required",
+        toolName:
+          typeof (payload.toolName ?? payload.name) === "string"
+            ? String(payload.toolName ?? payload.name)
+            : undefined,
+        detail:
+          typeof (payload.detail ?? payload.text) === "string"
+            ? String(payload.detail ?? payload.text)
+            : undefined,
+        command:
+          typeof payload.command === "string" ? payload.command : undefined,
+        paths: Array.isArray(payload.paths)
+          ? payload.paths.filter(
+              (path): path is string => typeof path === "string",
+            )
+          : undefined,
+        status: "pending",
+      });
+    }
+    if (event.kind === "approval.resolved") {
+      pending.delete(String(payload.approvalId ?? payload.id ?? ""));
+    }
+  }
+  return [...pending.values()];
+}
+
+interface AgentSubagentActivity {
+  id: string;
+  name: string;
+  status: "running" | "completed" | "failed";
+  detail?: string;
+}
+
+function agentSubagentActivity(events: AgentEvent[]): AgentSubagentActivity[] {
+  const subagents = new Map<string, AgentSubagentActivity>();
+  for (const event of [...events].sort((a, b) => a.sequence - b.sequence)) {
+    if (
+      event.kind !== "subagent.created" &&
+      event.kind !== "subagent.updated"
+    ) {
+      continue;
+    }
+    const payload = eventPayload(event);
+    const name =
+      typeof payload.name === "string" && payload.name.trim()
+        ? payload.name.trim()
+        : "Subagent";
+    const id =
+      typeof payload.id === "string" && payload.id.trim()
+        ? payload.id.trim()
+        : name;
+    const status =
+      payload.status === "completed" || payload.status === "failed"
+        ? payload.status
+        : "running";
+    subagents.set(id, {
+      id,
+      name,
+      status,
+      detail: eventSummary(event) || undefined,
+    });
+  }
+  return [...subagents.values()];
 }
 
 function eventPayload(event: AgentEvent): Record<string, unknown> {
@@ -884,6 +1036,9 @@ function eventPayload(event: AgentEvent): Record<string, unknown> {
 
 function toolKey(event: AgentEvent): string {
   const payload = eventPayload(event);
+  if (typeof payload.toolCallId === "string" && payload.toolCallId.trim()) {
+    return `id:${payload.toolCallId.trim()}`;
+  }
   if (typeof payload.toolName === "string") return payload.toolName;
   if (payload.scope === "process") return "__agent_process__";
   return "__unscoped__";
@@ -980,6 +1135,24 @@ function eventTime(event: AgentEvent): string {
   });
 }
 
+function ToolIdentityIcon({ event }: { event: AgentEvent }) {
+  const name = toolDisplayName(event).toLowerCase();
+  const Icon = /terminal|shell|command|process/.test(name)
+    ? CommandLineIcon
+    : /read|write|edit|file|patch/.test(name)
+      ? DocumentTextIcon
+      : /list|directory|folder/.test(name)
+        ? FolderIcon
+        : /search|find|grep/.test(name)
+          ? MagnifyingGlassIcon
+          : /browser|web|url/.test(name)
+            ? GlobeAltIcon
+            : /computer|click|screenshot/.test(name)
+              ? CursorArrowRaysIcon
+              : WrenchScrewdriverIcon;
+  return <Icon className="h-3.5 w-3.5" />;
+}
+
 function ToolActivityCard({ item }: { item: ToolConversationItem }) {
   const failed = item.finished?.kind === "tool.failed";
   const running = !item.finished;
@@ -1017,13 +1190,11 @@ function ToolActivityCard({ item }: { item: ToolConversationItem }) {
     >
       <summary className="cursor-tool-summary flex min-w-0 cursor-pointer list-none items-center">
         <span className="cursor-tool-icon flex flex-shrink-0 items-center justify-center">
-          {failed ? (
-            <ExclamationTriangleIcon className="h-3.5 w-3.5" />
-          ) : running ? (
-            <span className="cursor-agent-spinner !h-3.5 !w-3.5" />
-          ) : (
-            <CheckCircleIcon className="h-3.5 w-3.5" />
-          )}
+          <ToolIdentityIcon event={item.started} />
+          <span className="cursor-tool-status-indicator" aria-hidden="true" />
+          <span className="sr-only">
+            {failed ? "Failed" : running ? "Running" : "Completed"}
+          </span>
         </span>
         <span className="cursor-tool-main min-w-0 flex-1">
           <span className="cursor-tool-title-row flex min-w-0 items-center">
@@ -1079,9 +1250,7 @@ function isPrimaryConversationEvent(event: AgentEvent): boolean {
   return (
     event.kind === "message.user" ||
     event.kind === "message.assistant" ||
-    event.kind === "message.reasoning" ||
-    event.kind === "runtime.notice" ||
-    event.kind === "run.progress"
+    event.kind === "message.reasoning"
   );
 }
 
@@ -1108,25 +1277,41 @@ function ActivityDrawer({
   onEditAndResend?: (prompt: string) => void;
 }) {
   if (items.length === 0) return null;
-  const toolCount = items.filter((item) => item.type === "tool").length;
-  const eventCount = items.length - toolCount;
+  const toolItems = items.filter((item) => item.type === "tool");
+  const runtimeItems = items.filter((item) => item.type === "event");
+  const toolCount = toolItems.length;
+  const eventCount = runtimeItems.length;
   const summary =
     toolCount > 0
       ? `${toolCount} tool ${toolCount === 1 ? "call" : "calls"}`
       : `${eventCount} runtime ${eventCount === 1 ? "event" : "events"}`;
   return (
-    <details
+    <div
       className="cursor-agent-activity-drawer"
       data-testid="agent-activity-drawer"
+      role="group"
+      aria-label={summary}
     >
-      <summary className="cursor-agent-activity-summary">
-        <span>Activity</span>
-        <span>{summary}</span>
-      </summary>
       <div className="cursor-agent-activity-body">
-        {items.map((item) => renderConversationItem(item, onEditAndResend))}
+        {toolItems.map((item) => renderConversationItem(item, onEditAndResend))}
+        {runtimeItems.length > 0 && (
+          <details className="cursor-agent-runtime-drawer">
+            <summary className="cursor-agent-activity-summary">
+              <ChevronRightIcon className="cursor-agent-activity-chevron h-3 w-3" />
+              <span>Activity</span>
+              <span>
+                {eventCount} {eventCount === 1 ? "event" : "events"}
+              </span>
+            </summary>
+            <div className="cursor-agent-runtime-events">
+              {runtimeItems.map((item) =>
+                renderConversationItem(item, onEditAndResend),
+              )}
+            </div>
+          </details>
+        )}
       </div>
-    </details>
+    </div>
   );
 }
 
@@ -1206,40 +1391,6 @@ function ConversationEventCard({
   );
 }
 
-function eventPresentation(event: AgentEvent): {
-  label: string;
-  className: string;
-} {
-  if (event.kind === "message.user") {
-    return {
-      label: "You",
-      className: "border-input bg-input ml-10",
-    };
-  }
-  if (event.kind === "message.assistant") {
-    return {
-      label: "Agent",
-      className: "border-transparent bg-transparent",
-    };
-  }
-  if (event.kind === "message.reasoning") {
-    return {
-      label: "Thinking",
-      className: "border-input bg-editor text-description",
-    };
-  }
-  if (event.kind.startsWith("tool.")) {
-    return {
-      label: event.kind.replace("tool.", "Tool · "),
-      className: "border-input bg-editor",
-    };
-  }
-  return {
-    label: event.kind === "run.status" ? "Status" : "Agent runtime",
-    className: "border-input bg-editor text-description",
-  };
-}
-
 function coalesceConversationEvents(
   events: AgentEvent[],
   showLatestProgress: boolean,
@@ -1292,11 +1443,12 @@ function VirtualEventList({
   events: AgentEvent[];
   onEditAndResend?: (prompt: string) => void;
 }) {
-  const [scrollTop, setScrollTop] = useState(0);
+  const [visibleEventLimit, setVisibleEventLimit] = useState(EVENT_BATCH_SIZE);
   const displayEvents = useMemo(
     () =>
       events.filter(
         (event) =>
+          !isInternalRuntimeEvent(event) &&
           !(
             event.kind.startsWith("tool.") &&
             eventPayload(event).scope === "process"
@@ -1304,111 +1456,79 @@ function VirtualEventList({
       ),
     [events],
   );
-  const conversationItems = useMemo(
+  const allConversationItems = useMemo(
     () => groupConversationEvents(displayEvents),
     [displayEvents],
   );
-  const primaryEvents = useMemo(
-    () => displayEvents.filter(isPrimaryConversationEvent),
-    [displayEvents],
+  const hiddenItemCount = Math.max(
+    0,
+    allConversationItems.length - visibleEventLimit,
   );
-  const virtualEvents =
-    primaryEvents.length > 0 ? primaryEvents : displayEvents;
-  const start = Math.max(0, Math.floor(scrollTop / EVENT_ROW_HEIGHT) - 3);
-  const count = Math.ceil(EVENT_VIEWPORT_HEIGHT / EVENT_ROW_HEIGHT) + 6;
-  const visible = virtualEvents.slice(start, start + count);
+  const conversationItems = useMemo(
+    () =>
+      hiddenItemCount > 0
+        ? allConversationItems.slice(-visibleEventLimit)
+        : allConversationItems,
+    [allConversationItems, hiddenItemCount, visibleEventLimit],
+  );
+  const timelineGroups = useMemo(() => {
+    const groups: Array<
+      | { type: "primary"; item: ConversationItem }
+      | { type: "activity"; id: string; items: ConversationItem[] }
+    > = [];
+    let activity: ConversationItem[] = [];
+    const flushActivity = () => {
+      if (activity.length === 0) return;
+      const first = activity[0];
+      groups.push({
+        type: "activity",
+        id: first.type === "tool" ? first.id : `activity-${first.event.id}`,
+        items: activity,
+      });
+      activity = [];
+    };
+    for (const item of conversationItems) {
+      if (item.type === "event" && isPrimaryConversationEvent(item.event)) {
+        flushActivity();
+        groups.push({ type: "primary", item });
+      } else if (item.type !== "tool" || !isAgentProcessActivity(item)) {
+        activity.push(item);
+      }
+    }
+    flushActivity();
+    return groups;
+  }, [conversationItems]);
+  useEffect(() => {
+    setVisibleEventLimit(EVENT_BATCH_SIZE);
+  }, [events[0]?.runId]);
   if (displayEvents.length === 0) return null;
-  if (conversationItems.length <= 600) {
-    const primaryConversationItems = conversationItems.filter(
-      (item) => item.type === "event" && isPrimaryConversationEvent(item.event),
-    );
-    const activityConversationItems = conversationItems.filter(
-      (item) =>
-        !(item.type === "event" && isPrimaryConversationEvent(item.event)) &&
-        (item.type !== "tool" || !isAgentProcessActivity(item)),
-    );
-    return (
-      <div
-        aria-label="Agent conversation"
-        className="cursor-conversation-timeline mt-3 space-y-1.5"
-      >
-        {primaryConversationItems.map((item) =>
-          renderConversationItem(item, onEditAndResend),
-        )}
-        <ActivityDrawer
-          items={activityConversationItems}
-          onEditAndResend={onEditAndResend}
-        />
-      </div>
-    );
-  }
   return (
     <div
       aria-label="Agent conversation"
-      className="min-h-0 overflow-y-auto"
-      style={{ height: EVENT_VIEWPORT_HEIGHT }}
-      onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+      className="cursor-conversation-timeline mt-3 space-y-1.5"
     >
-      <div
-        className="relative min-w-0"
-        style={{ height: virtualEvents.length * EVENT_ROW_HEIGHT }}
-      >
-        {visible.map((event, index) => {
-          const position = start + index;
-          return (
-            <div
-              key={event.id}
-              data-testid="agent-event-row"
-              aria-posinset={position + 1}
-              aria-setsize={virtualEvents.length}
-              className="absolute left-0 right-0 min-w-0 px-1 py-1 text-xs"
-              style={{
-                height: EVENT_ROW_HEIGHT,
-                transform: `translateY(${position * EVENT_ROW_HEIGHT}px)`,
-              }}
-            >
-              {(() => {
-                const presentation = eventPresentation(event);
-                return (
-                  <div
-                    className={`box-border flex h-full min-w-0 items-start gap-2 rounded-md border px-3 py-2 ${presentation.className}`}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="text-2xs mb-0.5 flex items-center gap-2 font-medium">
-                        <span>{presentation.label}</span>
-                        <time className="text-description font-normal">
-                          {new Date(event.createdAt).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </time>
-                        {event.kind === "message.user" && onEditAndResend && (
-                          <button
-                            type="button"
-                            aria-label="Edit and resend message"
-                            onClick={() =>
-                              onEditAndResend(
-                                eventSummary(event) ||
-                                  `Event ${event.sequence}`,
-                              )
-                            }
-                            className="text-description hover:text-foreground ml-auto cursor-pointer border-none bg-transparent p-0"
-                          >
-                            Edit
-                          </button>
-                        )}
-                      </div>
-                      <div className="truncate leading-5">
-                        {eventSummary(event) || `Event ${event.sequence}`}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-          );
-        })}
-      </div>
+      {hiddenItemCount > 0 && (
+        <button
+          type="button"
+          onClick={() =>
+            setVisibleEventLimit((current) => current + EVENT_BATCH_SIZE)
+          }
+          className="border-input text-description hover:bg-list-hover mx-auto flex cursor-pointer items-center rounded-full border bg-transparent px-3 py-1 text-[11px]"
+        >
+          Show {Math.min(EVENT_BATCH_SIZE, hiddenItemCount)} earlier events
+        </button>
+      )}
+      {timelineGroups.map((group) =>
+        group.type === "primary" ? (
+          renderConversationItem(group.item, onEditAndResend)
+        ) : (
+          <ActivityDrawer
+            key={group.id}
+            items={group.items}
+            onEditAndResend={onEditAndResend}
+          />
+        ),
+      )}
     </div>
   );
 }
@@ -1575,6 +1695,18 @@ function AgentRow({
   depth: number;
   onSelect: () => void;
 }) {
+  const ageMilliseconds = Math.max(
+    0,
+    Date.now() - new Date(run.updatedAt).getTime(),
+  );
+  const relativeTime =
+    ageMilliseconds < 60_000
+      ? "now"
+      : ageMilliseconds < 3_600_000
+        ? `${Math.floor(ageMilliseconds / 60_000)}m`
+        : ageMilliseconds < 86_400_000
+          ? `${Math.floor(ageMilliseconds / 3_600_000)}h`
+          : `${Math.floor(ageMilliseconds / 86_400_000)}d`;
   return (
     <button
       type="button"
@@ -1616,6 +1748,19 @@ function AgentRow({
           )}
         </span>
       </span>
+      {run.pinned && (
+        <StarIcon
+          aria-label="Pinned"
+          className="text-warning h-3 w-3 flex-shrink-0"
+        />
+      )}
+      <time
+        className="text-description text-2xs flex-shrink-0"
+        dateTime={run.updatedAt}
+        title={new Date(run.updatedAt).toLocaleString()}
+      >
+        {AGENT_LIVE_RUN_STATUSES.has(run.status) ? "Live" : relativeTime}
+      </time>
       <ChevronRightIcon className="text-description h-3 w-3 flex-shrink-0" />
     </button>
   );
@@ -1775,6 +1920,7 @@ function AgentDetails({
   onMergeWorktree,
   onOpenBrowser,
   onPermissionChange,
+  onResolveApproval,
   onResubmit,
   onSelectRun,
   onClose,
@@ -1793,7 +1939,10 @@ function AgentDetails({
   onCleanup: () => void;
   onCreateSubagent: () => void;
   onRename: (title: string) => void;
-  onQueue: (prompt: string, behavior: AgentQueueItem["behavior"]) => void;
+  onQueue: (
+    prompt: string,
+    behavior: AgentQueueItem["behavior"],
+  ) => Promise<boolean>;
   onUpdateQueueItem: (
     itemId: string,
     prompt: string,
@@ -1820,13 +1969,23 @@ function AgentDetails({
   onMergeWorktree: () => void;
   onOpenBrowser: () => void;
   onPermissionChange: (permissionMode: AgentRun["permissionMode"]) => void;
+  onResolveApproval: (
+    approvalId: string,
+    decision: AgentApprovalDecision,
+  ) => void;
   onResubmit: (prompt: string) => void;
   onSelectRun: (runId: string) => void;
   onClose: () => void;
 }) {
   const [followUp, setFollowUp] = useState("");
-  const [queueBehavior, setQueueBehavior] =
-    useState<AgentQueueItem["behavior"]>("run-next");
+  const [sendingFollowUp, setSendingFollowUp] = useState(false);
+  const [followUpError, setFollowUpError] = useState<string>();
+  const isActiveFollowUp = ["running", "waiting"].includes(run.status);
+  const queueBehavior: AgentQueueItem["behavior"] = isActiveFollowUp
+    ? "steer"
+    : "run-next";
+  const [followUpBehavior, setFollowUpBehavior] =
+    useState<AgentQueueItem["behavior"]>(queueBehavior);
   const [editingTitle, setEditingTitle] = useState(false);
   const [title, setTitle] = useState(run.title);
   const [editingQueueId, setEditingQueueId] = useState<string>();
@@ -1842,21 +2001,44 @@ function AgentDetails({
   const [showEarlierActivity, setShowEarlierActivity] = useState(false);
   const followUpRef = useRef<HTMLTextAreaElement>(null);
   const conversationScrollRef = useRef<HTMLElement>(null);
+  const footerStackRef = useRef<HTMLDivElement>(null);
   const followLiveOutputRef = useRef(true);
-  const submitFollowUp = () => {
-    if (!followUp.trim()) return;
+
+  useEffect(() => {
+    setFollowUpBehavior(queueBehavior);
+  }, [queueBehavior, run.id]);
+
+  const submitFollowUp = async (
+    behavior: AgentQueueItem["behavior"] = followUpBehavior,
+  ) => {
+    if (!followUp.trim() || sendingFollowUp) return;
     const prompt = withSkill(
       withContext(followUp.trim(), contextItems),
       selectedSkill,
     );
+    setFollowUpError(undefined);
     if (resubmitSource !== undefined) {
       onResubmit(prompt);
       setResubmitSource(undefined);
-    } else {
-      onQueue(prompt, queueBehavior);
+      setFollowUp("");
+      setContextItems([]);
+      return;
     }
-    setFollowUp("");
-    setContextItems([]);
+
+    setSendingFollowUp(true);
+    try {
+      const sent = await onQueue(prompt, behavior);
+      if (!sent) {
+        setFollowUpError("Follow-up was not sent. Try again.");
+        return;
+      }
+      setFollowUp("");
+      setContextItems([]);
+    } catch {
+      setFollowUpError("Follow-up was not sent. Try again.");
+    } finally {
+      setSendingFollowUp(false);
+    }
   };
   const beginResubmit = (prompt: string) => {
     setResubmitSource(prompt);
@@ -1871,13 +2053,13 @@ function AgentDetails({
       coalesceConversationEvents(
         events.filter(
           (event) =>
-            event.kind.startsWith("message.") ||
-            event.kind.startsWith("tool.") ||
-            event.kind === "run.progress" ||
-            event.kind === "runtime.notice" ||
-            event.kind === "review.finding",
+            !isInternalRuntimeEvent(event) &&
+            (event.kind.startsWith("message.") ||
+              event.kind.startsWith("tool.") ||
+              event.kind === "runtime.notice" ||
+              event.kind === "review.finding"),
         ),
-        run.status === "running",
+        false,
       ),
     [events, run.status],
   );
@@ -1923,6 +2105,20 @@ function AgentDetails({
     }),
     [events],
   );
+  const pendingApprovals = useMemo(
+    () => pendingAgentApprovals(events),
+    [events],
+  );
+  const streamedSubagents = useMemo(
+    () => agentSubagentActivity(events),
+    [events],
+  );
+  const activeSubagentCount =
+    childRuns.filter((child) => AGENT_LIVE_RUN_STATUSES.has(child.status))
+      .length +
+    streamedSubagents.filter((subagent) => subagent.status === "running")
+      .length;
+  const totalSubagentCount = childRuns.length + streamedSubagents.length;
   useEffect(() => {
     const element = conversationScrollRef.current;
     if (!element || !followLiveOutputRef.current) return;
@@ -1931,6 +2127,24 @@ function AgentDetails({
     });
     return () => window.cancelAnimationFrame(frame);
   }, [conversationEvents]);
+  useEffect(() => {
+    const footer = footerStackRef.current;
+    if (!footer || typeof ResizeObserver === "undefined") return;
+    let frame: number | undefined;
+    const observer = new ResizeObserver(() => {
+      const element = conversationScrollRef.current;
+      if (!element || !followLiveOutputRef.current) return;
+      if (frame !== undefined) window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        element.scrollTop = element.scrollHeight;
+      });
+    });
+    observer.observe(footer);
+    return () => {
+      observer.disconnect();
+      if (frame !== undefined) window.cancelAnimationFrame(frame);
+    };
+  }, [run.id]);
   useEffect(() => {
     setShowFullPrompt(false);
     setShowEarlierActivity(false);
@@ -2009,43 +2223,59 @@ function AgentDetails({
             )}
           </div>
         </div>
-        <div className="sr-only flex-shrink-0 items-center gap-1">
+        <div className="cursor-agent-header-actions flex flex-shrink-0 items-center gap-0.5">
           {!["completed", "archived"].includes(run.status) && (
             <button
               type="button"
-              className="hover:bg-list-hover text-2xs cursor-pointer rounded border-none bg-transparent px-1.5 py-1"
+              className="hover:bg-list-hover flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border-none bg-transparent"
               aria-label={
+                ["running", "queued", "waiting"].includes(run.status)
+                  ? "Cancel agent"
+                  : "Resume agent"
+              }
+              title={
                 ["running", "queued", "waiting"].includes(run.status)
                   ? "Cancel agent"
                   : "Resume agent"
               }
               onClick={onRunAction}
             >
-              {["running", "queued", "waiting"].includes(run.status)
-                ? "Cancel"
-                : "Resume"}
+              {["running", "queued", "waiting"].includes(run.status) ? (
+                <XMarkIcon className="h-3.5 w-3.5" />
+              ) : (
+                <ArrowPathIcon className="h-3.5 w-3.5" />
+              )}
             </button>
           )}
           <button
             type="button"
-            className="hover:bg-list-hover text-2xs cursor-pointer rounded border-none bg-transparent px-1.5 py-1"
+            className="hover:bg-list-hover flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border-none bg-transparent"
             aria-label={run.pinned ? "Unpin agent" : "Pin agent"}
+            title={run.pinned ? "Unpin agent" : "Pin agent"}
             onClick={onPin}
           >
-            {run.pinned ? "Unpin" : "Pin"}
+            <StarIcon
+              className={`h-3.5 w-3.5 ${run.pinned ? "fill-warning text-warning" : ""}`}
+            />
           </button>
           <button
             type="button"
-            className="hover:bg-list-hover flex cursor-pointer items-center rounded border-none bg-transparent p-1"
+            className="hover:bg-list-hover flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border-none bg-transparent"
             aria-label="Duplicate agent"
+            title="Duplicate agent"
             onClick={onDuplicate}
           >
             <DocumentDuplicateIcon className="h-3.5 w-3.5" />
           </button>
           <button
             type="button"
-            className="hover:bg-list-hover flex cursor-pointer items-center rounded border-none bg-transparent p-1"
-            aria-label="Archive agent"
+            className="hover:bg-list-hover flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border-none bg-transparent"
+            aria-label={
+              run.status === "archived" ? "Unarchive agent" : "Archive agent"
+            }
+            title={
+              run.status === "archived" ? "Unarchive agent" : "Archive agent"
+            }
             onClick={onArchive}
           >
             <ArchiveBoxIcon className="h-3.5 w-3.5" />
@@ -2079,30 +2309,25 @@ function AgentDetails({
           </span>
         )}
       </div>
-      {childRuns.length > 0 && (
-        <section
-          aria-label="Subagents"
-          className="border-input bg-editor mt-2 rounded-lg border p-2"
-        >
-          <div className="mb-1.5 flex items-center justify-between gap-2">
-            <span className="text-xs font-medium">Subagents</span>
+      {totalSubagentCount > 0 && (
+        <section aria-label="Subagents" className="cursor-agent-subagents mt-2">
+          <div className="cursor-agent-subagents-header flex items-center justify-between gap-2">
+            <span className="flex min-w-0 items-center gap-1.5 text-xs font-medium">
+              <SquaresPlusIcon className="h-3.5 w-3.5 flex-shrink-0" />
+              Subagents
+            </span>
             <span className="text-description text-2xs">
-              {
-                childRuns.filter((child) =>
-                  AGENT_LIVE_RUN_STATUSES.has(child.status),
-                ).length
-              }{" "}
-              active · {childRuns.length} total
+              {activeSubagentCount} active · {totalSubagentCount} total
             </span>
           </div>
-          <div className="grid gap-1 min-[720px]:grid-cols-2">
+          <div className="cursor-agent-subagents-list">
             {childRuns.map((child) => (
               <button
                 type="button"
                 key={child.id}
                 aria-label={`Open subagent ${child.title}`}
                 onClick={() => onSelectRun(child.id)}
-                className="border-input hover:bg-list-hover flex min-w-0 cursor-pointer items-center gap-2 rounded-md border bg-transparent px-2 py-1.5 text-left"
+                className="cursor-agent-subagent-row hover:bg-list-hover flex w-full min-w-0 cursor-pointer items-center gap-2 border-none bg-transparent px-2 py-1.5 text-left"
               >
                 <span
                   className={`h-2 w-2 flex-shrink-0 rounded-full ${statusColor(child.status)} ${child.status === "running" ? "animate-pulse" : ""}`}
@@ -2130,6 +2355,31 @@ function AgentDetails({
                 </span>
                 <ChevronRightIcon className="text-description h-3 w-3 flex-shrink-0" />
               </button>
+            ))}
+            {streamedSubagents.map((subagent) => (
+              <div
+                key={subagent.id}
+                className="cursor-agent-subagent-row flex min-w-0 items-center gap-2 px-2 py-1.5"
+              >
+                {subagent.status === "running" ? (
+                  <span className="cursor-agent-spinner !h-3 !w-3 flex-shrink-0" />
+                ) : subagent.status === "completed" ? (
+                  <CheckCircleIcon className="text-success h-3.5 w-3.5 flex-shrink-0" />
+                ) : (
+                  <ExclamationTriangleIcon className="text-error h-3.5 w-3.5 flex-shrink-0" />
+                )}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-xs font-medium">
+                    {subagent.name}
+                  </span>
+                  <span className="text-description text-2xs block truncate">
+                    {subagent.detail ?? formatAgentRunStatus(subagent.status)}
+                  </span>
+                </span>
+                <span className="text-description text-2xs flex-shrink-0">
+                  {subagent.status}
+                </span>
+              </div>
             ))}
           </div>
         </section>
@@ -2420,20 +2670,21 @@ function AgentDetails({
               onEditAndResend={beginResubmit}
             />
           ) : null}
-          {AGENT_ACTIVE_RUN_STATUSES.has(run.status) &&
-            conversationEvents.length === 0 && (
-              <div
-                role="status"
-                className="text-description mt-3 flex items-center gap-2 px-1 text-xs"
-              >
-                <span className="cursor-agent-spinner" />
-                <span>
-                  {run.status === "waiting"
-                    ? "Waiting for your input"
-                    : `Working in ${workspaceLabel(run)}…`}
-                </span>
-              </div>
-            )}
+          {AGENT_LIVE_RUN_STATUSES.has(run.status) && (
+            <div
+              role="status"
+              className="cursor-agent-live-status text-description mt-3 flex items-center gap-2 px-1 text-xs"
+            >
+              <span className="cursor-agent-spinner" />
+              <span>
+                {run.status === "waiting"
+                  ? "Waiting for your input"
+                  : run.status === "queued"
+                    ? "Preparing workspace…"
+                    : "Working"}
+              </span>
+            </div>
+          )}
         </div>
         {run.statusReason && (
           <div
@@ -2460,150 +2711,320 @@ function AgentDetails({
         )}
       </section>
 
-      <form
-        className="cursor-agent-composer z-10 mx-auto mt-3 min-w-0 flex-shrink-0"
-        onSubmit={(event) => {
-          event.preventDefault();
-          submitFollowUp();
-        }}
+      <div
+        ref={footerStackRef}
+        className="cursor-agent-footer-stack mx-auto w-full max-w-[840px] flex-shrink-0"
       >
-        {resubmitSource !== undefined && (
-          <div className="cursor-resubmit-banner mb-1.5 flex items-center gap-2 rounded-md px-2 py-1 text-[11px]">
-            <PencilSquareIcon className="h-3 w-3 flex-shrink-0" />
-            <span className="min-w-0 flex-1 truncate">
-              Editing an earlier message creates a new agent branch
-            </span>
-            <button
-              type="button"
-              aria-label="Cancel edit and resend"
-              onClick={() => {
-                setResubmitSource(undefined);
-                setFollowUp("");
-              }}
-              className="hover:text-foreground cursor-pointer border-none bg-transparent p-0 text-inherit"
-            >
-              <XMarkIcon className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        )}
-        <textarea
-          ref={followUpRef}
-          aria-label="Queue follow-up"
-          value={followUp}
-          onChange={(event) => setFollowUp(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey) {
-              event.preventDefault();
-              event.currentTarget.form?.requestSubmit();
-            }
-          }}
-          placeholder={
-            resubmitSource === undefined
-              ? "Message this agent"
-              : "Edit message and rerun"
-          }
-          rows={2}
-          className="cursor-agent-composer-input bg-input box-border w-full resize-none border-none px-1 py-1 text-xs outline-none"
-        />
-        <div className="cursor-agent-composer-toolbar mt-2 flex min-w-0 items-center justify-between gap-2">
-          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-            <ModeSelect
-              skillName={selectedSkill}
-              onSkillChange={setSelectedSkill}
-              agentAccessMode={run.permissionMode}
-              onAgentAccessModeChange={onPermissionChange}
-              includeAgentControls
-              includeModelControls
-            />
-            <AgentContextPicker
-              repositoryPath={run.workspace.repositoryPath}
-              items={contextItems}
-              onChange={setContextItems}
-            />
-          </div>
-          <button
-            type="submit"
-            aria-label="Send"
-            title="Send"
-            disabled={!followUp.trim()}
-            className="bg-primary text-primary-foreground hover:bg-primary-hover flex h-8 w-8 flex-shrink-0 cursor-pointer items-center justify-center rounded-full border-none p-0 disabled:cursor-not-allowed disabled:opacity-50"
+        {pendingApprovals.length > 0 && (
+          <section
+            aria-label="Pending approvals"
+            className="cursor-agent-approval-stack mx-auto mt-3 w-full max-w-[840px] space-y-2"
           >
-            <ArrowUpIcon className="h-4 w-4" />
-          </button>
-        </div>
-      </form>
-      {queue.length > 0 && (
-        <div className="mt-2 space-y-1" aria-label="Queued follow-ups">
-          {queue.map((item, index) => (
-            <div
-              key={item.id}
-              className="bg-editor flex min-w-0 items-center gap-1 rounded px-2 py-1.5"
-            >
-              {editingQueueId === item.id ? (
-                <input
-                  autoFocus
-                  aria-label={`Edit ${item.prompt}`}
-                  value={editingQueuePrompt}
-                  onChange={(event) =>
-                    setEditingQueuePrompt(event.target.value)
-                  }
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && editingQueuePrompt.trim()) {
-                      onUpdateQueueItem(
-                        item.id,
-                        editingQueuePrompt,
-                        item.behavior,
-                      );
-                      setEditingQueueId(undefined);
+            {pendingApprovals.map((approval) => (
+              <div
+                key={approval.id}
+                className="cursor-agent-approval border-input bg-editor rounded-lg border px-3 py-3"
+              >
+                <div className="flex min-w-0 items-start gap-2">
+                  <ExclamationTriangleIcon className="text-warning mt-0.5 h-4 w-4 flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-medium">{approval.title}</div>
+                    {(approval.detail || approval.toolName) && (
+                      <div className="text-description mt-1 break-words text-[11px] leading-4">
+                        {approval.detail ?? approval.toolName}
+                      </div>
+                    )}
+                    {approval.command && (
+                      <code className="cursor-agent-approval-command mt-2 block overflow-x-auto whitespace-pre rounded-md px-2 py-1.5 text-[11px]">
+                        {approval.command}
+                      </code>
+                    )}
+                    {approval.paths && approval.paths.length > 0 && (
+                      <div className="cursor-agent-approval-paths mt-2 space-y-1">
+                        {approval.paths.map((filepath) => (
+                          <code
+                            key={filepath}
+                            className="border-input bg-input block truncate rounded border px-2 py-1 text-[11px]"
+                            title={filepath}
+                          >
+                            {filepath}
+                          </code>
+                        ))}
+                      </div>
+                    )}
+                    {approval.preview && approval.preview.length > 0 && (
+                      <div className="cursor-agent-approval-preview text-description mt-2 space-y-1 text-[11px] leading-4">
+                        {approval.preview.map((item, index) => (
+                          <div key={`${item.type}-${index}`}>
+                            {item.content}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onResolveApproval(approval.id, "approve")
+                        }
+                        className="qivryn-neutral-primary cursor-pointer rounded-md border-none px-2.5 py-1.5 text-[11px] font-medium"
+                      >
+                        Allow once
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onResolveApproval(approval.id, "approveAlways")
+                        }
+                        className="border-input bg-input hover:bg-list-hover cursor-pointer rounded-md border px-2.5 py-1.5 text-[11px]"
+                      >
+                        Allow similar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onResolveApproval(approval.id, "reject")}
+                        className="text-description hover:text-error ml-auto cursor-pointer border-none bg-transparent px-2 py-1.5 text-[11px]"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </section>
+        )}
+
+        {queue.length > 0 && (
+          <div
+            className="cursor-agent-queue-stack mx-auto mt-2 w-full max-w-[840px] space-y-1"
+            aria-label="Queued follow-ups"
+          >
+            {queue.map((item, index) => (
+              <div
+                key={item.id}
+                className="bg-editor flex min-w-0 items-center gap-1 rounded px-2 py-1.5"
+              >
+                {editingQueueId === item.id ? (
+                  <input
+                    autoFocus
+                    aria-label={`Edit ${item.prompt}`}
+                    value={editingQueuePrompt}
+                    onChange={(event) =>
+                      setEditingQueuePrompt(event.target.value)
                     }
-                    if (event.key === "Escape") setEditingQueueId(undefined);
-                  }}
-                  className="border-border-focus bg-input min-w-0 flex-1 rounded border px-1 text-xs outline-none"
-                />
-              ) : (
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && editingQueuePrompt.trim()) {
+                        onUpdateQueueItem(
+                          item.id,
+                          editingQueuePrompt,
+                          item.behavior,
+                        );
+                        setEditingQueueId(undefined);
+                      }
+                      if (event.key === "Escape") setEditingQueueId(undefined);
+                    }}
+                    className="border-border-focus bg-input min-w-0 flex-1 rounded border px-1 text-xs outline-none"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    aria-label={`Edit ${item.prompt}`}
+                    onClick={() => {
+                      setEditingQueueId(item.id);
+                      setEditingQueuePrompt(item.prompt);
+                    }}
+                    className="hover:text-link flex min-w-0 flex-1 cursor-text items-center gap-1 truncate border-none bg-transparent p-0 text-left text-xs"
+                  >
+                    <span className="truncate">{item.prompt}</span>
+                    <PencilSquareIcon className="h-3 w-3 flex-shrink-0 opacity-60" />
+                  </button>
+                )}
                 <button
                   type="button"
-                  aria-label={`Edit ${item.prompt}`}
-                  onClick={() => {
-                    setEditingQueueId(item.id);
-                    setEditingQueuePrompt(item.prompt);
-                  }}
-                  className="hover:text-link flex min-w-0 flex-1 cursor-text items-center gap-1 truncate border-none bg-transparent p-0 text-left text-xs"
+                  aria-label={`Move ${item.prompt} up`}
+                  disabled={index === 0}
+                  onClick={() => onMoveQueueItem(item.id, -1)}
+                  className="hover:bg-list-hover cursor-pointer border-none bg-transparent p-0.5 disabled:opacity-30"
                 >
-                  <span className="truncate">{item.prompt}</span>
-                  <PencilSquareIcon className="h-3 w-3 flex-shrink-0 opacity-60" />
+                  <ArrowUpIcon className="h-3 w-3" />
                 </button>
-              )}
+                <button
+                  type="button"
+                  aria-label={`Move ${item.prompt} down`}
+                  disabled={index === queue.length - 1}
+                  onClick={() => onMoveQueueItem(item.id, 1)}
+                  className="hover:bg-list-hover cursor-pointer border-none bg-transparent p-0.5 disabled:opacity-30"
+                >
+                  <ArrowDownIcon className="h-3 w-3" />
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Remove ${item.prompt}`}
+                  onClick={() => onRemoveQueueItem(item.id)}
+                  className="hover:bg-list-hover cursor-pointer border-none bg-transparent p-0.5"
+                >
+                  <XMarkIcon className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <form
+          className="cursor-agent-composer z-10 mx-auto mt-3 min-w-0 flex-shrink-0"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void submitFollowUp();
+          }}
+        >
+          {resubmitSource !== undefined && (
+            <div className="cursor-resubmit-banner mb-1.5 flex items-center gap-2 rounded-md px-2 py-1 text-[11px]">
+              <PencilSquareIcon className="h-3 w-3 flex-shrink-0" />
+              <span className="min-w-0 flex-1 truncate">
+                Editing an earlier message creates a new agent branch
+              </span>
               <button
                 type="button"
-                aria-label={`Move ${item.prompt} up`}
-                disabled={index === 0}
-                onClick={() => onMoveQueueItem(item.id, -1)}
-                className="hover:bg-list-hover cursor-pointer border-none bg-transparent p-0.5 disabled:opacity-30"
+                aria-label="Cancel edit and resend"
+                onClick={() => {
+                  setResubmitSource(undefined);
+                  setFollowUp("");
+                }}
+                className="hover:text-foreground cursor-pointer border-none bg-transparent p-0 text-inherit"
               >
-                <ArrowUpIcon className="h-3 w-3" />
-              </button>
-              <button
-                type="button"
-                aria-label={`Move ${item.prompt} down`}
-                disabled={index === queue.length - 1}
-                onClick={() => onMoveQueueItem(item.id, 1)}
-                className="hover:bg-list-hover cursor-pointer border-none bg-transparent p-0.5 disabled:opacity-30"
-              >
-                <ArrowDownIcon className="h-3 w-3" />
-              </button>
-              <button
-                type="button"
-                aria-label={`Remove ${item.prompt}`}
-                onClick={() => onRemoveQueueItem(item.id)}
-                className="hover:bg-list-hover cursor-pointer border-none bg-transparent p-0.5"
-              >
-                <XMarkIcon className="h-3 w-3" />
+                <XMarkIcon className="h-3.5 w-3.5" />
               </button>
             </div>
-          ))}
-        </div>
-      )}
+          )}
+          <textarea
+            ref={followUpRef}
+            aria-label={
+              isActiveFollowUp ? "Steer active agent" : "Queue follow-up"
+            }
+            value={followUp}
+            onChange={(event) => {
+              setFollowUp(event.target.value);
+              if (followUpError) setFollowUpError(undefined);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                if (
+                  isActiveFollowUp &&
+                  (event.metaKey || event.ctrlKey) &&
+                  resubmitSource === undefined
+                ) {
+                  void submitFollowUp("run-next");
+                  return;
+                }
+                event.currentTarget.form?.requestSubmit();
+              }
+            }}
+            placeholder={
+              resubmitSource === undefined
+                ? isActiveFollowUp
+                  ? "Steer this agent"
+                  : "Ask for follow-up changes"
+                : "Edit message and rerun"
+            }
+            rows={2}
+            aria-invalid={followUpError ? true : undefined}
+            aria-describedby={
+              followUpError ? "agent-follow-up-error" : undefined
+            }
+            className="cursor-agent-composer-input bg-input box-border w-full resize-none border-none px-1 py-1 text-xs outline-none"
+          />
+          {followUpError && (
+            <div
+              id="agent-follow-up-error"
+              role="alert"
+              className="text-error mt-1 px-1 text-[11px]"
+            >
+              {followUpError}
+            </div>
+          )}
+          <div className="cursor-agent-composer-toolbar mt-2 flex min-w-0 items-center justify-between gap-2">
+            <div className="qivryn-agent-composer-tools flex min-w-0 items-center gap-1.5">
+              <ModeSelect
+                skillName={selectedSkill}
+                onSkillChange={setSelectedSkill}
+                agentAccessMode={run.permissionMode}
+                onAgentAccessModeChange={onPermissionChange}
+                includeAgentControls
+              />
+              <AgentContextPicker
+                repositoryPath={run.workspace.repositoryPath}
+                items={contextItems}
+                onChange={setContextItems}
+              />
+              {isActiveFollowUp && resubmitSource === undefined && (
+                <div
+                  className="qivryn-follow-up-behavior"
+                  role="group"
+                  aria-label="Follow-up delivery"
+                >
+                  <button
+                    type="button"
+                    aria-label="Steer now"
+                    aria-pressed={followUpBehavior === "steer"}
+                    title="Add this guidance to the active turn"
+                    onClick={() => setFollowUpBehavior("steer")}
+                  >
+                    <CursorArrowRaysIcon aria-hidden="true" />
+                    <span>Steer</span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Use queue next"
+                    aria-pressed={followUpBehavior === "run-next"}
+                    title="Run this after the active turn finishes"
+                    onClick={() => setFollowUpBehavior("run-next")}
+                  >
+                    <QueueListIcon aria-hidden="true" />
+                    <span>Next</span>
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="qivryn-agent-composer-submit-cluster">
+              <VoiceInputButton
+                disabled={sendingFollowUp}
+                onInsert={(text) =>
+                  setFollowUp((current) => appendVoiceTranscript(current, text))
+                }
+              />
+              <ModeSelect modelOnly />
+              <button
+                type="submit"
+                aria-label={
+                  isActiveFollowUp
+                    ? followUpBehavior === "steer"
+                      ? "Steer"
+                      : "Queue next"
+                    : "Send"
+                }
+                title={
+                  isActiveFollowUp
+                    ? followUpBehavior === "steer"
+                      ? "Steer this turn"
+                      : "Queue the next turn"
+                    : "Send"
+                }
+                disabled={!followUp.trim() || sendingFollowUp}
+                aria-busy={sendingFollowUp || undefined}
+                className="qivryn-codex-send-button"
+              >
+                {sendingFollowUp ? (
+                  <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ArrowUpIcon className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
@@ -2635,13 +3056,15 @@ export default function Agents() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
-  const [showCreate, setShowCreate] = useState(false);
   const [showAutomations, setShowAutomations] = useState(false);
-  const [showMultitask, setShowMultitask] = useState(false);
   const [showCapabilities, setShowCapabilities] = useState(false);
   const [showWideNavigation, setShowWideNavigation] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const [showCreateComposer, setShowCreateComposer] = useState(false);
   const [newPrompt, setNewPrompt] = useState("");
-  const [newRepository, setNewRepository] = useState("");
+  const [newRepository, setNewRepository] = useState(
+    initialAgentRepositoryPath,
+  );
   const [newRuntime, setNewRuntime] = useState<"local" | "docker" | "ssh">(
     "local",
   );
@@ -2656,19 +3079,63 @@ export default function Agents() {
   const [newContextItems, setNewContextItems] = useState<AgentContextItem[]>(
     [],
   );
-  const [multitaskItems, setMultitaskItems] = useState("");
-  const [multitaskSkill, setMultitaskSkill] = useState<string>();
-  const [multitaskContextItems, setMultitaskContextItems] = useState<
-    AgentContextItem[]
-  >([]);
+  const [activeWorkspacePath, setActiveWorkspacePath] = useState(() =>
+    normalizeFilePath(window.workspacePaths?.[0] ?? ""),
+  );
   const [starting, setStarting] = useState(false);
-  const [startingMultitask, setStartingMultitask] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const importRef = useRef<HTMLInputElement>(null);
+  const newTaskRef = useRef<HTMLTextAreaElement>(null);
   const lastEventSequenceRef = useRef(0);
   const eventPollInFlightRef = useRef(false);
   const openedCreateFromRouteRef = useRef(false);
   const openedScheduleFromRouteRef = useRef(false);
+  const openedPanelFromRouteRef = useRef(false);
+
+  useEffect(() => {
+    const onRepositoryChanged = (event: Event) => {
+      const repositoryPath =
+        event instanceof CustomEvent && typeof event.detail === "string"
+          ? event.detail
+          : window.localStorage.getItem(LAST_AGENT_REPOSITORY_KEY) || "";
+      setNewRepository(repositoryPath ? normalizeFilePath(repositoryPath) : "");
+    };
+    window.addEventListener(
+      AGENT_REPOSITORY_CHANGED_EVENT,
+      onRepositoryChanged,
+    );
+    return () => {
+      window.removeEventListener(
+        AGENT_REPOSITORY_CHANGED_EVENT,
+        onRepositoryChanged,
+      );
+    };
+  }, []);
+
+  useEffect(() => {
+    const injectedWorkspace = normalizeFilePath(
+      window.workspacePaths?.[0] ?? "",
+    );
+    if (injectedWorkspace) {
+      setActiveWorkspacePath(injectedWorkspace);
+      return;
+    }
+    let disposed = false;
+    void ideMessenger
+      .request("getWorkspaceDirs", undefined)
+      .then((response) => {
+        if (disposed || response.status !== "success") {
+          return;
+        }
+        const workspacePath = normalizeFilePath(response.content[0] ?? "");
+        if (workspacePath) {
+          setActiveWorkspacePath(workspacePath);
+        }
+      });
+    return () => {
+      disposed = true;
+    };
+  }, [ideMessenger]);
 
   const appendEvents = useCallback((incoming: AgentEvent[]) => {
     if (incoming.length === 0) return;
@@ -2690,8 +3157,8 @@ export default function Agents() {
       if (showLoading) setLoading(true);
       setError(undefined);
       const response = await ideMessenger.request("agents/list", {
-        includeArchived: false,
-        limit: 200,
+        includeArchived: true,
+        limit: 500,
       });
       if (response.status === "error") {
         setError(response.error);
@@ -2923,6 +3390,7 @@ export default function Agents() {
 
   const selectRun = useCallback(
     (run: AgentRun) => {
+      setShowCreateComposer(false);
       setSelectedChatId(undefined);
       setChatOpenError(undefined);
       setSelectedId(run.id);
@@ -3013,21 +3481,26 @@ export default function Agents() {
 
   const openCreate = useCallback(
     async (parentRunId?: string) => {
-      setShowMultitask(false);
-      setShowCreate(true);
-      setNewParentRunId(parentRunId);
-      dispatch(setMode("agent"));
-      if (newRepository) return;
-      const response = await ideMessenger.request(
-        "getWorkspaceDirs",
-        undefined,
-      );
-      if (response.status === "success" && response.content[0]) {
-        setNewRepository(
-          decodeURIComponent(response.content[0].replace(/^file:\/\//, "")),
-        );
+      if (!parentRunId) {
+        setShowCreateComposer(false);
+        setNewParentRunId(undefined);
+        setNewPrompt("");
+        setNewContextItems([]);
+        dispatch(setMode("agent"));
+        navigate(ROUTES.HOME, { replace: true });
         return;
       }
+      setSelectedId(undefined);
+      setSelectedChatId(undefined);
+      setChatOpenError(undefined);
+      setShowWideNavigation(false);
+      setShowCreateComposer(true);
+      setNewParentRunId(parentRunId);
+      setNewPrompt("");
+      setNewContextItems([]);
+      dispatch(setMode("agent"));
+      window.setTimeout(() => newTaskRef.current?.focus(), 0);
+      if (newRepository) return;
       const fallback =
         runs.find((run) => run.id === parentRunId)?.workspace.repositoryPath ??
         runs.find((run) => run.id === selectedId)?.workspace.repositoryPath ??
@@ -3035,11 +3508,33 @@ export default function Agents() {
           .repositoryPath ??
         chatSessions.find((session) => session.workspaceDirectory)
           ?.workspaceDirectory ??
-        window.localStorage.getItem("qivryn.agents.lastRepository") ??
+        (window.localStorage.getItem(LAST_AGENT_REPOSITORY_KEY)?.trim() ||
+          undefined) ??
         "";
-      if (fallback) setNewRepository(fallback);
+      if (fallback) {
+        setNewRepository(normalizeFilePath(fallback));
+        return;
+      }
+      const response = await ideMessenger.request(
+        "getWorkspaceDirs",
+        undefined,
+      );
+      if (response.status === "success" && response.content[0]) {
+        setNewRepository(normalizeFilePath(response.content[0]));
+        return;
+      }
+      if (activeWorkspacePath) setNewRepository(activeWorkspacePath);
     },
-    [chatSessions, dispatch, ideMessenger, newRepository, runs, selectedId],
+    [
+      chatSessions,
+      dispatch,
+      ideMessenger,
+      navigate,
+      newRepository,
+      runs,
+      selectedId,
+      activeWorkspacePath,
+    ],
   );
 
   useEffect(() => {
@@ -3052,9 +3547,13 @@ export default function Agents() {
     }
     if (openedCreateFromRouteRef.current) return;
     openedCreateFromRouteRef.current = true;
-    void openCreate(undefined);
-    navigate(ROUTES.AGENTS, { replace: true });
-  }, [navigate, openCreate, searchParams]);
+    setShowCreateComposer(false);
+    setNewParentRunId(undefined);
+    setNewPrompt("");
+    setNewContextItems([]);
+    dispatch(setMode("agent"));
+    navigate(ROUTES.HOME, { replace: true });
+  }, [dispatch, navigate, searchParams]);
 
   useEffect(() => {
     const scheduleParam =
@@ -3071,102 +3570,195 @@ export default function Agents() {
     navigate(ROUTES.AGENTS, { replace: true });
   }, [navigate, searchParams]);
 
+  useEffect(() => {
+    const panelParam =
+      searchParams.get("panel") ?? searchParams.get("sessions");
+    const shouldOpenPanel = panelParam === "1" || panelParam === "true";
+    if (!shouldOpenPanel) {
+      openedPanelFromRouteRef.current = false;
+      return;
+    }
+    if (openedPanelFromRouteRef.current) return;
+    openedPanelFromRouteRef.current = true;
+    setShowWideNavigation(true);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const createParam = searchParams.get("new") ?? searchParams.get("create");
+    const scheduleParam =
+      searchParams.get("scheduled") ?? searchParams.get("automations");
+    const panelParam =
+      searchParams.get("panel") ?? searchParams.get("sessions");
+    const hasCreateRequest =
+      createParam === "1" || createParam === "true" || createParam === "agent";
+    const hasScheduleRequest =
+      scheduleParam === "1" || scheduleParam === "true";
+    const hasPanelRequest = panelParam === "1" || panelParam === "true";
+    const hasDeepLink =
+      Boolean(searchParams.get("runId")) ||
+      Boolean(searchParams.get("eventSequence")) ||
+      Boolean(searchParams.get("checkpointId"));
+    const hasSubagentComposer = showCreateComposer && Boolean(newParentRunId);
+    if (
+      loading ||
+      selectedId ||
+      selectedChatId ||
+      newParentRunId ||
+      hasSubagentComposer ||
+      showAutomations ||
+      hasCreateRequest ||
+      hasScheduleRequest ||
+      hasPanelRequest ||
+      hasDeepLink
+    ) {
+      return;
+    }
+    dispatch(setMode("agent"));
+    navigate(ROUTES.HOME, { replace: true });
+  }, [
+    dispatch,
+    loading,
+    navigate,
+    newParentRunId,
+    searchParams,
+    selectedChatId,
+    selectedId,
+    showCreateComposer,
+    showAutomations,
+  ]);
+
   const chooseRepository = useCallback(async () => {
     const response = await ideMessenger.request(
       "agents/selectRepository",
       undefined,
     );
     if (response.status === "success" && response.content) {
-      setNewRepository(response.content);
-      window.localStorage.setItem(
-        "qivryn.agents.lastRepository",
-        response.content,
+      const repositoryPath = normalizeFilePath(response.content);
+      setNewRepository(repositoryPath);
+      window.localStorage.setItem(LAST_AGENT_REPOSITORY_KEY, repositoryPath);
+      window.dispatchEvent(
+        new CustomEvent(AGENT_REPOSITORY_CHANGED_EVENT, {
+          detail: repositoryPath,
+        }),
       );
     }
   }, [ideMessenger]);
 
-  const openMultitask = useCallback(async () => {
-    setShowCreate(false);
-    setNewParentRunId(undefined);
-    setShowMultitask(true);
-    if (newRepository) return;
-    const response = await ideMessenger.request("getWorkspaceDirs", undefined);
-    if (response.status === "success" && response.content[0]) {
-      setNewRepository(
-        decodeURIComponent(response.content[0].replace(/^file:\/\//, "")),
+  const clearRepository = useCallback(() => {
+    setNewRepository("");
+    window.localStorage.setItem(LAST_AGENT_REPOSITORY_KEY, "");
+    window.dispatchEvent(
+      new CustomEvent(AGENT_REPOSITORY_CHANGED_EVENT, {
+        detail: "",
+      }),
+    );
+  }, []);
+
+  const createRun = useCallback(async () => {
+    const tasks = newParentRunId
+      ? [newPrompt.trim()].filter(Boolean)
+      : parseMultitaskItems(newPrompt);
+    if (!tasks.length || tasks.length > MAX_PARALLEL_TASKS) {
+      return;
+    }
+    setStarting(true);
+    setError(undefined);
+    let repositoryPath = normalizeFilePath(newRepository.trim());
+    if (!repositoryPath) {
+      const workspaceResponse = await ideMessenger.request(
+        "getWorkspaceDirs",
+        undefined,
+      );
+      repositoryPath =
+        workspaceResponse.status === "success"
+          ? normalizeFilePath(workspaceResponse.content[0] ?? "")
+          : "";
+    }
+    if (!repositoryPath) {
+      repositoryPath = normalizeFilePath(window.workspacePaths?.[0] ?? "");
+    }
+    if (!repositoryPath) {
+      repositoryPath = activeWorkspacePath;
+    }
+    if (!repositoryPath) {
+      setStarting(false);
+      setError("Choose a workspace before starting an agent.");
+      return;
+    }
+    setNewRepository(repositoryPath);
+    const responses = await Promise.all(
+      tasks.map((task) =>
+        ideMessenger.request("agents/control", {
+          action: "run.create",
+          request: {
+            prompt: withSkill(withContext(task, newContextItems), newSkill),
+            model: selectedAgentModel?.title,
+            permissionMode: newPermissionMode,
+            parentRunId: tasks.length === 1 ? newParentRunId : undefined,
+            runtimeId: newRuntime,
+            metadata: {
+              reasoningEffort: selectedReasoningEffort,
+              ...(newRuntime === "docker"
+                ? {
+                    container: {
+                      image: newContainerImage.trim() || "qivryn-agent:latest",
+                      network: "bridge",
+                      privileged: false,
+                    },
+                  }
+                : newRuntime === "ssh"
+                  ? {
+                      ssh: {
+                        host: newSshHost.trim(),
+                        remotePath: repositoryPath,
+                      },
+                    }
+                  : {}),
+            },
+            workspace: {
+              location:
+                newRuntime === "docker"
+                  ? "container"
+                  : newRuntime === "ssh"
+                    ? "ssh"
+                    : "local",
+              repositoryPath,
+            },
+          },
+        }),
+      ),
+    );
+    setStarting(false);
+    const failures = responses.filter(
+      (response) => response.status === "error",
+    );
+    const firstSuccess = responses.find(
+      (response) => response.status === "success",
+    );
+    if (!firstSuccess || firstSuccess.status !== "success") {
+      setError(
+        failures.length === 1
+          ? failures[0].error
+          : `${failures.length} tasks could not start`,
       );
       return;
     }
-    const fallback =
-      runs.find((run) => run.id === selectedId)?.workspace.repositoryPath ??
-      runs.find((run) => run.workspace.repositoryPath)?.workspace
-        .repositoryPath ??
-      chatSessions.find((session) => session.workspaceDirectory)
-        ?.workspaceDirectory ??
-      window.localStorage.getItem("qivryn.agents.lastRepository") ??
-      "";
-    if (fallback) setNewRepository(fallback);
-  }, [chatSessions, ideMessenger, newRepository, runs, selectedId]);
-
-  const createRun = useCallback(async () => {
-    if (!newPrompt.trim() || !newRepository.trim()) return;
-    setStarting(true);
-    setError(undefined);
-    const response = await ideMessenger.request("agents/control", {
-      action: "run.create",
-      request: {
-        prompt: withSkill(
-          withContext(newPrompt.trim(), newContextItems),
-          newSkill,
-        ),
-        model: selectedAgentModel?.title,
-        permissionMode: newPermissionMode,
-        parentRunId: newParentRunId,
-        runtimeId: newRuntime,
-        metadata: {
-          reasoningEffort: selectedReasoningEffort,
-          ...(newRuntime === "docker"
-            ? {
-                container: {
-                  image: newContainerImage.trim() || "qivryn-agent:latest",
-                  network: "bridge",
-                  privileged: false,
-                },
-              }
-            : newRuntime === "ssh"
-              ? {
-                  ssh: {
-                    host: newSshHost.trim(),
-                    remotePath: newRepository.trim(),
-                  },
-                }
-              : {}),
-        },
-        workspace: {
-          location:
-            newRuntime === "docker"
-              ? "container"
-              : newRuntime === "ssh"
-                ? "ssh"
-                : "local",
-          repositoryPath: newRepository.trim(),
-        },
-      },
-    });
-    setStarting(false);
-    if (response.status === "error") {
-      setError(response.error);
-      return;
+    if (failures.length > 0) {
+      setError(
+        `${failures.length} of ${responses.length} tasks could not start`,
+      );
     }
-    const run = response.content as AgentRun;
-    window.localStorage.setItem(
-      "qivryn.agents.lastRepository",
-      newRepository.trim(),
+    const run = firstSuccess.content as AgentRun;
+    window.localStorage.setItem(LAST_AGENT_REPOSITORY_KEY, repositoryPath);
+    window.dispatchEvent(
+      new CustomEvent(AGENT_REPOSITORY_CHANGED_EVENT, {
+        detail: repositoryPath,
+      }),
     );
-    setShowCreate(false);
     setNewPrompt("");
     setNewContextItems([]);
     setNewParentRunId(undefined);
+    setShowCreateComposer(false);
     await loadRuns();
     setSelectedId(run.id);
   }, [
@@ -3183,94 +3775,7 @@ export default function Agents() {
     newRuntime,
     newContainerImage,
     newSshHost,
-  ]);
-
-  const createMultitaskRuns = useCallback(async () => {
-    const tasks = parseMultitaskItems(multitaskItems);
-    if (
-      !tasks.length ||
-      !newRepository.trim() ||
-      (newRuntime === "ssh" && !newSshHost.trim())
-    ) {
-      return;
-    }
-    setStartingMultitask(true);
-    setError(undefined);
-    const responses = await Promise.all(
-      tasks.map((task) =>
-        ideMessenger.request("agents/control", {
-          action: "run.create",
-          request: {
-            prompt: withSkill(
-              withContext(task, multitaskContextItems),
-              multitaskSkill,
-            ),
-            model: selectedAgentModel?.title,
-            permissionMode: newPermissionMode,
-            runtimeId: newRuntime,
-            metadata: {
-              reasoningEffort: selectedReasoningEffort,
-              ...(newRuntime === "docker"
-                ? {
-                    container: {
-                      image: newContainerImage.trim() || "qivryn-agent:latest",
-                      network: "bridge",
-                      privileged: false,
-                    },
-                  }
-                : newRuntime === "ssh"
-                  ? {
-                      ssh: {
-                        host: newSshHost.trim(),
-                        remotePath: newRepository.trim(),
-                      },
-                    }
-                  : {}),
-            },
-            workspace: {
-              location:
-                newRuntime === "docker"
-                  ? "container"
-                  : newRuntime === "ssh"
-                    ? "ssh"
-                    : "local",
-              repositoryPath: newRepository.trim(),
-            },
-          },
-        }),
-      ),
-    );
-    setStartingMultitask(false);
-    const failures = responses.filter(
-      (response) => response.status === "error",
-    );
-    if (failures.length) {
-      setError(
-        `${failures.length} of ${responses.length} tasks could not start`,
-      );
-    }
-    if (responses.some((response) => response.status === "success")) {
-      window.localStorage.setItem(
-        "qivryn.agents.lastRepository",
-        newRepository.trim(),
-      );
-      setShowMultitask(false);
-      setMultitaskItems("");
-      await loadRuns(false);
-    }
-  }, [
-    ideMessenger,
-    loadRuns,
-    multitaskItems,
-    multitaskContextItems,
-    multitaskSkill,
-    newContainerImage,
-    newPermissionMode,
-    newRepository,
-    newRuntime,
-    newSshHost,
-    selectedAgentModel,
-    selectedReasoningEffort,
+    activeWorkspacePath,
   ]);
 
   const exportRun = useCallback(
@@ -3334,8 +3839,19 @@ export default function Agents() {
     [ideMessenger, loadRuns],
   );
 
-  const filtered = useMemo(() => filterAgentRuns(runs, query), [query, runs]);
+  const visibleRuns = useMemo(
+    () =>
+      runs.filter((run) =>
+        showArchived ? run.status === "archived" : run.status !== "archived",
+      ),
+    [runs, showArchived],
+  );
+  const filtered = useMemo(
+    () => filterAgentRuns(visibleRuns, query),
+    [query, visibleRuns],
+  );
   const filteredChatSessions = useMemo(() => {
+    if (showArchived) return [];
     const normalized = query.trim().toLowerCase();
     return normalized
       ? chatSessions.filter((session) =>
@@ -3344,22 +3860,35 @@ export default function Agents() {
             .some((value) => value.toLowerCase().includes(normalized)),
         )
       : chatSessions;
-  }, [chatSessions, query]);
+  }, [chatSessions, query, showArchived]);
   const repositoryChoices = useMemo(
     () =>
       Array.from(
         new Set(
           [
+            activeWorkspacePath,
             ...runs.map((run) => run.workspace.repositoryPath),
             ...chatSessions.map((session) => session.workspaceDirectory),
           ].filter((repository): repository is string => Boolean(repository)),
         ),
       ).slice(0, 8),
-    [chatSessions, runs],
+    [activeWorkspacePath, chatSessions, runs],
   );
-  const multitaskTaskCount = useMemo(
-    () => parseMultitaskItems(multitaskItems).length,
-    [multitaskItems],
+  const effectiveNewRepository = useMemo(
+    () =>
+      normalizeFilePath(newRepository.trim()) ||
+      activeWorkspacePath ||
+      normalizeFilePath(window.workspacePaths?.[0] ?? ""),
+    [activeWorkspacePath, newRepository],
+  );
+  const newTaskCount = useMemo(
+    () =>
+      newParentRunId
+        ? newPrompt.trim()
+          ? 1
+          : 0
+        : parseMultitaskItems(newPrompt).length,
+    [newParentRunId, newPrompt],
   );
   const active = filtered.filter((run) =>
     AGENT_ACTIVE_RUN_STATUSES.has(run.status),
@@ -3371,7 +3900,6 @@ export default function Agents() {
   const selectedChat = chatSessions.find(
     (session) => session.sessionId === selectedChatId,
   );
-
   const openChatSession = useCallback(
     async (sessionId: string) => {
       setOpeningChatId(sessionId);
@@ -3413,11 +3941,10 @@ export default function Agents() {
       return;
     }
     if (event.key === "Escape") {
-      setShowCreate(false);
-      setShowMultitask(false);
       setShowCapabilities(false);
-      setSelectedId(undefined);
+      setSelectedId(newParentRunId);
       setSelectedChatId(undefined);
+      setNewParentRunId(undefined);
       return;
     }
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
@@ -3498,21 +4025,11 @@ export default function Agents() {
         <button
           type="button"
           aria-label="New local agent"
+          title="New agent"
           onClick={() => void openCreate(undefined)}
-          className="bg-button text-button-foreground flex h-7 cursor-pointer items-center justify-center gap-1.5 rounded-md border-none px-2.5 text-xs font-medium hover:brightness-110"
+          className="hover:bg-list-hover focus-visible:ring-border-focus flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border-none bg-transparent outline-none focus-visible:ring-1"
         >
           <PlusIcon className="h-3.5 w-3.5" />
-          <span className="hidden min-[420px]:inline">New agent</span>
-        </button>
-        <button
-          type="button"
-          aria-label="Start multiple agents"
-          title="Start several local tasks in parallel"
-          onClick={() => void openMultitask()}
-          className="border-input hover:bg-list-hover hidden h-7 cursor-pointer items-center justify-center gap-1.5 rounded-md border bg-transparent px-2 text-xs min-[620px]:flex"
-        >
-          <Squares2X2Icon className="h-3.5 w-3.5" />
-          <span className="hidden min-[620px]:inline">Multitask</span>
         </button>
         <button
           type="button"
@@ -3548,7 +4065,7 @@ export default function Agents() {
               : "Show agents and chats"
           }
           onClick={() => setShowWideNavigation((current) => !current)}
-          className="hover:bg-list-hover focus-visible:ring-border-focus hidden h-7 w-7 cursor-pointer items-center justify-center rounded-md border-none bg-transparent outline-none focus-visible:ring-1 min-[960px]:flex"
+          className="hover:bg-list-hover focus-visible:ring-border-focus hidden h-7 w-7 cursor-pointer items-center justify-center rounded-md border-none bg-transparent outline-none focus-visible:ring-1 min-[720px]:flex"
         >
           <QueueListIcon className="h-3.5 w-3.5" />
         </button>
@@ -3589,37 +4106,34 @@ export default function Agents() {
                 action: () => setShowAutomations(true),
               },
               {
-                label: selected ? "New subagent" : "New agent",
-                title: selected
-                  ? "Start a child task with inherited context"
-                  : "Start a durable local task",
+                label: "New subagent",
+                title: "Start a child task with inherited context",
                 Icon: PlusIcon,
-                action: () => void openCreate(selected?.id),
+                action: () => {
+                  if (selected) void openCreate(selected.id);
+                },
+                disabled: !selected,
               },
-              {
-                label: "Multitask",
-                title: "Launch independent agents in parallel",
-                Icon: Squares2X2Icon,
-                action: () => void openMultitask(),
-              },
-            ].map(({ label, title, Icon, action }) => (
-              <button
-                key={label}
-                type="button"
-                role="menuitem"
-                title={title}
-                onClick={() => {
-                  setShowCapabilities(false);
-                  action();
-                }}
-                className="hover:bg-list-hover grid h-9 w-full cursor-pointer grid-cols-[24px_minmax(0,1fr)] items-center gap-2 rounded-md border-none bg-transparent px-2 text-left"
-              >
-                <span className="flex h-6 w-6 items-center justify-center">
-                  <Icon className="h-3.5 w-3.5" />
-                </span>
-                <span className="min-w-0 truncate text-xs">{label}</span>
-              </button>
-            ))}
+            ]
+              .filter(({ disabled }) => !disabled)
+              .map(({ label, title, Icon, action }) => (
+                <button
+                  key={label}
+                  type="button"
+                  role="menuitem"
+                  title={title}
+                  onClick={() => {
+                    setShowCapabilities(false);
+                    action();
+                  }}
+                  className="hover:bg-list-hover grid h-9 w-full cursor-pointer grid-cols-[24px_minmax(0,1fr)] items-center gap-2 rounded-md border-none bg-transparent px-2 text-left"
+                >
+                  <span className="flex h-6 w-6 items-center justify-center">
+                    <Icon className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="min-w-0 truncate text-xs">{label}</span>
+                </button>
+              ))}
           </div>
         )}
         <input
@@ -3695,203 +4209,19 @@ export default function Agents() {
         <AgentAutomationsPanel
           defaultRepository={newRepository}
           onClose={() => setShowAutomations(false)}
-          onRunStarted={() => void loadRuns(false)}
-        />
-      )}
-
-      {showMultitask && (
-        <form
-          aria-label="Start multiple agents"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void createMultitaskRuns();
+          onRunStarted={() => {
+            setShowWideNavigation(true);
+            void loadRuns(false);
           }}
-          className="cursor-agent-launch-overlay bg-background absolute bottom-0 right-0 z-[60] box-border overflow-y-auto border-l p-5"
-        >
-          <div className="cursor-agent-launch-card mx-auto flex min-h-full w-full max-w-3xl flex-col justify-center">
-            <div className="mb-3 flex items-start justify-between gap-3">
-              <div>
-                <h2 className="m-0 text-base font-semibold">Multitask</h2>
-                <p className="text-description mb-0 mt-1 text-xs">
-                  Give each agent one outcome per line. Tasks run in parallel,
-                  keep separate conversations, and can be canceled
-                  independently.
-                </p>
-              </div>
-              <button
-                type="button"
-                aria-label="Close multitask"
-                onClick={() => setShowMultitask(false)}
-                className="hover:bg-list-hover flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border-none bg-transparent"
-              >
-                <XMarkIcon className="h-4 w-4" />
-              </button>
-            </div>
-            <textarea
-              autoFocus
-              aria-label="Multitask items"
-              value={multitaskItems}
-              onChange={(event) => setMultitaskItems(event.target.value)}
-              placeholder={
-                "Review authentication\nRun and fix failing tests\nAudit responsive UI"
-              }
-              rows={8}
-              className="cursor-agent-launch-textarea border-input bg-editor focus:border-border-focus box-border w-full resize-y rounded-xl border p-4 text-sm leading-relaxed outline-none"
-            />
-            <div className="mt-3 flex min-w-0 items-center gap-2">
-              <input
-                aria-label="Multitask repository"
-                value={newRepository}
-                list="multitask-repository-options"
-                onChange={(event) => setNewRepository(event.target.value)}
-                placeholder="Choose a repository"
-                className="border-input bg-editor focus:border-border-focus box-border min-w-0 flex-1 rounded-md border px-3 py-2 text-xs outline-none"
-              />
-              <datalist id="multitask-repository-options">
-                {repositoryChoices.map((repository) => (
-                  <option key={repository} value={repository} />
-                ))}
-              </datalist>
-              <button
-                type="button"
-                onClick={() => void chooseRepository()}
-                className="border-input bg-input hover:bg-list-hover flex-shrink-0 cursor-pointer rounded-md border px-3 py-2 text-xs"
-              >
-                Browse…
-              </button>
-            </div>
-            {repositoryChoices.length > 0 && !newRepository && (
-              <div className="mt-2 flex min-w-0 flex-wrap gap-1.5">
-                {repositoryChoices.slice(0, 3).map((repository) => (
-                  <button
-                    key={repository}
-                    type="button"
-                    title={repository}
-                    onClick={() => setNewRepository(repository)}
-                    className="border-input bg-input hover:bg-list-hover text-2xs max-w-52 cursor-pointer truncate rounded-full border px-2 py-1"
-                  >
-                    {repository.split(/[\\/]/).filter(Boolean).at(-1)}
-                  </button>
-                ))}
-              </div>
-            )}
-            <div className="mt-3">
-              <AgentContextPicker
-                repositoryPath={newRepository}
-                items={multitaskContextItems}
-                onChange={setMultitaskContextItems}
-              />
-              <div className="text-description text-2xs mt-1">
-                Context files are referenced in every task and resolved inside
-                each agent workspace.
-              </div>
-            </div>
-            <div className="mt-3 grid min-w-0 grid-cols-1 gap-2 min-[520px]:grid-cols-2">
-              <select
-                aria-label="Multitask runtime"
-                value={newRuntime}
-                onChange={(event) =>
-                  setNewRuntime(
-                    event.target.value as "local" | "docker" | "ssh",
-                  )
-                }
-                className="border-input bg-editor min-w-0 rounded-md border px-2 py-2 text-xs"
-              >
-                <option value="local">Local</option>
-                <option value="docker">Docker</option>
-                <option value="ssh">Remote SSH</option>
-              </select>
-              <select
-                aria-label="Multitask permission mode"
-                value={newPermissionMode}
-                onChange={(event) =>
-                  setNewPermissionMode(
-                    event.target.value as AgentRun["permissionMode"],
-                  )
-                }
-                className="border-input bg-editor min-w-0 rounded-md border px-2 py-2 text-xs"
-              >
-                <option value="autonomous">Autonomous</option>
-                <option value="ask">Ask</option>
-                <option value="fullAccess">Full access</option>
-                <option value="readOnly">Read only</option>
-              </select>
-              <SkillSelect
-                value={multitaskSkill}
-                onChange={(skill) => setMultitaskSkill(skill?.name)}
-                className="border-input bg-editor rounded-md border px-3 py-2"
-              />
-              <div
-                aria-label="Multitask model and reasoning"
-                className="border-input bg-editor flex min-w-0 items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs"
-              >
-                <ModelSelect />
-                <ReasoningEffortSelect />
-              </div>
-              {newRuntime === "docker" && (
-                <input
-                  aria-label="Multitask container image"
-                  value={newContainerImage}
-                  onChange={(event) => setNewContainerImage(event.target.value)}
-                  placeholder="Container image"
-                  className="border-input bg-editor min-w-0 rounded-md border px-3 py-2 text-xs outline-none min-[520px]:col-span-2"
-                />
-              )}
-              {newRuntime === "ssh" && (
-                <input
-                  aria-label="Multitask SSH host"
-                  value={newSshHost}
-                  onChange={(event) => setNewSshHost(event.target.value)}
-                  placeholder="user@host"
-                  className="border-input bg-editor min-w-0 rounded-md border px-3 py-2 text-xs outline-none min-[520px]:col-span-2"
-                />
-              )}
-              <div className="text-description text-2xs min-[520px]:col-span-2">
-                {multitaskSkill
-                  ? `${multitaskSkill} will be loaded into every task. `
-                  : "Skills are optional and apply to every task. "}
-                Up to 12 agents are created; 4 run concurrently by default.
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowMultitask(false)}
-                className="border-input bg-input hover:bg-list-hover cursor-pointer rounded-md border px-3 py-2 text-xs min-[520px]:col-start-1"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                aria-label="Start tasks"
-                disabled={
-                  startingMultitask ||
-                  multitaskTaskCount === 0 ||
-                  !newRepository.trim() ||
-                  (newRuntime === "ssh" && !newSshHost.trim())
-                }
-                className="bg-primary text-primary-foreground hover:bg-primary-hover cursor-pointer rounded-md border-none px-3 py-2 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {startingMultitask
-                  ? "Starting…"
-                  : multitaskTaskCount === 0
-                    ? "Start tasks"
-                    : `Start ${multitaskTaskCount} task${
-                        multitaskTaskCount === 1 ? "" : "s"
-                      }`}
-              </button>
-              <div className="text-description text-2xs text-right min-[520px]:col-span-2">
-                {multitaskTaskCount === 0
-                  ? "Add one task per line to enable Start."
-                  : !newRepository.trim()
-                    ? "Choose a repository to enable Start."
-                    : newRuntime === "ssh" && !newSshHost.trim()
-                      ? "Enter an SSH host to enable Start."
-                      : `Ready to start ${multitaskTaskCount} independent agent${
-                          multitaskTaskCount === 1 ? "" : "s"
-                        }.`}
-              </div>
-            </div>
-          </div>
-        </form>
+          onOpenRun={(runId) => {
+            setShowAutomations(false);
+            setShowCreateComposer(false);
+            setSelectedChatId(undefined);
+            setSelectedId(runId);
+            setShowWideNavigation(true);
+            void loadRuns(false);
+          }}
+        />
       )}
 
       <div
@@ -3900,7 +4230,7 @@ export default function Agents() {
       >
         <aside
           aria-label="Agents and chats"
-          className={`cursor-agents-sidebar ${showCreate ? "cursor-agents-sidebar-creating" : ""} flex min-h-0 min-w-0 flex-col border-r ${
+          className={`cursor-agents-sidebar flex min-h-0 min-w-0 flex-col border-r ${
             selected ||
             selectedChat ||
             (runs.length === 0 && chatSessions.length === 0)
@@ -3908,186 +4238,6 @@ export default function Agents() {
               : ""
           }`}
         >
-          {showCreate && (
-            <form
-              aria-label="Create agent"
-              className="cursor-agent-launch-overlay bg-background absolute bottom-0 right-0 z-50 box-border overflow-y-auto border-l p-5"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void createRun();
-              }}
-            >
-              <div className="cursor-agent-launch-card mx-auto flex min-h-full w-full max-w-4xl flex-col justify-end">
-                <div className="cursor-agent-launch-heading mx-auto mb-3 flex w-full max-w-[860px] items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="cursor-agent-eyebrow">
-                      New autonomous run
-                    </div>
-                    <h2 className="m-0 text-base font-semibold">New agent</h2>
-                    <p className="text-description mb-0 mt-1 text-xs">
-                      Define the outcome. Qivryn will prepare an isolated
-                      workspace, execute the task, and keep the run durable.
-                    </p>
-                    {newParentRunId && (
-                      <div className="text-description text-2xs mt-1 truncate">
-                        Subagent of{" "}
-                        {runs.find((run) => run.id === newParentRunId)?.title}
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    aria-label="Close create agent"
-                    onClick={() => {
-                      setShowCreate(false);
-                      setNewParentRunId(undefined);
-                    }}
-                    className="hover:bg-list-hover flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border-none bg-transparent"
-                  >
-                    <XMarkIcon className="h-4 w-4" />
-                  </button>
-                </div>
-
-                <div className="cursor-agent-composer cursor-agent-create-composer mx-auto">
-                  <textarea
-                    autoFocus
-                    aria-label="Agent task"
-                    value={newPrompt}
-                    onChange={(event) => setNewPrompt(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" && !event.shiftKey) {
-                        event.preventDefault();
-                        event.currentTarget.form?.requestSubmit();
-                      }
-                    }}
-                    placeholder="What should the agent accomplish?"
-                    rows={4}
-                    className="cursor-agent-composer-input bg-input box-border w-full resize-none border-none px-1 py-1 text-xs outline-none"
-                  />
-
-                  <div className="mt-2 flex min-w-0 items-center gap-2">
-                    <input
-                      aria-label="Agent repository"
-                      value={newRepository}
-                      list="agent-repository-options"
-                      onChange={(event) => setNewRepository(event.target.value)}
-                      placeholder="Choose a repository"
-                      className="border-input bg-editor focus:border-border-focus box-border min-w-0 flex-1 rounded-md border px-2 py-1.5 text-xs outline-none"
-                    />
-                    <datalist id="agent-repository-options">
-                      {repositoryChoices.map((repository) => (
-                        <option key={repository} value={repository} />
-                      ))}
-                    </datalist>
-                    <button
-                      type="button"
-                      onClick={() => void chooseRepository()}
-                      className="border-input bg-input hover:bg-list-hover flex-shrink-0 cursor-pointer rounded-md border px-2.5 py-1.5 text-xs"
-                    >
-                      Browse…
-                    </button>
-                  </div>
-
-                  {repositoryChoices.length > 0 && !newRepository && (
-                    <div className="mt-2 flex min-w-0 flex-wrap gap-1.5">
-                      {repositoryChoices.slice(0, 3).map((repository) => (
-                        <button
-                          key={repository}
-                          type="button"
-                          title={repository}
-                          onClick={() => setNewRepository(repository)}
-                          className="border-input bg-input hover:bg-list-hover text-2xs max-w-52 cursor-pointer truncate rounded-full border px-2 py-1"
-                        >
-                          {repository.split(/[\\/]/).filter(Boolean).at(-1)}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {(newRuntime === "docker" || newRuntime === "ssh") && (
-                    <div className="mt-2">
-                      {newRuntime === "docker" ? (
-                        <input
-                          aria-label="Container image"
-                          value={newContainerImage}
-                          onChange={(event) =>
-                            setNewContainerImage(event.target.value)
-                          }
-                          placeholder="Container image"
-                          className="border-input bg-editor min-w-0 rounded-md border px-2 py-1.5 text-xs outline-none"
-                        />
-                      ) : (
-                        <input
-                          aria-label="SSH host"
-                          value={newSshHost}
-                          onChange={(event) =>
-                            setNewSshHost(event.target.value)
-                          }
-                          placeholder="user@host"
-                          className="border-input bg-editor min-w-0 rounded-md border px-2 py-1.5 text-xs outline-none"
-                        />
-                      )}
-                    </div>
-                  )}
-
-                  <div className="cursor-agent-composer-toolbar flex min-w-0 items-center justify-between gap-2">
-                    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                      <ModeSelect
-                        skillName={newSkill}
-                        onSkillChange={setNewSkill}
-                        agentAccessMode={newPermissionMode}
-                        onAgentAccessModeChange={setNewPermissionMode}
-                        agentRuntime={newRuntime}
-                        onAgentRuntimeChange={setNewRuntime}
-                        includeAgentControls
-                        includeModelControls
-                      />
-                      <AgentContextPicker
-                        repositoryPath={newRepository}
-                        items={newContextItems}
-                        onChange={setNewContextItems}
-                      />
-                    </div>
-                    <div className="flex flex-shrink-0 items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowCreate(false);
-                          setNewParentRunId(undefined);
-                        }}
-                        className="border-input bg-input hover:bg-list-hover cursor-pointer rounded-md border px-3 py-1.5 text-xs"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={
-                          starting ||
-                          !newPrompt.trim() ||
-                          !newRepository.trim() ||
-                          (newRuntime === "ssh" && !newSshHost.trim())
-                        }
-                        className="bg-primary text-primary-foreground hover:bg-primary-hover cursor-pointer rounded-md border-none px-3 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {starting ? "Starting…" : "Start"}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="text-description text-2xs mt-2 text-right">
-                    {!newPrompt.trim()
-                      ? "Describe a task to enable Start."
-                      : !newRepository.trim()
-                        ? "Choose a repository to enable Start."
-                        : newRuntime === "ssh" && !newSshHost.trim()
-                          ? "Enter an SSH host to enable Start."
-                          : "Ready to start. Enter submits; Shift+Enter adds a new line."}
-                  </div>
-                </div>
-              </div>
-            </form>
-          )}
-
           <nav
             className="qivryn-codex-sidebar-nav"
             aria-label="Qivryn navigation"
@@ -4128,9 +4278,31 @@ export default function Agents() {
               aria-label="Search agents"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search agents and chats"
-              className="border-input bg-input text-input-foreground placeholder:text-input-placeholder focus:border-border-focus box-border w-full rounded-md border py-2 pl-7 pr-2 text-xs outline-none"
+              placeholder={
+                showArchived
+                  ? "Search archived agents"
+                  : "Search agents and chats"
+              }
+              className="border-input bg-input text-input-foreground placeholder:text-input-placeholder focus:border-border-focus box-border w-full rounded-md border py-2 pl-7 pr-8 text-xs outline-none"
             />
+            <button
+              type="button"
+              aria-label={
+                showArchived ? "Hide archived agents" : "Show archived agents"
+              }
+              aria-pressed={showArchived}
+              title={
+                showArchived ? "Back to active agents" : "Show archived agents"
+              }
+              onClick={() => {
+                setShowArchived((current) => !current);
+                setSelectedId(undefined);
+                setSelectedChatId(undefined);
+              }}
+              className={`absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded border-none bg-transparent ${showArchived ? "text-link" : "text-description hover:text-foreground"}`}
+            >
+              <ArchiveBoxIcon className="h-3.5 w-3.5" />
+            </button>
           </div>
 
           <div className="cursor-agent-sidebar-sections no-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto px-2 py-3">
@@ -4191,9 +4363,11 @@ export default function Agents() {
                   <div className="text-description">
                     {query
                       ? "No agents or chats match this search."
-                      : "No agent runs or chat sessions yet."}
+                      : showArchived
+                        ? "No archived agents."
+                        : "No agent runs or chat sessions yet."}
                   </div>
-                  {!query && (
+                  {!query && !showArchived && (
                     <div className="mt-3 flex justify-center gap-2">
                       <button
                         type="button"
@@ -4232,7 +4406,7 @@ export default function Agents() {
             {recent.length > 0 && (
               <section className="cursor-agent-sidebar-section">
                 <div className="cursor-agent-sidebar-section-title text-description text-2xs px-2 pb-1 font-medium uppercase tracking-wide">
-                  Recent
+                  {showArchived ? "Archived" : "Recent"}
                 </div>
                 {recent.map((run) => (
                   <AgentRow
@@ -4274,6 +4448,7 @@ export default function Agents() {
         >
           {selected && (
             <AgentDetails
+              key={selected.id}
               run={selected}
               childRuns={runs.filter(
                 (candidate) => candidate.parentRunId === selected.id,
@@ -4291,9 +4466,11 @@ export default function Agents() {
                 })
               }
               onArchive={() =>
-                void control({ action: "archive", runId: selected.id }).then(
-                  (success) => success && setSelectedId(undefined),
-                )
+                void control({
+                  action:
+                    selected.status === "archived" ? "unarchive" : "archive",
+                  runId: selected.id,
+                }).then((success) => success && setSelectedId(undefined))
               }
               onRunAction={() =>
                 void control(
@@ -4312,28 +4489,29 @@ export default function Agents() {
               onRename={(title) =>
                 void control({ action: "rename", runId: selected.id, title })
               }
-              onQueue={(prompt, behavior) =>
-                void control({
+              onQueue={async (prompt, behavior) => {
+                const success = await control({
                   action: "queue.add",
                   runId: selected.id,
                   prompt,
                   behavior,
-                }).then(async (success) => {
+                });
+                await reloadQueue();
+                if (!success) return false;
+                if (
+                  AGENT_FOLLOW_UP_RESUME_STATUSES.has(
+                    await latestRunStatus(selected.id, selected.status),
+                  )
+                ) {
+                  const resumed = await control({
+                    action: "run.resume",
+                    runId: selected.id,
+                  });
                   await reloadQueue();
-                  if (
-                    success &&
-                    AGENT_FOLLOW_UP_RESUME_STATUSES.has(
-                      await latestRunStatus(selected.id, selected.status),
-                    )
-                  ) {
-                    await control({
-                      action: "run.resume",
-                      runId: selected.id,
-                    });
-                    await reloadQueue();
-                  }
-                })
-              }
+                  return resumed;
+                }
+                return true;
+              }}
               onUpdateQueueItem={(itemId, prompt, behavior) =>
                 void control({
                   action: "queue.update",
@@ -4466,6 +4644,14 @@ export default function Agents() {
                   permissionMode,
                 })
               }
+              onResolveApproval={(approvalId, decision) =>
+                void control({
+                  action: "approval.resolve",
+                  runId: selected.id,
+                  approvalId,
+                  decision,
+                })
+              }
               onSelectRun={(runId) => setSelectedId(runId)}
               onResubmit={(prompt) => void resubmitRun(selected, prompt)}
               onClose={() => setSelectedId(undefined)}
@@ -4480,89 +4666,197 @@ export default function Agents() {
               onBack={() => setSelectedChatId(undefined)}
             />
           )}
-          {!selected && !selectedChat && !showCreate && (
-            <div className="qivryn-codex-new-task flex h-full min-h-64 items-center justify-center px-5 py-8">
-              <div className="w-full max-w-3xl">
-                <div className="qivryn-codex-new-task-heading">
-                  <h1>What should we work on?</h1>
-                  <p>
-                    Start a durable task in this workspace or an isolated
-                    worktree.
-                  </p>
-                </div>
-                <form
-                  className="qivryn-codex-task-composer"
-                  aria-label="New agent task"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    void createRun();
-                  }}
-                >
-                  <textarea
-                    aria-label="New task prompt"
-                    value={newPrompt}
-                    onChange={(event) => setNewPrompt(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" && !event.shiftKey) {
-                        event.preventDefault();
-                        event.currentTarget.form?.requestSubmit();
-                      }
-                    }}
-                    placeholder="Ask Qivryn to build, review, debug, or investigate"
-                    rows={4}
-                  />
-                  <div className="qivryn-codex-task-composer-footer">
-                    <div className="flex min-w-0 items-center gap-1.5">
-                      <ModeSelect
-                        skillName={newSkill}
-                        onSkillChange={setNewSkill}
-                        agentAccessMode={newPermissionMode}
-                        onAgentAccessModeChange={setNewPermissionMode}
-                        agentRuntime={newRuntime}
-                        onAgentRuntimeChange={setNewRuntime}
-                        includeAgentControls
-                        includeModelControls
-                      />
-                      <button
-                        type="button"
-                        className="qivryn-composer-repository"
-                        title={newRepository || "Choose repository"}
-                        onClick={() => void chooseRepository()}
-                      >
-                        {newRepository
-                          ? newRepository.split(/[\\/]/).filter(Boolean).at(-1)
-                          : "Choose workspace"}
-                      </button>
-                    </div>
-                    <button
-                      type="submit"
-                      aria-label="Start task"
-                      disabled={
-                        starting ||
-                        !newPrompt.trim() ||
-                        !newRepository.trim() ||
-                        (newRuntime === "ssh" && !newSshHost.trim())
-                      }
-                      className="qivryn-codex-send-button"
-                    >
-                      <ArrowUpIcon className="h-4 w-4" />
-                    </button>
+          {!selected &&
+            !selectedChat &&
+            showCreateComposer &&
+            newParentRunId && (
+              <div className="qivryn-codex-new-task flex h-full min-h-64 items-center justify-center px-5 py-8">
+                <div className="w-full max-w-3xl">
+                  <div className="qivryn-codex-new-task-heading">
+                    <h1>
+                      {newParentRunId
+                        ? "What should this subagent work on?"
+                        : effectiveNewRepository
+                          ? `What should we work on in ${repositoryDisplayName(effectiveNewRepository)}?`
+                          : "What should we work on?"}
+                    </h1>
+                    <p>
+                      {newParentRunId
+                        ? `Continue from ${runs.find((run) => run.id === newParentRunId)?.title ?? "the parent agent"} with inherited context.`
+                        : "Start a durable task in this workspace or an isolated worktree."}
+                    </p>
                   </div>
-                </form>
-                <div className="qivryn-codex-new-task-actions">
-                  <button type="button" onClick={() => void openMultitask()}>
-                    <Squares2X2Icon className="h-4 w-4" /> Run in parallel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowAutomations(true)}
+                  <form
+                    className="qivryn-codex-task-composer"
+                    aria-label="Create agent"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void createRun();
+                    }}
                   >
-                    <ClockIcon className="h-4 w-4" /> Schedule a task
-                  </button>
+                    <textarea
+                      ref={newTaskRef}
+                      aria-label="Agent task"
+                      value={newPrompt}
+                      onChange={(event) => setNewPrompt(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" && !event.shiftKey) {
+                          event.preventDefault();
+                          event.currentTarget.form?.requestSubmit();
+                        }
+                      }}
+                      placeholder="Ask Qivryn to build, review, debug, or investigate"
+                      rows={4}
+                    />
+                    {!newParentRunId && newTaskCount > MAX_PARALLEL_TASKS && (
+                      <div role="alert" className="text-error px-1 text-[11px]">
+                        Up to {MAX_PARALLEL_TASKS} parallel tasks are supported.
+                        Remove {newTaskCount - MAX_PARALLEL_TASKS} to continue.
+                      </div>
+                    )}
+                    {(newRuntime === "docker" || newRuntime === "ssh") && (
+                      <div className="qivryn-codex-task-runtime-options">
+                        {newRuntime === "docker" ? (
+                          <input
+                            aria-label="Container image"
+                            value={newContainerImage}
+                            onChange={(event) =>
+                              setNewContainerImage(event.target.value)
+                            }
+                            placeholder="Container image"
+                          />
+                        ) : (
+                          <input
+                            aria-label="SSH host"
+                            value={newSshHost}
+                            onChange={(event) =>
+                              setNewSshHost(event.target.value)
+                            }
+                            placeholder="user@host"
+                          />
+                        )}
+                      </div>
+                    )}
+                    <div className="qivryn-codex-task-composer-footer">
+                      <div className="qivryn-agent-composer-tools flex min-w-0 items-center gap-1.5">
+                        <ModeSelect
+                          skillName={newSkill}
+                          onSkillChange={setNewSkill}
+                          agentAccessMode={newPermissionMode}
+                          onAgentAccessModeChange={setNewPermissionMode}
+                          agentRuntime={newRuntime}
+                          onAgentRuntimeChange={setNewRuntime}
+                          includeAgentControls
+                        />
+                        <AgentContextPicker
+                          repositoryPath={effectiveNewRepository}
+                          items={newContextItems}
+                          onChange={setNewContextItems}
+                        />
+                        <div className="qivryn-composer-repository">
+                          <FolderIcon className="h-3.5 w-3.5 flex-none" />
+                          <input
+                            aria-label="Agent repository"
+                            value={newRepository || effectiveNewRepository}
+                            list="agent-repository-options"
+                            onChange={(event) =>
+                              setNewRepository(event.target.value)
+                            }
+                            placeholder="Choose workspace"
+                            title={
+                              effectiveNewRepository || "Choose a workspace"
+                            }
+                          />
+                          <datalist id="agent-repository-options">
+                            {repositoryChoices.map((repository) => (
+                              <option key={repository} value={repository} />
+                            ))}
+                          </datalist>
+                          <button
+                            type="button"
+                            aria-label="Browse…"
+                            title="Choose repository"
+                            onClick={() => void chooseRepository()}
+                          >
+                            <EllipsisHorizontalIcon className="h-3.5 w-3.5" />
+                          </button>
+                          {newRepository.trim() && (
+                            <button
+                              type="button"
+                              aria-label="Clear repository override"
+                              title="Use current workspace"
+                              onClick={clearRepository}
+                            >
+                              <XMarkIcon className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="qivryn-agent-composer-submit-cluster">
+                        <VoiceInputButton
+                          disabled={starting}
+                          onInsert={(text) =>
+                            setNewPrompt((current) =>
+                              appendVoiceTranscript(current, text),
+                            )
+                          }
+                        />
+                        <ModeSelect modelOnly />
+                        <button
+                          type="submit"
+                          aria-label={
+                            starting
+                              ? "Starting"
+                              : !newParentRunId && newTaskCount > 1
+                                ? `Start ${newTaskCount}`
+                                : "Start"
+                          }
+                          disabled={
+                            starting ||
+                            !newPrompt.trim() ||
+                            !effectiveNewRepository.trim() ||
+                            (!newParentRunId &&
+                              newTaskCount > MAX_PARALLEL_TASKS) ||
+                            (newRuntime === "ssh" && !newSshHost.trim())
+                          }
+                          className="qivryn-codex-send-button"
+                        >
+                          <ArrowUpIcon className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </form>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          {!selected &&
+            !selectedChat &&
+            !showCreateComposer &&
+            !showAutomations && (
+              <div
+                className="flex h-full min-h-64 items-center justify-center px-5 py-8"
+                aria-live="polite"
+              >
+                {showWideNavigation ? (
+                  <div className="text-description max-w-sm text-center text-xs leading-5">
+                    <p className="m-0">
+                      Select an agent or chat from the session panel.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => navigate(ROUTES.HOME, { replace: true })}
+                      className="hover:text-foreground text-link mt-3 cursor-pointer border-none bg-transparent p-0 text-xs"
+                    >
+                      Open composer
+                    </button>
+                  </div>
+                ) : (
+                  <span className="text-description text-xs">
+                    Opening the unified composer...
+                  </span>
+                )}
+              </div>
+            )}
         </main>
       </div>
     </div>

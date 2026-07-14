@@ -8,6 +8,7 @@ import {
 } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import * as dotenv from "dotenv";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const roots: string[] = [];
@@ -47,6 +48,22 @@ async function fixture() {
     "---\nname: reviewer\ndescription: Review code\n---\n\nReview the requested code.\n",
   );
   await writeFile(path.join(codexHome, "AGENTS.md"), "Use evidence.\n");
+  await writeFile(
+    path.join(codexHome, ".env"),
+    "BUGDB_OAUTH_TOKEN=codex-secret\nTRANSPORT_ONLY_SECRET=transport-secret\nSHARED_SETTING=codex-value\n",
+    { mode: 0o600 },
+  );
+  await mkdir(qivrynHome, { recursive: true });
+  await writeFile(
+    path.join(qivrynHome, ".env"),
+    "LOCAL_ONLY=preserved\nSHARED_SETTING=old-value\n",
+    { mode: 0o600 },
+  );
+  const mcpScript = path.join(root, "bugdb-server.py");
+  await writeFile(
+    mcpScript,
+    "import os\nTOKEN = os.environ.get('BUGDB_OAUTH_TOKEN')\n",
+  );
   await writeFile(
     path.join(codexHome, "hooks.json"),
     JSON.stringify({
@@ -102,18 +119,25 @@ async function fixture() {
       'status = "PAUSED"',
       'rrule = "RRULE:FREQ=DAILY;BYHOUR=9;BYMINUTE=0"',
       'model = "gpt-test"',
+      'reasoning_effort = "high"',
       `target = { type = "project", project_id = ${JSON.stringify(root)} }`,
       "created_at = 1700000000000",
       "updated_at = 1700000001000",
     ].join("\n"),
   );
 
-  return { codexHome, qivrynHome, defaultQivrynHome, pluginRoot };
+  return {
+    codexHome,
+    qivrynHome,
+    defaultQivrynHome,
+    pluginRoot,
+    mcpScript,
+  };
 }
 
 describe("Codex import manager", () => {
   it("previews and imports MCP, plugins, skills, hooks, rules, agents, and paused automations", async () => {
-    const { codexHome, qivrynHome, defaultQivrynHome, pluginRoot } =
+    const { codexHome, qivrynHome, defaultQivrynHome, pluginRoot, mcpScript } =
       await fixture();
     vi.resetModules();
     const manager = await import("./codexImportManager");
@@ -124,8 +148,13 @@ describe("Codex import manager", () => {
         transport: {
           type: "stdio" as const,
           command: "node",
-          args: ["server.mjs"],
-          env: { TOKEN: "${TOKEN}" },
+          args: [mcpScript],
+          env: {
+            BUGDB_OAUTH_TOKEN: "raw-codex-token",
+            INLINE_ONLY_TOKEN: "raw-inline-token",
+            TRANSPORT_ONLY_SECRET: "raw-transport-secret",
+            TOKEN: "${TOKEN}",
+          },
         },
       },
       {
@@ -175,9 +204,24 @@ describe("Codex import manager", () => {
       "local-tools": {
         type: "stdio",
         command: "node",
-        args: ["server.mjs"],
-        env: { TOKEN: "${TOKEN}" },
+        args: [mcpScript],
+        env: {
+          BUGDB_OAUTH_TOKEN: "${BUGDB_OAUTH_TOKEN}",
+          INLINE_ONLY_TOKEN: "${INLINE_ONLY_TOKEN}",
+          TRANSPORT_ONLY_SECRET: "${TRANSPORT_ONLY_SECRET}",
+          TOKEN: "${TOKEN}",
+        },
       },
+    });
+    const importedEnvironment = dotenv.parse(
+      await readFile(path.join(qivrynHome, ".env"), "utf8"),
+    );
+    expect(importedEnvironment).toEqual({
+      BUGDB_OAUTH_TOKEN: "codex-secret",
+      INLINE_ONLY_TOKEN: "raw-inline-token",
+      LOCAL_ONLY: "preserved",
+      SHARED_SETTING: "codex-value",
+      TRANSPORT_ONLY_SECRET: "transport-secret",
     });
 
     const plugins = JSON.parse(
@@ -249,6 +293,8 @@ describe("Codex import manager", () => {
         type: "rrule",
         rrule: "RRULE:FREQ=DAILY;BYHOUR=9;BYMINUTE=0",
       },
+      model: "gpt-test",
+      reasoningEffort: "high",
     });
   });
 });

@@ -12,6 +12,13 @@ import {
   type MockLLMServer,
 } from "../test-helpers/mock-llm-server.js";
 
+function lastUserPrompt(request: MockLLMServer["requests"][number]): string {
+  const userMessages =
+    request.body?.messages?.filter((message: any) => message.role === "user") ??
+    [];
+  return userMessages.at(-1)?.content ?? "";
+}
+
 describe("E2E: Resume Flag", () => {
   let context: any;
   let mockServer: MockLLMServer;
@@ -190,8 +197,14 @@ describe("E2E: Resume Flag", () => {
     // Should show the new response
     expect(resumeResult.stdout).toContain("Second response");
 
-    // Verify both requests were made to the server
-    expect(mockServer.requests).toHaveLength(2);
+    // Title generation can make additional requests; count only chat turns.
+    expect(
+      mockServer.requests
+        .map(lastUserPrompt)
+        .filter((prompt) =>
+          ["first message", "second message"].includes(prompt),
+        ),
+    ).toEqual(["first message", "second message"]);
 
     // Check that the session file contains both messages
     sessionFiles = (await fs.readdir(sessionDir)).filter(
@@ -216,4 +229,51 @@ describe("E2E: Resume Flag", () => {
     expect(assistantMessages[0].message?.content).toBe("First response");
     expect(assistantMessages[1].message?.content).toBe("Second response");
   }, 30000);
+
+  it("should resume only the exact session ID across child processes", async () => {
+    const qivrynHome = path.join(context.testDir, ".qivryn");
+    const runExactSession = (sessionId: string, prompt: string) =>
+      runCLI(context, {
+        args: [
+          "-p",
+          "--session-id",
+          sessionId,
+          "--config",
+          context.configPath,
+          prompt,
+        ],
+        env: { QIVRYN_GLOBAL_DIR: qivrynHome },
+        timeout: 15000,
+      });
+
+    const firstA = await runExactSession("agent-run-a", "A initial");
+    const firstB = await runExactSession("agent-run-b", "B initial");
+    const followUpA = await runExactSession("agent-run-a", "A follow-up");
+
+    expect(firstA.exitCode).toBe(0);
+    expect(firstB.exitCode).toBe(0);
+    expect(followUpA.exitCode).toBe(0);
+    expect(
+      mockServer.requests
+        .map(lastUserPrompt)
+        .filter((prompt) =>
+          ["A initial", "B initial", "A follow-up"].includes(prompt),
+        ),
+    ).toEqual(["A initial", "B initial", "A follow-up"]);
+
+    const sessionDir = path.join(qivrynHome, "sessions");
+    const readSession = async (sessionId: string) =>
+      JSON.parse(
+        await fs.readFile(path.join(sessionDir, `${sessionId}.json`), "utf8"),
+      );
+    const sessionA = await readSession("agent-run-a");
+    const sessionB = await readSession("agent-run-b");
+    const userMessages = (session: any) =>
+      session.history
+        .filter((item: any) => item.message?.role === "user")
+        .map((item: any) => item.message.content);
+
+    expect(userMessages(sessionA)).toEqual(["A initial", "A follow-up"]);
+    expect(userMessages(sessionB)).toEqual(["B initial"]);
+  }, 45000);
 });

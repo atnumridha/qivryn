@@ -217,6 +217,13 @@ export interface AgentApprovalRequest {
   detail?: string;
   command?: string;
   paths?: string[];
+  args?: Record<string, unknown>;
+  preview?: Array<{
+    type: "text" | "diff" | "checklist";
+    content: string;
+    color?: string;
+    paddingLeft?: number;
+  }>;
   status: "pending" | "resolved";
   decision?: AgentApprovalDecision;
   resolvedAt?: string;

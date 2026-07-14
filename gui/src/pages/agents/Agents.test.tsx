@@ -8,10 +8,11 @@ import {
   addAndSelectChatModel,
   triggerConfigUpdate,
 } from "../../util/test/config";
-import Agents from ".";
+import Agents, { fileUriFromPath, normalizeFilePath } from ".";
 
 afterEach(() => {
   delete (window as any).isFullScreen;
+  delete (window as any).workspacePaths;
   window.localStorage.removeItem("qivryn.skills.catalog.v2");
   window.localStorage.removeItem("qivryn.models.catalog.v1");
   window.localStorage.removeItem("qivryn.agents.lastRepository");
@@ -38,6 +39,24 @@ function run(overrides: Partial<AgentRun>): AgentRun {
 }
 
 describe("Agents workspace", () => {
+  it("normalizes POSIX, Windows, and UNC workspace URIs", () => {
+    expect(normalizeFilePath("file:///Users/dev/My%20Project")).toBe(
+      "/Users/dev/My Project",
+    );
+    expect(normalizeFilePath("file:///C:/Users/dev/My%20Project")).toBe(
+      "C:/Users/dev/My Project",
+    );
+    expect(normalizeFilePath("file://server/share/My%20Project")).toBe(
+      "//server/share/My Project",
+    );
+    expect(fileUriFromPath("C:\\Users\\dev\\My Project#1")).toBe(
+      "file:///C:/Users/dev/My%20Project%231",
+    );
+    expect(fileUriFromPath("//server/share/My Project")).toBe(
+      "file://server/share/My%20Project",
+    );
+  });
+
   it("closes the standalone Agents window when returning to chat", async () => {
     (window as any).isFullScreen = true;
     const messenger = new MockIdeMessenger();
@@ -52,8 +71,20 @@ describe("Agents workspace", () => {
     expect(post).toHaveBeenCalledWith("closeAgentWindow", undefined);
   });
 
-  it("returns to the chat route from the workspace header", async () => {
-    const { user } = await renderWithProviders(
+  it("routes explicit new-agent entries to the unified composer", async () => {
+    await renderWithProviders(
+      <Routes>
+        <Route path="/agents" element={<Agents />} />
+        <Route path="/" element={<div>Chat screen</div>} />
+      </Routes>,
+      { routerProps: { initialEntries: ["/agents?new=1"] } },
+    );
+
+    expect(await screen.findByText("Chat screen")).toBeVisible();
+  });
+
+  it("routes bare agent workspace entries to the unified composer", async () => {
+    await renderWithProviders(
       <Routes>
         <Route path="/agents" element={<Agents />} />
         <Route path="/" element={<div>Chat screen</div>} />
@@ -61,10 +92,24 @@ describe("Agents workspace", () => {
       { routerProps: { initialEntries: ["/agents"] } },
     );
 
-    await user.click(
-      await screen.findByRole("button", { name: "Back to chat" }),
-    );
     expect(await screen.findByText("Chat screen")).toBeVisible();
+  });
+
+  it("opens the agents and chats panel from an explicit route", async () => {
+    await renderWithProviders(<Agents />, {
+      routerProps: { initialEntries: ["/agents?panel=1"] },
+    });
+
+    expect(await screen.findByLabelText("Agents and chats")).toBeVisible();
+    expect(
+      await screen.findByText(
+        "Select an agent or chat from the session panel.",
+      ),
+    ).toBeVisible();
+    expect(screen.getByLabelText("Hide agents and chats")).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
   });
 
   it("keeps the wide task navigator collapsed until requested", async () => {
@@ -139,18 +184,19 @@ describe("Agents workspace", () => {
     expect(post).toHaveBeenCalledWith("reloadAgentWindow", { path: "/agents" });
   });
 
-  it("opens the create-agent composer from the route", async () => {
+  it("does not render a separate create-agent screen from the route", async () => {
     await renderWithProviders(
       <Routes>
         <Route path="/agents" element={<Agents />} />
+        <Route path="/" element={<div>Chat screen</div>} />
       </Routes>,
       { routerProps: { initialEntries: ["/agents?new=1"] } },
     );
 
+    expect(await screen.findByText("Chat screen")).toBeVisible();
     expect(
-      await screen.findByRole("form", { name: "Create agent" }),
-    ).toBeVisible();
-    expect(screen.getByRole("textbox", { name: "Agent task" })).toBeVisible();
+      screen.queryByRole("form", { name: "Create agent" }),
+    ).not.toBeInTheDocument();
   });
 
   it("groups runs, searches, and loads selected run events", async () => {
@@ -232,18 +278,6 @@ describe("Agents workspace", () => {
     expect(screen.getByRole("button", { name: /Validate tokens/ })).toHaveStyle(
       { paddingLeft: "20px" },
     );
-    await user.click(screen.getByRole("button", { name: "New local agent" }));
-    await user.type(
-      screen.getByRole("textbox", { name: "Agent task" }),
-      "Implement daemon reconnect",
-    );
-    await user.click(screen.getByRole("button", { name: "Start" }));
-    await waitFor(() =>
-      expect(controlRequest).toMatchObject({
-        action: "run.create",
-        request: { prompt: "Implement daemon reconnect" },
-      }),
-    );
     await user.click(
       screen.getByRole("button", { name: /Inspect authentication/ }),
     );
@@ -278,6 +312,16 @@ describe("Agents workspace", () => {
       }),
     );
     expect(screen.getByText("Run the focused tests")).toBeInTheDocument();
+    const queuedFollowUps = screen.getByLabelText("Queued follow-ups");
+    const followUpComposer = screen
+      .getByRole("textbox", {
+        name: /Steer active agent|Queue follow-up/,
+      })
+      .closest("form")!;
+    expect(
+      queuedFollowUps.compareDocumentPosition(followUpComposer) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     await user.click(
       screen.getByRole("button", { name: "Edit Run the focused tests" }),
     );
@@ -295,7 +339,9 @@ describe("Agents workspace", () => {
     );
     await user.click(screen.getByRole("button", { name: "New subagent" }));
     expect(
-      screen.getByText("Subagent of Inspect authentication"),
+      screen.getByText(
+        "Continue from Inspect authentication with inherited context.",
+      ),
     ).toBeInTheDocument();
     await user.type(
       screen.getByRole("textbox", { name: "Agent task" }),
@@ -308,6 +354,9 @@ describe("Agents workspace", () => {
         request: {
           prompt: "Validate refresh tokens",
           parentRunId: "active",
+          workspace: {
+            repositoryPath: "/workspace/app",
+          },
         },
       }),
     );
@@ -374,6 +423,94 @@ describe("Agents workspace", () => {
         permissionMode: "fullAccess",
       }),
     );
+  });
+
+  it("resolves tool approvals from the agent conversation", async () => {
+    const messenger = new MockIdeMessenger();
+    messenger.responses["agents/list"] = [
+      run({ id: "approval-run", status: "waiting" }),
+    ];
+    messenger.responses["agents/events"] = [
+      {
+        id: "approval-event",
+        runId: "approval-run",
+        sequence: 1,
+        kind: "approval.requested" as const,
+        createdAt: "2026-06-30T00:00:00.000Z",
+        payload: {
+          id: "approval-1",
+          title: "Run tests?",
+          detail: "The agent wants to run the focused test suite.",
+          command: "npm test -- auth",
+        },
+      },
+    ];
+    let controlRequest: AgentControlRequest | undefined;
+    messenger.responseHandlers["agents/control"] = async (request) => {
+      controlRequest = request;
+      return undefined;
+    };
+    const { user } = await renderWithProviders(<Agents />, {
+      mockIdeMessenger: messenger,
+      routerProps: { initialEntries: ["/agents?runId=approval-run"] },
+    });
+
+    expect(await screen.findByText("Run tests?")).toBeVisible();
+    expect(screen.getByText("npm test -- auth")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Allow once" }));
+
+    await waitFor(() =>
+      expect(controlRequest).toEqual({
+        action: "approval.resolve",
+        runId: "approval-run",
+        approvalId: "approval-1",
+        decision: "approve",
+      }),
+    );
+  });
+
+  it("shows CLI-launched subagents in the integrated agent summary", async () => {
+    const messenger = new MockIdeMessenger();
+    messenger.responses["agents/list"] = [
+      run({ id: "subagent-run", status: "running" }),
+    ];
+    messenger.responses["agents/events"] = [
+      {
+        id: "subagent-created",
+        runId: "subagent-run",
+        sequence: 1,
+        kind: "subagent.created" as const,
+        createdAt: "2026-06-30T00:00:00.000Z",
+        payload: {
+          name: "security-reviewer",
+          status: "running",
+          text: "Reviewing authentication changes",
+        },
+      },
+      {
+        id: "subagent-updated",
+        runId: "subagent-run",
+        sequence: 2,
+        kind: "subagent.updated" as const,
+        createdAt: "2026-06-30T00:00:01.000Z",
+        payload: {
+          name: "security-reviewer",
+          status: "completed",
+          text: "Authentication review complete",
+        },
+      },
+    ];
+    await renderWithProviders(<Agents />, {
+      mockIdeMessenger: messenger,
+      routerProps: { initialEntries: ["/agents?runId=subagent-run"] },
+    });
+
+    const summary = await screen.findByRole("region", { name: "Subagents" });
+    expect(summary).toHaveTextContent("0 active · 1 total");
+    expect(within(summary).getByText("security-reviewer")).toBeVisible();
+    expect(
+      within(summary).getByText("Authentication review complete"),
+    ).toBeVisible();
   });
 
   it("attaches typed file and snapshot context to durable agent follow-ups", async () => {
@@ -591,6 +728,184 @@ describe("Agents workspace", () => {
     );
   });
 
+  it("steers a running agent through the same follow-up composer", async () => {
+    const messenger = new MockIdeMessenger();
+    messenger.responses["agents/list"] = [
+      run({ id: "running-agent", status: "running" }),
+    ];
+    const controlRequests: AgentControlRequest[] = [];
+    messenger.responseHandlers["agents/control"] = async (request) => {
+      controlRequests.push(request);
+      return undefined;
+    };
+    const { user } = await renderWithProviders(<Agents />, {
+      mockIdeMessenger: messenger,
+    });
+
+    await user.click(
+      await screen.findByRole("button", { name: /Inspect authentication/ }),
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "Steer active agent" }),
+      "Prioritize the failing test",
+    );
+    expect(screen.getByRole("button", { name: "Steer now" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await user.click(screen.getByRole("button", { name: "Steer" }));
+
+    await waitFor(() =>
+      expect(controlRequests).toContainEqual(
+        expect.objectContaining({
+          action: "queue.add",
+          runId: "running-agent",
+          prompt: "Prioritize the failing test",
+          behavior: "steer",
+        }),
+      ),
+    );
+    expect(controlRequests).not.toContainEqual(
+      expect.objectContaining({ action: "run.resume" }),
+    );
+    expect(
+      screen.getByRole("textbox", { name: "Steer active agent" }),
+    ).toHaveValue("");
+  });
+
+  it("keeps a steering message in the composer when delivery fails", async () => {
+    const messenger = new MockIdeMessenger();
+    messenger.responses["agents/list"] = [
+      run({ id: "running-agent", status: "running" }),
+    ];
+    const request = messenger.request.bind(messenger);
+    vi.spyOn(messenger, "request").mockImplementation(
+      async (messageType, data) => {
+        if (messageType === "agents/control") {
+          return {
+            status: "error",
+            error: "Agent runtime unavailable",
+            done: true,
+          } as any;
+        }
+        return request(messageType, data as never) as any;
+      },
+    );
+    const { user } = await renderWithProviders(<Agents />, {
+      mockIdeMessenger: messenger,
+    });
+
+    await user.click(
+      await screen.findByRole("button", { name: /Inspect authentication/ }),
+    );
+    const composer = screen.getByRole("textbox", {
+      name: "Steer active agent",
+    });
+    await user.type(composer, "Prioritize the failing test");
+    await user.click(screen.getByRole("button", { name: "Steer" }));
+
+    expect(
+      await screen.findByText("Follow-up was not sent. Try again."),
+    ).toBeVisible();
+    expect(composer).toHaveValue("Prioritize the failing test");
+  });
+
+  it("keeps follow-up drafts isolated to their agent", async () => {
+    const messenger = new MockIdeMessenger();
+    messenger.responses["agents/list"] = [
+      run({ id: "agent-one", title: "First agent", status: "running" }),
+      run({ id: "agent-two", title: "Second agent", status: "running" }),
+    ];
+    const { user } = await renderWithProviders(<Agents />, {
+      mockIdeMessenger: messenger,
+    });
+
+    await user.click(
+      await screen.findByRole("button", { name: /First agent/ }),
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "Steer active agent" }),
+      "Draft for the first agent",
+    );
+
+    await user.click(screen.getByRole("button", { name: /Second agent/ }));
+
+    expect(
+      screen.getByRole("textbox", { name: "Steer active agent" }),
+    ).toHaveValue("");
+  });
+
+  it("queues the next turn from an active agent with Cmd+Enter", async () => {
+    const messenger = new MockIdeMessenger();
+    messenger.responses["agents/list"] = [
+      run({ id: "running-agent", status: "running" }),
+    ];
+    const controlRequests: AgentControlRequest[] = [];
+    messenger.responseHandlers["agents/control"] = async (request) => {
+      controlRequests.push(request);
+      return undefined;
+    };
+    const { user } = await renderWithProviders(<Agents />, {
+      mockIdeMessenger: messenger,
+    });
+
+    await user.click(
+      await screen.findByRole("button", { name: /Inspect authentication/ }),
+    );
+    const composer = screen.getByRole("textbox", {
+      name: "Steer active agent",
+    });
+    await user.type(composer, "Run validation after this turn");
+    await user.keyboard("{Meta>}{Enter}{/Meta}");
+
+    await waitFor(() =>
+      expect(controlRequests).toContainEqual(
+        expect.objectContaining({
+          action: "queue.add",
+          runId: "running-agent",
+          prompt: "Run validation after this turn",
+          behavior: "run-next",
+        }),
+      ),
+    );
+  });
+
+  it("exposes queue-next delivery without requiring a keyboard shortcut", async () => {
+    const messenger = new MockIdeMessenger();
+    messenger.responses["agents/list"] = [
+      run({ id: "running-agent", status: "running" }),
+    ];
+    const controlRequests: AgentControlRequest[] = [];
+    messenger.responseHandlers["agents/control"] = async (request) => {
+      controlRequests.push(request);
+      return undefined;
+    };
+    const { user } = await renderWithProviders(<Agents />, {
+      mockIdeMessenger: messenger,
+    });
+
+    await user.click(
+      await screen.findByRole("button", { name: /Inspect authentication/ }),
+    );
+    await user.click(screen.getByRole("button", { name: "Use queue next" }));
+    await user.type(
+      screen.getByRole("textbox", { name: "Steer active agent" }),
+      "Run validation after this turn",
+    );
+    await user.click(screen.getByRole("button", { name: "Queue next" }));
+
+    await waitFor(() =>
+      expect(controlRequests).toContainEqual(
+        expect.objectContaining({
+          action: "queue.add",
+          runId: "running-agent",
+          prompt: "Run validation after this turn",
+          behavior: "run-next",
+        }),
+      ),
+    );
+  });
+
   it("edits an earlier prompt and resends it as an immutable agent branch", async () => {
     const messenger = new MockIdeMessenger();
     messenger.responses["agents/list"] = [
@@ -638,7 +953,7 @@ describe("Agents workspace", () => {
   });
 
   it("shows a useful empty state", async () => {
-    await renderWithProviders(<Agents />);
+    const { user } = await renderWithProviders(<Agents />);
     expect(
       await screen.findByText("No agent runs or chat sessions yet."),
     ).toBeInTheDocument();
@@ -648,6 +963,13 @@ describe("Agents workspace", () => {
     expect(
       screen.getByRole("button", { name: "Open chat" }),
     ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Start an agent" }));
+    expect(
+      screen.queryByRole("form", { name: "Create agent" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("textbox", { name: "Agent task" }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows existing chat sessions alongside durable agent runs", async () => {
@@ -818,206 +1140,38 @@ describe("Agents workspace", () => {
     workspace.focus();
     await user.keyboard("n");
     expect(
-      screen.getByRole("textbox", { name: "Agent task" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("textbox", { name: "Agent task" }),
+    ).not.toBeInTheDocument();
     workspace.focus();
     await user.keyboard("{Escape}");
     expect(
-      screen.queryByRole("textbox", { name: "Agent task" }),
+      screen.queryByRole("form", { name: "Create agent" }),
     ).not.toBeInTheDocument();
     expect(screen.getByText("app")).toBeInTheDocument();
     expect(screen.getByText("service")).toBeInTheDocument();
   });
 
-  it("starts Docker agents through the same runtime contract", async () => {
-    const messenger = new MockIdeMessenger();
-    let request: AgentControlRequest | undefined;
-    messenger.responseHandlers["agents/control"] = async (value) => {
-      request = value;
-      return run({
-        id: "docker-run",
-        runtimeId: "docker",
-        workspace: {
-          id: "docker-workspace",
-          location: "container",
-          repositoryPath: "/workspace/app",
-        },
-      });
-    };
-    const { user } = await renderWithProviders(<Agents />, {
-      mockIdeMessenger: messenger,
-    });
-    await user.click(
-      await screen.findByRole("button", { name: "New local agent" }),
+  it("keeps top-level agent launch on the unified composer", async () => {
+    await renderWithProviders(
+      <Routes>
+        <Route path="/agents" element={<Agents />} />
+        <Route path="/" element={<div>Chat composer</div>} />
+      </Routes>,
+      {
+        routerProps: { initialEntries: ["/agents"] },
+      },
     );
-    await user.type(
-      screen.getByRole("textbox", { name: "Agent task" }),
-      "Run tests",
-    );
-    await user.click(
-      screen.getByRole("button", { name: "Agents mode dropdown" }),
-    );
-    await user.click(
-      await screen.findByRole("button", { name: "Runtime dropdown" }),
-    );
-    await user.click(await screen.findByRole("button", { name: /Docker/ }));
-    const image = screen.getByRole("textbox", { name: "Container image" });
-    await user.clear(image);
-    await user.type(image, "qivryn-agent:test");
-    await user.click(screen.getByRole("button", { name: "Start" }));
-    await waitFor(() =>
-      expect(request).toMatchObject({
-        action: "run.create",
-        request: {
-          runtimeId: "docker",
-          workspace: { location: "container" },
-          metadata: {
-            container: {
-              image: "qivryn-agent:test",
-              network: "bridge",
-              privileged: false,
-            },
-          },
-        },
-      }),
-    );
-  });
 
-  it("uses the live shared model and reasoning selectors when creating an agent", async () => {
-    const messenger = new MockIdeMessenger();
-    let request: AgentControlRequest | undefined;
-    messenger.responseHandlers["agents/control"] = async (value) => {
-      request = value;
-      return run({ id: "dynamic-model-run", status: "queued" });
-    };
-    const { user, store } = await renderWithProviders(<Agents />, {
-      mockIdeMessenger: messenger,
-    });
-    await act(async () => {
-      addAndSelectChatModel(store, messenger, {
-        model: "reasoning-model",
-        provider: "mock",
-        title: "Dynamic Reasoner",
-        apiKey: "must-not-enter-browser-cache",
-        underlyingProviderName: "mock",
-        requestOptions: {
-          extraBodyProperties: {
-            _reasoningLevels: ["low", "medium", "high"],
-          },
-        },
-      });
-    });
-
-    await user.click(
-      await screen.findByRole("button", { name: "New local agent" }),
-    );
-    await user.click(
-      screen.getByRole("button", { name: "Agents mode dropdown" }),
-    );
+    expect(await screen.findByText("Chat composer")).toBeVisible();
     expect(
-      screen.getByRole("button", { name: "Model dropdown" }),
-    ).toHaveTextContent("Dynamic Reasoner");
-    await user.click(screen.getByRole("button", { name: "Model dropdown" }));
+      screen.queryByRole("form", { name: "Create agent" }),
+    ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Reasoning dropdown" }),
-    ).toHaveTextContent("Medium");
-    await user.click(
-      screen.getByRole("button", { name: "Reasoning dropdown" }),
-    );
-    await user.click(screen.getByRole("button", { name: "Medium" }));
-    await waitFor(() =>
-      expect(
-        window.localStorage.getItem("qivryn.models.catalog.v1"),
-      ).not.toContain("must-not-enter-browser-cache"),
-    );
-    await user.type(
-      screen.getByRole("textbox", { name: "Agent task" }),
-      "Analyze playback performance",
-    );
-    await user.click(screen.getByRole("button", { name: "Start" }));
-    await waitFor(() =>
-      expect(request).toMatchObject({
-        action: "run.create",
-        request: {
-          model: "Dynamic Reasoner",
-          metadata: { reasoningEffort: "medium" },
-        },
-      }),
-    );
+      screen.queryByRole("textbox", { name: "Agent task" }),
+    ).not.toBeInTheDocument();
   });
 
-  it("renders the cached model catalog immediately while config refreshes", async () => {
-    window.localStorage.setItem(
-      "qivryn.models.catalog.v1",
-      JSON.stringify({
-        selected: "Cached Reasoner",
-        options: [{ value: "Cached Reasoner", title: "Cached Reasoner" }],
-      }),
-    );
-    const messenger = new MockIdeMessenger();
-    const { user } = await renderWithProviders(<Agents />, {
-      mockIdeMessenger: messenger,
-    });
-    await user.click(
-      await screen.findByRole("button", { name: "New local agent" }),
-    );
-    await user.click(
-      screen.getByRole("button", { name: "Agents mode dropdown" }),
-    );
-    expect(
-      screen.getByRole("button", { name: "Model dropdown" }),
-    ).toHaveTextContent("Cached Reasoner");
-  });
-
-  it("starts SSH agents through the shared durable runtime", async () => {
-    const messenger = new MockIdeMessenger();
-    let request: AgentControlRequest | undefined;
-    messenger.responseHandlers["agents/control"] = async (value) => {
-      request = value;
-      return run({ id: "ssh-run", runtimeId: "ssh" });
-    };
-    const { user } = await renderWithProviders(<Agents />, {
-      mockIdeMessenger: messenger,
-    });
-    await user.click(
-      await screen.findByRole("button", { name: "New local agent" }),
-    );
-    await user.type(
-      screen.getByRole("textbox", { name: "Agent task" }),
-      "Run remote tests",
-    );
-    await user.click(
-      screen.getByRole("button", { name: "Agents mode dropdown" }),
-    );
-    await user.click(
-      await screen.findByRole("button", { name: "Runtime dropdown" }),
-    );
-    await user.click(await screen.findByRole("button", { name: /Remote SSH/ }));
-    const repository = screen.getByRole("combobox", {
-      name: "Agent repository",
-    });
-    await user.clear(repository);
-    await user.type(repository, "/srv/project");
-    await user.type(
-      screen.getByRole("textbox", { name: "SSH host" }),
-      "dev@example.test",
-    );
-    await user.click(screen.getByRole("button", { name: "Start" }));
-    await waitFor(() =>
-      expect(request).toMatchObject({
-        action: "run.create",
-        request: {
-          runtimeId: "ssh",
-          workspace: { location: "ssh", repositoryPath: "/srv/project" },
-          metadata: {
-            ssh: { host: "dev@example.test", remotePath: "/srv/project" },
-          },
-        },
-      }),
-    );
-  });
-
-  it("virtualizes a ten-thousand-event transcript", async () => {
+  it("batches a ten-thousand-event transcript without a nested scroll owner", async () => {
     const messenger = new MockIdeMessenger();
     messenger.responses["agents/list"] = [
       run({ id: "large", title: "Large transcript", status: "completed" }),
@@ -1028,7 +1182,10 @@ describe("Agents workspace", () => {
         id: `event-${index + 1}`,
         runId: "large",
         sequence: index + 1,
-        kind: "tool.output" as const,
+        kind:
+          index % 2 === 0
+            ? ("tool.output" as const)
+            : ("message.assistant" as const),
         createdAt: "2026-06-29T00:00:00.000Z",
         payload: { text: `Output ${index + 1}` },
       }),
@@ -1040,11 +1197,17 @@ describe("Agents workspace", () => {
     expect(
       (await screen.findByLabelText("Agent actions")).parentElement,
     ).toHaveTextContent("10000 events");
-    expect(screen.getAllByTestId("agent-event-row").length).toBeLessThan(20);
-    expect(screen.getByText("Output 1")).toBeInTheDocument();
+    expect(screen.getAllByTestId("agent-event-row").length).toBeLessThanOrEqual(
+      200,
+    );
+    expect(screen.queryByText("Output 1")).not.toBeInTheDocument();
+    expect(screen.getByText("Output 10000")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Show 200 earlier events" }),
+    ).toBeInTheDocument();
   });
 
-  it("groups tool lifecycle events into a collapsed activity drawer", async () => {
+  it("renders one collapsed disclosure per tool call", async () => {
     const messenger = new MockIdeMessenger();
     messenger.responses["agents/list"] = [
       run({ id: "tool-run", title: "Tool activity", status: "completed" }),
@@ -1094,17 +1257,89 @@ describe("Agents workspace", () => {
     });
 
     const activityDrawer = await screen.findByTestId("agent-activity-drawer");
-    expect(activityDrawer).not.toHaveAttribute("open");
-    expect(within(activityDrawer).getByText("Activity")).toBeVisible();
-    expect(within(activityDrawer).getByText("2 tool calls")).toBeVisible();
-    expect(await screen.findByText("Read file")).not.toBeVisible();
-    await user.click(within(activityDrawer).getByText("Activity"));
     expect(await screen.findByText("Read file")).toBeVisible();
     expect(screen.getAllByText("/src/app.ts")[0]).toBeVisible();
-    expect(screen.getAllByText("file contents")[0]).toBeVisible();
+    const readCard = screen.getByText("Read file").closest("details");
+    expect(readCard).not.toHaveAttribute("open");
+    expect(
+      within(readCard!).getAllByText("file contents")[1],
+    ).not.toBeVisible();
+    await user.click(within(readCard!).getByText("Read file"));
+    expect(within(readCard!).getAllByText("file contents")[1]).toBeVisible();
     const failedCard = screen.getByText("List").closest("details");
     expect(failedCard).not.toHaveAttribute("open");
     expect(screen.getAllByTestId("agent-event-row")).toHaveLength(2);
+  });
+
+  it("matches concurrent same-name tool results by tool call id", async () => {
+    const messenger = new MockIdeMessenger();
+    messenger.responses["agents/list"] = [
+      run({ id: "tool-ids", title: "Concurrent tools", status: "completed" }),
+    ];
+    messenger.responses["agents/events"] = [
+      {
+        id: "start-a",
+        runId: "tool-ids",
+        sequence: 1,
+        kind: "tool.started" as const,
+        createdAt: "2026-06-30T00:00:00.000Z",
+        payload: {
+          toolName: "read_file",
+          toolCallId: "call-a",
+          args: { filepath: "/src/a.ts" },
+        },
+      },
+      {
+        id: "start-b",
+        runId: "tool-ids",
+        sequence: 2,
+        kind: "tool.started" as const,
+        createdAt: "2026-06-30T00:00:00.100Z",
+        payload: {
+          toolName: "read_file",
+          toolCallId: "call-b",
+          args: { filepath: "/src/b.ts" },
+        },
+      },
+      {
+        id: "finish-b",
+        runId: "tool-ids",
+        sequence: 3,
+        kind: "tool.completed" as const,
+        createdAt: "2026-06-30T00:00:01.000Z",
+        payload: {
+          toolName: "read_file",
+          toolCallId: "call-b",
+          text: "contents-b",
+        },
+      },
+      {
+        id: "finish-a",
+        runId: "tool-ids",
+        sequence: 4,
+        kind: "tool.completed" as const,
+        createdAt: "2026-06-30T00:00:01.100Z",
+        payload: {
+          toolName: "read_file",
+          toolCallId: "call-a",
+          text: "contents-a",
+        },
+      },
+    ];
+
+    const { user } = await renderWithProviders(<Agents />, {
+      mockIdeMessenger: messenger,
+      routerProps: { initialEntries: ["/agents?runId=tool-ids"] },
+    });
+
+    const cardA = (await screen.findByText("/src/a.ts")).closest("details")!;
+    const cardB = screen.getByText("/src/b.ts").closest("details")!;
+    await user.click(within(cardA).getByText("Read file"));
+    await user.click(within(cardB).getByText("Read file"));
+    expect(within(cardA).getAllByText("contents-a")[1]).toBeVisible();
+    expect(within(cardA).queryByText("contents-b")).not.toBeInTheDocument();
+    expect(within(cardB).getAllByText("contents-b")[1]).toBeVisible();
+    expect(within(cardB).queryByText("contents-a")).not.toBeInTheDocument();
   });
 
   it("appends live agent events before the run completes", async () => {
@@ -1150,15 +1385,16 @@ describe("Agents workspace", () => {
     expect(await screen.findByText("● Live")).toBeVisible();
     expect(await screen.findByText("Working now")).toBeVisible();
     const activityDrawer = await screen.findByTestId("agent-activity-drawer");
-    expect(activityDrawer).not.toHaveAttribute("open");
-    expect(within(activityDrawer).getByText("Activity")).toBeVisible();
-    expect(await screen.findByText("Using read_file")).not.toBeVisible();
+    expect(activityDrawer.querySelector("summary")).toHaveTextContent(
+      "Read file",
+    );
+    expect(await screen.findByText("Using read_file")).toBeVisible();
     expect(
       (await screen.findByLabelText("Agent actions")).parentElement,
     ).toHaveTextContent("3 events");
   });
 
-  it("shows only the latest working heartbeat at the end of the timeline", async () => {
+  it("derives one working state without rendering persisted heartbeats", async () => {
     const messenger = new MockIdeMessenger();
     messenger.responses["agents/list"] = [
       run({ id: "progress-run", title: "Progress task", status: "running" }),
@@ -1214,11 +1450,66 @@ describe("Agents workspace", () => {
     expect(
       await screen.findByText("Still inspecting the repository."),
     ).toBeVisible();
-    expect(screen.getAllByText("Agent is working…")).toHaveLength(1);
-    expect(screen.getByText("Agent is working…")).toBeVisible();
+    expect(screen.queryByText("Agent is working…")).not.toBeInTheDocument();
+    expect(screen.getByText("Working")).toBeVisible();
     expect(screen.getByTestId("agent-activity-drawer")).not.toHaveAttribute(
       "open",
     );
+  });
+
+  it("keeps hook and compaction bookkeeping out of the conversation", async () => {
+    const messenger = new MockIdeMessenger();
+    messenger.responses["agents/list"] = [
+      run({ id: "quiet-runtime", title: "Quiet runtime", status: "completed" }),
+    ];
+    messenger.responses["agents/events"] = [
+      {
+        id: "hook-result",
+        runId: "quiet-runtime",
+        sequence: 1,
+        kind: "runtime.notice" as const,
+        createdAt: "2026-06-30T00:00:00.000Z",
+        payload: { type: "hook.result", result: { ok: true } },
+      },
+      {
+        id: "compaction-start",
+        runId: "quiet-runtime",
+        sequence: 2,
+        kind: "runtime.notice" as const,
+        createdAt: "2026-06-30T00:00:01.000Z",
+        payload: {
+          text: "Approaching context limit. Auto-compacting chat history...",
+        },
+      },
+      {
+        id: "compaction-finish",
+        runId: "quiet-runtime",
+        sequence: 3,
+        kind: "runtime.notice" as const,
+        createdAt: "2026-06-30T00:00:02.000Z",
+        payload: { text: "Chat history auto-compacted successfully." },
+      },
+      {
+        id: "answer",
+        runId: "quiet-runtime",
+        sequence: 4,
+        kind: "message.assistant" as const,
+        createdAt: "2026-06-30T00:00:03.000Z",
+        payload: { text: "The task is complete." },
+      },
+    ];
+
+    await renderWithProviders(<Agents />, {
+      mockIdeMessenger: messenger,
+      routerProps: { initialEntries: ["/agents?runId=quiet-runtime"] },
+    });
+
+    expect(await screen.findByText("The task is complete.")).toBeVisible();
+    expect(
+      screen.queryByText(/Approaching context limit/),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/auto-compacted/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Event 1/)).not.toBeInTheDocument();
   });
 
   it("focuses a recovered completed run while preserving its full history", async () => {
@@ -1298,8 +1589,10 @@ describe("Agents workspace", () => {
       await screen.findByText("The authentication fix is complete."),
     ).toBeVisible();
     expect(
-      screen.queryByText("Earlier recovery attempt failed noisily"),
-    ).not.toBeInTheDocument();
+      screen
+        .getByText("Earlier recovery attempt failed noisily")
+        .closest("details"),
+    ).not.toHaveAttribute("open");
     expect(screen.queryByText("FULL_TASK_END")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Show full task" }));
     expect(screen.getByText(/FULL_TASK_END/)).toBeVisible();
@@ -1308,9 +1601,15 @@ describe("Agents workspace", () => {
     expect(screen.getAllByText("Before agent changes")).toHaveLength(1);
     expect(screen.getByText("×2")).toBeVisible();
 
-    await user.click(
-      screen.getByRole("button", { name: /Show earlier activity/ }),
+    expect(
+      screen.queryByRole("button", { name: /Show earlier activity/ }),
+    ).not.toBeInTheDocument();
+    const activityDrawer = screen.getByTestId("agent-activity-drawer");
+    const activitySummary = activityDrawer.querySelector(
+      ".cursor-agent-runtime-drawer > summary",
     );
+    if (!activitySummary) throw new Error("Expected activity summary");
+    await user.click(activitySummary);
     expect(
       screen.getByText("Earlier recovery attempt failed noisily"),
     ).toBeVisible();
@@ -1342,7 +1641,14 @@ describe("Agents workspace", () => {
     const requests: unknown[] = [];
     messenger.responseHandlers["agents/automationControl"] = async (value) => {
       requests.push(value);
-      if (value.action === "run") return run({ id: "automated-run" });
+      if (value.action === "run") {
+        const createdRun = run({
+          id: "automated-run",
+          title: "Scheduled run output",
+        });
+        messenger.responses["agents/list"] = [createdRun];
+        return createdRun;
+      }
       if (value.action === "create") {
         messenger.responses["agents/automations"] = [
           {
@@ -1361,10 +1667,34 @@ describe("Agents workspace", () => {
         ];
         return messenger.responses["agents/automations"][0];
       }
+      if (value.action === "update") {
+        const current = (messenger.responses["agents/automations"] as any[])[0];
+        messenger.responses["agents/automations"] = [
+          {
+            ...current,
+            ...value.request,
+            revision: current.revision + 1,
+          },
+        ];
+        return messenger.responses["agents/automations"][0];
+      }
       return undefined;
     };
-    const { user } = await renderWithProviders(<Agents />, {
+    const { user, store } = await renderWithProviders(<Agents />, {
       mockIdeMessenger: messenger,
+    });
+    await act(async () => {
+      addAndSelectChatModel(store, messenger, {
+        model: "schedule-model",
+        provider: "mock",
+        title: "Scheduled Reasoner",
+        underlyingProviderName: "mock",
+        requestOptions: {
+          extraBodyProperties: {
+            _reasoningLevels: ["low", "medium", "high", "xhigh"],
+          },
+        },
+      });
     });
     await user.click(
       await screen.findByRole("button", { name: "Scheduled agent tasks" }),
@@ -1372,6 +1702,13 @@ describe("Agents workspace", () => {
     await user.selectOptions(
       screen.getByRole("combobox", { name: "Automation schedule type" }),
       "daily",
+    );
+    expect(
+      screen.getByRole("combobox", { name: "Automation model" }),
+    ).toHaveValue("Scheduled Reasoner");
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "Automation reasoning" }),
+      "high",
     );
     const scheduleTime = screen.getByLabelText("Automation local time");
     await user.clear(scheduleTime);
@@ -1393,7 +1730,32 @@ describe("Agents workspace", () => {
       await screen.findByRole("button", { name: "Run Review nightly" }),
     ).toBeVisible();
     await user.click(
-      screen.getByRole("button", { name: "Run Review nightly" }),
+      screen.getByRole("button", { name: "Edit Review nightly" }),
+    );
+    const taskName = screen.getByRole("textbox", {
+      name: "Scheduled task name",
+    });
+    await user.clear(taskName);
+    await user.type(taskName, "Review mornings");
+    await user.click(
+      screen.getByRole("button", { name: "Save scheduled task" }),
+    );
+    expect(
+      await screen.findByRole("button", { name: "Run Review mornings" }),
+    ).toBeVisible();
+    await user.click(
+      screen.getByRole("button", { name: "Run Review mornings" }),
+    );
+    await waitFor(() => {
+      expect(
+        screen
+          .getAllByRole("button", { name: /Scheduled run output/ })
+          .some((button) => button.className.includes("cursor-agent-row")),
+      ).toBe(true);
+    });
+    expect(screen.getByLabelText("Hide agents and chats")).toHaveAttribute(
+      "aria-expanded",
+      "true",
     );
     await waitFor(() =>
       expect(requests).toEqual(
@@ -1402,7 +1764,14 @@ describe("Agents workspace", () => {
             action: "create",
             request: expect.objectContaining({
               trigger: { type: "daily", at: "10:30" },
+              model: "Scheduled Reasoner",
+              reasoningEffort: "high",
             }),
+          }),
+          expect.objectContaining({
+            action: "update",
+            automationId: "automation-1",
+            request: expect.objectContaining({ name: "Review mornings" }),
           }),
           { action: "run", automationId: "automation-1" },
         ]),
@@ -1419,6 +1788,71 @@ describe("Agents workspace", () => {
     ).toBeVisible();
   });
 
+  it("opens the durable run created by a scheduled task", async () => {
+    const messenger = new MockIdeMessenger();
+    messenger.responses["agents/list"] = [
+      run({ id: "last-run", title: "Scheduled review output" }),
+    ];
+    messenger.responses["agents/automations"] = [
+      {
+        id: "automation-1",
+        revision: 2,
+        name: "Daily review",
+        prompt: "Review the repository",
+        repositoryPath: "/workspace/app",
+        enabled: true,
+        trigger: { type: "daily", at: "09:30" },
+        permissionMode: "ask",
+        runtimeId: "local",
+        createdAt: "2026-06-30T00:00:00.000Z",
+        updatedAt: "2026-07-01T00:00:00.000Z",
+        lastRunAt: "2026-07-01T09:30:00.000Z",
+        lastRunId: "last-run",
+      },
+    ];
+    const { user } = await renderWithProviders(<Agents />, {
+      mockIdeMessenger: messenger,
+    });
+    await user.click(
+      await screen.findByRole("button", { name: "Scheduled agent tasks" }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Open last run" }),
+    );
+    expect(
+      await screen.findByRole("button", { name: "Scheduled review output" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("dialog", { name: "Scheduled agent tasks" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps archived agents behind an explicit filter and can restore them", async () => {
+    const messenger = new MockIdeMessenger();
+    messenger.responses["agents/list"] = [
+      run({ id: "archived-run", title: "Archived audit", status: "archived" }),
+    ];
+    let request: unknown;
+    messenger.responseHandlers["agents/control"] = async (value) => {
+      request = value;
+      return run({ id: "archived-run", status: "completed" });
+    };
+    const { user } = await renderWithProviders(<Agents />, {
+      mockIdeMessenger: messenger,
+    });
+    expect(screen.queryByText("Archived audit")).not.toBeInTheDocument();
+    await user.click(
+      await screen.findByRole("button", { name: "Show archived agents" }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /Archived audit/ }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Unarchive agent" }),
+    );
+    expect(request).toEqual({ action: "unarchive", runId: "archived-run" });
+  });
+
   it("opens real agent capability surfaces from the compact menu", async () => {
     const { user } = await renderWithProviders(<Agents />);
     await user.click(
@@ -1430,130 +1864,12 @@ describe("Agents workspace", () => {
     expect(menu).toHaveTextContent("Browser & computer use");
     expect(menu).toHaveTextContent("Tools & MCP");
     expect(menu).toHaveTextContent("Skills & plugins");
-    expect(menu).toHaveTextContent("New agent");
-    expect(menu).toHaveTextContent("Multitask");
+    expect(menu).not.toHaveTextContent("New agent");
+    expect(menu).not.toHaveTextContent("New subagent");
+    expect(menu).not.toHaveTextContent("Multitask");
     await user.click(screen.getByRole("menuitem", { name: "Scheduled tasks" }));
     expect(
       await screen.findByRole("dialog", { name: "Scheduled agent tasks" }),
     ).toBeVisible();
-  });
-
-  it("starts skill-backed tasks as independent concurrent agent runs", async () => {
-    const messenger = new MockIdeMessenger();
-    messenger.responses["extensions/skills"] = {
-      skills: [
-        {
-          name: "code-review",
-          description: "Review code deeply",
-          path: ".qivryn/skills/code-review/SKILL.md",
-          sourceFile: "file:///workspace/.qivryn/skills/code-review/SKILL.md",
-          provenance: "Qivryn",
-          readOnly: false,
-          scope: "workspace",
-          content: "Review the implementation",
-          files: [],
-        },
-      ],
-      errors: [],
-    };
-    const requests: AgentControlRequest[] = [];
-    messenger.responseHandlers["agents/control"] = async (request) => {
-      requests.push(request);
-      return run({
-        id: `run-${requests.length}`,
-        title: "Parallel task",
-        status: "queued",
-      });
-    };
-    const { user } = await renderWithProviders(<Agents />, {
-      mockIdeMessenger: messenger,
-    });
-
-    await user.click(
-      await screen.findByRole("button", { name: "Start multiple agents" }),
-    );
-    await user.type(
-      screen.getByRole("textbox", { name: "Multitask items" }),
-      "Review authentication{enter}Run focused tests",
-    );
-    await user.click(screen.getByRole("button", { name: "Select skill" }));
-    await user.click(await screen.findByText("code-review"));
-    await user.click(screen.getByRole("button", { name: "Start tasks" }));
-
-    await waitFor(() => expect(requests).toHaveLength(2));
-    expect(requests).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          action: "run.create",
-          request: expect.objectContaining({
-            prompt: expect.stringContaining("Review authentication"),
-          }),
-        }),
-        expect.objectContaining({
-          action: "run.create",
-          request: expect.objectContaining({
-            prompt: expect.stringContaining("Run focused tests"),
-          }),
-        }),
-      ]),
-    );
-    for (const request of requests) {
-      if (request.action === "run.create") {
-        expect(request.request.prompt).toContain('Use the "code-review" skill');
-      }
-    }
-  });
-
-  it("prefills multitask from a recent agent when no workspace is open", async () => {
-    const messenger = new MockIdeMessenger();
-    messenger.responses.getWorkspaceDirs = [];
-    messenger.responses["agents/list"] = [
-      run({
-        id: "recent-repository",
-        workspace: {
-          id: "workspace-recent",
-          location: "local",
-          repositoryPath: "/workspace/recent-project",
-        },
-      }),
-    ];
-    const { user } = await renderWithProviders(<Agents />, {
-      mockIdeMessenger: messenger,
-    });
-
-    await user.click(
-      await screen.findByRole("button", { name: "Start multiple agents" }),
-    );
-    expect(
-      screen.getByRole("combobox", { name: "Multitask repository" }),
-    ).toHaveValue("/workspace/recent-project");
-    await user.type(
-      screen.getByRole("textbox", { name: "Multitask items" }),
-      "Audit the repository",
-    );
-    expect(screen.getByRole("button", { name: "Start tasks" })).toBeEnabled();
-    expect(
-      screen.getByText("Ready to start 1 independent agent."),
-    ).toBeVisible();
-  });
-
-  it("uses the native repository picker in the agent launch panes", async () => {
-    const messenger = new MockIdeMessenger();
-    messenger.responses.getWorkspaceDirs = [];
-    messenger.responses["agents/selectRepository"] = "/chosen/repository";
-    const { user } = await renderWithProviders(<Agents />, {
-      mockIdeMessenger: messenger,
-    });
-
-    await user.click(
-      await screen.findByRole("button", { name: "Start multiple agents" }),
-    );
-    await user.click(screen.getByRole("button", { name: "Browse…" }));
-    expect(
-      screen.getByRole("combobox", { name: "Multitask repository" }),
-    ).toHaveValue("/chosen/repository");
-    expect(window.localStorage.getItem("qivryn.agents.lastRepository")).toBe(
-      "/chosen/repository",
-    );
   });
 });

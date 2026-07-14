@@ -75,8 +75,20 @@ export function filterAgentRuns(
   runs: readonly AgentRun[],
   query: string | undefined,
 ): AgentRun[] {
-  if (!query?.trim()) return [...runs];
-  return runs.filter((run) => matchesAgentRunSearch(run, query));
+  const filtered = query?.trim()
+    ? runs.filter((run) => matchesAgentRunSearch(run, query))
+    : [...runs];
+  return filtered.sort((left, right) => {
+    const leftActive = AGENT_ACTIVE_RUN_STATUSES.has(left.status) ? 1 : 0;
+    const rightActive = AGENT_ACTIVE_RUN_STATUSES.has(right.status) ? 1 : 0;
+    if (leftActive !== rightActive) return rightActive - leftActive;
+    if (Boolean(left.pinned) !== Boolean(right.pinned)) {
+      return Number(Boolean(right.pinned)) - Number(Boolean(left.pinned));
+    }
+    return (
+      new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime()
+    );
+  });
 }
 
 export function toQivrynAgentSessionMetadata(
@@ -193,18 +205,6 @@ export function projectAgentTranscript(
             payloadText(recordPayload(event.payload)),
           )),
     );
-  const compactionApproach = successfulCompaction
-    ? [...sortedEvents]
-        .reverse()
-        .find(
-          (event) =>
-            event.sequence < successfulCompaction.sequence &&
-            event.kind === "runtime.notice" &&
-            /approaching context limit/i.test(
-              payloadText(recordPayload(event.payload)),
-            ),
-        )
-    : undefined;
 
   for (const event of sortedEvents) {
     const payload = recordPayload(event.payload);
@@ -338,8 +338,14 @@ export function projectAgentTranscript(
         successfulCompaction &&
         event.kind === "runtime.notice" &&
         isCompactionNotice(payloadText(payload)) &&
-        event.sequence !== successfulCompaction.sequence &&
-        event.sequence !== compactionApproach?.sequence
+        event.sequence !== successfulCompaction.sequence
+      ) {
+        continue;
+      }
+      if (
+        event.kind === "runtime.notice" &&
+        payload.type === "hook.result" &&
+        !payloadText(payload)
       ) {
         continue;
       }
@@ -373,6 +379,9 @@ function isCompactionNotice(text: string): boolean {
 }
 
 function normalizeNoticeText(text: string): string {
+  if (/auto-compacted successfully|history compacted/i.test(text)) {
+    return "Context optimized";
+  }
   if (
     /auto-compaction error|model-based compaction could not complete/i.test(
       text,
@@ -396,6 +405,17 @@ function approvalFromEvent(
     detail: optionalString(payload.detail ?? payload.text),
     command: optionalString(payload.command),
     paths: stringArray(payload.paths),
+    args: isRecord(payload.args) ? payload.args : undefined,
+    preview: Array.isArray(payload.preview)
+      ? payload.preview.filter(
+          (
+            item,
+          ): item is NonNullable<AgentApprovalRequest["preview"]>[number] =>
+            isRecord(item) &&
+            ["text", "diff", "checklist"].includes(String(item.type)) &&
+            typeof item.content === "string",
+        )
+      : undefined,
     status: "pending",
   };
 }

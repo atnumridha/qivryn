@@ -62,6 +62,17 @@ function getBashMaxLines(): number {
   );
 }
 
+export function getShellEnvironment(
+  environment: NodeJS.ProcessEnv = process.env,
+): NodeJS.ProcessEnv {
+  const shellEnvironment = { ...environment };
+  // npm sets this for `npm --prefix`. nvm treats it as an incompatible global
+  // prefix and writes a warning to every login-shell command.
+  delete shellEnvironment.npm_config_prefix;
+  delete shellEnvironment.NPM_CONFIG_PREFIX;
+  return shellEnvironment;
+}
+
 // Helper function to use login shell on Unix/macOS and PowerShell on Windows and available shell in WSL
 function getShellCommand(command: string): { shell: string; args: string[] } {
   if (process.platform === "win32") {
@@ -100,7 +111,9 @@ export function runCommandInBackground(command: string): {
   }
 
   const { shell, args } = getShellCommand(command);
-  const child = backgroundJobService.startJob(job.id, shell, args);
+  const child = backgroundJobService.startJob(job.id, shell, args, {
+    env: getShellEnvironment(),
+  });
 
   if (!child) {
     return {
@@ -189,7 +202,7 @@ IMPORTANT: To edit files, use Edit/MultiEdit tools instead of bash commands (sed
     const terminalOutput: string = await new Promise((resolve, reject) => {
       // Use same shell logic as core implementation
       const { shell, args } = getShellCommand(command);
-      const child = spawn(shell, args);
+      const child = spawn(shell, args, { env: getShellEnvironment() });
       let stdout = "";
       let stderr = "";
       let timeoutId: NodeJS.Timeout;

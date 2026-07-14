@@ -1,4 +1,5 @@
 import { InputModifiers } from "core";
+import { BuiltInToolNames } from "core/tools/builtIn";
 import {
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -7,23 +8,32 @@ import {
   useContext,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import {
   ArrowUpIcon,
+  CalendarDaysIcon,
   FolderOpenIcon,
   PaperClipIcon,
   PlusIcon,
+  QueueListIcon,
+  XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { StopIcon } from "@heroicons/react/20/solid";
 import { IdeMessengerContext } from "../../context/IdeMessenger";
 import { useAppDispatch, useAppSelector } from "../../redux/hooks";
+import { selectToolCallsByStatus } from "../../redux/selectors/selectToolCalls";
+import { cancelToolCall } from "../../redux/slices/sessionSlice";
 import type { AgentAccessMode } from "../../redux/slices/uiSlice";
 import { cancelStream } from "../../redux/thunks/cancelStream";
 import { exitEdit } from "../../redux/thunks/edit";
+import { logToolUsage } from "../../redux/util";
 import { getMetaKeyLabel } from "../../util";
+import { ROUTES } from "../../util/navigation";
 import { ToolTip } from "../gui/Tooltip";
 import { ModeSelect } from "../ModeSelect";
 import { Button } from "../ui";
@@ -31,6 +41,7 @@ import { useFontSize } from "../ui/font";
 import { getAttachmentMenuPosition } from "./attachmentMenuPosition";
 import ContextStatus from "./ContextStatus";
 import HoverItem from "./InputToolbar/HoverItem";
+import { VoiceInputButton } from "./VoiceInputButton";
 
 export interface ToolbarOptions {
   hideUseCodebase?: boolean;
@@ -78,10 +89,59 @@ const iconButtonClass =
 const ATTACH_MENU_WIDTH = 192;
 const ATTACH_MENU_ESTIMATED_HEIGHT = 76;
 const ATTACH_MENU_LAYER = 10020;
+const LAST_AGENT_REPOSITORY_KEY = "qivryn.agents.lastRepository";
+const AGENT_REPOSITORY_CHANGED_EVENT = "qivryn:agent-repository-changed";
+
+function stripFileUri(path: string): string {
+  if (!path.startsWith("file://")) {
+    return path.replace(/\\/g, "/");
+  }
+  try {
+    return decodeURIComponent(new URL(path).pathname).replace(/\\/g, "/");
+  } catch {
+    return path.replace(/^file:\/\//, "").replace(/\\/g, "/");
+  }
+}
+
+function storedAgentRepositoryPath(): string {
+  return stripFileUri(
+    window.localStorage.getItem(LAST_AGENT_REPOSITORY_KEY)?.trim() ?? "",
+  );
+}
+
+function activeWorkspacePathFromWindow(): string {
+  return stripFileUri(window.workspacePaths?.[0] ?? "");
+}
+
+function formatWorkspaceLabel(path: string | undefined): string {
+  const cleanPath = stripFileUri(path ?? "").replace(/[\\/]+$/, "");
+  const label = cleanPath.split(/[\\/]/).filter(Boolean).at(-1);
+  return label || "Choose workspace";
+}
+
+function initialAgentRepositoryPath(): string {
+  return storedAgentRepositoryPath();
+}
+
+function effectiveAgentRepositoryPath(
+  selectedPath: string,
+  activeWorkspacePath: string,
+): string {
+  return stripFileUri(selectedPath.trim() || activeWorkspacePath);
+}
+
+function emitAgentRepositoryChanged(repositoryPath: string): void {
+  window.dispatchEvent(
+    new CustomEvent(AGENT_REPOSITORY_CHANGED_EVENT, {
+      detail: repositoryPath,
+    }),
+  );
+}
 
 function InputToolbar(props: InputToolbarProps) {
   const dispatch = useAppDispatch();
   const ideMessenger = useContext(IdeMessengerContext);
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const attachControlRef = useRef<HTMLDivElement | null>(null);
   const attachButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -90,6 +150,12 @@ function InputToolbar(props: InputToolbarProps) {
   const attachFocusTimerRef = useRef<number | null>(null);
   const attachMenuId = useId();
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
+  const [selectedRepositoryPath, setSelectedRepositoryPath] = useState(
+    initialAgentRepositoryPath,
+  );
+  const [activeWorkspacePath, setActiveWorkspacePath] = useState(
+    activeWorkspacePathFromWindow,
+  );
   const [attachMenuStyle, setAttachMenuStyle] = useState<CSSProperties>({
     top: 8,
     left: 8,
@@ -100,7 +166,21 @@ function InputToolbar(props: InputToolbarProps) {
   const isInEdit = useAppSelector((store) => store.session.isInEdit);
   const isStreaming = useAppSelector((store) => store.session.isStreaming);
   const codeToEdit = useAppSelector((store) => store.editModeState.codeToEdit);
-  const showStop = Boolean(props.isMainInput && isStreaming);
+  const runningToolCalls = useAppSelector((state) =>
+    selectToolCallsByStatus(state, "calling"),
+  );
+  const runningTerminalCalls = useMemo(
+    () =>
+      runningToolCalls.filter(
+        (toolCallState) =>
+          toolCallState?.toolCall?.function?.name ===
+          BuiltInToolNames.RunTerminalCommand,
+      ),
+    [runningToolCalls],
+  );
+  const showStop = Boolean(
+    props.isMainInput && (isStreaming || runningTerminalCalls.length > 0),
+  );
   const isEnterDisabled =
     !showStop && (props.disabled || (isInEdit && codeToEdit.length === 0));
 
@@ -113,6 +193,104 @@ function InputToolbar(props: InputToolbarProps) {
   const canAttachFile = !props.toolbarOptions?.hideImageUpload;
   const canAttachContext = !props.toolbarOptions?.hideAddContext;
   const hasAttachMenu = canAttachFile && canAttachContext;
+  const effectiveRepositoryPath =
+    props.isMainInput && !isInEdit
+      ? effectiveAgentRepositoryPath(
+          selectedRepositoryPath,
+          activeWorkspacePath,
+        )
+      : selectedRepositoryPath;
+  const selectedRepositoryLabel = formatWorkspaceLabel(effectiveRepositoryPath);
+
+  const stopActiveWork = useCallback(async () => {
+    if (runningTerminalCalls.length > 0) {
+      await Promise.all(
+        runningTerminalCalls.map(async (terminalCall) => {
+          try {
+            await ideMessenger.request("process/killTerminalProcess", {
+              toolCallId: terminalCall.toolCallId,
+            });
+            dispatch(cancelToolCall({ toolCallId: terminalCall.toolCallId }));
+            logToolUsage(terminalCall, false, true, ideMessenger);
+          } catch (error) {
+            console.error(
+              `Failed to cancel terminal command ${terminalCall.toolCallId}:`,
+              error,
+            );
+          }
+        }),
+      );
+    }
+
+    if (isStreaming) {
+      dispatch(cancelStream());
+    }
+  }, [dispatch, ideMessenger, isStreaming, runningTerminalCalls]);
+
+  const chooseAgentWorkspace = useCallback(async () => {
+    const response = await ideMessenger.request(
+      "agents/selectRepository",
+      undefined,
+    );
+    if (response.status === "success" && response.content) {
+      const repositoryPath = stripFileUri(response.content);
+      setSelectedRepositoryPath(repositoryPath);
+      window.localStorage.setItem(LAST_AGENT_REPOSITORY_KEY, repositoryPath);
+      emitAgentRepositoryChanged(repositoryPath);
+    }
+  }, [ideMessenger]);
+
+  const clearAgentWorkspace = useCallback(() => {
+    setSelectedRepositoryPath("");
+    window.localStorage.setItem(LAST_AGENT_REPOSITORY_KEY, "");
+    emitAgentRepositoryChanged("");
+  }, []);
+
+  useEffect(() => {
+    const onRepositoryChanged = (event: Event) => {
+      const repositoryPath =
+        event instanceof CustomEvent && typeof event.detail === "string"
+          ? stripFileUri(event.detail)
+          : storedAgentRepositoryPath();
+      setSelectedRepositoryPath(repositoryPath);
+    };
+    window.addEventListener(
+      AGENT_REPOSITORY_CHANGED_EVENT,
+      onRepositoryChanged,
+    );
+    return () => {
+      window.removeEventListener(
+        AGENT_REPOSITORY_CHANGED_EVENT,
+        onRepositoryChanged,
+      );
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!props.isMainInput || isInEdit) {
+      return;
+    }
+    const injectedWorkspace = activeWorkspacePathFromWindow();
+    if (injectedWorkspace) {
+      setActiveWorkspacePath(injectedWorkspace);
+      return;
+    }
+    let disposed = false;
+    void ideMessenger
+      .request("getWorkspaceDirs", undefined)
+      .then((response) => {
+        if (disposed || response.status !== "success") {
+          return;
+        }
+        const workspacePath = stripFileUri(response.content[0] ?? "");
+        if (workspacePath) {
+          setActiveWorkspacePath(workspacePath);
+        }
+      });
+    return () => {
+      disposed = true;
+    };
+  }, [ideMessenger, isInEdit, props.isMainInput]);
 
   const updateAttachMenuPosition = useCallback(() => {
     const button = attachButtonRef.current;
@@ -164,6 +342,16 @@ function InputToolbar(props: InputToolbarProps) {
       window.requestAnimationFrame(() => attachButtonRef.current?.focus());
     }
   }, []);
+
+  const openScheduledTasks = useCallback(() => {
+    closeAttachMenu();
+    navigate(`${ROUTES.AGENTS}?scheduled=1`);
+  }, [closeAttachMenu, navigate]);
+
+  const openAgentsAndChats = useCallback(() => {
+    closeAttachMenu();
+    navigate(`${ROUTES.AGENTS}?panel=1`);
+  }, [closeAttachMenu, navigate]);
 
   const focusAttachMenuItem = useCallback((edge: "first" | "last") => {
     const items = Array.from(
@@ -349,7 +537,7 @@ function InputToolbar(props: InputToolbarProps) {
               </HoverItem>
             </ToolTip>
           )}
-          <div className="qivryn-toolbar-tools xs:flex text-description hidden items-center gap-0.5 transition-colors duration-150">
+          <div className="qivryn-toolbar-tools text-description flex items-center gap-0.5 transition-colors duration-150">
             {(canAttachFile || canAttachContext) && (
               <>
                 {canAttachFile && (
@@ -487,6 +675,74 @@ function InputToolbar(props: InputToolbarProps) {
                 </ToolTip>
               </>
             )}
+            {props.isMainInput && !isInEdit && (
+              <>
+                <ToolTip place="top" content="Choose workspace for agent tasks">
+                  <span className="qivryn-workspace-picker-group">
+                    <button
+                      type="button"
+                      className={`${iconButtonClass} qivryn-workspace-picker`}
+                      data-has-workspace={
+                        effectiveRepositoryPath ? "true" : "false"
+                      }
+                      aria-label={`Choose workspace for agent tasks. Current workspace: ${selectedRepositoryLabel}`}
+                      title={effectiveRepositoryPath || "Choose workspace"}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        void chooseAgentWorkspace();
+                      }}
+                    >
+                      <FolderOpenIcon aria-hidden="true" className="h-4 w-4" />
+                      <span>{selectedRepositoryLabel}</span>
+                    </button>
+                    {selectedRepositoryPath && (
+                      <button
+                        type="button"
+                        className={`${iconButtonClass} qivryn-workspace-clear-button`}
+                        aria-label="Clear selected workspace"
+                        title="Clear selected workspace"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          clearAgentWorkspace();
+                        }}
+                      >
+                        <XMarkIcon aria-hidden="true" className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </span>
+                </ToolTip>
+                <ToolTip place="top" content="Show agents and chats">
+                  <button
+                    type="button"
+                    className={`${iconButtonClass} qivryn-session-panel-button`}
+                    aria-label="Show agents and chats"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      openAgentsAndChats();
+                    }}
+                  >
+                    <QueueListIcon aria-hidden="true" className="h-4 w-4" />
+                  </button>
+                </ToolTip>
+                <ToolTip place="top" content="Schedule a task">
+                  <button
+                    type="button"
+                    className={`${iconButtonClass} qivryn-schedule-task-button`}
+                    aria-label="Open scheduled tasks"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      openScheduledTasks();
+                    }}
+                  >
+                    <CalendarDaysIcon aria-hidden="true" className="h-4 w-4" />
+                  </button>
+                </ToolTip>
+              </>
+            )}
           </div>
         </div>
 
@@ -497,6 +753,9 @@ function InputToolbar(props: InputToolbarProps) {
           }}
         >
           {!isInEdit && <ContextStatus />}
+          {props.isMainInput && !isInEdit && (
+            <VoiceInputButton disabled={props.disabled} />
+          )}
           {isInEdit && (
             <HoverItem
               className="hidden hover:underline sm:flex"
@@ -548,7 +807,7 @@ function InputToolbar(props: InputToolbarProps) {
               }
               onClick={async () => {
                 if (showStop) {
-                  void dispatch(cancelStream());
+                  void stopActiveWork();
                   return;
                 }
                 if (props.onEnter) {

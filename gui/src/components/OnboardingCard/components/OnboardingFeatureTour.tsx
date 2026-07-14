@@ -2,20 +2,34 @@ import { useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { IdeMessengerContext } from "../../../context/IdeMessenger";
 import { CONFIG_ROUTES, ROUTES } from "../../../util/navigation";
+import { useMainEditor } from "../../mainInput/TipTapEditor";
 
 export function OnboardingFeatureTour() {
   const navigate = useNavigate();
   const ideMessenger = useContext(IdeMessengerContext);
+  const { mainEditor } = useMainEditor();
+  const prefillComposer = (lines: string[]) => {
+    navigate(ROUTES.HOME);
+    if (!mainEditor) return;
+    mainEditor.commands.clearContent();
+    mainEditor.commands.insertContent(lines.join("\n"));
+    mainEditor.commands.focus("end");
+  };
   const items = [
     {
       title: "Agents",
-      detail: "Start, monitor, and resume durable tasks",
-      action: () => navigate(ROUTES.AGENTS),
+      detail: "Start durable tasks from the main composer",
+      action: () => prefillComposer(["Agent task:", ""]),
     },
     {
       title: "Scheduled tasks",
-      detail: "Run agents now, daily, weekly, or on an interval",
-      action: () => navigate(`${ROUTES.AGENTS}?scheduled=1`),
+      detail: "Create daily, weekly, or interval tasks from chat",
+      action: () =>
+        prefillComposer([
+          "Schedule this task:",
+          "When: weekdays at 9:00 AM",
+          "Task: ",
+        ]),
     },
     {
       title: "Permissions",

@@ -28,6 +28,7 @@ export interface ToolPermissions {
 }
 
 export interface ToolCallRequest {
+  toolCallId?: string;
   name: string;
   arguments: Record<string, any>;
   preview?: ToolCallPreview[];

@@ -52,6 +52,7 @@ function installMediaMocks() {
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
   Object.defineProperty(navigator, "mediaDevices", {
     configurable: true,
@@ -109,6 +110,41 @@ describe("VoiceInputButton", () => {
     );
   });
 
+  it("starts from the VS Code voice command", async () => {
+    installMediaMocks();
+    await renderWithProviders(<VoiceInputButton />);
+
+    await act(async () => {
+      window.postMessage({ type: "qivryn.voice.toggle" }, "*");
+    });
+
+    expect(
+      await screen.findByRole("button", { name: "Stop voice input" }),
+    ).toBeVisible();
+  });
+
+  it("inserts the reviewed transcript into a caller-owned composer", async () => {
+    installMediaMocks();
+    const messenger = new MockIdeMessenger();
+    messenger.responses["voice/transcribe"] = { text: "steer the active run" };
+    const onInsert = vi.fn();
+    const { user } = await renderWithProviders(
+      <VoiceInputButton onInsert={onInsert} />,
+      { mockIdeMessenger: messenger },
+    );
+
+    await user.click(
+      await screen.findByRole("button", { name: "Start voice input" }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 510));
+    await user.click(
+      await screen.findByRole("button", { name: "Stop voice input" }),
+    );
+    await user.click(await screen.findByRole("button", { name: "Insert" }));
+
+    expect(onInsert).toHaveBeenCalledWith("steer the active run");
+  });
+
   it("falls back to native host capture when the webview denies access", async () => {
     installMediaMocks();
     vi.mocked(navigator.mediaDevices.getUserMedia).mockRejectedValueOnce(
@@ -141,10 +177,87 @@ describe("VoiceInputButton", () => {
     ).toHaveValue("Transcribed voice input");
   });
 
-  it("stays hidden when MediaRecorder is unavailable", async () => {
-    await renderWithProviders(<VoiceInputButton />);
+  it("uses native host capture first inside VS Code webviews", async () => {
+    installMediaMocks();
+    vi.stubGlobal("vscode", {});
+    const messenger = new MockIdeMessenger();
+    const requests: string[] = [];
+    messenger.responseHandlers["voice/captureStart"] = async () => {
+      requests.push("start");
+      return { captureId: "native-webview", recorder: "ffmpeg" };
+    };
+    messenger.responseHandlers["voice/captureStop"] = async () => {
+      requests.push("stop");
+      return { audioBase64: "UklGRg==", mimeType: "audio/wav" };
+    };
+    const { user } = await renderWithProviders(<VoiceInputButton />, {
+      mockIdeMessenger: messenger,
+    });
+
+    await user.click(
+      await screen.findByRole("button", { name: "Start voice input" }),
+    );
+    expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
     expect(
-      screen.queryByRole("button", { name: "Start voice input" }),
-    ).not.toBeInTheDocument();
+      await screen.findByRole("button", { name: "Stop voice input" }),
+    ).toBeVisible();
+    await new Promise((resolve) => setTimeout(resolve, 510));
+    await user.click(screen.getByRole("button", { name: "Stop voice input" }));
+
+    await waitFor(() => expect(requests).toEqual(["start", "stop"]));
+    expect(
+      await screen.findByRole("textbox", { name: "Voice transcript" }),
+    ).toHaveValue("Transcribed voice input");
+  });
+
+  it("offers operating-system microphone settings after permission denial", async () => {
+    installMediaMocks();
+    vi.spyOn(window.navigator, "platform", "get").mockReturnValue("MacIntel");
+    vi.mocked(navigator.mediaDevices.getUserMedia).mockRejectedValueOnce(
+      Object.assign(new Error("denied"), { name: "NotAllowedError" }),
+    );
+    const messenger = new MockIdeMessenger();
+    messenger.responseHandlers["voice/captureStart"] = async () => {
+      throw new Error("ffmpeg unavailable");
+    };
+    const { user } = await renderWithProviders(<VoiceInputButton />, {
+      mockIdeMessenger: messenger,
+    });
+
+    await user.click(
+      await screen.findByRole("button", { name: "Start voice input" }),
+    );
+
+    expect(
+      await screen.findByText(/Microphone access was denied/),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Open microphone settings" }),
+    ).toBeVisible();
+  });
+
+  it("keeps the native recorder fallback available without MediaRecorder", async () => {
+    const messenger = new MockIdeMessenger();
+    const requests: string[] = [];
+    messenger.responseHandlers["voice/captureStart"] = async () => {
+      requests.push("start");
+      return { captureId: "native-only", recorder: "ffmpeg" };
+    };
+    messenger.responseHandlers["voice/captureCancel"] = async () => {
+      requests.push("cancel");
+      return undefined;
+    };
+    const { user } = await renderWithProviders(<VoiceInputButton />, {
+      mockIdeMessenger: messenger,
+    });
+
+    await user.click(
+      await screen.findByRole("button", { name: "Start voice input" }),
+    );
+    expect(
+      await screen.findByRole("button", { name: "Stop voice input" }),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Stop voice input" }));
+    expect(requests).toContain("start");
   });
 });

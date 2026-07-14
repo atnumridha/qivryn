@@ -33,6 +33,7 @@ describe("Docker container runtime", () => {
       args: ["-p", "inspect"],
     });
     expect(spec.command).toBe("docker");
+    expect(spec.args).toContain("--interactive");
     expect(spec.args).toEqual(
       expect.arrayContaining([
         "/workspace/worktrees/agent-1:/workspace:ro",
@@ -91,14 +92,58 @@ describe("Docker container runtime", () => {
         command: "qivryn",
         privileged: true,
       }),
-    ).toThrow(/allowPrivileged/);
+    ).toThrow(/trusted admin configuration or explicit approval/);
     expect(
       buildDockerRunSpec(
         run("fullAccess"),
         { image: "qivryn-agent:latest", command: "qivryn", privileged: true },
-        { allowPrivileged: true },
+        {
+          privilegedAuthority: { source: "admin-config", approved: true },
+        },
       ).args,
     ).toContain("--privileged");
+  });
+
+  it("binds explicit privileged approval to one full-access run", () => {
+    expect(() =>
+      buildDockerRunSpec(
+        run("fullAccess"),
+        { image: "qivryn-agent:latest", command: "qivryn", privileged: true },
+        {
+          privilegedAuthority: {
+            source: "explicit-approval",
+            approved: true,
+            runId: "another-run",
+          },
+        },
+      ),
+    ).toThrow(/explicit approval for this run/);
+
+    expect(
+      buildDockerRunSpec(
+        run("fullAccess"),
+        { image: "qivryn-agent:latest", command: "qivryn", privileged: true },
+        {
+          privilegedAuthority: {
+            source: "explicit-approval",
+            approved: true,
+            runId: "run/docker:1",
+          },
+        },
+      ).args,
+    ).toContain("--privileged");
+  });
+
+  it("rejects privileged containers outside full-access mode even with admin authority", () => {
+    expect(() =>
+      buildDockerRunSpec(
+        run("readOnly"),
+        { image: "qivryn-agent:latest", command: "qivryn", privileged: true },
+        {
+          privilegedAuthority: { source: "admin-config", approved: true },
+        },
+      ),
+    ).toThrow(/fullAccess permission mode/);
   });
 
   it("uses the complete shared runtime contract with container capabilities", () => {

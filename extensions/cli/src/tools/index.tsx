@@ -20,10 +20,12 @@ import { logger } from "../util/logger.js";
 import { ALL_BUILT_IN_TOOLS } from "./allBuiltIns.js";
 import { askQuestionTool } from "./askQuestion.js";
 import { checkBackgroundJobTool } from "./checkBackgroundJob.js";
+import { computerUseTool } from "./computerUse.js";
 import { editTool } from "./edit.js";
 import { exitTool } from "./exit.js";
 import { fetchTool } from "./fetch.js";
 import { listFilesTool } from "./listFiles.js";
+import { toModelToolName } from "./modelToolName.js";
 import { multiEditTool } from "./multiEdit.js";
 import { readFileTool } from "./readFile.js";
 import { reportFailureTool } from "./reportFailure.js";
@@ -71,6 +73,7 @@ const BASE_BUILTIN_TOOLS: Tool[] = [
   writeChecklistTool,
   checkBackgroundJobTool,
   askQuestionTool,
+  computerUseTool,
 ];
 
 const BUILTIN_SEARCH_TOOLS: Tool[] = [searchCodeTool];
@@ -190,8 +193,10 @@ export function convertToolToChatCompletionTool(
 }
 
 export function convertMcpToolToQivrynTool(mcpTool: MCPTool): Tool {
+  const modelToolName = toModelToolName(mcpTool.name);
+
   return {
-    name: mcpTool.name,
+    name: modelToolName,
     displayName: mcpTool.name,
     description: mcpTool.description ?? "",
     parameters: {

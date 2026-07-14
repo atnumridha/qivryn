@@ -1,11 +1,11 @@
 import {
   ChatBubbleOvalLeftIcon,
   ChevronDoubleUpIcon,
-  ClockIcon,
 } from "@heroicons/react/24/outline";
+import type { AgentRun } from "@qivryn/agent-runtime/contracts";
 import { Editor, JSONContent } from "@tiptap/react";
-import { ChatHistoryItem, InputModifiers } from "core";
-import { renderChatMessage } from "core/util/messageContent";
+import { ChatHistoryItem, ContextItemWithId, InputModifiers } from "core";
+import { renderChatMessage, stripImages } from "core/util/messageContent";
 import {
   useCallback,
   useContext,
@@ -16,11 +16,11 @@ import {
   type CSSProperties,
 } from "react";
 import { ErrorBoundary } from "react-error-boundary";
+import { v4 as uuidv4 } from "uuid";
 import styled from "styled-components";
 import { Button, lightGray, vscBackground } from "../../components";
 import { useFindWidget } from "../../components/find/FindWidget";
 import TimelineItem from "../../components/gui/TimelineItem";
-import { NewSessionButton } from "../../components/mainInput/belowMainInput/NewSessionButton";
 import ThinkingBlockPeek from "../../components/mainInput/belowMainInput/ThinkingBlockPeek";
 import QivrynInputBox from "../../components/mainInput/QivrynInputBox";
 import StepContainer from "../../components/StepContainer";
@@ -36,10 +36,14 @@ import {
   cancelToolCall,
   ChatHistoryItemWithMessageId,
   newSession,
+  setInactive,
+  setSessionChatModelTitle,
+  submitEditorAndInitAtIndex,
   updateToolCallOutput,
+  updateHistoryItemAtIndex,
 } from "../../redux/slices/sessionSlice";
+import { selectSelectedChatModel } from "../../redux/slices/configSlice";
 import { streamEditThunk } from "../../redux/thunks/edit";
-import { loadLastSession } from "../../redux/thunks/session";
 import { streamResponseThunk } from "../../redux/thunks/streamResponse";
 import { isJetBrains, isMetaEquivalentKeyPressed } from "../../util";
 import { ToolCallDiv } from "./ToolCallDiv";
@@ -83,6 +87,185 @@ const StepsDiv = styled.div`
     position: relative;
   }
 `;
+
+const MAIN_COMPOSER_MAX_PARALLEL_AGENT_TASKS = 12;
+const MAIN_COMPOSER_CONTEXT_SNAPSHOT_CHARS = 6_000;
+const LAST_AGENT_REPOSITORY_KEY = "qivryn.agents.lastRepository";
+const AGENT_REPOSITORY_CHANGED_EVENT = "qivryn:agent-repository-changed";
+
+function parseMainComposerAgentTasks(value: string): string[] {
+  const lines = value
+    .split(/\r?\n/)
+    .map((item) => item.replace(/^\s*(?:[-*]|\d+[.)])\s+/, "").trim())
+    .filter(Boolean);
+  if (
+    /^(?:run in parallel|agent task|background task):?$/i.test(lines[0] ?? "")
+  ) {
+    return lines.slice(1);
+  }
+  return lines;
+}
+
+function editorStateToPlainText(value: JSONContent | undefined): string {
+  if (!value) return "";
+  if (typeof value.text === "string") return value.text;
+  const childText = value.content?.map(editorStateToPlainText).filter(Boolean);
+  if (!childText?.length) return "";
+  return value.type === "doc" ? childText.join("\n") : childText.join("");
+}
+
+function shouldUseDurableAgentComposer(
+  editorState: JSONContent,
+  history: ChatHistoryItem[],
+): boolean {
+  if (getLastComposerAgentRunId(history)) {
+    return true;
+  }
+  const text = editorStateToPlainText(editorState).trim();
+  return /^(?:run in parallel|agent task|background task):/i.test(text);
+}
+
+function normalizeMainComposerPath(value: string): string {
+  if (value.startsWith("file:")) {
+    try {
+      const uri = new URL(value);
+      return decodeURIComponent(uri.pathname).replace(/\\/g, "/");
+    } catch {
+      return value.replace(/^file:\/\//, "").replace(/\\/g, "/");
+    }
+  }
+  return value.replace(/\\/g, "/");
+}
+
+function selectedMainComposerRepositoryPath(
+  workspaceDirs: string[] | undefined,
+): string | undefined {
+  const selected = window.localStorage
+    .getItem(LAST_AGENT_REPOSITORY_KEY)
+    ?.trim();
+  const candidate =
+    selected || workspaceDirs?.[0] || window.workspacePaths?.[0];
+  if (!candidate) return undefined;
+  return normalizeMainComposerPath(candidate);
+}
+
+function repositoryRelativePath(
+  repositoryPath: string,
+  candidatePath: string,
+): string | undefined {
+  const repository = normalizeMainComposerPath(repositoryPath).replace(
+    /\/$/,
+    "",
+  );
+  const candidate = normalizeMainComposerPath(candidatePath).replace(
+    /^\.\//,
+    "",
+  );
+  if (!candidate) return undefined;
+  if (!candidate.startsWith("/") && !/^[A-Za-z]:\//.test(candidate)) {
+    return candidate;
+  }
+  const prefix = `${repository}/`;
+  if (!candidate.startsWith(prefix)) return undefined;
+  return candidate.slice(prefix.length);
+}
+
+function renderAgentContextForPrompt(
+  prompt: string,
+  repositoryPath: string,
+  contextItems: ContextItemWithId[],
+): string {
+  const fileReferences = new Set<string>();
+  const snapshots: string[] = [];
+
+  for (const item of contextItems) {
+    const uriValue = item.uri?.value;
+    if (item.uri?.type === "file" && uriValue) {
+      const reference = repositoryRelativePath(repositoryPath, uriValue);
+      if (reference) fileReferences.add(reference);
+      continue;
+    }
+
+    const content =
+      typeof item.content === "string" ? item.content.trim() : undefined;
+    if (!content) continue;
+    const label =
+      item.name ||
+      item.description ||
+      item.id?.itemId ||
+      item.id?.providerTitle;
+    const bounded =
+      content.length <= MAIN_COMPOSER_CONTEXT_SNAPSHOT_CHARS
+        ? content
+        : `[Older snapshot output omitted; ${content.length.toLocaleString()} characters total.]\n${content.slice(-MAIN_COMPOSER_CONTEXT_SNAPSHOT_CHARS)}`;
+    snapshots.push(
+      `<context_snapshot label=${JSON.stringify(label ?? "context")}>\n${bounded}\n</context_snapshot>`,
+    );
+  }
+
+  let result = prompt;
+  if (fileReferences.size > 0) {
+    result += `\n\n<context_files>\nRead these repository-relative files as relevant before responding:\n${[
+      ...fileReferences,
+    ]
+      .map((file) => `- ${JSON.stringify(file)}`)
+      .join("\n")}\n</context_files>`;
+  }
+  if (snapshots.length > 0) {
+    result += `\n\n${snapshots.join("\n\n")}`;
+  }
+  return result;
+}
+
+function renderAgentLaunchMessage(
+  tasks: string[],
+  runs: AgentRun[],
+  repositoryPath: string,
+): string {
+  const taskLabel =
+    tasks.length === 1
+      ? "Started a durable agent task from this composer."
+      : `Started ${runs.length} durable agent tasks from this composer.`;
+  const taskLines =
+    tasks.length === 1
+      ? `\n\nTask: ${tasks[0]}`
+      : `\n\n${tasks.map((task, index) => `${index + 1}. ${task}`).join("\n")}`;
+  const workspaceName =
+    repositoryPath
+      .replace(/[\\/]+$/, "")
+      .split(/[\\/]/)
+      .filter(Boolean)
+      .at(-1) || repositoryPath;
+
+  return `${taskLabel}${taskLines}\n\nWorkspace: \`${workspaceName}\`\n\nThe task keeps running if you switch chats. Continue steering it from the composer while it is active.`;
+}
+
+function renderAgentSteeringMessage(runId: string): string {
+  return `Queued a steering message for the active durable agent.\n\nRun: \`${runId}\``;
+}
+
+function getLastComposerAgentRunId(
+  history: ChatHistoryItem[],
+): string | undefined {
+  for (let index = history.length - 1; index >= 0; index--) {
+    const message = history[index].message;
+    if (message.role !== "assistant") {
+      continue;
+    }
+    const metadata = message.metadata as
+      | { qivrynComposerAgentRunIds?: unknown }
+      | undefined;
+    const runIds = metadata?.qivrynComposerAgentRunIds;
+    if (
+      Array.isArray(runIds) &&
+      runIds.length === 1 &&
+      typeof runIds[0] === "string"
+    ) {
+      return runIds[0];
+    }
+  }
+  return undefined;
+}
 
 export const MAIN_EDITOR_INPUT_ID = "main-editor-input";
 const INITIAL_RENDERED_HISTORY_ITEMS = 60;
@@ -149,7 +332,6 @@ export function Chat() {
   const codeToEdit = useAppSelector((state) => state.editModeState.codeToEdit);
   const isInEdit = useAppSelector((store) => store.session.isInEdit);
 
-  const lastSessionId = useAppSelector((state) => state.session.lastSessionId);
   const hasDismissedExploreDialog = useAppSelector(
     (state) => state.ui.hasDismissedExploreDialog,
   );
@@ -229,6 +411,238 @@ export function Chat() {
     isStreaming,
   );
 
+  const startDurableAgentFromComposer = useCallback(
+    async (
+      editorState: JSONContent,
+      modifiers: InputModifiers,
+      editorToClearOnSend?: Editor,
+    ): Promise<boolean> => {
+      const stateSnapshot = reduxStore.getState();
+      const workspaceResponse = await ideMessenger.request(
+        "getWorkspaceDirs",
+        undefined,
+      );
+      const repositoryPath = selectedMainComposerRepositoryPath(
+        workspaceResponse.status === "success"
+          ? workspaceResponse.content
+          : undefined,
+      );
+      if (!repositoryPath) {
+        throw new Error(
+          "No workspace is open. Open a folder before starting an agent task.",
+        );
+      }
+      window.localStorage.setItem(LAST_AGENT_REPOSITORY_KEY, repositoryPath);
+      window.dispatchEvent(
+        new CustomEvent(AGENT_REPOSITORY_CHANGED_EVENT, {
+          detail: repositoryPath,
+        }),
+      );
+
+      const defaultContextProviders =
+        stateSnapshot.config.config.experimental?.defaultContext ?? [];
+      const resolved = await resolveEditorContent({
+        editorState,
+        modifiers,
+        ideMessenger,
+        defaultContextProviders,
+        availableSlashCommands: stateSnapshot.config.config.slashCommands,
+        dispatch,
+        getState: () => reduxStore.getState(),
+      });
+      const prompt = stripImages(resolved.content).trim();
+      const tasks = parseMainComposerAgentTasks(prompt);
+      if (
+        tasks.length === 0 ||
+        tasks.length > MAIN_COMPOSER_MAX_PARALLEL_AGENT_TASKS
+      ) {
+        throw new Error(
+          tasks.length > MAIN_COMPOSER_MAX_PARALLEL_AGENT_TASKS
+            ? `Up to ${MAIN_COMPOSER_MAX_PARALLEL_AGENT_TASKS} parallel agent tasks are supported.`
+            : "Enter a task before starting an agent.",
+        );
+      }
+
+      const selectedChatModel = selectSelectedChatModel(stateSnapshot);
+      if (!selectedChatModel) {
+        throw new Error("No chat model selected");
+      }
+
+      const inputIndex = stateSnapshot.session.history.length;
+      dispatch(submitEditorAndInitAtIndex({ index: inputIndex, editorState }));
+      dispatch(setSessionChatModelTitle(selectedChatModel.title));
+      dispatch(
+        updateHistoryItemAtIndex({
+          index: inputIndex,
+          updates: {
+            message: {
+              role: "user",
+              content: resolved.content,
+              id: uuidv4(),
+            },
+            contextItems: resolved.selectedContextItems,
+          },
+        }),
+      );
+
+      if (editorToClearOnSend) {
+        editorToClearOnSend.commands.clearContent();
+      }
+
+      const reasoningEffort = selectedChatModel?.title
+        ? stateSnapshot.ui.reasoningEffortSettings[selectedChatModel.title]
+        : undefined;
+      const lastComposerAgentRunId =
+        tasks.length === 1
+          ? getLastComposerAgentRunId(stateSnapshot.session.history)
+          : undefined;
+      if (lastComposerAgentRunId) {
+        const response = await ideMessenger.request("agents/control", {
+          action: "queue.add",
+          runId: lastComposerAgentRunId,
+          prompt: renderAgentContextForPrompt(
+            tasks[0],
+            repositoryPath,
+            resolved.selectedContextItems,
+          ),
+          behavior: "steer",
+        });
+        if (response.status !== "success") {
+          dispatch(
+            updateHistoryItemAtIndex({
+              index: inputIndex + 1,
+              updates: {
+                message: {
+                  role: "assistant",
+                  content: `Agent steering message could not be queued: ${response.error}`,
+                  id: uuidv4(),
+                },
+              },
+            }),
+          );
+          dispatch(setInactive());
+          throw new Error(response.error);
+        }
+        dispatch(
+          updateHistoryItemAtIndex({
+            index: inputIndex + 1,
+            updates: {
+              message: {
+                role: "assistant",
+                content: renderAgentSteeringMessage(lastComposerAgentRunId),
+                id: uuidv4(),
+                metadata: {
+                  qivrynComposerAgentRunIds: [lastComposerAgentRunId],
+                },
+              },
+            },
+          }),
+        );
+        dispatch(setInactive());
+        return true;
+      }
+
+      let responses: Awaited<ReturnType<typeof ideMessenger.request>>[];
+      try {
+        responses = await Promise.all(
+          tasks.map((task) =>
+            ideMessenger.request("agents/control", {
+              action: "run.create",
+              request: {
+                prompt: renderAgentContextForPrompt(
+                  task,
+                  repositoryPath,
+                  resolved.selectedContextItems,
+                ),
+                model: selectedChatModel.title,
+                permissionMode:
+                  stateSnapshot.ui.agentAccessMode ?? "autonomous",
+                workspace: {
+                  location: "local",
+                  repositoryPath,
+                },
+                metadata: {
+                  source: "main-composer",
+                  ...(reasoningEffort ? { reasoningEffort } : {}),
+                },
+              },
+            }),
+          ),
+        );
+      } catch (cause) {
+        const message = cause instanceof Error ? cause.message : String(cause);
+        dispatch(
+          updateHistoryItemAtIndex({
+            index: inputIndex + 1,
+            updates: {
+              message: {
+                role: "assistant",
+                content: `Agent task could not start: ${message}`,
+                id: uuidv4(),
+              },
+            },
+          }),
+        );
+        dispatch(setInactive());
+        throw cause;
+      }
+      const firstSuccess = responses.find(
+        (response) => response.status === "success",
+      );
+      if (!firstSuccess || firstSuccess.status !== "success") {
+        const firstFailure = responses.find(
+          (response) => response.status === "error",
+        );
+        dispatch(
+          updateHistoryItemAtIndex({
+            index: inputIndex + 1,
+            updates: {
+              message: {
+                role: "assistant",
+                content:
+                  firstFailure?.status === "error"
+                    ? `Agent task could not start: ${firstFailure.error}`
+                    : "The agent task could not be started.",
+                id: uuidv4(),
+              },
+            },
+          }),
+        );
+        dispatch(setInactive());
+        throw new Error(
+          firstFailure?.status === "error"
+            ? firstFailure.error
+            : "The agent task could not be started.",
+        );
+      }
+
+      const runs: AgentRun[] = [];
+      for (const response of responses) {
+        if (response.status === "success") {
+          runs.push(response.content as AgentRun);
+        }
+      }
+      dispatch(
+        updateHistoryItemAtIndex({
+          index: inputIndex + 1,
+          updates: {
+            message: {
+              role: "assistant",
+              content: renderAgentLaunchMessage(tasks, runs, repositoryPath),
+              id: uuidv4(),
+              metadata: {
+                qivrynComposerAgentRunIds: runs.map((run) => run.id),
+              },
+            },
+          },
+        }),
+      );
+      dispatch(setInactive());
+      return true;
+    },
+    [dispatch, ideMessenger, reduxStore],
+  );
+
   const sendInput = useCallback(
     (
       editorState: JSONContent,
@@ -268,6 +682,31 @@ export function Chat() {
             codeToEdit: codeToEditSnapshot,
           }),
         );
+      } else if (
+        shouldUseDurableAgentComposer(
+          editorState,
+          stateSnapshot.session.history,
+        )
+      ) {
+        void startDurableAgentFromComposer(
+          editorState,
+          modifiers,
+          editorToClearOnSend,
+        ).catch((cause) => {
+          dispatch(
+            setDialogMessage(
+              <div className="p-4">
+                <h3 className="text-error m-0 text-sm font-semibold">
+                  Agent task could not start
+                </h3>
+                <p className="text-description mt-2 text-sm">
+                  {cause instanceof Error ? cause.message : String(cause)}
+                </p>
+              </div>,
+            ),
+          );
+          dispatch(setShowDialog(true));
+        });
       } else {
         void dispatch(streamResponseThunk({ editorState, modifiers, index }));
 
@@ -288,7 +727,7 @@ export function Chat() {
         setLocalStorage("mainTextEntryCounter", 1);
       }
     },
-    [dispatch, ideMessenger, reduxStore],
+    [dispatch, ideMessenger, reduxStore, startDurableAgentFromComposer],
   );
 
   useWebviewListener(
@@ -457,9 +896,6 @@ export function Chat() {
   );
 
   const showScrollbar = showChatScrollbar ?? window.innerHeight > 5000;
-  const showLastSessionButton =
-    history.length === 0 && lastSessionId && !isInEdit;
-
   return (
     <>
       {!!showSessionTabs && !isInEdit && <TabBar ref={tabsRef} />}
@@ -553,23 +989,6 @@ export function Chat() {
               pointerEvents: isStreaming ? "none" : "auto",
             }}
           >
-            {showLastSessionButton && (
-              <div className="qivryn-composer-footer flex flex-row items-center justify-between">
-                <div className="xs:inline hidden">
-                  <NewSessionButton
-                    onClick={async () => {
-                      await dispatch(loadLastSession());
-                    }}
-                    type="button"
-                    aria-label="Open last session"
-                    title="Open last session"
-                    className="qivryn-last-session-button"
-                  >
-                    <ClockIcon aria-hidden="true" className="h-3.5 w-3.5" />
-                  </NewSessionButton>
-                </div>
-              </div>
-            )}
             <FatalErrorIndicator />
             {!hasDismissedExploreDialog && <ExploreDialogWatcher />}
           </div>

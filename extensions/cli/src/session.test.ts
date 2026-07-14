@@ -10,12 +10,14 @@ import {
   createSession,
   getCurrentSession,
   hasSession,
+  loadOrCreateExactSessionById,
   loadOrCreateSessionById,
   loadSession,
   saveSession,
   startNewSession,
   updateSessionHistory,
   updateSessionTitle,
+  validateExactSessionId,
 } from "./session.js";
 
 // Mock dependencies first, before any imports
@@ -312,6 +314,86 @@ describe("SessionManager", () => {
       expect(session.sessionId).toBe("new-id");
       expect(session.history).toEqual([]);
       expect(getCurrentSession()).toBe(session);
+    });
+  });
+
+  describe("exact session selection", () => {
+    it("loads only the requested session ID", () => {
+      const requestedSession: Session = {
+        sessionId: "agent-run-a",
+        title: "Agent A",
+        workspaceDirectory: "/workspace/a",
+        history: [
+          {
+            message: { role: "user", content: "Initial A" },
+            contextItems: [],
+          },
+        ],
+      };
+      mockHistoryManager.load.mockImplementation((sessionId: string) => {
+        if (sessionId === requestedSession.sessionId) return requestedSession;
+        throw new Error(`Unexpected session ${sessionId}`);
+      });
+
+      const session = loadOrCreateExactSessionById("agent-run-a");
+
+      expect(mockHistoryManager.load).toHaveBeenCalledWith("agent-run-a");
+      expect(session).toBe(requestedSession);
+      expect(getCurrentSession()).toBe(requestedSession);
+    });
+
+    it("keeps histories isolated when switching exact session IDs", () => {
+      const sessions = new Map<string, Session>([
+        [
+          "agent-run-a",
+          {
+            sessionId: "agent-run-a",
+            title: "Agent A",
+            workspaceDirectory: "/workspace/a",
+            history: [
+              {
+                message: { role: "user", content: "Initial A" },
+                contextItems: [],
+              },
+            ],
+          },
+        ],
+        [
+          "agent-run-b",
+          {
+            sessionId: "agent-run-b",
+            title: "Agent B",
+            workspaceDirectory: "/workspace/b",
+            history: [
+              {
+                message: { role: "user", content: "Initial B" },
+                contextItems: [],
+              },
+            ],
+          },
+        ],
+      ]);
+      mockHistoryManager.load.mockImplementation((sessionId: string) => {
+        const session = sessions.get(sessionId);
+        if (!session) throw new Error("not found");
+        return session;
+      });
+
+      const first = loadOrCreateExactSessionById("agent-run-a");
+      const second = loadOrCreateExactSessionById("agent-run-b");
+
+      expect(first.history[0].message.content).toBe("Initial A");
+      expect(second.history[0].message.content).toBe("Initial B");
+      expect(first).not.toBe(second);
+    });
+
+    it("rejects exact IDs that could escape the session directory", () => {
+      expect(() => validateExactSessionId("../other-session")).toThrow(
+        "invalid filename characters",
+      );
+      expect(() => validateExactSessionId(" ")).toThrow(
+        "Session ID cannot be empty",
+      );
     });
   });
 

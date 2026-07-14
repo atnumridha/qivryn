@@ -8,6 +8,7 @@ import test from "node:test";
 import {
   assertDaemonHealth,
   parseRunListOutput,
+  PROTOCOL_VERSION,
   selectVsix,
 } from "./smoke-test-agent-cli.mjs";
 
@@ -22,17 +23,17 @@ test("parses structured output after dependency logs", () => {
 test("validates the authenticated daemon health contract", () => {
   assert.doesNotThrow(() =>
     assertDaemonHealth({
-      protocolVersion: 2,
+      protocolVersion: PROTOCOL_VERSION,
       capabilities: { local: true, persistent: true },
     }),
   );
   assert.throws(
     () =>
       assertDaemonHealth({
-        protocolVersion: 1,
+        protocolVersion: PROTOCOL_VERSION - 1,
         capabilities: { local: true, persistent: true },
       }),
-    /protocol 2/,
+    new RegExp(`protocol ${PROTOCOL_VERSION}`),
   );
 });
 

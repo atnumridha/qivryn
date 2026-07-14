@@ -56,7 +56,12 @@ export class BackgroundJobService {
     return job;
   }
 
-  startJob(jobId: string, shell: string, args: string[]): ChildProcess | null {
+  startJob(
+    jobId: string,
+    shell: string,
+    args: string[],
+    options: { env?: NodeJS.ProcessEnv } = {},
+  ): ChildProcess | null {
     const job = this.jobs.get(jobId);
     if (!job) {
       logger.error(`Cannot start job ${jobId}: job not found`);
@@ -65,7 +70,7 @@ export class BackgroundJobService {
 
     job.status = "running";
 
-    const child = spawn(shell, args, { stdio: "pipe" });
+    const child = spawn(shell, args, { stdio: "pipe", env: options.env });
     this.processes.set(jobId, child);
 
     child.stdout?.setEncoding("utf8");

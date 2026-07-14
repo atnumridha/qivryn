@@ -1,6 +1,41 @@
-import { extractToolCalls, getToolDisplayName } from "./index.js";
+import { isValidModelToolName, toModelToolName } from "./modelToolName.js";
+import {
+  convertMcpToolToQivrynTool,
+  extractToolCalls,
+  getToolDisplayName,
+} from "./index.js";
 
 describe("tools/index utilities", () => {
+  describe("toModelToolName", () => {
+    it("keeps model-safe names unchanged", () => {
+      expect(toModelToolName("browser_recorder")).toBe("browser_recorder");
+      expect(isValidModelToolName("browser_recorder")).toBe(true);
+    });
+
+    it("creates deterministic model-safe aliases for MCP names with punctuation", () => {
+      const alias = toModelToolName("bugdb.lookup.issue/with:scope");
+
+      expect(alias).toMatch(/^[a-zA-Z0-9_-]+$/);
+      expect(alias).toMatch(/^bugdb_lookup_issue_with_scope_[a-f0-9]{8}$/);
+      expect(toModelToolName("bugdb.lookup.issue/with:scope")).toBe(alias);
+    });
+
+    it("keeps the original MCP name as the display name", () => {
+      const tool = convertMcpToolToQivrynTool({
+        name: "bugdb.lookup.issue/with:scope",
+        description: "Look up a BugDB issue",
+        inputSchema: {
+          type: "object",
+          properties: {},
+          required: [],
+        },
+      });
+
+      expect(isValidModelToolName(tool.name)).toBe(true);
+      expect(tool.displayName).toBe("bugdb.lookup.issue/with:scope");
+    });
+  });
+
   describe("getToolDisplayName", () => {
     it("should return display name for known tool", () => {
       // The actual implementation returns the displayName when tool is found

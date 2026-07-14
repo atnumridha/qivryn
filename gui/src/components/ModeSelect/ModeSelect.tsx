@@ -1,4 +1,5 @@
 import {
+  CalendarDaysIcon,
   CheckIcon,
   ChevronDownIcon,
   ChevronRightIcon,
@@ -7,6 +8,7 @@ import {
   InformationCircleIcon,
   ShieldCheckIcon,
   SparklesIcon,
+  SquaresPlusIcon,
 } from "@heroicons/react/24/outline";
 import { MessageModes } from "core";
 import { isRecommendedAgentModel } from "core/llm/toolSupport";
@@ -467,10 +469,45 @@ export function ModeSelect({
     [closeModeDropdown, dispatch, mode, mainEditor],
   );
 
+  const insertComposerTemplate = useCallback(
+    (lines: string[]) => {
+      closeModeDropdown();
+      dispatch(setMode("agent"));
+      if (mainEditor) {
+        const currentText = mainEditor.getText().trim();
+        if (!currentText) {
+          mainEditor.commands.clearContent();
+          mainEditor.commands.insertContent(lines.join("\n"));
+        }
+        mainEditor.commands.focus("end");
+      }
+    },
+    [closeModeDropdown, dispatch, mainEditor],
+  );
+
   const openBackgroundTasks = useCallback(() => {
+    insertComposerTemplate(["Agent task:", ""]);
+  }, [insertComposerTemplate]);
+
+  const openParallelTasks = useCallback(() => {
+    insertComposerTemplate([
+      "Run in parallel:",
+      "Review the current workspace changes",
+      "Run the relevant validation checks",
+      "Audit the UI for alignment, spacing, and overflow issues",
+    ]);
+  }, [insertComposerTemplate]);
+
+  const openScheduledTask = useCallback(() => {
     closeModeDropdown();
-    navigate(ROUTES.AGENTS);
+    navigate(`${ROUTES.AGENTS}?scheduled=1`);
   }, [closeModeDropdown, navigate]);
+
+  const focusAgentMode = useCallback(() => {
+    closeModeDropdown();
+    dispatch(setMode("agent"));
+    mainEditor?.commands.focus();
+  }, [closeModeDropdown, dispatch, mainEditor]);
 
   const selectSkill = useCallback(
     (skill: SkillSummary | undefined) => {
@@ -828,18 +865,38 @@ export function ModeSelect({
                   >
                     <div className="flex min-w-0 flex-row items-center gap-1.5">
                       <ModeIcon mode="background" />
-                      <span className="truncate">Background tasks</span>
+                      <span className="truncate">Agent tasks in composer</span>
                       <ToolTip
                         style={{ zIndex: DROPDOWN_TOOLTIP_LAYER }}
-                        content="Tasks keep running when you switch between them"
+                        content="Start durable tasks without leaving this chat"
                       >
                         <InformationCircleIcon className="h-2.5 w-2.5 flex-shrink-0" />
                       </ToolTip>
                     </div>
-                    <ChevronRightIcon
-                      aria-hidden="true"
-                      className="ml-auto h-3 w-3 flex-shrink-0 opacity-70"
-                    />
+                  </button>
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className={modeItemClass(false)}
+                    onClick={openParallelTasks}
+                  >
+                    <div className="flex min-w-0 flex-row items-center gap-1.5">
+                      <SquaresPlusIcon className="h-3 w-3 flex-shrink-0" />
+                      <span className="truncate">Run in parallel</span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className={modeItemClass(false)}
+                    onClick={openScheduledTask}
+                  >
+                    <div className="flex min-w-0 flex-row items-center gap-1.5">
+                      <CalendarDaysIcon className="h-3 w-3 flex-shrink-0" />
+                      <span className="truncate">Schedule</span>
+                    </div>
                   </button>
 
                   <button
@@ -847,7 +904,7 @@ export function ModeSelect({
                     role="menuitemradio"
                     aria-checked={mode === "agent"}
                     className={modeItemClass(mode === "agent")}
-                    onClick={() => selectMode("agent")}
+                    onClick={focusAgentMode}
                   >
                     <div className="flex flex-row items-center gap-1.5">
                       <ModeIcon mode="agent" />

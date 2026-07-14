@@ -15,6 +15,7 @@ export class ToolPermissionManager extends EventEmitter {
       resolve: (result: PermissionRequestResult) => void;
     }
   >();
+  private readonly rememberedApprovals = new Set<string>();
 
   private requestCounter = 0;
 
@@ -25,6 +26,9 @@ export class ToolPermissionManager extends EventEmitter {
   async requestPermission(
     toolCall: ToolCallRequest,
   ): Promise<PermissionRequestResult> {
+    if (this.rememberedApprovals.has(this.approvalScope(toolCall))) {
+      return { approved: true, remember: true };
+    }
     const requestId = `tool-request-${++this.requestCounter}`;
 
     return new Promise<PermissionRequestResult>((resolve) => {
@@ -53,6 +57,9 @@ export class ToolPermissionManager extends EventEmitter {
     }
 
     this.pendingRequests.delete(requestId);
+    if (remember) {
+      this.rememberedApprovals.add(this.approvalScope(request.toolCall));
+    }
     request.resolve({ approved: true, remember });
 
     // Also emit for the new event-based system
@@ -91,6 +98,38 @@ export class ToolPermissionManager extends EventEmitter {
    */
   getPendingRequestIds(): string[] {
     return Array.from(this.pendingRequests.keys());
+  }
+
+  rejectAllPending(): void {
+    for (const requestId of this.getPendingRequestIds()) {
+      this.rejectRequest(requestId);
+    }
+  }
+
+  private approvalScope(toolCall: ToolCallRequest): string {
+    const sanitize = (value: unknown, key = ""): unknown => {
+      if (
+        /^text$|password|passphrase|secret|token|api.?key|authorization|cookie|content|base64/i.test(
+          key,
+        )
+      ) {
+        return "[sensitive]";
+      }
+      if (Array.isArray(value)) return value.map((item) => sanitize(item));
+      if (value && typeof value === "object") {
+        return Object.fromEntries(
+          Object.entries(value)
+            .filter(([entryKey]) => entryKey !== "toolCallId")
+            .sort(([left], [right]) => left.localeCompare(right))
+            .map(([entryKey, entryValue]) => [
+              entryKey,
+              sanitize(entryValue, entryKey),
+            ]),
+        );
+      }
+      return value;
+    };
+    return `${toolCall.name}:${JSON.stringify(sanitize(toolCall.arguments))}`;
   }
 }
 

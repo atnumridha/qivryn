@@ -256,6 +256,13 @@
         "group": "Qivryn"
       },
       {
+        "command": "qivryn.toggleVoiceInput",
+        "category": "Qivryn",
+        "title": "Start or Stop Voice Input",
+        "icon": "$(mic)",
+        "group": "Qivryn"
+      },
+      {
         "command": "qivryn.debugTerminal",
         "category": "Qivryn",
         "title": "Debug Terminal",
@@ -450,7 +457,8 @@
       {
         "command": "qivryn.openAgentsWindow",
         "category": "Qivryn",
-        "title": "Open Agent Workspace",
+        "title": "Open Qivryn Composer",
+        "icon": "$(sparkle)",
         "group": "Qivryn"
       },
       {
@@ -888,6 +896,12 @@
           "group": "1_debug@1"
         }
       ],
+      "menubar/view": [
+        {
+          "command": "qivryn.openAgentsWindow",
+          "group": "1_qivryn@1"
+        }
+      ],
       "view/title": [
         {
           "command": "qivryn.newSession",
@@ -897,6 +911,11 @@
         {
           "command": "qivryn.viewHistory",
           "group": "navigation@2",
+          "when": "view == qivryn.qivrynGUIView"
+        },
+        {
+          "command": "qivryn.openAgentsWindow",
+          "group": "navigation@3",
           "when": "view == qivryn.qivrynGUIView"
         },
         {

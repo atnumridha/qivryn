@@ -66,6 +66,32 @@ describe("agent presentation contract", () => {
     expect(source).toHaveLength(2);
   });
 
+  it("pins active work first and keeps each group in recent order", () => {
+    const source = [
+      run({
+        id: "recent-complete",
+        status: "completed",
+        updatedAt: "2026-07-03T00:04:00.000Z",
+      }),
+      run({
+        id: "pinned-complete",
+        status: "completed",
+        pinned: true,
+        updatedAt: "2026-07-03T00:02:00.000Z",
+      }),
+      run({
+        id: "active",
+        status: "running",
+        updatedAt: "2026-07-03T00:01:00.000Z",
+      }),
+    ];
+    expect(filterAgentRuns(source, "").map(({ id }) => id)).toEqual([
+      "active",
+      "pinned-complete",
+      "recent-complete",
+    ]);
+  });
+
   it("maps durable runs to native chat-session metadata", () => {
     expect(toQivrynAgentSessionMetadata(run())).toEqual(
       expect.objectContaining({
@@ -155,9 +181,23 @@ describe("agent presentation contract", () => {
     ]);
     expect(transcript).toEqual([
       expect.objectContaining({ type: "tool", status: "completed" }),
-      expect.objectContaining({ type: "notice", sequence: 5 }),
-      expect.objectContaining({ type: "notice", sequence: 6 }),
+      expect.objectContaining({
+        type: "notice",
+        sequence: 6,
+        text: "Context optimized",
+      }),
     ]);
+  });
+
+  it("hides empty hook bookkeeping from the user transcript", () => {
+    expect(
+      projectAgentTranscript([
+        event(1, "runtime.notice", {
+          type: "hook.result",
+          result: { ok: true },
+        }),
+      ]),
+    ).toEqual([]);
   });
 
   it("bounds and sanitizes persisted native layout state", () => {

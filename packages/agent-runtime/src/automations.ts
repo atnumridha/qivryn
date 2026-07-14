@@ -23,6 +23,7 @@ export interface AgentAutomation {
   enabled: boolean;
   trigger: AgentAutomationTrigger;
   model?: string;
+  reasoningEffort?: string;
   permissionMode: AgentPermissionMode;
   runtimeId: string;
   createdAt: string;
@@ -38,11 +39,33 @@ export type CreateAgentAutomationRequest = Pick<
   "name" | "prompt" | "repositoryPath" | "trigger"
 > &
   Partial<
-    Pick<AgentAutomation, "enabled" | "model" | "permissionMode" | "runtimeId">
+    Pick<
+      AgentAutomation,
+      "enabled" | "model" | "reasoningEffort" | "permissionMode" | "runtimeId"
+    >
   >;
+
+export type UpdateAgentAutomationRequest = Partial<
+  Pick<
+    AgentAutomation,
+    | "name"
+    | "prompt"
+    | "repositoryPath"
+    | "trigger"
+    | "model"
+    | "reasoningEffort"
+    | "permissionMode"
+    | "runtimeId"
+  >
+>;
 
 export type AgentAutomationControlRequest =
   | { action: "create"; request: CreateAgentAutomationRequest }
+  | {
+      action: "update";
+      automationId: string;
+      request: UpdateAgentAutomationRequest;
+    }
   | { action: "run"; automationId: string }
   | { action: "remove"; automationId: string }
   | { action: "enabled"; automationId: string; enabled: boolean };
@@ -238,6 +261,7 @@ export class FileAgentAutomationStore {
       enabled: request.enabled ?? true,
       trigger: request.trigger,
       model: request.model,
+      reasoningEffort: request.reasoningEffort,
       permissionMode: request.permissionMode ?? "autonomous",
       runtimeId: request.runtimeId ?? "local",
       createdAt: now.toISOString(),
@@ -262,6 +286,32 @@ export class FileAgentAutomationStore {
         ? nextAgentAutomationRun(current.trigger, new Date())
         : undefined,
     }));
+  }
+
+  async updateAutomation(
+    id: string,
+    request: UpdateAgentAutomationRequest,
+  ): Promise<AgentAutomation> {
+    return this.update(id, (current) => {
+      const next = {
+        ...current,
+        ...request,
+        name: request.name?.trim() ?? current.name,
+        prompt: request.prompt?.trim() ?? current.prompt,
+        repositoryPath: request.repositoryPath
+          ? path.resolve(request.repositoryPath)
+          : current.repositoryPath,
+      };
+      if (!next.name || !next.prompt) {
+        throw new Error("Automation name and prompt are required");
+      }
+      return {
+        ...next,
+        nextRunAt: next.enabled
+          ? nextAgentAutomationRun(next.trigger, new Date())
+          : undefined,
+      };
+    });
   }
 
   async markRun(id: string, run: AgentRun): Promise<AgentAutomation> {
@@ -343,7 +393,12 @@ export async function runAgentAutomation(
       location: automation.runtimeId === "docker" ? "container" : "local",
       repositoryPath: automation.repositoryPath,
     },
-    metadata: { automationId: automation.id },
+    metadata: {
+      automationId: automation.id,
+      ...(automation.reasoningEffort
+        ? { reasoningEffort: automation.reasoningEffort }
+        : {}),
+    },
     idempotencyKey: `automation:${automation.id}:${automation.nextRunAt ?? Date.now()}`,
   });
 }

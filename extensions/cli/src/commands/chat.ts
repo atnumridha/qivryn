@@ -17,14 +17,23 @@ import {
   SERVICE_NAMES,
 } from "../services/types.js";
 import {
+  loadOrCreateExactSessionById,
   loadSession,
   updateSessionHistory,
   updateSessionTitle,
 } from "../session.js";
 import {
   createAgentEventStreamCallbacks,
+  getInteractiveStdinDevice,
+  isAgentControlStreamEnabled,
   isAgentEventStreamEnabled,
+  openInteractiveStdin,
+  startAgentControlStream,
 } from "../stream/agentEventStream.js";
+import {
+  attachActiveTurnSteering,
+  messageQueue,
+} from "../stream/messageQueue.js";
 import { streamChatResponse } from "../stream/streamChatResponse.js";
 import type { StreamCallbacks } from "../stream/streamChatResponse.types.js";
 import { telemetryService } from "../telemetry/telemetryService.js";
@@ -32,7 +41,6 @@ import { startTUIChat } from "../ui/index.js";
 import { gracefulExit } from "../util/exit.js";
 import { formatAnthropicError, formatError } from "../util/formatError.js";
 import { logger } from "../util/logger.js";
-import { question } from "../util/prompt.js";
 import { prependPrompt } from "../util/promptProcessor.js";
 import {
   calculateContextUsagePercentage,
@@ -86,6 +94,7 @@ function stripThinkTags(response: string): string {
 export interface ChatOptions extends ExtendedCommandOptions {
   headless?: boolean;
   resume?: boolean;
+  sessionId?: string;
   fork?: string; // Fork from an existing session ID
   format?: "json"; // Output format for headless mode
   silent?: boolean; // Strip <think></think> tags and excess whitespace
@@ -95,6 +104,17 @@ export async function initializeChatHistory(
   options: ChatOptions,
 ): Promise<ChatHistoryItem[]> {
   let session: Session | null = null;
+
+  if (options.sessionId) {
+    if (options.resume || options.fork) {
+      throw new Error(
+        "--session-id cannot be combined with --resume or --fork",
+      );
+    }
+    session = loadOrCreateExactSessionById(options.sessionId);
+    logger.info(chalk.yellow(`Using session ${session.sessionId}...`));
+    return session.history;
+  }
 
   // Fork from an existing session if --fork flag is used
   if (options.fork) {
@@ -380,90 +400,115 @@ async function processMessage(
     return handleManualCompaction(chatHistory, model, llmApi, isHeadless);
   }
 
-  // Track user prompt
-  telemetryService.logUserPrompt(userInput.length, userInput);
-
-  // Check if auto-compacting is needed BEFORE adding user message
-  // The handleAutoCompaction function decides whether compaction is actually needed
-  const autoCompactionResult = await handleAutoCompaction(
-    chatHistory,
-    model,
-    llmApi,
-    isHeadless,
-    format,
-  );
-  if (autoCompactionResult !== null) {
-    compactionIndex = autoCompactionResult;
-    // Service already updated in handleAutoCompaction via setHistory
-  }
-
-  // Add user message to history AFTER potential compaction
-  if (imagePaths.length > 0) {
-    services.chatHistory.addHistoryItem(
-      await formatHeadlessMessageWithImages(userInput, imagePaths),
-    );
-  } else {
-    services.chatHistory.addUserMessage(userInput);
-  }
-
-  // Get AI response with potential tool usage
-  if (!isHeadless) {
-    console.info(`\n${chalk.bold.blue("Assistant:")}`);
-  }
-
+  const activeTurn =
+    isHeadless && isAgentControlStreamEnabled()
+      ? messageQueue.beginActiveTurn()
+      : undefined;
+  let detachSteering: (() => void) | undefined;
   try {
-    const agentEventStream =
-      isHeadless && isAgentEventStreamEnabled()
-        ? createAgentEventStreamCallbacks()
-        : undefined;
-    // Get AI response with potential tool usage
-    const finalResponse = await getStreamingResponse(
-      compactionIndex,
+    // Track user prompt
+    telemetryService.logUserPrompt(userInput.length, userInput);
+
+    // Check if auto-compacting is needed BEFORE adding user message
+    // The handleAutoCompaction function decides whether compaction is actually needed
+    const autoCompactionResult = await handleAutoCompaction(
+      chatHistory,
       model,
       llmApi,
-      agentEventStream,
+      isHeadless,
+      format,
     );
-
-    // Generate session title after first assistant response
-    if (firstAssistantResponse && finalResponse && finalResponse.trim()) {
-      await handleTitleGeneration(finalResponse, llmApi, model);
+    if (autoCompactionResult !== null) {
+      compactionIndex = autoCompactionResult;
+      // Service already updated in handleAutoCompaction via setHistory
     }
 
-    // Process and output response in headless mode
-    if (!agentEventStream) {
-      processAndOutputResponse(finalResponse, isHeadless, silent, format);
+    // Add user message to history AFTER potential compaction
+    if (imagePaths.length > 0) {
+      services.chatHistory.addHistoryItem(
+        await formatHeadlessMessageWithImages(userInput, imagePaths),
+      );
+    } else {
+      services.chatHistory.addUserMessage(userInput);
     }
 
-    // Save session after each successful response
-    updateSessionHistory(services.chatHistory.getHistory());
-  } catch (e: any) {
-    const error = e instanceof Error ? e : new Error(String(e));
-
-    // In headless mode, don't output JSON here - let error bubble up to main handler
-    if (!isHeadless) {
-      // Non-headless mode: use colored console output
-      if (model.provider === "anthropic") {
-        logger.error(`\n${chalk.red(`Error: ${formatAnthropicError(error)}`)}`);
-      } else {
-        logger.error(`\n${chalk.red(`Error: ${formatError(error)}`)}`);
-      }
-
-      logger.info(
-        chalk.dim(
-          `Chat history:\n${JSON.stringify(
-            services.chatHistory.getHistory(),
-            null,
-            2,
-          )}`,
-        ),
+    if (activeTurn) {
+      detachSteering = attachActiveTurnSteering(
+        activeTurn,
+        services.chatHistory,
       );
     }
 
-    // In headless mode, re-throw the error to bubble up to main error handler
-    // This preserves downstream logic like telemetry cleanup
-    if (isHeadless) {
-      throw error;
+    // Get AI response with potential tool usage
+    if (!isHeadless) {
+      console.info(`\n${chalk.bold.blue("Assistant:")}`);
     }
+
+    try {
+      const agentEventStream =
+        isHeadless && isAgentEventStreamEnabled()
+          ? createAgentEventStreamCallbacks()
+          : undefined;
+
+      // Steering received during setup can still join the first provider request.
+      activeTurn?.deliverPending((message) => {
+        services.chatHistory.addUserMessage(message);
+      });
+
+      // Get AI response with potential tool usage
+      const finalResponse = await getStreamingResponse(
+        compactionIndex,
+        model,
+        llmApi,
+        agentEventStream,
+      );
+
+      // Generate session title after first assistant response
+      if (firstAssistantResponse && finalResponse && finalResponse.trim()) {
+        await handleTitleGeneration(finalResponse, llmApi, model);
+      }
+
+      // Process and output response in headless mode
+      if (!agentEventStream) {
+        processAndOutputResponse(finalResponse, isHeadless, silent, format);
+      }
+
+      // Save session after each successful response
+      updateSessionHistory(services.chatHistory.getHistory());
+    } catch (e: any) {
+      const error = e instanceof Error ? e : new Error(String(e));
+
+      // In headless mode, don't output JSON here - let error bubble up to main handler
+      if (!isHeadless) {
+        // Non-headless mode: use colored console output
+        if (model.provider === "anthropic") {
+          logger.error(
+            `\n${chalk.red(`Error: ${formatAnthropicError(error)}`)}`,
+          );
+        } else {
+          logger.error(`\n${chalk.red(`Error: ${formatError(error)}`)}`);
+        }
+
+        logger.info(
+          chalk.dim(
+            `Chat history:\n${JSON.stringify(
+              services.chatHistory.getHistory(),
+              null,
+              2,
+            )}`,
+          ),
+        );
+      }
+
+      // In headless mode, re-throw the error to bubble up to main error handler
+      // This preserves downstream logic like telemetry cleanup
+      if (isHeadless) {
+        throw error;
+      }
+    }
+  } finally {
+    detachSteering?.();
+    activeTurn?.close();
   }
 }
 
@@ -479,6 +524,11 @@ async function runHeadlessMode(
     headless: true,
     toolPermissionOverrides: permissionOverrides,
   });
+  if (isAgentControlStreamEnabled()) {
+    startAgentControlStream(process.stdin, {
+      steerMessage: (message) => messageQueue.requestSteering(message),
+    });
+  }
 
   // Get required services from the service container
   const modelState = await serviceContainer.get<ModelServiceState>(
@@ -497,7 +547,7 @@ async function runHeadlessMode(
   // Initialize service-driven history (resume if requested)
   const chatHistory = await initializeChatHistory(options);
   let compactionIndex: number | null = null;
-  if (options.resume || options.fork) {
+  if (options.resume || options.fork || options.sessionId) {
     services.chatHistory.setHistory(chatHistory);
     compactionIndex = findCompactionIndex(chatHistory);
   }
@@ -525,7 +575,7 @@ async function runHeadlessMode(
   // EXCEPTION: Allow empty prompts when resuming/forking since they may just want to view history
   if (!initialUserInput || !initialUserInput.trim()) {
     // If resuming or forking, allow empty prompt - just exit successfully after showing history
-    if (options.resume || options.fork) {
+    if (options.resume || options.fork || options.sessionId) {
       // For resume/fork with no new input, we've already loaded the history above
       // Just exit successfully (the history was already loaded into chatHistory)
       await gracefulExit(0);
@@ -540,39 +590,27 @@ async function runHeadlessMode(
     );
   }
 
-  let isFirstMessage = true;
-  while (true) {
-    // When in headless mode, don't ask for user input
-    if (!isFirstMessage && initialUserInput && options.headless) {
-      break;
-    }
+  const result = await processMessage({
+    userInput: initialUserInput,
+    chatHistory,
+    model,
+    llmApi,
+    isHeadless: true,
+    format: options.format,
+    silent: options.silent,
+    compactionIndex,
+    firstAssistantResponse:
+      !options.resume &&
+      !(
+        options.sessionId &&
+        chatHistory.some((item) => item.message.role === "assistant")
+      ),
+    imagePaths: options.image,
+  });
 
-    // Get user input
-    const processingFirstMessage = isFirstMessage;
-    const userInput =
-      processingFirstMessage && initialUserInput
-        ? initialUserInput
-        : await question(`\n${chalk.bold.green("You:")} `);
-
-    isFirstMessage = false;
-
-    const result = await processMessage({
-      userInput,
-      chatHistory,
-      model,
-      llmApi,
-      isHeadless: true,
-      format: options.format,
-      silent: options.silent,
-      compactionIndex,
-      firstAssistantResponse: processingFirstMessage && !options.resume,
-      imagePaths: processingFirstMessage ? options.image : [],
-    });
-
-    // Update compaction index if compaction occurred
-    if (result && result.compactionIndex !== undefined) {
-      compactionIndex = result.compactionIndex;
-    }
+  // Update compaction index if compaction occurred
+  if (result && result.compactionIndex !== undefined) {
+    compactionIndex = result.compactionIndex;
   }
 
   // exit after headless mode completes
@@ -637,12 +675,11 @@ export async function chat(prompt?: string, options: ChatOptions = {}) {
 
       // If we detected piped input, create a custom stdin for TUI
       if ((options as any).hasPipedInput) {
-        const fs = await import("fs");
-        const { ReadStream } = await import("tty");
-        const ttyFd = fs.openSync("/dev/tty", "r");
-        const customStdin = new ReadStream(ttyFd);
-        tuiOptions.customStdin = customStdin;
-        logger.debug("Created custom TTY stdin for TUI mode");
+        tuiOptions.customStdin = openInteractiveStdin();
+        logger.debug("Created interactive stdin for piped-input TUI mode", {
+          device: getInteractiveStdinDevice(),
+          platform: process.platform,
+        });
       }
 
       await startTUIChat(tuiOptions);

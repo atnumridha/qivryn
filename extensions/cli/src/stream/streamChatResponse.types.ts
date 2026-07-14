@@ -7,14 +7,20 @@ import { ToolCallPreview } from "../tools/types.js";
 export interface StreamCallbacks {
   onContent?: (content: string) => void;
   onContentComplete?: (content: string) => void;
-  onToolStart?: (toolName: string, toolArgs?: any) => void;
-  onToolResult?: (result: string, toolName: string, status: ToolStatus) => void;
-  onToolError?: (error: string, toolName?: string) => void;
+  onToolStart?: (toolName: string, toolArgs?: any, toolCallId?: string) => void;
+  onToolResult?: (
+    result: string,
+    toolName: string,
+    status: ToolStatus,
+    toolCallId?: string,
+  ) => void;
+  onToolError?: (error: string, toolName?: string, toolCallId?: string) => void;
   onToolPermissionRequest?: (
     toolName: string,
     toolArgs: any,
     requestId: string,
     preview?: ToolCallPreview[],
+    toolCallId?: string,
   ) => void;
   onSystemMessage?: (message: string) => void;
   onCompactionStart?: (message: string) => void;

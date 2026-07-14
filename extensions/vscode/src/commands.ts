@@ -54,7 +54,7 @@ import { QivrynLayoutManager } from "./QivrynLayoutManager";
 import { NativeReviewEditor } from "./native/NativeReviewEditor";
 import { NativeBrowserEditor } from "./native/NativeBrowserEditor";
 import { NativeTerminalJobs } from "./native/NativeTerminalJobs";
-import { toAgentsWindowOpenArguments } from "./native/agentsWindowHandoff";
+import { toAgentsWebviewRoute } from "./native/agentsWindowHandoff";
 import { normalizeQivrynWebviewRoute } from "./native/webviewRoute";
 import { processDiff } from "./diff/processDiff";
 import { VerticalDiffManager } from "./diff/vertical/manager";
@@ -75,7 +75,6 @@ let fullScreenPanel: vscode.WebviewPanel | undefined;
 let fullScreenRecoverySessionId: string | undefined;
 
 const CHAT_ROUTE = "/";
-const AGENTS_ROUTE = "/agents";
 
 function getFullScreenTab() {
   const tabs = vscode.window.tabGroups.all.flatMap((tabGroup) => tabGroup.tabs);
@@ -430,6 +429,19 @@ const getCommandsMap: (
     "qivryn.newSession": () => {
       sidebar.webviewProtocol?.request("newSession", undefined);
     },
+    "qivryn.toggleVoiceInput": async () => {
+      if (!fullScreenPanel) {
+        await vscode.commands.executeCommand("qivryn.qivrynGUIView.focus");
+      }
+      const target = fullScreenPanel?.webview ?? sidebar.webview;
+      if (!target) {
+        void vscode.window.showInformationMessage(
+          "Open Qivryn before starting voice input.",
+        );
+        return;
+      }
+      await target.postMessage({ type: "qivryn.voice.toggle" });
+    },
 
     "qivryn.shareSession": async (sessionId: string | undefined) => {
       if (!sessionId) {
@@ -689,16 +701,11 @@ const getCommandsMap: (
       focusGUI();
     },
     "qivryn.openAgentsWindow": async (resource?: vscode.Uri) => {
-      const available = await vscode.commands.getCommands(true);
-      if (available.includes("workbench.action.openAgentsWindow")) {
-        return vscode.commands.executeCommand(
-          "workbench.action.openAgentsWindow",
-          toAgentsWindowOpenArguments(resource),
-        );
-      }
       return vscode.commands.executeCommand(
         "qivryn.openInNewWindow",
-        AGENTS_ROUTE,
+        toAgentsWebviewRoute(resource),
+        false,
+        false,
       );
     },
     "qivryn.reloadAgentsWindow": async (initialPath?: string) => {

@@ -33,13 +33,17 @@ export interface DockerContainerSpec {
   privileged?: boolean;
 }
 
+export type DockerPrivilegedAuthority =
+  | { source: "admin-config"; approved: true }
+  | { source: "explicit-approval"; approved: true; runId: string };
+
 export interface DockerContainerRuntimeOptions
   extends LocalAgentRuntimeOptions {
   resolveContainer(
     run: AgentRun,
   ): Promise<DockerContainerSpec> | DockerContainerSpec;
   dockerCommand?: string;
-  allowPrivileged?: boolean;
+  privilegedAuthority?: DockerPrivilegedAuthority;
 }
 
 function containerName(runId: string): string {
@@ -51,17 +55,28 @@ export function buildDockerRunSpec(
   spec: DockerContainerSpec,
   options: Pick<
     DockerContainerRuntimeOptions,
-    "dockerCommand" | "allowPrivileged"
+    "dockerCommand" | "privilegedAuthority"
   > = {},
 ): AgentProcessSpec {
-  if (spec.privileged && !options.allowPrivileged) {
-    throw new Error("Privileged containers require allowPrivileged=true");
+  if (spec.privileged && run.permissionMode !== "fullAccess") {
+    throw new Error("Privileged containers require fullAccess permission mode");
+  }
+  const privilegeAuthorized =
+    options.privilegedAuthority?.approved === true &&
+    (options.privilegedAuthority.source === "admin-config" ||
+      (options.privilegedAuthority.source === "explicit-approval" &&
+        options.privilegedAuthority.runId === run.id));
+  if (spec.privileged && !privilegeAuthorized) {
+    throw new Error(
+      "Privileged containers require trusted admin configuration or explicit approval for this run",
+    );
   }
   const workspace = run.workspace.worktreePath ?? run.workspace.repositoryPath;
   const readOnly = run.permissionMode === "readOnly";
   const args = [
     "run",
     "--rm",
+    "--interactive",
     "--name",
     containerName(run.id),
     "--workdir",

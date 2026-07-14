@@ -56,7 +56,7 @@ export class TerminalJobService {
     const args =
       process.platform === "win32"
         ? ["/d", "/s", "/c", command]
-        : ["-lc", command];
+        : ["-c", command];
     const child = spawn(shell, args, {
       cwd: path.resolve(cwd),
       env: process.env,
@@ -64,7 +64,7 @@ export class TerminalJobService {
       stdio: ["ignore", output.fd, output.fd],
     });
     const now = new Date().toISOString();
-    const job = await this.save({
+    const job: TerminalJob = {
       id,
       command,
       cwd: path.resolve(cwd),
@@ -72,7 +72,8 @@ export class TerminalJobService {
       createdAt: now,
       updatedAt: now,
       pid: child.pid,
-    });
+    };
+    const initialSave = this.save(job);
     this.active.set(id, child);
     let complete!: () => void;
     this.completions.set(
@@ -84,6 +85,7 @@ export class TerminalJobService {
     child.once("exit", (code, signal) => {
       this.active.delete(id);
       void (async () => {
+        await initialSave;
         await output.close();
         await this.save({
           ...job,
@@ -97,6 +99,7 @@ export class TerminalJobService {
     });
     child.once("error", () => void output.close());
     child.unref();
+    await initialSave;
     return job;
   }
 

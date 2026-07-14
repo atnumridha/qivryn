@@ -1,9 +1,7 @@
+import { ChevronRightIcon } from "@heroicons/react/24/outline";
 import { Tool, ToolCallState } from "core";
-import { useContext, useMemo } from "react";
-import { openContextItem } from "../../../components/mainInput/belowMainInput/ContextItemsPeek";
-import { IdeMessengerContext } from "../../../context/IdeMessenger";
+import { useEffect, useState } from "react";
 import { ToolCallStatusMessage } from "./ToolCallStatusMessage";
-import { toolCallStateToContextItems } from "./utils";
 import { ToolTruncateHistoryIcon } from "./ToolTruncateHistoryIcon";
 
 interface ToolCallDisplayProps {
@@ -21,19 +19,13 @@ export function ToolCallDisplay({
   icon,
   historyIndex,
 }: ToolCallDisplayProps) {
-  const ideMessenger = useContext(IdeMessengerContext);
-  const shownContextItems = useMemo(() => {
-    const contextItems = toolCallStateToContextItems(toolCallState);
-    return contextItems.filter((item) => !item.hidden);
-  }, [toolCallState]);
+  const isActive =
+    toolCallState.status === "generating" || toolCallState.status === "calling";
+  const [open, setOpen] = useState(isActive);
 
-  const isClickable = shownContextItems.length > 0;
-
-  function handleClick() {
-    if (shownContextItems.length > 0) {
-      openContextItem(shownContextItems[0], ideMessenger);
-    }
-  }
+  useEffect(() => {
+    setOpen(isActive);
+  }, [isActive, toolCallState.toolCallId]);
 
   const statusContent = (
     <>
@@ -53,27 +45,24 @@ export function ToolCallDisplay({
   );
 
   return (
-    <div className="qivryn-tool-display flex flex-col justify-center px-4">
-      <div className="mb-2 flex flex-col">
-        <div className="qivryn-tool-status-row">
-          {isClickable ? (
-            <button
-              type="button"
-              className="qivryn-tool-status-trigger"
-              aria-label="Open tool result"
-              onClick={handleClick}
-            >
-              {statusContent}
-            </button>
-          ) : (
-            <div className="qivryn-tool-status-trigger">{statusContent}</div>
-          )}
-          {!!toolCallState.output?.length && (
-            <ToolTruncateHistoryIcon historyIndex={historyIndex} />
-          )}
-        </div>
-      </div>
-      <div>{children}</div>
+    <div className="qivryn-tool-display">
+      <details
+        className="qivryn-tool-disclosure"
+        open={open}
+        onToggle={(event) => setOpen(event.currentTarget.open)}
+      >
+        <summary className="qivryn-tool-status-row">
+          <span className="qivryn-tool-status-trigger">{statusContent}</span>
+          <ChevronRightIcon
+            className="qivryn-tool-disclosure-chevron"
+            aria-hidden="true"
+          />
+        </summary>
+        <div className="qivryn-tool-disclosure-body">{children}</div>
+      </details>
+      {!!toolCallState.output?.length && (
+        <ToolTruncateHistoryIcon historyIndex={historyIndex} />
+      )}
     </div>
   );
 }

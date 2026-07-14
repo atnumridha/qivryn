@@ -121,6 +121,21 @@ describe("ToolPermissionManager", () => {
       const result = await promise;
       expect(result.approved).toBe(true);
       expect(result.remember).toBe(true);
+      await expect(
+        manager.requestPermission({
+          name: "writeFile",
+          arguments: { path: "/test.txt" },
+        }),
+      ).resolves.toEqual({ approved: true, remember: true });
+      expect(manager.getPendingRequestIds()).toHaveLength(0);
+
+      const differentScope = manager.requestPermission({
+        name: "writeFile",
+        arguments: { path: "/another.txt" },
+      });
+      expect(manager.getPendingRequestIds()).toHaveLength(1);
+      manager.rejectRequest(manager.getPendingRequestIds()[0]);
+      await expect(differentScope).resolves.toEqual({ approved: false });
     });
   });
 

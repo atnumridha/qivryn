@@ -1,12 +1,18 @@
 import {
   BeakerIcon,
-  ChevronRightIcon,
+  CalendarDaysIcon,
+  CodeBracketSquareIcon,
   CodeBracketIcon,
   CommandLineIcon,
   DocumentMagnifyingGlassIcon,
+  SquaresPlusIcon,
 } from "@heroicons/react/24/outline";
-import { ConversationStarterCards } from "../../components/ConversationStarters";
+import type { JSONContent } from "@tiptap/react";
+import { useNavigate } from "react-router-dom";
 import { useMainEditor } from "../../components/mainInput/TipTapEditor";
+import { useAppDispatch } from "../../redux/hooks";
+import { setMainEditorContentTrigger } from "../../redux/slices/sessionSlice";
+import { ROUTES } from "../../util/navigation";
 
 const starterPrompts = [
   {
@@ -38,11 +44,29 @@ const starterPrompts = [
   },
 ];
 
+function promptToEditorState(prompt: string): JSONContent {
+  return {
+    type: "doc",
+    content: prompt.split("\n").map((line) => ({
+      type: "paragraph",
+      content: line ? [{ type: "text", text: line }] : undefined,
+    })),
+  };
+}
+
 export function EmptyChatBody() {
+  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const { mainEditor } = useMainEditor();
+  const workspaceName = window.workspacePaths?.[0]
+    ?.replace(/[\\/]+$/, "")
+    .split(/[\\/]/)
+    .filter(Boolean)
+    .at(-1);
 
   function insertStarter(prompt: string) {
     if (!mainEditor) {
+      dispatch(setMainEditorContentTrigger(promptToEditorState(prompt)));
       return;
     }
 
@@ -51,46 +75,77 @@ export function EmptyChatBody() {
     mainEditor.commands.focus("end");
   }
 
+  function insertParallelTemplate() {
+    insertStarter(
+      [
+        "Run in parallel:",
+        "Review the current workspace changes",
+        "Run the relevant validation checks",
+        "Audit the UI for alignment, spacing, and overflow issues",
+      ].join("\n"),
+    );
+  }
+
+  const actions = [
+    ...starterPrompts.map(({ label, description, prompt, Icon }) => ({
+      label,
+      description,
+      Icon,
+      onClick: () => insertStarter(prompt),
+    })),
+    {
+      label: "Run in parallel",
+      description: "Prefill independent outcomes in the composer.",
+      Icon: SquaresPlusIcon,
+      onClick: insertParallelTemplate,
+    },
+    {
+      label: "Schedule",
+      description: "Open the scheduled task builder.",
+      Icon: CalendarDaysIcon,
+      onClick: () => navigate(`${ROUTES.AGENTS}?scheduled=1`),
+    },
+  ];
+
   return (
     <div className="qivryn-chat-empty-state">
       <section
         className="qivryn-chat-empty-panel"
         aria-labelledby="qivryn-empty-title"
       >
-        <div className="qivryn-empty-status" aria-label="Agent Ready">
-          <span className="qivryn-empty-status-dot" aria-hidden="true" />
-          <span>Agent Ready</span>
-        </div>
-        <h1 id="qivryn-empty-title">What do you want to change?</h1>
+        <CodeBracketSquareIcon
+          className="qivryn-empty-mark"
+          aria-hidden="true"
+        />
+        <h1 id="qivryn-empty-title">
+          {workspaceName
+            ? `What should we work on in ${workspaceName}?`
+            : "What should we work on?"}
+        </h1>
+        <p className="qivryn-empty-supporting-copy">
+          Start with a question, a file, or a change in this workspace.
+        </p>
 
         <div
           className="qivryn-empty-starters"
           role="group"
           aria-label="Starter prompts"
         >
-          {starterPrompts.map(({ label, description, prompt, Icon }) => (
+          {actions.map(({ label, description, onClick, Icon }) => (
             <button
               key={label}
               type="button"
               className="qivryn-empty-starter-row"
-              onClick={() => insertStarter(prompt)}
+              onClick={onClick}
+              title={description}
             >
               <span className="qivryn-empty-starter-icon" aria-hidden="true">
                 <Icon />
               </span>
-              <span>
-                <span>{label}</span>
-                <span>{description}</span>
-              </span>
-              <ChevronRightIcon
-                className="qivryn-empty-starter-arrow"
-                aria-hidden="true"
-              />
+              <span className="qivryn-empty-starter-label">{label}</span>
             </button>
           ))}
         </div>
-
-        <ConversationStarterCards />
       </section>
     </div>
   );

@@ -1,5 +1,12 @@
 import { act, screen, waitFor } from "@testing-library/react";
-import { newSession, setActive } from "../../../redux/slices/sessionSlice";
+import type { AgentControlRequest, AgentRun } from "@qivryn/agent-runtime";
+import { useLocation } from "react-router-dom";
+import { MockIdeMessenger } from "../../../context/MockIdeMessenger";
+import {
+  newSession,
+  setActive,
+  setMode,
+} from "../../../redux/slices/sessionSlice";
 import { addAndSelectMockLlm } from "../../../util/test/config";
 import { renderWithProviders } from "../../../util/test/render";
 import {
@@ -9,6 +16,27 @@ import {
   sendInputWithMockedResponse,
 } from "../../../util/test/utils";
 import { Chat, measureScrollbarInset } from "../Chat";
+
+const LAST_AGENT_REPOSITORY_KEY = "qivryn.agents.lastRepository";
+
+function LocationProbe() {
+  const location = useLocation();
+  return (
+    <output aria-label="current route">
+      {location.pathname}
+      {location.search}
+    </output>
+  );
+}
+
+beforeEach(() => {
+  window.localStorage.removeItem(LAST_AGENT_REPOSITORY_KEY);
+});
+
+afterEach(() => {
+  window.localStorage.removeItem(LAST_AGENT_REPOSITORY_KEY);
+  delete (window as any).workspacePaths;
+});
 
 test("measures the scroll gutter used to align the composer rail", () => {
   expect(
@@ -28,6 +56,75 @@ test("measures the scroll gutter used to align the composer rail", () => {
 test("should render input box", async () => {
   await renderWithProviders(<Chat />);
   await getElementByTestId("qivryn-input-box-main-editor-input");
+});
+
+test("main composer exposes workspace selection and scheduled tasks", async () => {
+  (window as any).workspacePaths = [
+    "file:///Users/amridha/Documents/current-workspace",
+  ];
+  const { ideMessenger, user } = await renderWithProviders(
+    <>
+      <Chat />
+      <LocationProbe />
+    </>,
+  );
+  ideMessenger.responses["agents/selectRepository"] =
+    "/Users/amridha/Documents/qivryn";
+
+  expect(
+    await screen.findByRole("button", {
+      name: /Current workspace: current-workspace/,
+    }),
+  ).toBeInTheDocument();
+
+  await user.click(
+    await screen.findByRole("button", {
+      name: /Choose workspace for agent tasks/,
+    }),
+  );
+
+  expect(
+    await screen.findByRole("button", { name: /Current workspace: qivryn/ }),
+  ).toBeInTheDocument();
+
+  await user.click(
+    screen.getByRole("button", { name: "Clear selected workspace" }),
+  );
+
+  expect(
+    screen.getByRole("button", {
+      name: /Current workspace: current-workspace/,
+    }),
+  ).toBeInTheDocument();
+  expect(window.localStorage.getItem(LAST_AGENT_REPOSITORY_KEY)).toBe("");
+
+  await user.click(
+    screen.getByRole("button", { name: "Show agents and chats" }),
+  );
+  expect(screen.getByLabelText("current route")).toHaveTextContent(
+    "/agents?panel=1",
+  );
+
+  await user.click(
+    screen.getByRole("button", { name: "Open scheduled tasks" }),
+  );
+
+  expect(screen.getByLabelText("current route")).toHaveTextContent(
+    "/agents?scheduled=1",
+  );
+});
+
+test("main composer shows workspace detected from VS Code when none is injected", async () => {
+  const ideMessenger = new MockIdeMessenger();
+  ideMessenger.responses.getWorkspaceDirs = ["file:///workspace/detected-app"];
+  await renderWithProviders(<Chat />, { mockIdeMessenger: ideMessenger });
+
+  expect(
+    await screen.findByRole("button", {
+      name: /Current workspace: detected-app/,
+    }),
+  ).toBeInTheDocument();
+  expect(window.localStorage.getItem(LAST_AGENT_REPOSITORY_KEY)).toBeNull();
 });
 
 test("replaces send with a working stop control while streaming", async () => {
@@ -242,6 +339,199 @@ test("should send a message and receive a response", async () => {
   await getElementByText(CONTENT);
 });
 
+test("starts durable agent work from the main composer transcript", async () => {
+  const { ideMessenger, store } = await renderWithProviders(<Chat />);
+  const requests: AgentControlRequest[] = [];
+  ideMessenger.responses.getWorkspaceDirs = ["file:///workspace/app"];
+  ideMessenger.responseHandlers["agents/control"] = async (request) => {
+    requests.push(request);
+    return {
+      id: "composer-run",
+      revision: 0,
+      title: "Review workspace",
+      prompt:
+        request.action === "run.create" ? request.request.prompt : "Review",
+      status: "running",
+      createdAt: "2026-07-13T00:00:00.000Z",
+      updatedAt: "2026-07-13T00:00:01.000Z",
+      permissionMode: "autonomous",
+      workspace: {
+        id: "workspace-1",
+        location: "local",
+        repositoryPath: "/workspace/app",
+      },
+    } satisfies AgentRun;
+  };
+
+  await act(async () => {
+    addAndSelectMockLlm(store, ideMessenger);
+    store.dispatch(setMode("agent"));
+  });
+
+  const editor = await getMainEditor();
+  const sendButton = await getElementByTestId("submit-input-button");
+
+  await act(async () => {
+    editor.commands.insertContent("Agent task:\nReview the workspace");
+  });
+
+  await act(async () => {
+    sendButton.click();
+  });
+
+  await waitFor(() => {
+    expect(requests).toHaveLength(1);
+    expect(store.getState().session.isStreaming).toBe(false);
+  });
+  expect(requests[0]).toMatchObject({
+    action: "run.create",
+    request: {
+      model: "Mock LLM",
+      workspace: {
+        location: "local",
+        repositoryPath: "/workspace/app",
+      },
+    },
+  });
+  expect(
+    await screen.findByText(/Started a durable agent task from this composer/),
+  ).toBeVisible();
+  expect(screen.getByText(/Task: Review the workspace/)).toBeVisible();
+});
+
+test("starts durable agent work in the selected composer workspace", async () => {
+  const { ideMessenger, store, user } = await renderWithProviders(<Chat />);
+  const requests: AgentControlRequest[] = [];
+  ideMessenger.responses.getWorkspaceDirs = ["file:///workspace/default"];
+  ideMessenger.responses["agents/selectRepository"] = "/workspace/chosen";
+  ideMessenger.responseHandlers["agents/control"] = async (request) => {
+    requests.push(request);
+    return {
+      id: "composer-run",
+      revision: 0,
+      title: "Review selected workspace",
+      prompt: request.action === "run.create" ? request.request.prompt : "",
+      status: "running",
+      createdAt: "2026-07-13T00:00:00.000Z",
+      updatedAt: "2026-07-13T00:00:01.000Z",
+      permissionMode: "autonomous",
+      workspace: {
+        id: "workspace-1",
+        location: "local",
+        repositoryPath: "/workspace/chosen",
+      },
+    } satisfies AgentRun;
+  };
+
+  await act(async () => {
+    addAndSelectMockLlm(store, ideMessenger);
+    store.dispatch(setMode("agent"));
+  });
+
+  await user.click(
+    await screen.findByRole("button", {
+      name: /Choose workspace for agent tasks/,
+    }),
+  );
+
+  const editor = await getMainEditor();
+  const sendButton = await getElementByTestId("submit-input-button");
+
+  await act(async () => {
+    editor.commands.insertContent("Agent task:\nReview selected workspace");
+  });
+  await act(async () => {
+    sendButton.click();
+  });
+
+  await waitFor(() => {
+    expect(requests).toHaveLength(1);
+  });
+  expect(requests[0]).toMatchObject({
+    action: "run.create",
+    request: {
+      workspace: {
+        location: "local",
+        repositoryPath: "/workspace/chosen",
+      },
+    },
+  });
+});
+
+test("queues agent-mode follow-ups as steering messages from the same composer", async () => {
+  const { ideMessenger, store } = await renderWithProviders(<Chat />);
+  const requests: AgentControlRequest[] = [];
+  ideMessenger.responses.getWorkspaceDirs = ["file:///workspace/app"];
+  ideMessenger.responseHandlers["agents/control"] = async (request) => {
+    requests.push(request);
+    if (request.action === "queue.add") {
+      return {
+        id: "queue-1",
+        runId: request.runId,
+        prompt: request.prompt,
+        position: 0,
+        createdAt: "2026-07-13T00:00:02.000Z",
+        behavior: request.behavior ?? "run-next",
+      };
+    }
+    return {
+      id: "composer-run",
+      revision: 0,
+      title: "Review workspace",
+      prompt: request.action === "run.create" ? request.request.prompt : "",
+      status: "running",
+      createdAt: "2026-07-13T00:00:00.000Z",
+      updatedAt: "2026-07-13T00:00:01.000Z",
+      permissionMode: "autonomous",
+      workspace: {
+        id: "workspace-1",
+        location: "local",
+        repositoryPath: "/workspace/app",
+      },
+    } satisfies AgentRun;
+  };
+
+  await act(async () => {
+    addAndSelectMockLlm(store, ideMessenger);
+    store.dispatch(setMode("agent"));
+  });
+
+  const editor = await getMainEditor();
+  const sendButton = await getElementByTestId("submit-input-button");
+
+  await act(async () => {
+    editor.commands.insertContent("Agent task:\nReview the workspace");
+  });
+  await act(async () => {
+    sendButton.click();
+  });
+  await waitFor(() => {
+    expect(requests).toHaveLength(1);
+  });
+
+  await act(async () => {
+    editor.commands.insertContent("Focus on the changed files");
+  });
+  await act(async () => {
+    sendButton.click();
+  });
+
+  await waitFor(() => {
+    expect(requests).toHaveLength(2);
+    expect(store.getState().session.isStreaming).toBe(false);
+  });
+  expect(requests[1]).toMatchObject({
+    action: "queue.add",
+    runId: "composer-run",
+    behavior: "steer",
+  });
+  expect(
+    await screen.findByText(
+      /Queued a steering message for the active durable agent/,
+    ),
+  ).toBeVisible();
+});
+
 test("surfaces a recoverable error instead of ignoring submit while chat model is loading", async () => {
   const { store } = await renderWithProviders(<Chat />);
   const editor = await getMainEditor();
@@ -330,4 +620,29 @@ test("starter prompts fill the main composer", async () => {
       "Review the current file for bugs, edge cases, and risky changes.",
     );
   });
+});
+
+test("parallel actions stay in the main composer", async () => {
+  const { user } = await renderWithProviders(<Chat />);
+  const editor = await getMainEditor();
+
+  await user.click(
+    await screen.findByRole("button", { name: /Run in parallel/ }),
+  );
+
+  await waitFor(() => {
+    expect(editor.getText()).toContain("Run in parallel:");
+    expect(editor.getText()).toContain("Review the current workspace changes");
+    expect(editor.getText()).toContain("Run the relevant validation checks");
+    expect(editor.getText()).toContain(
+      "Audit the UI for alignment, spacing, and overflow issues",
+    );
+  });
+});
+
+test("exposes voice input from the shipped main composer", async () => {
+  await renderWithProviders(<Chat />);
+  expect(
+    await screen.findByRole("button", { name: "Start voice input" }),
+  ).toBeInTheDocument();
 });

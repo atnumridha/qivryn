@@ -78,6 +78,91 @@ function bundleDefaultConfig() {
   console.log("[info] Bundled the default Qivryn provider configuration");
 }
 
+function copyDependencyTree(
+  packageName,
+  sourceNodeModules,
+  destinationNodeModules,
+  seen = new Set(),
+  resolverRoot = sourceNodeModules,
+) {
+  let packageJsonPath;
+  try {
+    packageJsonPath = require.resolve(`${packageName}/package.json`, {
+      paths: [resolverRoot, sourceNodeModules],
+    });
+  } catch {
+    console.warn(
+      `[warn] Optional packaged dependency is unavailable: ${packageName}`,
+    );
+    return;
+  }
+
+  const sourcePackage = path.dirname(packageJsonPath);
+  const nestedRoot = path.join(resolverRoot, "node_modules");
+  const isNested = sourcePackage.startsWith(`${nestedRoot}${path.sep}`);
+  const destinationRoot = isNested
+    ? path.join(
+        destinationNodeModules,
+        path.relative(sourceNodeModules, nestedRoot),
+      )
+    : destinationNodeModules;
+  const destinationPackage = path.join(destinationRoot, packageName);
+  const key = `${sourcePackage}:${destinationPackage}`;
+  if (seen.has(key)) return;
+  seen.add(key);
+
+  fs.mkdirSync(path.dirname(destinationPackage), { recursive: true });
+  fs.cpSync(sourcePackage, destinationPackage, {
+    recursive: true,
+    dereference: true,
+  });
+
+  const manifest = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+  const dependencies = {
+    ...(manifest.dependencies ?? {}),
+    ...(manifest.optionalDependencies ?? {}),
+  };
+  for (const dependency of Object.keys(dependencies)) {
+    copyDependencyTree(
+      dependency,
+      sourceNodeModules,
+      destinationNodeModules,
+      seen,
+      sourcePackage,
+    );
+  }
+}
+
+function bundleVoiceTranscriptionDependencies(target) {
+  const sourceNodeModules = path.join(qivrynDir, "core", "node_modules");
+  const destinationNodeModules = path.join(
+    qivrynDir,
+    "extensions",
+    "vscode",
+    "out",
+    "node_modules",
+  );
+  copyDependencyTree("sharp", sourceNodeModules, destinationNodeModules);
+
+  const sharpManifest = path.join(
+    destinationNodeModules,
+    "sharp",
+    "package.json",
+  );
+  if (!fs.existsSync(sharpManifest)) {
+    throw new Error("Failed to package sharp for local voice transcription");
+  }
+  const [hostOs, hostArch] = autodetectPlatformAndArch();
+  if (`${hostOs}-${hostArch}` === target) {
+    execFileSync(
+      process.execPath,
+      ["-e", "require('./out/node_modules/sharp')"],
+      { cwd: path.join(qivrynDir, "extensions", "vscode"), stdio: "inherit" },
+    );
+  }
+  console.log("[info] Bundled sharp for local voice transcription");
+}
+
 // Clear folders that will be packaged to ensure clean slate
 rimrafSync(path.join(__dirname, "..", "bin"));
 rimrafSync(path.join(__dirname, "..", "out"));
@@ -477,6 +562,8 @@ void (async () => {
 
   console.log(`[info] Copied ${NODE_MODULES_TO_COPY.join(", ")}`);
 
+  bundleVoiceTranscriptionDependencies(target);
+
   if (packageDirName && expectedPackagePath) {
     const expectedOutPackagePath = path.join(
       __dirname,
@@ -568,6 +655,8 @@ void (async () => {
 
     // out/node_modules (to be accessed by extension.js)
     `out/node_modules/@vscode/ripgrep/bin/rg${exe}`,
+    "out/node_modules/sharp/package.json",
+    `out/node_modules/sharp/build/Release/sharp-${os}-${arch}v8.node`,
     `out/node_modules/@lancedb/vectordb-${target}${isWinTarget ? "-msvc" : ""}${isLinuxTarget ? "-gnu" : ""}/index.node`,
   ]);
 

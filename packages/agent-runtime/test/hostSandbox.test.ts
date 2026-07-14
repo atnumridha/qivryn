@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { applyHostSandbox } from "../src/hostSandbox.js";
 
 const policy = { filesystem: "read-only", network: "deny" } as const;
@@ -9,32 +9,42 @@ const connectedPolicy = {
 
 describe("applyHostSandbox", () => {
   it("wraps macOS commands with a deny-write and deny-network Seatbelt profile", () => {
-    const command = applyHostSandbox(
+    const resolution = applyHostSandbox(
       { command: "node", args: ["worker.js"], cwd: "/repo" },
       policy,
       { platform: "darwin", commandExists: () => true },
     );
-    expect(command).toMatchObject({
-      command: "sandbox-exec",
-      cwd: "/repo",
-      args: [
-        "-p",
-        expect.stringContaining("(deny network*)"),
-        "node",
-        "worker.js",
-      ],
+    expect(resolution).toMatchObject({
+      applied: true,
+      enforced: true,
+      mechanism: "sandbox-exec",
+      command: {
+        command: "sandbox-exec",
+        cwd: "/repo",
+        args: [
+          "-p",
+          expect.stringContaining("(deny network*)"),
+          "node",
+          "worker.js",
+        ],
+      },
     });
-    expect(command.args?.[1]).toContain("(deny file-write*)");
+    expect(resolution.command.args?.[1]).toContain("(deny file-write*)");
   });
 
   it("wraps Linux commands with a read-only Bubblewrap root and no network", () => {
-    const command = applyHostSandbox(
+    const resolution = applyHostSandbox(
       { command: "node", args: ["worker.js"], cwd: "/repo" },
       policy,
       { platform: "linux", commandExists: () => true },
     );
-    expect(command.command).toBe("bwrap");
-    expect(command.args).toEqual(
+    expect(resolution).toMatchObject({
+      applied: true,
+      enforced: true,
+      mechanism: "bwrap",
+    });
+    expect(resolution.command.command).toBe("bwrap");
+    expect(resolution.command.args).toEqual(
       expect.arrayContaining([
         "--unshare-net",
         "--ro-bind",
@@ -51,42 +61,70 @@ describe("applyHostSandbox", () => {
   });
 
   it("keeps model transport available while denying writes on macOS", () => {
-    const command = applyHostSandbox(
+    const resolution = applyHostSandbox(
       { command: "node", args: ["worker.js"], cwd: "/repo" },
       connectedPolicy,
       { platform: "darwin", commandExists: () => true },
     );
-    expect(command.args?.[1]).toContain("(deny file-write*)");
-    expect(command.args?.[1]).not.toContain("(deny network*)");
+    expect(resolution.command.args?.[1]).toContain("(deny file-write*)");
+    expect(resolution.command.args?.[1]).not.toContain("(deny network*)");
   });
 
   it("keeps model transport available in a read-only Linux sandbox", () => {
-    const command = applyHostSandbox(
+    const resolution = applyHostSandbox(
       { command: "node", args: ["worker.js"], cwd: "/repo" },
       connectedPolicy,
       { platform: "linux", commandExists: () => true },
     );
-    expect(command.args).toContain("--ro-bind");
-    expect(command.args).not.toContain("--unshare-net");
+    expect(resolution.command.args).toContain("--ro-bind");
+    expect(resolution.command.args).not.toContain("--unshare-net");
   });
 
-  it("falls back to host execution on Windows when strict mode is not enabled", () => {
+  it("reports an unenforced host fallback on Windows", () => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
     const command = { command: "node", args: ["worker.js"] };
-    expect(
-      applyHostSandbox(command, policy, {
-        platform: "win32",
-        commandExists: () => false,
-      }),
-    ).toEqual(command);
+    try {
+      expect(
+        applyHostSandbox(command, policy, {
+          platform: "win32",
+          commandExists: () => false,
+        }),
+      ).toEqual({
+        command,
+        applied: false,
+        enforced: false,
+        mechanism: "none",
+        reason: "unsupported-platform",
+      });
+    } finally {
+      warning.mockRestore();
+    }
   });
 
-  it("fails closed on Windows when strict mode is enabled", () => {
+  it("fails closed on Windows when the policy is explicitly required", () => {
     expect(() =>
-      applyHostSandbox({ command: "node" }, policy, {
-        platform: "win32",
-        commandExists: () => false,
-        env: { QIVRYN_REQUIRE_HOST_SANDBOX: "true" },
-      }),
+      applyHostSandbox(
+        { command: "node" },
+        { ...policy, required: true },
+        {
+          platform: "win32",
+          commandExists: () => false,
+        },
+      ),
+    ).toThrow(/Required host sandbox is unavailable on win32/);
+  });
+
+  it("fails closed when the admin strict flag overrides an optional policy", () => {
+    expect(() =>
+      applyHostSandbox(
+        { command: "node" },
+        { ...policy, required: false },
+        {
+          platform: "win32",
+          commandExists: () => false,
+          env: { QIVRYN_REQUIRE_HOST_SANDBOX: "true" },
+        },
+      ),
     ).toThrow(/Required host sandbox is unavailable on win32/);
   });
 
@@ -101,6 +139,12 @@ describe("applyHostSandbox", () => {
           commandExists: () => false,
         },
       ),
-    ).toEqual(command);
+    ).toEqual({
+      command,
+      applied: false,
+      enforced: false,
+      mechanism: "none",
+      reason: "launcher-unavailable",
+    });
   });
 });

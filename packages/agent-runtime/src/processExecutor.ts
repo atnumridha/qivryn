@@ -1,6 +1,14 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import type { AgentEventKind, AgentRun } from "./contracts.js";
-import { applyHostSandbox, type HostSandboxPolicy } from "./hostSandbox.js";
+import type {
+  AgentApprovalDecision,
+  AgentEventKind,
+  AgentRun,
+} from "./contracts.js";
+import {
+  applyHostSandbox,
+  type HostSandboxPolicy,
+  type HostSandboxResolver,
+} from "./hostSandbox.js";
 import type { AgentHookExecutor } from "./hooks.js";
 import type {
   AgentExecutionContext,
@@ -25,6 +33,7 @@ export interface ProcessAgentExecutorOptions {
   resolveProcess(run: AgentRun): Promise<AgentProcessSpec> | AgentProcessSpec;
   terminateGraceMs?: number;
   hooks?: AgentHookExecutor;
+  hostSandboxResolver?: HostSandboxResolver;
   /**
    * Headless agent processes write their conversational response to stdout.
    * Marking that stream as assistant output lets every client render the run as
@@ -38,6 +47,7 @@ export interface ProcessAgentExecutorOptions {
 }
 
 const STREAM_EVENT_KINDS = new Set<AgentEventKind>([
+  "message.user",
   "message.assistant",
   "message.reasoning",
   "tool.started",
@@ -69,14 +79,23 @@ export class ProcessAgentExecutor implements LocalAgentExecutor {
     context: AgentExecutionContext,
   ): Promise<AgentExecutionResult> {
     const spec = await this.options.resolveProcess(run);
+    const blockReasons = await this.runHooks(
+      "tool.before",
+      { run, spec },
+      context,
+    );
+    if (blockReasons.length > 0) {
+      return { status: "attention", reason: blockReasons.join("\n") };
+    }
     let setupStarted = false;
     try {
       for (const command of spec.setup ?? []) {
         setupStarted = true;
         await this.runLifecycleCommand(run, command, context.signal);
       }
-      await this.options.hooks?.run("tool.before", { run, spec });
-      return await this.executeMainProcess(run, context, spec);
+      const result = await this.executeMainProcess(run, context, spec);
+      await this.runHooks("tool.after", { run, spec, result }, context);
+      return result;
     } finally {
       if (setupStarted || spec.cleanup?.length) {
         await this.runCleanup(run, spec.cleanup ?? []);
@@ -91,8 +110,8 @@ export class ProcessAgentExecutor implements LocalAgentExecutor {
   ): Promise<AgentExecutionResult> {
     const workingDirectory =
       spec.cwd ?? run.workspace.worktreePath ?? run.workspace.repositoryPath;
-    const command = spec.hostSandbox
-      ? applyHostSandbox(
+    const sandboxResolution = spec.hostSandbox
+      ? (this.options.hostSandboxResolver ?? applyHostSandbox)(
           {
             command: spec.command,
             args: spec.args,
@@ -101,12 +120,13 @@ export class ProcessAgentExecutor implements LocalAgentExecutor {
           },
           spec.hostSandbox,
         )
-      : spec;
+      : undefined;
+    const command = sandboxResolution?.command ?? spec;
     const child = spawn(command.command, command.args ?? [], {
       cwd: workingDirectory,
       env: command.env ?? process.env,
       shell: false,
-      stdio: ["ignore", "pipe", "pipe"],
+      stdio: ["pipe", "pipe", "pipe"],
     });
     this.active.set(run.id, child);
     await context.emit({
@@ -115,7 +135,16 @@ export class ProcessAgentExecutor implements LocalAgentExecutor {
       payload: {
         command: command.command,
         args: command.args ?? [],
-        sandboxed: Boolean(spec.hostSandbox),
+        sandboxed: sandboxResolution?.enforced ?? false,
+        sandbox: {
+          requested: Boolean(spec.hostSandbox),
+          applied: sandboxResolution?.applied ?? false,
+          enforced: sandboxResolution?.enforced ?? false,
+          mechanism: sandboxResolution?.mechanism ?? "none",
+          ...(sandboxResolution?.reason
+            ? { reason: sandboxResolution.reason }
+            : {}),
+        },
         pid: child.pid,
         text: "Agent process started",
         scope: "process",
@@ -254,7 +283,6 @@ export class ProcessAgentExecutor implements LocalAgentExecutor {
         createdAt: new Date().toISOString(),
         payload: result,
       });
-      await this.options.hooks?.run("tool.after", { run, spec, result });
       if (context.signal.aborted) {
         return { status: "failed", reason: "process-canceled" };
       }
@@ -317,6 +345,25 @@ export class ProcessAgentExecutor implements LocalAgentExecutor {
     }
   }
 
+  private async runHooks(
+    event: "tool.before" | "tool.after",
+    payload: unknown,
+    context: AgentExecutionContext,
+  ): Promise<string[]> {
+    if (!this.options.hooks) return [];
+    const results = await this.options.hooks.run(event, payload);
+    for (const result of results) {
+      await context.emit({
+        kind: "runtime.notice",
+        createdAt: new Date().toISOString(),
+        payload: { type: "hook.result", result },
+      });
+    }
+    return results
+      .filter((result) => result.blocked)
+      .map((result) => result.blockReason ?? "Blocked by hook");
+  }
+
   private async runCleanup(
     run: AgentRun,
     commands: readonly AgentProcessCommand[],
@@ -333,6 +380,50 @@ export class ProcessAgentExecutor implements LocalAgentExecutor {
   async cancel(run: AgentRun): Promise<void> {
     const child = this.active.get(run.id);
     if (child) this.terminate(child);
+  }
+
+  async resolveApproval(
+    run: AgentRun,
+    approvalId: string,
+    decision: AgentApprovalDecision,
+  ): Promise<void> {
+    const child = this.active.get(run.id);
+    const input = child?.stdin;
+    if (!child || !input || input.destroyed || !input.writable) {
+      throw new Error(`Agent process ${run.id} cannot accept approval input`);
+    }
+    await new Promise<void>((resolve, reject) => {
+      input.write(
+        `${JSON.stringify({
+          action: "approval.resolve",
+          approvalId,
+          decision,
+        })}\n`,
+        (error) => (error ? reject(error) : resolve()),
+      );
+    });
+  }
+
+  async steer(
+    run: AgentRun,
+    queueItemId: string,
+    prompt: string,
+  ): Promise<void> {
+    const child = this.active.get(run.id);
+    const input = child?.stdin;
+    if (!child || !input || input.destroyed || !input.writable) {
+      throw new Error(`Agent process ${run.id} cannot accept steering input`);
+    }
+    await new Promise<void>((resolve, reject) => {
+      input.write(
+        `${JSON.stringify({
+          action: "message.enqueue",
+          queueItemId,
+          message: prompt,
+        })}\n`,
+        (error) => (error ? reject(error) : resolve()),
+      );
+    });
   }
 
   private terminate(child: ChildProcess): void {

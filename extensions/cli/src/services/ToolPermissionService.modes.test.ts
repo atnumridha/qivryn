@@ -46,9 +46,9 @@ describe("ToolPermissionService - Mode Functionality", () => {
         policies.some((p) => p.tool === "List" && p.permission === "allow"),
       ).toBe(true);
 
-      // Plan mode allows all other tools (including MCP) with wildcard
+      // Plan mode fails closed for unclassified tools, including MCP tools.
       expect(
-        policies.some((p) => p.tool === "*" && p.permission === "allow"),
+        policies.some((p) => p.tool === "*" && p.permission === "exclude"),
       ).toBe(true);
     });
 
@@ -266,9 +266,9 @@ describe("ToolPermissionService - Mode Functionality", () => {
       // Mode policies should come first, and there should be policies
       expect(policies.length).toBeGreaterThan(0);
 
-      // Plan mode has wildcard allow policy for MCP and other tools
+      // Plan mode ignores runtime allows and ends with a deny-by-default rule.
       expect(
-        policies.some((p) => p.tool === "*" && p.permission === "allow"),
+        policies.some((p) => p.tool === "*" && p.permission === "exclude"),
       ).toBe(true);
     });
   });

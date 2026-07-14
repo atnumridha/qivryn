@@ -10,6 +10,7 @@ import {
   getAutoCompactMessage,
   shouldAutoCompact,
 } from "../compaction.js";
+import { services } from "../services/index.js";
 import { updateSessionHistory } from "../session.js";
 import { formatError } from "../util/formatError.js";
 import { logger } from "../util/logger.js";
@@ -40,6 +41,16 @@ interface AutoCompactionOptions {
   force?: boolean;
 }
 
+function updateActiveHistory(history: ChatHistoryItem[]): void {
+  const chatHistoryService = services.chatHistory;
+  if (chatHistoryService?.isReady()) {
+    chatHistoryService.setHistory(history);
+    return;
+  }
+
+  updateSessionHistory(history);
+}
+
 /**
  * Notify user about compaction start
  */
@@ -48,8 +59,9 @@ function notifyCompactionStart(
   isHeadless: boolean,
   callbacks?: AutoCompactionCallbacks,
 ) {
-  callbacks?.onCompactionStart?.(message);
-  if (callbacks?.onSystemMessage) {
+  if (callbacks?.onCompactionStart) {
+    callbacks.onCompactionStart(message);
+  } else if (callbacks?.onSystemMessage) {
     callbacks.onSystemMessage(message);
   } else if (!isHeadless && callbacks?.setMessages) {
     // TUI mode - handled by caller
@@ -65,9 +77,9 @@ function handleCompactionSuccess(
   callbacks?: AutoCompactionCallbacks,
 ) {
   const successMessage = "Chat history auto-compacted successfully.";
-  callbacks?.onCompactionComplete?.(successMessage);
-
-  if (callbacks?.onSystemMessage) {
+  if (callbacks?.onCompactionComplete) {
+    callbacks.onCompactionComplete(successMessage);
+  } else if (callbacks?.onSystemMessage) {
     callbacks.onSystemMessage(successMessage);
   } else if (
     !isHeadless &&
@@ -203,10 +215,12 @@ export async function handleAutoCompaction(
             onStreamComplete: () => {},
           },
       systemMessageTokens,
+      tools,
     });
 
-    // Save the compacted session
-    updateSessionHistory(result.compactedHistory);
+    // Persist through the active history scope. Subagents use a remote child
+    // service here, so their compaction never reaches the parent SessionManager.
+    updateActiveHistory(result.compactedHistory);
 
     // Handle success notification
     handleCompactionSuccess(result, isHeadless, callbacks);
@@ -223,13 +237,16 @@ export async function handleAutoCompaction(
         error,
       );
       const fallback = createLocalCompactionFallback(chatHistory);
-      updateSessionHistory(fallback.compactedHistory);
-      callbacks?.onSystemMessage?.(
-        "Model-based compaction could not complete. Recovered with a bounded local summary and will continue from the workspace state.",
-      );
-      callbacks?.onRecoveryComplete?.(
-        "Recovered with a bounded local summary and workspace state.",
-      );
+      updateActiveHistory(fallback.compactedHistory);
+      const recoveryMessage =
+        "Recovered with a bounded local summary and workspace state.";
+      if (callbacks?.onRecoveryComplete) {
+        callbacks.onRecoveryComplete(recoveryMessage);
+      } else {
+        callbacks?.onSystemMessage?.(
+          "Model-based compaction could not complete. Recovered with a bounded local summary and will continue from the workspace state.",
+        );
+      }
       return {
         chatHistory: fallback.compactedHistory,
         compactionIndex: fallback.compactionIndex,

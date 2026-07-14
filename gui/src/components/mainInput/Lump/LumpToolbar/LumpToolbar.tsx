@@ -18,7 +18,6 @@ import { EditToolbar } from "./EditToolbar";
 import { IsApplyingToolbar } from "./IsApplyingToolbar";
 import { PendingApplyStatesToolbar } from "./PendingApplyStatesToolbar";
 import { PendingToolCallToolbar } from "./PendingToolCallToolbar";
-import { StreamingToolbar } from "./StreamingToolbar";
 import { TtsActiveToolbar } from "./TtsActiveToolbar";
 
 function LumpToolbarShell({ children }: { children: ReactNode }) {
@@ -207,24 +206,8 @@ export function LumpToolbar() {
     );
   }
 
-  // Only show terminal streaming for actual terminal commands
-  if (hasRunningTerminalCommand) {
-    const count = runningTerminalCalls.length;
-    const stopText = `Stop Terminal${count > 1 ? ` (${count})` : ""}`;
-    return (
-      <LumpToolbarShell>
-        <StreamingToolbar onStop={handleStopAction} displayText={stopText} />
-      </LumpToolbarShell>
-    );
-  }
-
-  // Regular streaming (non-terminal)
-  if (isStreaming) {
-    return (
-      <LumpToolbarShell>
-        <StreamingToolbar onStop={() => dispatch(cancelStream())} />
-      </LumpToolbarShell>
-    );
+  if (hasRunningTerminalCommand || isStreaming) {
+    return null;
   }
 
   if (pendingToolCalls.length > 0) {

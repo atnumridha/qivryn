@@ -161,6 +161,10 @@ class MessageTypes {
             "chatDescriber/describe",
             "conversation/compact",
             "voice/transcribe",
+            "voice/transcribeCancel",
+            "voice/captureStart",
+            "voice/captureStop",
+            "voice/captureCancel",
             "stats/getTokensPerDay",
             "stats/getTokensPerModel",
             // Codebase

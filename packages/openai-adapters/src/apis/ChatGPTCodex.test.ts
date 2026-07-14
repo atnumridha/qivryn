@@ -65,6 +65,34 @@ describe("chatMessagesToCodexBody", () => {
       expect.objectContaining({ type: "message", role: "user" }),
     );
   });
+
+  it("sanitizes historical function call names for the Codex backend", () => {
+    const body = chatMessagesToCodexBody("gpt-5.6-sol", [
+      {
+        role: "assistant",
+        content: null,
+        tool_calls: [
+          {
+            id: "call_bugdb",
+            type: "function",
+            function: {
+              name: "bugdb.lookup.issue/with:scope",
+              arguments: "{}",
+            },
+          },
+        ],
+      },
+    ]);
+
+    const functionCall = body.input.find(
+      (item: any) => item.type === "function_call",
+    );
+
+    expect(functionCall?.name).toMatch(/^[a-zA-Z0-9_-]+$/);
+    expect(functionCall?.name).toMatch(
+      /^bugdb_lookup_issue_with_scope_[a-f0-9]{8}$/,
+    );
+  });
 });
 
 describe("chatCompletionToCodexOptions", () => {
@@ -81,5 +109,42 @@ describe("chatCompletionToCodexOptions", () => {
       reasoning: { effort: "high" },
     });
     expect(options).not.toHaveProperty("max_output_tokens");
+  });
+
+  it("sanitizes top-level Responses tool names sent to ChatGPT Codex", () => {
+    const options = chatCompletionToCodexOptions({
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "bugdb.lookup.issue/with:scope",
+            description: "Look up a BugDB issue",
+            parameters: { type: "object", properties: {} },
+          },
+        },
+        {
+          type: "function",
+          name: "browser-recorder.open/page",
+          description: "Open a recorded browser page",
+          parameters: { type: "object", properties: {} },
+        },
+      ],
+    });
+
+    expect(options.tools).toEqual([
+      expect.objectContaining({
+        type: "function",
+        name: expect.stringMatching(
+          /^bugdb_lookup_issue_with_scope_[a-f0-9]{8}$/,
+        ),
+      }),
+      expect.objectContaining({
+        type: "function",
+        name: expect.stringMatching(/^browser-recorder_open_page_[a-f0-9]{8}$/),
+      }),
+    ]);
+    expect(
+      options.tools?.every((tool: any) => /^[a-zA-Z0-9_-]+$/.test(tool.name)),
+    ).toBe(true);
   });
 });

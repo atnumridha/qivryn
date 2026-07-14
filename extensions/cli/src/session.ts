@@ -512,6 +512,32 @@ export function loadSessionById(sessionId: string): Session | null {
   }
 }
 
+const MAX_EXACT_SESSION_ID_LENGTH = 200;
+
+/**
+ * Validate an exact session ID before using it as a local filename. Exact IDs
+ * are used by durable agent workers and must never fall back to "most recent".
+ */
+export function validateExactSessionId(sessionId: string): string {
+  const normalized = sessionId.trim();
+  if (!normalized) {
+    throw new Error("Session ID cannot be empty");
+  }
+  if (normalized.length > MAX_EXACT_SESSION_ID_LENGTH) {
+    throw new Error(
+      `Session ID cannot exceed ${MAX_EXACT_SESSION_ID_LENGTH} characters`,
+    );
+  }
+  if (
+    normalized === "." ||
+    normalized === ".." ||
+    /[<>:"/\\|?*\u0000-\u001f]/.test(normalized)
+  ) {
+    throw new Error("Session ID contains invalid filename characters");
+  }
+  return normalized;
+}
+
 /**
  * Load an existing session by ID or create a new one with that ID.
  * Useful for long-lived processes (e.g., qivryn serve) that need to
@@ -528,6 +554,17 @@ export function loadOrCreateSessionById(
   }
 
   return createSession(history, sessionId);
+}
+
+/**
+ * Select one deterministic session. Unlike --resume, this never scans for the
+ * latest session, so independent agent runs cannot attach to each other.
+ */
+export function loadOrCreateExactSessionById(
+  sessionId: string,
+  history: ChatHistoryItem[] = [],
+): Session {
+  return loadOrCreateSessionById(validateExactSessionId(sessionId), history);
 }
 
 /**

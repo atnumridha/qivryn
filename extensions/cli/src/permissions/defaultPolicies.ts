@@ -39,13 +39,59 @@ export function getDefaultToolPolicies(
   return policies;
 }
 
-// Plan mode: exclude direct write tools while permitting exploration.
+const PLAN_MODE_READ_ONLY_BASH_COMMANDS = [
+  "ls",
+  "ls -a",
+  "ls -l",
+  "ls -la",
+  "ls -al",
+  "pwd",
+  "whoami",
+  "hostname",
+  "date",
+  "uptime",
+  "free",
+  "jobs",
+  "git status",
+  "git status --short",
+  "git status --short --branch",
+  "git status --porcelain",
+  "git status --porcelain=v1",
+  "git log",
+  "git log --oneline",
+  "git log -5 --oneline",
+  "git diff",
+  "git diff --cached",
+  "git diff --check",
+  "git diff --staged",
+  "git diff --stat",
+  "git show",
+  "git branch --show-current",
+  "git remote -v",
+  "git rev-parse --show-toplevel",
+  "rg --files",
+];
+
+const PLAN_MODE_READ_ONLY_BASH_POLICIES: ToolPermissionPolicy[] =
+  PLAN_MODE_READ_ONLY_BASH_COMMANDS.map((command) => ({
+    tool: `Bash(${command})`,
+    permission: "allow" as const,
+  }));
+
+// Plan mode: allow only direct read tools and shell commands that can be
+// classified as read-only. Bash and unknown/MCP tools fail closed.
 export const PLAN_MODE_POLICIES: ToolPermissionPolicy[] = [
   { tool: "Edit", permission: "exclude" },
   { tool: "MultiEdit", permission: "exclude" },
   { tool: "Write", permission: "exclude" },
 
-  { tool: "Bash", permission: "allow" },
+  ...PLAN_MODE_READ_ONLY_BASH_POLICIES,
+  {
+    tool: "Bash",
+    permission: "allow",
+    argumentMatches: { command: undefined },
+  },
+  { tool: "Bash", permission: "exclude" },
   { tool: "CheckBackgroundJob", permission: "allow" },
   { tool: "AskQuestion", permission: "allow" },
   { tool: "Checklist", permission: "allow" },
@@ -60,14 +106,14 @@ export const PLAN_MODE_POLICIES: ToolPermissionPolicy[] = [
   { tool: "Status", permission: "allow" },
   { tool: "UploadArtifact", permission: "allow" },
 
-  { tool: "*", permission: "allow" },
+  { tool: "*", permission: "exclude" },
 ];
 
 // Sandbox mode: strict read-only override. Terminal and unknown/MCP tools are
 // excluded because their effects cannot be proven read-only ahead of time.
 export const SANDBOX_MODE_POLICIES: ToolPermissionPolicy[] = [
   ...PLAN_MODE_POLICIES.filter(
-    (policy) => policy.tool !== "Bash" && policy.tool !== "*",
+    (policy) => !policy.tool.startsWith("Bash") && policy.tool !== "*",
   ),
   { tool: "Bash", permission: "exclude" },
   { tool: "*", permission: "exclude" },

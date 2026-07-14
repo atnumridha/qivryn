@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import { checkToolPermission } from "./permissionChecker.js";
 import {
   AUTONOMOUS_MODE_POLICIES,
   AUTO_MODE_POLICIES,
   getDefaultToolPolicies,
+  PLAN_MODE_POLICIES,
   SANDBOX_MODE_POLICIES,
 } from "./defaultPolicies.js";
 const DEFAULT_TOOL_POLICIES = getDefaultToolPolicies();
@@ -81,5 +83,68 @@ describe("defaultPolicies", () => {
       { tool: "*", permission: "allow" },
     ]);
     expect(AUTO_MODE_POLICIES).toEqual([{ tool: "*", permission: "allow" }]);
+  });
+
+  it("should fail closed in plan mode while allowing classified shell reads", () => {
+    expect(PLAN_MODE_POLICIES).toContainEqual({
+      tool: "Bash(ls -la)",
+      permission: "allow",
+    });
+    expect(PLAN_MODE_POLICIES).toContainEqual({
+      tool: "Bash(git status --short)",
+      permission: "allow",
+    });
+    expect(PLAN_MODE_POLICIES).toContainEqual({
+      tool: "Bash",
+      permission: "allow",
+      argumentMatches: { command: undefined },
+    });
+    expect(PLAN_MODE_POLICIES).toContainEqual({
+      tool: "Bash",
+      permission: "exclude",
+    });
+    expect(PLAN_MODE_POLICIES.at(-1)).toEqual({
+      tool: "*",
+      permission: "exclude",
+    });
+
+    const permissions = { policies: PLAN_MODE_POLICIES };
+    expect(
+      checkToolPermission(
+        { name: "Bash", arguments: { command: "ls -la" } },
+        permissions,
+      ).permission,
+    ).toBe("allow");
+
+    for (const command of [
+      "touch created.txt",
+      "ls -la && touch created.txt",
+      "ls -la\ntouch created.txt",
+      "ls -la > listing.txt",
+      "echo `touch created.txt`",
+    ]) {
+      expect(
+        checkToolPermission(
+          { name: "Bash", arguments: { command } },
+          permissions,
+        ).permission,
+      ).toBe("exclude");
+    }
+
+    expect(
+      checkToolPermission(
+        { name: "unclassified_mcp_write", arguments: {} },
+        permissions,
+      ).permission,
+    ).toBe("exclude");
+
+    expect(
+      checkToolPermission({ name: "Bash", arguments: {} }, permissions)
+        .permission,
+    ).toBe("allow");
+
+    expect(
+      SANDBOX_MODE_POLICIES.some((policy) => policy.tool.startsWith("Bash(")),
+    ).toBe(false);
   });
 });

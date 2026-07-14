@@ -5,21 +5,70 @@ import { logger } from "../util/logger.js";
 
 import { Tool } from "./types.js";
 
+const DEFAULT_SKILL_LINE_COUNT = 220;
+const MAX_SKILL_LINE_COUNT = 300;
+const MAX_SKILL_CHARS = 24_000;
+const MAX_SKILL_MATCHES = 20;
+
+function matchingSkills(
+  skills: Awaited<ReturnType<typeof loadMarkdownSkills>>["skills"],
+  query: string,
+) {
+  const terms = query
+    .toLowerCase()
+    .split(/[^a-z0-9_-]+/)
+    .filter(Boolean);
+  return skills
+    .map((skill) => {
+      const name = skill.name.toLowerCase();
+      const haystack = `${name} ${skill.description.toLowerCase()}`;
+      const score = terms.reduce(
+        (total, term) =>
+          total +
+          (name === term ? 8 : name.startsWith(term) ? 4 : 0) +
+          (haystack.includes(term) ? 1 : 0),
+        0,
+      );
+      return { skill, score };
+    })
+    .filter((entry) => entry.score > 0)
+    .sort(
+      (left, right) =>
+        right.score - left.score ||
+        left.skill.name.localeCompare(right.skill.name),
+    )
+    .slice(0, MAX_SKILL_MATCHES)
+    .map((entry) => entry.skill);
+}
+
 export const SKILLS_TOOL_META: Tool = {
   name: "Skills",
   displayName: "Skills",
   description:
-    "Use this tool to read the content of a skill by its name. Skills contain detailed instructions for specific tasks.",
-  readonly: false,
+    "Search installed skills by keyword or read one skill by exact name. Search first when the name is unknown. Skill content is returned in bounded ranges.",
+  readonly: true,
   isBuiltIn: true,
   parameters: {
     type: "object",
-    required: ["skill_name"],
+    required: [],
     properties: {
       skill_name: {
         type: "string",
         description:
           "The name of the skill to read. This should match the name from the available skills.",
+      },
+      query: {
+        type: "string",
+        description:
+          "Keywords used to find relevant skill names and descriptions. Use this instead of guessing a skill name.",
+      },
+      start_line: {
+        type: "number",
+        description: "Optional 1-based line where reading should begin.",
+      },
+      line_count: {
+        type: "number",
+        description: `Optional number of lines to read (maximum ${MAX_SKILL_LINE_COUNT}).`,
       },
     },
   },
@@ -32,47 +81,119 @@ export const skillsTool = async (): Promise<Tool> => {
   return {
     ...SKILLS_TOOL_META,
 
-    description: `Use this tool to read the content of a skill by its name. Skills contain detailed instructions for specific tasks. The skill name should match one of the available skills listed below:
-${skills.map((skill) => `\nname: ${skill.name}\ndescription: ${skill.description}\n`)}`,
-
     preprocess: async (args: any) => {
-      const { skill_name } = args;
+      const { query, skill_name, start_line } = args;
 
       return {
         args,
         preview: [
           {
             type: "text",
-            content: `Reading skill: ${skill_name}`,
+            content: skill_name
+              ? `Reading skill: ${skill_name}${
+                  Number.isFinite(Number(start_line))
+                    ? ` from line ${Math.max(1, Math.trunc(Number(start_line)))}`
+                    : ""
+                }`
+              : `Searching skills: ${String(query ?? "").trim() || "(no query)"}`,
           },
         ],
       };
     },
 
     run: async (args: any, context?: { toolCallId: string }) => {
-      const { skill_name } = args;
+      const skillName = String(args.skill_name ?? "").trim();
+      const query = String(args.query ?? "").trim();
 
       logger.debug("skill args", { args, context });
 
-      const skill = skills.find((s) => s.name === skill_name);
+      if (!skillName) {
+        if (!query) {
+          throw new QivrynError(
+            QivrynErrorReason.SkillNotFound,
+            "Provide query to search installed skills or skill_name to read one skill.",
+          );
+        }
+        const matches = matchingSkills(skills, query);
+        return [
+          `<skill_matches query=${JSON.stringify(query)} count="${matches.length}">`,
+          ...matches.map(
+            (skill) =>
+              `<skill name=${JSON.stringify(skill.name)}>${skill.description}</skill>`,
+          ),
+          "</skill_matches>",
+          matches.length === 0
+            ? "No matching skills were found. Refine the query instead of loading unrelated skills."
+            : "Read one result with skill_name only if its instructions are relevant to the task.",
+        ].join("\n");
+      }
+
+      const skill = skills.find((candidate) => candidate.name === skillName);
       if (!skill) {
-        const availableSkills = skills.map((s) => s.name).join(", ");
+        const suggestions = matchingSkills(skills, skillName)
+          .slice(0, 5)
+          .map((candidate) => candidate.name)
+          .join(", ");
         throw new QivrynError(
           QivrynErrorReason.SkillNotFound,
-          `Skill "${skill_name}" not found. Available skills: ${availableSkills || "none"}`,
+          `Skill "${skillName}" not found.${suggestions ? ` Similar skills: ${suggestions}.` : ""} Search with query to find the exact name.`,
         );
       }
 
+      const lines = skill.content.split(/\r?\n/);
+      const requestedStart = Math.max(
+        1,
+        Math.trunc(Number(args.start_line) || 1),
+      );
+      const requestedCount = Math.min(
+        MAX_SKILL_LINE_COUNT,
+        Math.max(
+          1,
+          Math.trunc(Number(args.line_count) || DEFAULT_SKILL_LINE_COUNT),
+        ),
+      );
+      const startIndex = Math.min(requestedStart - 1, lines.length);
+      const selected: string[] = [];
+      let selectedChars = 0;
+      for (
+        let index = startIndex;
+        index < lines.length && selected.length < requestedCount;
+        index++
+      ) {
+        const line = lines[index];
+        const nextLength =
+          selectedChars + line.length + (selected.length ? 1 : 0);
+        if (selected.length > 0 && nextLength > MAX_SKILL_CHARS) break;
+        selected.push(
+          line.length > MAX_SKILL_CHARS
+            ? `${line.slice(0, MAX_SKILL_CHARS)}\n[Line truncated]`
+            : line,
+        );
+        selectedChars = nextLength;
+      }
+      const endLine = startIndex + selected.length;
+      const hasMore = endLine < lines.length;
       const content = [
         `<skill_name>${skill.name}</skill_name>`,
         `<skill_description>${skill.description}</skill_description>`,
-        `<skill_content>${skill.content}</skill_content>`,
+        `<skill_path>${skill.path}</skill_path>`,
+        `<skill_content start_line="${startIndex + 1}" end_line="${endLine}" total_lines="${lines.length}">${selected.join("\n")}</skill_content>`,
       ];
+
+      if (hasMore) {
+        content.push(
+          "<skill_truncated>true</skill_truncated>",
+          `<next_start_line>${endLine + 1}</next_start_line>`,
+          `<other_instructions>Only if the remaining instructions are needed, call Skills again with skill_name=${JSON.stringify(
+            skill.name,
+          )} and start_line=${endLine + 1}. Do not reload lines already returned.</other_instructions>`,
+        );
+      }
 
       if (skill.files.length > 0) {
         content.push(
           `<skill_files>${skill.files.join(",")}</skill_files>`,
-          `<other_instructions>Use the read file tool to access skill files as needed.</other_instructions>`,
+          `<skill_file_instructions>Use the read file tool to access a listed skill file only when it is relevant.</skill_file_instructions>`,
         );
       }
 

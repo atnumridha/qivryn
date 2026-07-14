@@ -1,12 +1,12 @@
-import { screen } from "@testing-library/react";
+import { act, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { Route, Routes } from "react-router-dom";
 import { renderWithProviders } from "../../util/test/render";
 import {
   compactModelTriggerName,
   ModeSelect,
   scrollTopToReveal,
 } from "./ModeSelect";
+import { setMode } from "../../redux/slices/sessionSlice";
 
 describe("ModeSelect", () => {
   it.each([
@@ -18,22 +18,24 @@ describe("ModeSelect", () => {
     expect(compactModelTriggerName(label)).toBe(expected);
   });
 
-  it("opens the durable background task workspace", async () => {
-    const { user } = await renderWithProviders(
-      <Routes>
-        <Route path="/" element={<ModeSelect />} />
-        <Route path="/agents" element={<div>Background workspace</div>} />
-      </Routes>,
-    );
+  it("keeps durable background tasks in the current composer", async () => {
+    const { store, user } = await renderWithProviders(<ModeSelect />);
+
+    await act(async () => {
+      store.dispatch(setMode("chat"));
+    });
 
     await user.click(
       screen.getByRole("button", { name: "Agents mode dropdown" }),
     );
     await user.click(
-      await screen.findByRole("menuitem", { name: /Background tasks/ }),
+      await screen.findByRole("menuitem", {
+        name: /Agent tasks in composer/,
+      }),
     );
 
-    expect(await screen.findByText("Background workspace")).toBeVisible();
+    expect(store.getState().session.mode).toBe("agent");
+    expect(screen.queryByText("Background workspace")).not.toBeInTheDocument();
   });
 
   it.each([

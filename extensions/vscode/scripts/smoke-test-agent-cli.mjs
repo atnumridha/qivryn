@@ -5,8 +5,9 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { AGENT_DAEMON_PROTOCOL_VERSION as PROTOCOL_VERSION } from "../../../packages/agent-runtime/dist/daemon.js";
 
-const PROTOCOL_VERSION = 2;
+export { PROTOCOL_VERSION };
 
 function sleep(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));

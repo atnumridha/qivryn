@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { compactChatHistory } from "./compaction.js";
 import { streamChatResponse } from "./stream/streamChatResponse.js";
+import { logger } from "./util/logger.js";
 
 // Mock the dependencies
 vi.mock("./stream/streamChatResponse.js", () => ({
@@ -13,6 +14,7 @@ vi.mock("./stream/streamChatResponse.js", () => ({
 
 vi.mock("./util/tokenizer.js", () => ({
   countChatHistoryTokens: vi.fn(),
+  countToolDefinitionTokens: vi.fn(() => 0),
   getModelContextLimit: vi.fn(),
   getModelMaxTokens: vi.fn(),
 }));
@@ -135,5 +137,65 @@ describe("compaction infinite loop prevention", () => {
     expect(result.compactedHistory).toBeDefined();
     // The function will call countTokens multiple times during the process
     expect(mockCountTokens).toHaveBeenCalled();
+  });
+
+  it("reserves preserved system, runtime system, and tool overhead", async () => {
+    const {
+      countChatHistoryTokens,
+      countToolDefinitionTokens,
+      getModelContextLimit,
+      getModelMaxTokens,
+    } = await import("./util/tokenizer.js");
+    const mockStreamResponse = vi.mocked(streamChatResponse);
+    vi.mocked(getModelContextLimit).mockReturnValue(4000);
+    vi.mocked(getModelMaxTokens).mockReturnValue(1000);
+    vi.mocked(countToolDefinitionTokens).mockReturnValue(500);
+    vi.mocked(countChatHistoryTokens).mockImplementation((history) =>
+      history.length === 1 && history[0].message.content === "System message"
+        ? 200
+        : 2500,
+    );
+    mockStreamResponse.mockImplementation(
+      async (history, model, api, controller, callbacks) => {
+        callbacks?.onContent?.("Summary");
+        callbacks?.onContentComplete?.("Summary");
+        return "Summary";
+      },
+    );
+    const debugSpy = vi
+      .spyOn(logger, "debug")
+      .mockImplementation(() => undefined as never);
+    const tools = [
+      {
+        type: "function" as const,
+        function: {
+          name: "read_file",
+          description: "Read a file",
+          parameters: { type: "object", properties: {} },
+        },
+      },
+    ];
+    const history = convertToUnifiedHistory([
+      { role: "system", content: "System message" },
+      { role: "user", content: "Hello" },
+      { role: "assistant", content: "Hi there" },
+    ]);
+
+    await compactChatHistory(history, mockModel, mockLlmApi, {
+      systemMessageTokens: 300,
+      tools,
+    });
+
+    expect(countToolDefinitionTokens).toHaveBeenCalledWith(tools);
+    expect(debugSpy).toHaveBeenCalledWith(
+      "Compaction history too long, pruning last message",
+      expect.objectContaining({
+        availableForInput: 2000,
+        preservedSystemTokens: 200,
+        systemMessageTokens: 300,
+        toolDefinitionTokens: 500,
+      }),
+    );
+    debugSpy.mockRestore();
   });
 });

@@ -1,6 +1,7 @@
 import { SUBAGENT_TOOL_META } from "../subagent/index.js";
 
 import { askQuestionTool } from "./askQuestion.js";
+import { computerUseTool } from "./computerUse.js";
 import { editTool } from "./edit.js";
 import { exitTool } from "./exit.js";
 import { fetchTool } from "./fetch.js";
@@ -20,6 +21,7 @@ import { writeFileTool } from "./writeFile.js";
 // putting in here for circular import issue
 export const ALL_BUILT_IN_TOOLS = [
   askQuestionTool,
+  computerUseTool,
   editTool,
   exitTool,
   fetchTool,

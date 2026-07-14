@@ -6,16 +6,10 @@ import { calculateRequestCost } from "core/llm/utils/calculateRequestCost.js";
 import { QivrynError, QivrynErrorReason } from "core/util/errors.js";
 import { ChatCompletionToolMessageParam } from "openai/resources/chat/completions.mjs";
 
-import { ToolPermissionServiceState } from "src/services/ToolPermissionService.js";
-
 import { checkToolPermission } from "../permissions/permissionChecker.js";
 import { toolPermissionManager } from "../permissions/permissionManager.js";
 import { ToolCallRequest, ToolPermissions } from "../permissions/types.js";
-import {
-  SERVICE_NAMES,
-  serviceContainer,
-  services,
-} from "../services/index.js";
+import { services } from "../services/index.js";
 import { trackSessionUsage } from "../session.js";
 import { telemetryService } from "../telemetry/telemetryService.js";
 import {
@@ -27,6 +21,7 @@ import {
 import { PreprocessedToolCall, ToolCall } from "../tools/types.js";
 import { logger } from "../util/logger.js";
 
+import { isAgentControlStreamEnabled } from "./agentEventStream.js";
 import { StreamCallbacks } from "./streamChatResponse.types.js";
 
 export interface ToolResultWithStatus extends ChatCompletionToolMessageParam {
@@ -40,6 +35,7 @@ export function handlePermissionDenied(
   callbacks?: StreamCallbacks,
   reason: "user" | "policy" = "user",
 ): void {
+  const displayName = toolCall.tool.displayName || toolCall.name;
   const deniedMessage =
     reason === "policy"
       ? `Command blocked by security policy`
@@ -57,7 +53,12 @@ export function handlePermissionDenied(
     content: deniedMessage,
   });
 
-  callbacks?.onToolResult?.(deniedMessage, toolCall.name, "canceled");
+  callbacks?.onToolResult?.(
+    deniedMessage,
+    displayName,
+    "canceled",
+    toolCall.id,
+  );
   logger.debug(`Tool call rejected (${reason}) - stopping stream`);
 }
 
@@ -71,6 +72,7 @@ export async function requestUserPermission(
   }
 
   const toolCallRequest: ToolCallRequest = {
+    toolCallId: toolCall.id,
     name: toolCall.name,
     arguments: toolCall.preprocessResult?.args ?? toolCall.arguments,
     preview: toolCall.preprocessResult?.preview,
@@ -81,7 +83,7 @@ export async function requestUserPermission(
     requestId: string;
     toolCall: ToolCallRequest;
   }) => {
-    if (event.toolCall.name === toolCall.name) {
+    if (event.toolCall.toolCallId === toolCall.id) {
       toolPermissionManager.off(
         "permissionRequested",
         handlePermissionRequested,
@@ -92,6 +94,7 @@ export async function requestUserPermission(
         event.toolCall.arguments,
         event.requestId,
         event.toolCall.preview,
+        toolCall.id,
       );
     }
   };
@@ -121,7 +124,7 @@ export async function checkToolPermissionApproval(
   if (permissionCheck.permission === "allow") {
     return { approved: true };
   } else if (permissionCheck.permission === "ask") {
-    if (isHeadless) {
+    if (isHeadless && !isAgentControlStreamEnabled()) {
       // "ask" tools are excluded in headless so can only get here by policy evaluation
       return { approved: false, denialReason: "policy" };
     }
@@ -421,7 +424,7 @@ export async function preprocessStreamedToolCalls(
       preprocessedCalls.push(preprocessedCall);
     } catch (error) {
       // Notify the UI about the tool start, even though it failed
-      callbacks?.onToolStart?.(toolCall.name, toolCall.arguments);
+      callbacks?.onToolStart?.(toolCall.name, toolCall.arguments, toolCall.id);
 
       const errorReason =
         error instanceof QivrynError ? error.reason : QivrynErrorReason.Unknown;
@@ -451,7 +454,7 @@ export async function preprocessStreamedToolCalls(
       });
 
       // Notify about the error
-      callbacks?.onToolError?.(errorMessage, toolCall.name);
+      callbacks?.onToolError?.(errorMessage, toolCall.name, toolCall.id);
     }
   }
 
@@ -492,6 +495,7 @@ export async function executeStreamedToolCalls(
 
   // Permission phase (sequential)
   for (const { index, call } of indexedCalls) {
+    const displayName = call.tool.displayName || call.name;
     // Do not cancel subsequent tools after a rejection; handle each independently
 
     try {
@@ -501,13 +505,10 @@ export async function executeStreamedToolCalls(
       });
 
       // Notify tool start before permission check to display in UI fallbacks
-      callbacks?.onToolStart?.(call.name, call.arguments);
+      callbacks?.onToolStart?.(displayName, call.arguments, call.id);
 
       // Check tool permissions using helper
-      const permissionState =
-        await serviceContainer.get<ToolPermissionServiceState>(
-          SERVICE_NAMES.TOOL_PERMISSIONS,
-        );
+      const permissionState = services.toolPermissions.getState();
       const permissionResult = await checkToolPermissionApproval(
         permissionState.permissions,
         call,
@@ -532,8 +533,9 @@ export async function executeStreamedToolCalls(
         entriesByIndex.set(index, deniedEntry);
         callbacks?.onToolResult?.(
           String(deniedEntry.content),
-          call.name,
+          displayName,
           "canceled",
+          call.id,
         );
         // Immediate service update for UI feedback
         try {
@@ -572,7 +574,7 @@ export async function executeStreamedToolCalls(
               status: "done",
             };
             entriesByIndex.set(index, entry);
-            callbacks?.onToolResult?.(toolResult, call.name, "done");
+            callbacks?.onToolResult?.(toolResult, displayName, "done", call.id);
             // Immediate service update for UI feedback
             try {
               services.chatHistory.addToolResult(
@@ -582,7 +584,7 @@ export async function executeStreamedToolCalls(
               );
             } catch {}
           } catch (error) {
-            const errorMessage = `Error executing tool ${call.name}: ${
+            const errorMessage = `Error executing tool ${displayName}: ${
               error instanceof Error ? error.message : String(error)
             }`;
             logger.error("Tool execution failed", {
@@ -595,7 +597,7 @@ export async function executeStreamedToolCalls(
               content: errorMessage,
               status: "errored",
             });
-            callbacks?.onToolError?.(errorMessage, call.name);
+            callbacks?.onToolError?.(errorMessage, displayName, call.id);
             // Immediate service update for UI feedback
             try {
               services.chatHistory.addToolResult(
@@ -608,7 +610,7 @@ export async function executeStreamedToolCalls(
         })(),
       );
     } catch (error) {
-      const errorMessage = `Error checking permissions for ${call.name}: ${
+      const errorMessage = `Error checking permissions for ${displayName}: ${
         error instanceof Error ? error.message : String(error)
       }`;
       logger.error("Permission check failed", {
@@ -621,7 +623,7 @@ export async function executeStreamedToolCalls(
         content: errorMessage,
         status: "errored",
       });
-      callbacks?.onToolError?.(errorMessage, call.name);
+      callbacks?.onToolError?.(errorMessage, displayName, call.id);
       // Treat permission errors like execution errors but do not stop the batch
       try {
         services.chatHistory.addToolResult(

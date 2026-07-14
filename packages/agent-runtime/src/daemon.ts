@@ -42,7 +42,7 @@ export interface AgentDaemonAddress {
 // read-only workers.
 // Bump this whenever persisted runtime configuration needs new parsing logic so
 // an extension update cannot silently reuse an older detached worker.
-export const AGENT_DAEMON_PROTOCOL_VERSION = 6;
+export const AGENT_DAEMON_PROTOCOL_VERSION = 7;
 
 export interface AgentDaemonDescriptor {
   baseUrl: string;

@@ -16,6 +16,7 @@
  *      pasted into the session) for the verified curl shape.
  */
 import * as fs from "fs";
+import { createHash } from "node:crypto";
 import * as os from "os";
 import * as path from "path";
 
@@ -98,6 +99,9 @@ const MODELS_CACHE_FILE = path.join(
 const CODEX_BASE = "https://chatgpt.com/backend-api/codex";
 const REFRESH_URL = "https://chatgpt.com/backend-api/auth/refresh";
 const REFRESH_SKEW_SECONDS = 120;
+const MODEL_TOOL_NAME_PATTERN = /^[a-zA-Z0-9_-]+$/;
+const MODEL_TOOL_NAME_MAX_LENGTH = 64;
+const MODEL_TOOL_NAME_HASH_LENGTH = 8;
 
 interface CodexAuth {
   auth_mode?: string;
@@ -231,6 +235,45 @@ function readModelsCache(): { client_version?: string; models?: any[] } {
 
 // ── Request conversion ────────────────────────────────────────────────────────
 
+function toCodexToolName(rawName: unknown): string {
+  const raw = String(rawName ?? "");
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+
+  const normalized =
+    trimmed
+      .replace(/[^a-zA-Z0-9_-]+/g, "_")
+      .replace(/_+/g, "_")
+      .replace(/^_+|_+$/g, "") || "tool";
+
+  if (
+    trimmed === normalized &&
+    normalized.length <= MODEL_TOOL_NAME_MAX_LENGTH &&
+    MODEL_TOOL_NAME_PATTERN.test(normalized)
+  ) {
+    return normalized;
+  }
+
+  const hash = createHash("sha256")
+    .update(raw)
+    .digest("hex")
+    .slice(0, MODEL_TOOL_NAME_HASH_LENGTH);
+  const maxPrefixLength =
+    MODEL_TOOL_NAME_MAX_LENGTH - MODEL_TOOL_NAME_HASH_LENGTH - 1;
+  const prefix =
+    normalized.slice(0, maxPrefixLength).replace(/[_-]+$/g, "") || "tool";
+
+  return `${prefix}_${hash}`;
+}
+
+function sanitizeCodexInputItems(inputItems: any[]): any[] {
+  return inputItems.map((item) => {
+    if (item?.type !== "function_call") return item;
+    const safeName = toCodexToolName(item.name);
+    return safeName ? { ...item, name: safeName } : item;
+  });
+}
+
 /**
  * Converts a chat completion messages array into the Codex backend format:
  *   - system/developer messages become the `instructions` string
@@ -275,7 +318,9 @@ export function chatMessagesToCodexBody(
   }
 
   // Codex backend requires input to be a list (not a string)
-  body.input = toResponsesInput(inputMessages);
+  body.input = sanitizeCodexInputItems(
+    toResponsesInput(inputMessages) as any[],
+  );
 
   return body;
 }
@@ -290,14 +335,21 @@ function convertTools(tools: any[] | undefined): any[] | undefined {
   return tools
     .map((tool) => {
       if (tool.type === "function" && tool.function) {
+        const name = toCodexToolName(tool.function.name);
         // Chat completions → Responses API shape
         return {
           type: "function" as const,
-          name: tool.function.name ?? "",
+          name,
           description: tool.function.description ?? null,
           parameters: tool.function.parameters ?? null,
           strict:
             tool.function.strict !== undefined ? tool.function.strict : null,
+        };
+      }
+      if (tool.type === "function" && tool.name) {
+        return {
+          ...tool,
+          name: toCodexToolName(tool.name),
         };
       }
       // Already in Responses API shape or unknown — pass through

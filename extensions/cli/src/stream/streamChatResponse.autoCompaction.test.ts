@@ -4,6 +4,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { handleAutoCompaction } from "./streamChatResponse.autoCompaction.js";
 
+const serviceMocks = vi.hoisted(() => ({
+  chatHistory: undefined as
+    | {
+        isReady: () => boolean;
+        setHistory: (history: ChatHistoryItem[]) => void;
+      }
+    | undefined,
+  systemMessage: {
+    getSystemMessage: vi.fn(() => Promise.resolve("System message")),
+  },
+  toolPermissions: {
+    getState: vi.fn(() => ({ currentMode: "enabled" })),
+  },
+}));
+
 // Mock dependencies
 vi.mock("../compaction.js", () => ({
   compactChatHistory: vi.fn(),
@@ -42,14 +57,7 @@ vi.mock("../util/logger.js", () => ({
 }));
 
 vi.mock("../services/index.js", () => ({
-  services: {
-    systemMessage: {
-      getSystemMessage: vi.fn(() => Promise.resolve("System message")),
-    },
-    toolPermissions: {
-      getState: vi.fn(() => ({ currentMode: "enabled" })),
-    },
-  },
+  services: serviceMocks,
 }));
 
 vi.mock("os", async (importOriginal) => {
@@ -80,6 +88,7 @@ describe("handleAutoCompaction", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    serviceMocks.chatHistory = undefined;
   });
 
   it("should return original history when auto-compaction is not needed", async () => {
@@ -137,6 +146,16 @@ describe("handleAutoCompaction", () => {
     const mockCallbacks = {
       onSystemMessage: vi.fn(),
     };
+    const mockTools = [
+      {
+        type: "function" as const,
+        function: {
+          name: "read_file",
+          description: "Read a file",
+          parameters: { type: "object", properties: {} },
+        },
+      },
+    ];
 
     const result = await handleAutoCompaction(
       mockChatHistory,
@@ -145,6 +164,7 @@ describe("handleAutoCompaction", () => {
       {
         isHeadless: false,
         callbacks: mockCallbacks,
+        tools: mockTools,
       },
     );
 
@@ -152,7 +172,7 @@ describe("handleAutoCompaction", () => {
       chatHistory: mockChatHistory,
       model: mockModel,
       systemMessage: undefined,
-      tools: undefined,
+      tools: mockTools,
     });
     expect(getAutoCompactMessage).toHaveBeenCalledWith(mockModel);
     expect(compactChatHistory).toHaveBeenCalledWith(
@@ -162,6 +182,7 @@ describe("handleAutoCompaction", () => {
       expect.objectContaining({
         callbacks: expect.any(Object),
         systemMessageTokens: expect.any(Number),
+        tools: mockTools,
       }),
     );
     expect(updateSessionHistory).toHaveBeenCalledWith(
@@ -180,6 +201,36 @@ describe("handleAutoCompaction", () => {
       compactionIndex: mockCompactionResult.compactionIndex,
       wasCompacted: true,
     });
+  });
+
+  it("updates scoped child history without writing the parent session", async () => {
+    const { compactChatHistory, shouldAutoCompact } = await import(
+      "../compaction.js"
+    );
+    const { updateSessionHistory } = await import("../session.js");
+    const compactedHistory = mockChatHistory.slice(-1);
+    const setHistory = vi.fn();
+    serviceMocks.chatHistory = {
+      isReady: () => true,
+      setHistory,
+    };
+    vi.mocked(shouldAutoCompact).mockReturnValue(true);
+    vi.mocked(compactChatHistory).mockResolvedValue({
+      compactedHistory,
+      compactionIndex: 0,
+      compactionContent: "Child summary",
+    });
+
+    const result = await handleAutoCompaction(
+      mockChatHistory,
+      mockModel,
+      mockLlmApi,
+      { isHeadless: true },
+    );
+
+    expect(setHistory).toHaveBeenCalledWith(compactedHistory);
+    expect(updateSessionHistory).not.toHaveBeenCalled();
+    expect(result.chatHistory).toBe(compactedHistory);
   });
 
   it("should handle compaction errors gracefully", async () => {
@@ -223,7 +274,7 @@ describe("handleAutoCompaction", () => {
     });
   });
 
-  it("should emit compaction lifecycle notices in headless agent mode", async () => {
+  it("emits one clear compaction lifecycle sequence in headless agent mode", async () => {
     const { compactChatHistory, shouldAutoCompact, getAutoCompactMessage } =
       await import("../compaction.js");
 
@@ -241,8 +292,15 @@ describe("handleAutoCompaction", () => {
     const mockedCompactChatHistory = compactChatHistory as any;
     mockedCompactChatHistory.mockResolvedValue(mockCompactionResult);
 
+    const noticeSequence: string[] = [];
     const mockCallbacks = {
       onSystemMessage: vi.fn(),
+      onCompactionStart: vi.fn((message: string) =>
+        noticeSequence.push(`start:${message}`),
+      ),
+      onCompactionComplete: vi.fn((message: string) =>
+        noticeSequence.push(`complete:${message}`),
+      ),
     };
 
     await handleAutoCompaction(mockChatHistory, mockModel, mockLlmApi, {
@@ -250,12 +308,13 @@ describe("handleAutoCompaction", () => {
       callbacks: mockCallbacks,
     });
 
-    expect(mockCallbacks.onSystemMessage).toHaveBeenCalledWith(
-      "Auto-compacting...",
-    );
-    expect(mockCallbacks.onSystemMessage).toHaveBeenCalledWith(
-      "Chat history auto-compacted successfully.",
-    );
+    expect(noticeSequence).toEqual([
+      "start:Auto-compacting...",
+      "complete:Chat history auto-compacted successfully.",
+    ]);
+    expect(mockCallbacks.onCompactionStart).toHaveBeenCalledTimes(1);
+    expect(mockCallbacks.onCompactionComplete).toHaveBeenCalledTimes(1);
+    expect(mockCallbacks.onSystemMessage).not.toHaveBeenCalled();
   });
 
   it("should force compaction when provider token accounting disagrees", async () => {

@@ -4,10 +4,14 @@ import {
   type AgentRun,
 } from "@qivryn/agent-runtime";
 import { describe, expect, it } from "vitest";
+
 import {
+  agentSessionIdForRun,
   buildAgentChatArgs,
   executionImageNamesForAgentRun,
 } from "./agentProcessArgs.js";
+
+const RUN_SESSION_ID = agentSessionIdForRun("run-1");
 
 function run(overrides: Partial<AgentRun> = {}): AgentRun {
   return {
@@ -48,6 +52,8 @@ describe("buildAgentChatArgs", () => {
     expect(args).toEqual([
       "Describe the attached image",
       "--print",
+      "--session-id",
+      RUN_SESSION_ID,
       "--beta-subagent-tool",
       "--image",
       "/tmp/screen shot.png",
@@ -88,10 +94,43 @@ describe("buildAgentChatArgs", () => {
     ).toEqual([
       "Describe the attached image",
       "--print",
+      "--session-id",
+      RUN_SESSION_ID,
       "--beta-subagent-tool",
       "--readonly",
       "--model",
       "model",
     ]);
+  });
+
+  it("keeps managed ask-mode tools available for interactive approval", () => {
+    expect(buildAgentChatArgs(run({ permissionMode: "ask" }))).toEqual([
+      "Describe the attached image",
+      "--print",
+      "--session-id",
+      RUN_SESSION_ID,
+      "--beta-subagent-tool",
+      "--ask",
+      "*",
+    ]);
+  });
+
+  it("keeps one isolated session ID across prompts for the same run", () => {
+    const initialArgs = buildAgentChatArgs(
+      run({ id: "run-a", prompt: "Initial task" }),
+    );
+    const followUpArgs = buildAgentChatArgs(
+      run({ id: "run-a", prompt: "Follow-up task" }),
+    );
+    const otherRunArgs = buildAgentChatArgs(
+      run({ id: "run-b", prompt: "Other task" }),
+    );
+    const sessionId = (args: string[]) =>
+      args[args.indexOf("--session-id") + 1];
+
+    expect(initialArgs[0]).toBe("Initial task");
+    expect(followUpArgs[0]).toBe("Follow-up task");
+    expect(sessionId(initialArgs)).toBe(sessionId(followUpArgs));
+    expect(sessionId(otherRunArgs)).not.toBe(sessionId(initialArgs));
   });
 });

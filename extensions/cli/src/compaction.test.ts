@@ -473,6 +473,7 @@ describe("compaction", () => {
 
     it("should correctly construct prompt for compaction", async () => {
       const mockStreamResponse = vi.mocked(streamChatResponse);
+      mockStreamResponse.mockClear();
       let capturedHistory: ChatHistoryItem[] = [];
 
       mockStreamResponse.mockImplementation(
@@ -489,15 +490,24 @@ describe("compaction", () => {
         { role: "user", content: "Hello" },
         { role: "assistant", content: "Hi" },
       ]);
+      const originalHistory = structuredClone(history);
 
       await compactChatHistory(history, mockModel, mockLlmApi);
 
-      // Should have original history plus the compaction prompt
+      // The isolated request replaces the runtime system message with a
+      // summarization-only system message and leaves caller history untouched.
       expect(capturedHistory).toHaveLength(4);
+      expect(capturedHistory[0].message).toEqual({
+        role: "system",
+        content: expect.stringContaining("Summarize the supplied conversation"),
+      });
       expect(capturedHistory[3].message).toEqual({
         role: "user",
         content: expect.stringContaining("provide a concise summary"),
       });
+      expect(history).toEqual(originalHistory);
+      expect(mockStreamResponse).toHaveBeenCalledTimes(1);
+      expect(mockStreamResponse.mock.calls[0][5]).toBe(true);
     });
 
     it("should handle history with tool calls and mixed message types", async () => {

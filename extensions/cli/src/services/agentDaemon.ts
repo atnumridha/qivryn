@@ -17,6 +17,7 @@ import {
   readAgentDaemonDescriptor as readSharedAgentDaemonDescriptor,
   startAgentAutomationScheduler,
   type AgentDaemonDescriptor,
+  type DockerPrivilegedAuthority,
   type AgentWorkspaceProvider,
 } from "@qivryn/agent-runtime";
 import { spawn } from "node:child_process";
@@ -49,6 +50,19 @@ function cliEnv(extra: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
     ...(process.versions.electron ? { ELECTRON_RUN_AS_NODE: "1" } : {}),
     ...extra,
   };
+}
+
+export function dockerPrivilegedAuthorityFromEnv(
+  processEnv: NodeJS.ProcessEnv,
+): DockerPrivilegedAuthority | undefined {
+  const value = processEnv.QIVRYN_ALLOW_PRIVILEGED_CONTAINERS;
+  if (
+    !value ||
+    !["1", "true", "yes", "on"].includes(value.trim().toLowerCase())
+  ) {
+    return undefined;
+  }
+  return { source: "admin-config", approved: true };
 }
 
 export async function readAgentDaemonDescriptor(): Promise<
@@ -114,6 +128,7 @@ export async function ensureAgentDaemon(): Promise<HttpAgentRuntimeClient> {
 export async function runAgentDaemon(): Promise<void> {
   const token = process.env.QIVRYN_AGENT_DAEMON_TOKEN;
   if (!token) throw new Error("Agent daemon token is missing");
+  const privilegedAuthority = dockerPrivilegedAuthorityFromEnv(process.env);
   const store = new FileAgentStore(agentRoot);
   const attributionStore = new FileAttributionStore(
     path.join(env.qivrynHome, "attributions"),
@@ -150,6 +165,9 @@ export async function runAgentDaemon(): Promise<void> {
     hooks,
     stdoutEventKind: "message.assistant",
     stdoutProtocol: "qivryn-agent-events",
+    // Run status is durable and polled by clients. Persisting heartbeat events
+    // bloats long conversations without adding useful state.
+    progressIntervalMs: 0,
     resolveProcess: (run) => {
       const localImagePaths = imagePathsForAgentRun(run);
       const imageNames = executionImageNamesForAgentRun(run);
@@ -176,9 +194,12 @@ export async function runAgentDaemon(): Promise<void> {
             })),
             network: container.network,
             privileged: container.privileged,
-            env: { QIVRYN_AGENT_EVENT_STREAM: "1" },
+            env: {
+              QIVRYN_AGENT_EVENT_STREAM: "1",
+              QIVRYN_AGENT_CONTROL_STREAM: "1",
+            },
           },
-          { allowPrivileged: container.privileged === true },
+          { privilegedAuthority },
         );
       }
       if (run.runtimeId === "ssh") {
@@ -204,7 +225,10 @@ export async function runAgentDaemon(): Promise<void> {
           port: ssh.port,
           identityFile: ssh.identityFile,
           args: buildAgentChatArgs(run, remoteImagePaths),
-          env: { QIVRYN_AGENT_EVENT_STREAM: "1" },
+          env: {
+            QIVRYN_AGENT_EVENT_STREAM: "1",
+            QIVRYN_AGENT_CONTROL_STREAM: "1",
+          },
         };
         const spec = buildSshRunSpec(run, options);
         return addSshAttachmentTransfers(
@@ -224,6 +248,7 @@ export async function runAgentDaemon(): Promise<void> {
         env: cliEnv({
           QIVRYN_AGENT_CHILD: "1",
           QIVRYN_AGENT_EVENT_STREAM: "1",
+          QIVRYN_AGENT_CONTROL_STREAM: "1",
         }),
         ...(run.permissionMode === "readOnly"
           ? {

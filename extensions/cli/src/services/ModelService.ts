@@ -2,8 +2,9 @@ import { AssistantUnrolled, ModelConfig } from "@qivryn/config-yaml";
 
 import { AuthConfig, getModelName } from "../auth/workos.js";
 import { createLlmApi, getLlmApi } from "../config.js";
-import { logger } from "../util/logger.js";
 import { loadPortableSubagents } from "../subagent/load-agents.js";
+import { createPortableSubagentState } from "../subagent/portable-model.js";
+import { logger } from "../util/logger.js";
 
 import { BaseService, ServiceWithDependencies } from "./BaseService.js";
 import { AgentFileServiceState, ModelServiceState } from "./types.js";
@@ -329,23 +330,10 @@ export class ModelService
 
     const portable = loadPortableSubagents()
       .filter((agent) => !configuredNames.has(agent.name))
-      .map((agent) => ({
-        llmApi: modelState.llmApi,
-        model: {
-          ...baseModel,
-          name: agent.name,
-          roles: ["subagent" as const],
-          chatOptions: {
-            ...baseModel.chatOptions,
-            baseSystemMessage: [agent.description, agent.prompt]
-              .filter(Boolean)
-              .join("\n\n"),
-          },
-          portableSubagent: agent,
-        } as ModelConfig,
-        assistant: modelState.assistant,
-        authConfig: modelState.authConfig,
-      }));
+      .flatMap((agent) => {
+        const state = createPortableSubagentState(agent, modelState);
+        return state ? [state] : [];
+      });
     return [...configured, ...portable];
   }
 }

@@ -12,6 +12,7 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import * as dotenv from "dotenv";
 import { linkCodexPlugin } from "../plugins/localPluginManager";
 import { getQivrynGlobalPath } from "../../util/paths";
 
@@ -509,6 +510,7 @@ async function loadCodexMcpServers(
 
 function mcpJsonEntry(
   server: CodexMcpListEntry,
+  referencedEnvironment: Record<string, string> = {},
 ): Record<string, unknown> | undefined {
   const transport = server.transport;
   if (!transport) return undefined;
@@ -518,7 +520,9 @@ function mcpJsonEntry(
       command: transport.command,
       ...(transport.args?.length ? { args: transport.args } : {}),
       ...(transport.cwd ? { cwd: transport.cwd } : {}),
-      ...(transport.env ? { env: transport.env } : {}),
+      ...(Object.keys(referencedEnvironment).length || transport.env
+        ? { env: { ...(transport.env ?? {}), ...referencedEnvironment } }
+        : {}),
     };
   }
   const headers = { ...(transport.http_headers ?? {}) };
@@ -535,6 +539,113 @@ function mcpJsonEntry(
     url: transport.url,
     ...(Object.keys(headers).length ? { headers } : {}),
   };
+}
+
+function serializeEnvironment(environment: Record<string, string>): string {
+  return `${Object.entries(environment)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, value]) => `${key}=${JSON.stringify(value)}`)
+    .join("\n")}\n`;
+}
+
+function looksLikeSecretEnvironmentKey(key: string): boolean {
+  return /(?:^|_)(?:TOKEN|SECRET|PASSWORD|PASS|API_KEY|ACCESS_KEY|PRIVATE_KEY|AUTHORIZATION|BEARER)(?:_|$)/i.test(
+    key,
+  );
+}
+
+function literalEnvironmentValue(value: string): boolean {
+  return !/^\$\{[A-Za-z_][A-Za-z0-9_]*\}$/.test(value);
+}
+
+function extractTransportSecretEnvironment(
+  servers: CodexMcpListEntry[],
+): Record<string, string> {
+  const environment: Record<string, string> = {};
+  for (const server of servers) {
+    if (server.transport?.type !== "stdio") continue;
+    for (const [key, value] of Object.entries(server.transport.env ?? {})) {
+      if (
+        !looksLikeSecretEnvironmentKey(key) ||
+        !literalEnvironmentValue(value)
+      ) {
+        continue;
+      }
+      environment[key] = value;
+    }
+  }
+  return environment;
+}
+
+async function syncCodexEnvironment(
+  codexHome: string,
+  qivrynHome: string,
+  additionalEnvironment: Record<string, string> = {},
+): Promise<Record<string, string>> {
+  const sourcePath = path.join(codexHome, ".env");
+  const source = (await exists(sourcePath))
+    ? dotenv.parse(await readFile(sourcePath, "utf8"))
+    : {};
+  const importedEnvironment = { ...additionalEnvironment, ...source };
+  if (!Object.keys(importedEnvironment).length) return {};
+  const targetPath = path.join(qivrynHome, ".env");
+  const existing = (await exists(targetPath))
+    ? dotenv.parse(await readFile(targetPath, "utf8"))
+    : {};
+  await mkdir(path.dirname(targetPath), { recursive: true });
+  const temporaryPath = `${targetPath}.${process.pid}.tmp`;
+  await writeFile(
+    temporaryPath,
+    serializeEnvironment({ ...existing, ...importedEnvironment }),
+    { mode: 0o600 },
+  );
+  await rename(temporaryPath, targetPath);
+  return importedEnvironment;
+}
+
+const MCP_SCRIPT_EXTENSIONS = new Set([
+  ".cjs",
+  ".js",
+  ".mjs",
+  ".py",
+  ".sh",
+  ".ts",
+]);
+
+async function referencedMcpEnvironment(
+  server: CodexMcpListEntry,
+  codexHome: string,
+  environment: Record<string, string>,
+): Promise<Record<string, string>> {
+  if (server.transport?.type !== "stdio") return {};
+  const transport = server.transport;
+  const sourceParts = [
+    transport.command,
+    ...(transport.args ?? []),
+    ...Object.values(transport.env ?? {}),
+  ];
+  let searchable = sourceParts.join("\n");
+  for (const candidate of [transport.command, ...(transport.args ?? [])]) {
+    const filepath = path.isAbsolute(candidate)
+      ? candidate
+      : path.resolve(transport.cwd ?? codexHome, candidate);
+    if (!MCP_SCRIPT_EXTENSIONS.has(path.extname(filepath).toLowerCase())) {
+      continue;
+    }
+    try {
+      const fileStat = await stat(filepath);
+      if (!fileStat.isFile() || fileStat.size > 2 * 1024 * 1024) continue;
+      searchable += `\n${await readFile(filepath, "utf8")}`;
+    } catch {
+      // Commands may resolve from PATH; only inspect readable local scripts.
+    }
+  }
+  const transportEnvironment = transport.env ?? {};
+  return Object.fromEntries(
+    Object.keys(environment)
+      .filter((key) => key in transportEnvironment || searchable.includes(key))
+      .map((key) => [key, `\${${key}}`]),
+  );
 }
 
 async function scanHookItems(codexHome: string): Promise<CodexImportItem[]> {
@@ -747,16 +858,36 @@ export async function applyCodexImport(
     try {
       const servers = await loadCodexMcpServers({ ...options, codexHome });
       const managed = inventoryItemsByKind(inventory, "mcp");
+      const enabledServers = servers.filter(
+        (server) =>
+          (managed.get(server.name)?.enabled ?? server.enabled) !== false,
+      );
+      const codexEnvironment = await syncCodexEnvironment(
+        codexHome,
+        qivrynHome,
+        extractTransportSecretEnvironment(enabledServers),
+      );
+      const entries = await Promise.all(
+        enabledServers.map(
+          async (server) =>
+            [
+              server.name,
+              mcpJsonEntry(
+                server,
+                await referencedMcpEnvironment(
+                  server,
+                  codexHome,
+                  codexEnvironment,
+                ),
+              ),
+            ] as const,
+        ),
+      );
       const mcpServers = Object.fromEntries(
-        servers
-          .filter(
-            (server) =>
-              (managed.get(server.name)?.enabled ?? server.enabled) !== false,
-          )
-          .map((server) => [server.name, mcpJsonEntry(server)])
-          .filter((entry): entry is [string, Record<string, unknown>] =>
+        entries.filter(
+          (entry): entry is readonly [string, Record<string, unknown>] =>
             Boolean(entry[1]),
-          ),
+        ),
       );
       await writeJsonAtomic(
         path.join(qivrynHome, "mcpServers", "codex-import.json"),
@@ -844,13 +975,13 @@ export async function applyCodexImport(
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         },
         model: automation.model,
+        reasoningEffort: automation.reasoningEffort,
         permissionMode: "autonomous",
         runtimeId: "local",
         createdAt,
         updatedAt,
         metadata: {
           source: "codex",
-          reasoningEffort: automation.reasoningEffort,
           sourcePath: automation.sourcePath,
         },
       };

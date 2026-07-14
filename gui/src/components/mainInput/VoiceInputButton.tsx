@@ -10,6 +10,7 @@ import { useMainEditor } from "./TipTapEditor";
 
 const RECORDING_LIMIT_MS = 5 * 60 * 1_000;
 const MIN_RECORDING_MS = 500;
+const BROWSER_CAPTURE_TIMEOUT_MS = 6_000;
 const AUDIO_MIME_TYPES = [
   "audio/webm;codecs=opus",
   "audio/webm",
@@ -24,6 +25,16 @@ type VoiceStatus =
   | "processing"
   | "reviewing"
   | "error";
+
+interface VoiceInputButtonProps {
+  disabled?: boolean;
+  onInsert?: (text: string) => void;
+}
+
+interface RecordedAudio {
+  audioBase64: string;
+  mimeType: string;
+}
 
 export function normalizeVoiceTranscript(value: string): string {
   return value.replace(/\s+/g, " ").trim();
@@ -66,17 +77,32 @@ function microphoneSettingsUri(): string | undefined {
 function microphoneError(error: unknown): string {
   const name = error instanceof Error ? error.name : "";
   if (name === "NotAllowedError" || name === "SecurityError") {
-    return "The embedded VS Code webview could not open the microphone.";
+    return "Microphone access was denied by VS Code or the operating system.";
   }
   if (name === "NotFoundError") {
     return "No microphone was found. Connect an input device and retry.";
   }
   if (name === "AbortError")
     return "Voice input was interrupted. Please retry.";
-  return error instanceof Error ? error.message : String(error);
+  const message = error instanceof Error ? error.message : String(error);
+  if (/Voice transcription returned no text/i.test(message)) {
+    return "No speech was detected in the recording. Try again with a longer, clearer prompt.";
+  }
+  return message;
 }
 
-export function VoiceInputButton() {
+function isVsCodeWebview(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    (typeof (window as any).acquireVsCodeApi === "function" ||
+      Boolean((window as any).vscode))
+  );
+}
+
+export function VoiceInputButton({
+  disabled = false,
+  onInsert,
+}: VoiceInputButtonProps = {}) {
   const { mainEditor } = useMainEditor();
   const ideMessenger = useContext(IdeMessengerContext);
   const recorderRef = useRef<MediaRecorder>();
@@ -87,7 +113,8 @@ export function VoiceInputButton() {
   const hostCaptureRef = useRef<string>();
   const recordingStartedAtRef = useRef<number>();
   const discardRef = useRef(false);
-  const [supported, setSupported] = useState(false);
+  const operationRef = useRef(0);
+  const recordedAudioRef = useRef<RecordedAudio>();
   const [status, setStatus] = useState<VoiceStatus>("idle");
   const [transcript, setTranscript] = useState("");
   const [error, setError] = useState<string>();
@@ -102,40 +129,43 @@ export function VoiceInputButton() {
   };
 
   const reset = () => {
+    operationRef.current += 1;
     abortRef.current?.abort();
     abortRef.current = undefined;
-    cleanupStream();
+    const recorder = recorderRef.current;
     recorderRef.current = undefined;
+    discardRef.current = true;
+    if (recorder && recorder.state !== "inactive") recorder.stop();
+    cleanupStream();
     recordingStartedAtRef.current = undefined;
     chunksRef.current = [];
     discardRef.current = false;
+    recordedAudioRef.current = undefined;
     setStatus("idle");
     setTranscript("");
     setError(undefined);
   };
 
   useEffect(() => {
-    setSupported(
-      typeof MediaRecorder !== "undefined" &&
-        Boolean(navigator.mediaDevices?.getUserMedia),
-    );
     return () => {
-      discardRef.current = true;
-      abortRef.current?.abort();
-      const recorder = recorderRef.current;
-      if (recorder && recorder.state !== "inactive") recorder.stop();
-      cleanupStream();
       if (hostCaptureRef.current) {
         ideMessenger.post("voice/captureCancel", {
           captureId: hostCaptureRef.current,
         });
       }
+      reset();
     };
+    // reset intentionally owns the mutable capture refs used during teardown.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ideMessenger]);
 
-  if (!supported) return null;
-
-  const transcribeAudio = async (audioBase64: string, mimeType: string) => {
+  const transcribeAudio = async (
+    audioBase64: string,
+    mimeType: string,
+    operation = operationRef.current,
+  ) => {
+    recordedAudioRef.current = { audioBase64, mimeType };
+    if (operation !== operationRef.current) return;
     setStatus("processing");
     const controller = new AbortController();
     const requestId = crypto.randomUUID();
@@ -152,12 +182,18 @@ export function VoiceInputButton() {
         language: navigator.language || "en-US",
         requestId,
       });
-      if (controller.signal.aborted) return;
+      if (controller.signal.aborted || operation !== operationRef.current)
+        return;
       if (response.status === "error") throw new Error(response.error);
-      setTranscript(normalizeVoiceTranscript(response.content.text));
+      const nextTranscript = normalizeVoiceTranscript(response.content.text);
+      if (!nextTranscript) {
+        throw new Error("Voice transcription returned no text.");
+      }
+      setTranscript(nextTranscript);
       setStatus("reviewing");
     } catch (cause) {
-      if (controller.signal.aborted) return;
+      if (controller.signal.aborted || operation !== operationRef.current)
+        return;
       setError(microphoneError(cause));
       setStatus("error");
     } finally {
@@ -165,9 +201,10 @@ export function VoiceInputButton() {
     }
   };
 
-  const finishRecording = async (mimeType: string) => {
+  const finishRecording = async (mimeType: string, operation: number) => {
     cleanupStream();
     recorderRef.current = undefined;
+    if (operation !== operationRef.current) return;
     if (discardRef.current) {
       reset();
       return;
@@ -180,16 +217,80 @@ export function VoiceInputButton() {
       setStatus("error");
       return;
     }
-    await transcribeAudio(await blobToBase64(blob), mimeType);
+    await transcribeAudio(await blobToBase64(blob), mimeType, operation);
+  };
+
+  const startHostCapture = async (operation: number): Promise<boolean> => {
+    const fallback = await ideMessenger.request(
+      "voice/captureStart",
+      undefined,
+    );
+    if (operation !== operationRef.current) {
+      if (fallback.status === "success") {
+        ideMessenger.post("voice/captureCancel", {
+          captureId: fallback.content.captureId,
+        });
+      }
+      return true;
+    }
+    if (fallback.status !== "success") {
+      throw new Error(fallback.error);
+    }
+
+    hostCaptureRef.current = fallback.content.captureId;
+    recordingStartedAtRef.current = Date.now();
+    timeoutRef.current = setTimeout(() => void stop(), RECORDING_LIMIT_MS);
+    setStatus("recording");
+    return true;
+  };
+
+  const getUserMediaWithTimeout = async (
+    constraints: MediaStreamConstraints,
+  ): Promise<MediaStream> => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(
+        () => reject(new Error("Browser microphone capture timed out.")),
+        BROWSER_CAPTURE_TIMEOUT_MS,
+      );
+    });
+    try {
+      return await Promise.race([
+        navigator.mediaDevices.getUserMedia(constraints),
+        timeout,
+      ]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   };
 
   const start = async (selectedDeviceId = deviceId) => {
+    const operation = operationRef.current + 1;
+    operationRef.current = operation;
+    abortRef.current?.abort();
     setError(undefined);
     setTranscript("");
+    recordedAudioRef.current = undefined;
     setStatus("requesting_permission");
     discardRef.current = false;
+    let nativeCaptureError: unknown;
+    if (isVsCodeWebview()) {
+      try {
+        if (await startHostCapture(operation)) {
+          return;
+        }
+      } catch (cause) {
+        nativeCaptureError = cause;
+      }
+    }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
+      if (
+        typeof MediaRecorder === "undefined" ||
+        !navigator.mediaDevices?.getUserMedia
+      ) {
+        throw new Error("Browser microphone capture is unavailable.");
+      }
+      const stream = await getUserMediaWithTimeout({
         audio: {
           ...(selectedDeviceId
             ? { deviceId: { exact: selectedDeviceId } }
@@ -199,6 +300,10 @@ export function VoiceInputButton() {
           autoGainControl: true,
         },
       });
+      if (operation !== operationRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
       streamRef.current = stream;
       const available = (
         await navigator.mediaDevices.enumerateDevices()
@@ -221,6 +326,7 @@ export function VoiceInputButton() {
       recorder.onstop = () =>
         void finishRecording(
           recorder.mimeType || chunksRef.current[0]?.type || "audio/webm",
+          operation,
         );
       recorder.start(1_000);
       recordingStartedAtRef.current = Date.now();
@@ -228,25 +334,33 @@ export function VoiceInputButton() {
       setStatus("recording");
     } catch (cause) {
       cleanupStream();
-      const fallback = await ideMessenger.request(
-        "voice/captureStart",
-        undefined,
-      );
-      if (fallback.status === "success") {
-        hostCaptureRef.current = fallback.content.captureId;
-        recordingStartedAtRef.current = Date.now();
-        timeoutRef.current = setTimeout(() => void stop(), RECORDING_LIMIT_MS);
-        setStatus("recording");
+      if (operation !== operationRef.current) return;
+      try {
+        if (nativeCaptureError === undefined) {
+          await startHostCapture(operation);
+          return;
+        }
+        setError(
+          `${microphoneError(nativeCaptureError)} Browser recorder fallback failed: ${microphoneError(cause)}`,
+        );
+        setStatus("error");
+      } catch (fallbackCause) {
+        if (operation !== operationRef.current) return;
+        const fallbackMessage =
+          fallbackCause instanceof Error
+            ? fallbackCause.message
+            : String(fallbackCause);
+        setError(
+          `${microphoneError(cause)} Native recorder fallback failed: ${fallbackMessage}`,
+        );
+        setStatus("error");
         return;
       }
-      setError(
-        `${microphoneError(cause)} Native recorder fallback failed: ${fallback.error}`,
-      );
-      setStatus("error");
     }
   };
 
   const stop = async () => {
+    const operation = operationRef.current;
     const recordingWasTooShort =
       recordingStartedAtRef.current !== undefined &&
       Date.now() - recordingStartedAtRef.current < MIN_RECORDING_MS;
@@ -265,6 +379,7 @@ export function VoiceInputButton() {
       const response = await ideMessenger.request("voice/captureStop", {
         captureId: hostCaptureId,
       });
+      if (operation !== operationRef.current) return;
       if (response.status === "error") {
         setError(response.error);
         setStatus("error");
@@ -273,6 +388,7 @@ export function VoiceInputButton() {
       await transcribeAudio(
         response.content.audioBase64,
         response.content.mimeType,
+        operation,
       );
       return;
     }
@@ -284,9 +400,6 @@ export function VoiceInputButton() {
   };
 
   const cancel = () => {
-    discardRef.current = true;
-    abortRef.current?.abort();
-    const recorder = recorderRef.current;
     const hostCaptureId = hostCaptureRef.current;
     hostCaptureRef.current = undefined;
     if (hostCaptureId) {
@@ -294,15 +407,45 @@ export function VoiceInputButton() {
         captureId: hostCaptureId,
       });
     }
-    if (recorder && recorder.state !== "inactive") recorder.stop();
-    else reset();
+    reset();
   };
+
+  useEffect(() => {
+    const handleVoiceCommand = (event: MessageEvent) => {
+      if (event.data?.type !== "qivryn.voice.toggle") return;
+      if (disabled && status === "idle") return;
+      if (status === "recording") {
+        void stop();
+      } else if (status === "idle" || status === "error") {
+        void start();
+      } else {
+        cancel();
+      }
+    };
+    window.addEventListener("message", handleVoiceCommand);
+    return () => window.removeEventListener("message", handleVoiceCommand);
+  });
 
   const accept = () => {
     const text = normalizeVoiceTranscript(transcript);
-    if (text && mainEditor)
-      mainEditor.chain().focus().insertContent(text).run();
+    if (text) {
+      if (onInsert) onInsert(text);
+      else if (mainEditor) mainEditor.chain().focus().insertContent(text).run();
+    }
     reset();
+  };
+
+  const retry = () => {
+    const recordedAudio = recordedAudioRef.current;
+    if (!recordedAudio) return;
+    const operation = operationRef.current + 1;
+    operationRef.current = operation;
+    setError(undefined);
+    void transcribeAudio(
+      recordedAudio.audioBase64,
+      recordedAudio.mimeType,
+      operation,
+    );
   };
 
   const switchDevice = async (nextDeviceId: string) => {
@@ -337,7 +480,8 @@ export function VoiceInputButton() {
           else if (busy) cancel();
           else void start();
         }}
-        className={`hover:bg-list-hover flex h-6 w-6 items-center justify-center rounded border-none bg-transparent ${status === "recording" ? "text-error" : "text-description"}`}
+        disabled={disabled && status === "idle"}
+        className={`qivryn-voice-input-button hover:bg-list-hover flex h-7 w-7 items-center justify-center rounded-full border-none bg-transparent disabled:cursor-not-allowed disabled:opacity-50 ${status === "recording" ? "text-error" : "text-description"}`}
       >
         {status === "recording" ? (
           <StopIcon className="h-3.5 w-3.5" />
@@ -389,7 +533,9 @@ export function VoiceInputButton() {
                 {error}
               </div>
               {microphoneSettingsUri() &&
-                error?.includes("privacy settings") && (
+                /microphone.*(?:access|permission)|denied/i.test(
+                  error ?? "",
+                ) && (
                   <button
                     type="button"
                     className="text-link text-2xs mt-1 border-none bg-transparent p-0 underline"
@@ -400,6 +546,15 @@ export function VoiceInputButton() {
                     Open microphone settings
                   </button>
                 )}
+              {recordedAudioRef.current && (
+                <button
+                  type="button"
+                  className="hover:bg-list-hover text-2xs mt-2 rounded border-none bg-transparent px-2 py-1"
+                  onClick={retry}
+                >
+                  Retry transcription
+                </button>
+              )}
             </div>
           ) : status === "reviewing" ? (
             <>

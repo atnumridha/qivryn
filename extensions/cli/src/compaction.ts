@@ -37,6 +37,7 @@ export interface CompactionOptions {
   callbacks?: CompactionCallbacks;
   abortController?: AbortController;
   systemMessageTokens?: number;
+  tools?: ChatCompletionTool[];
 }
 
 const LOCAL_COMPACTION_MAX_CHARS = 24_000;
@@ -115,7 +116,8 @@ export function createLocalCompactionFallback(
 const COMPACTION_PROMPT =
   "Please provide a concise summary of our conversation so far, capturing the key context, decisions made, and current state. Format this as a single comprehensive message that preserves all important information needed to continue our work. You do not need to recap the system message, as this will remain. Make sure it is clear what the current stream of work was at the very end prior to compaction so that you can continue exactly where you left off without missing any information.";
 
-const COMPACTION_PROMPT_TOKENS = 150; // rough generous token count of ^
+const COMPACTION_SYSTEM_MESSAGE =
+  "Summarize the supplied conversation for later continuation. Return only the requested summary. Do not call tools or continue the task.";
 
 /**
  * Compacts a chat history into a summarized form
@@ -131,7 +133,12 @@ export async function compactChatHistory(
   llmApi: BaseLlmApi,
   options?: CompactionOptions,
 ): Promise<CompactionResult> {
-  const { callbacks, abortController, systemMessageTokens = 0 } = options || {};
+  const {
+    callbacks,
+    abortController,
+    systemMessageTokens = 0,
+    tools = [],
+  } = options || {};
   const compactionModel: ModelConfig = {
     ...model,
     defaultCompletionOptions: {
@@ -142,6 +149,17 @@ export async function compactChatHistory(
       ),
     },
   };
+  const preservedSystemHistory = chatHistory.filter(
+    (item) => item.message.role === "system",
+  );
+  const compactionSystemMessage: ChatHistoryItem = {
+    message: {
+      role: "system",
+      content: COMPACTION_SYSTEM_MESSAGE,
+    },
+    contextItems: [],
+  };
+
   // Create a prompt to summarize the conversation
   const compactionPrompt: ChatHistoryItem = {
     message: {
@@ -152,27 +170,26 @@ export async function compactChatHistory(
   };
 
   // Check if the history with compaction prompt is too long, prune if necessary
-  let historyToUse = chatHistory;
-  let historyForCompaction = [...historyToUse, compactionPrompt];
+  let historyToUse = chatHistory.filter(
+    (item) => item.message.role !== "system",
+  );
+  let historyForCompaction = [
+    compactionSystemMessage,
+    ...historyToUse,
+    compactionPrompt,
+  ];
 
   const contextLimit = getModelContextLimit(compactionModel);
   const maxTokens = getModelMaxTokens(compactionModel);
-
-  // Check if system message is already in the history to avoid double-counting
-  const hasSystemMessageInHistory = chatHistory.some(
-    (item) => item.message.role === "system",
+  const preservedSystemTokens = countChatHistoryTokens(
+    preservedSystemHistory,
+    compactionModel,
   );
+  const toolDefinitionTokens = countToolDefinitionTokens(tools);
+  const reservedRuntimeOverhead =
+    preservedSystemTokens + systemMessageTokens + toolDefinitionTokens;
 
-  // Account for system message (if not already in history) AND compaction prompt
-  const systemMessageReservation = hasSystemMessageInHistory
-    ? 0
-    : systemMessageTokens;
-
-  const availableForInput =
-    contextLimit -
-    maxTokens -
-    systemMessageReservation -
-    COMPACTION_PROMPT_TOKENS;
+  const availableForInput = contextLimit - maxTokens - reservedRuntimeOverhead;
 
   // Check if we need to prune to fit within context
   while (
@@ -183,6 +200,9 @@ export async function compactChatHistory(
     logger.debug("Compaction history too long, pruning last message", {
       tokenCount: countChatHistoryTokens(historyForCompaction, compactionModel),
       availableForInput,
+      preservedSystemTokens,
+      systemMessageTokens,
+      toolDefinitionTokens,
       historyLength: historyToUse.length,
     });
     const prunedHistory = pruneLastMessage(historyToUse);
@@ -196,16 +216,18 @@ export async function compactChatHistory(
     }
 
     historyToUse = prunedHistory;
-    historyForCompaction = [...historyToUse, compactionPrompt];
+    historyForCompaction = [
+      compactionSystemMessage,
+      ...historyToUse,
+      compactionPrompt,
+    ];
   }
 
   // Stream the compaction response (service drives updates; this collects content locally)
   const controller = abortController || new AbortController();
 
-  let compactionContent = "";
   const streamCallbacks: StreamCallbacks = {
     onContent: (content: string) => {
-      compactionContent += content;
       callbacks?.onStreamContent?.(content);
     },
     onContentComplete: () => {
@@ -214,7 +236,7 @@ export async function compactChatHistory(
   };
 
   try {
-    await streamChatResponse(
+    const compactionContent = await streamChatResponse(
       historyForCompaction,
       compactionModel,
       llmApi,

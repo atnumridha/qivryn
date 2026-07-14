@@ -178,6 +178,10 @@ function evaluateTokens(
   basePolicy: ToolPolicy,
   originalCommand: string,
 ): ToolPolicy {
+  if (tokens.some(isRedirectOperator)) {
+    return "disabled";
+  }
+
   let mostRestrictivePolicy = basePolicy;
   let currentCommand: string[] = [];
 
@@ -271,6 +275,12 @@ function evaluateTokens(
   }
 
   return mostRestrictivePolicy;
+}
+
+function isRedirectOperator(token: ParsedToken): boolean {
+  return (
+    isOperator(token) && (token.op.includes(">") || token.op.includes("<"))
+  );
 }
 
 /**
@@ -371,6 +381,10 @@ function evaluateSingleCommand(
   const baseCommand = commandTokens[0].toLowerCase();
   const args = commandTokens.slice(1);
 
+  if (hasFailClosedWriteConstruct(baseCommand, args)) {
+    return "disabled";
+  }
+
   // Check for critical commands that should always be disabled
   if (isCriticalCommand(baseCommand, args)) {
     return "disabled";
@@ -394,6 +408,39 @@ function evaluateSingleCommand(
 
   // Default: unknown commands require permission
   return "allowedWithPermission";
+}
+
+function hasFailClosedWriteConstruct(
+  baseCommand: string,
+  args: string[],
+): boolean {
+  if (
+    baseCommand === "git" &&
+    args.some(
+      (arg) =>
+        arg === "--output" ||
+        arg.startsWith("--output=") ||
+        arg === "--ext-diff" ||
+        arg === "--textconv",
+    )
+  ) {
+    return true;
+  }
+
+  if (
+    baseCommand === "rg" &&
+    args.some(
+      (arg) =>
+        arg === "--pre" ||
+        arg.startsWith("--pre=") ||
+        arg === "--hostname-bin" ||
+        arg.startsWith("--hostname-bin="),
+    )
+  ) {
+    return true;
+  }
+
+  return baseCommand === "grep" && args.includes("--exec");
 }
 
 /**
@@ -1036,7 +1083,17 @@ function isSafeCommand(baseCommand: string, args: string[]): boolean {
     );
   }
 
-  if (baseCommand === "grep" && !args.includes("--exec")) {
+  if (
+    (baseCommand === "grep" && !args.includes("--exec")) ||
+    (baseCommand === "rg" &&
+      !args.some(
+        (arg) =>
+          arg === "--pre" ||
+          arg.startsWith("--pre=") ||
+          arg === "--hostname-bin" ||
+          arg.startsWith("--hostname-bin="),
+      ))
+  ) {
     return true;
   }
 

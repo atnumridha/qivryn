@@ -1,3 +1,6 @@
+import { createHash } from "node:crypto";
+import { fileURLToPath } from "node:url";
+
 import {
   AgentAttachmentKind,
   AgentImageMediaType,
@@ -5,7 +8,11 @@ import {
   type AgentRun,
   validateAgentAttachments,
 } from "@qivryn/agent-runtime";
-import { fileURLToPath } from "node:url";
+
+export function agentSessionIdForRun(runId: string): string {
+  const digest = createHash("sha256").update(runId, "utf8").digest("hex");
+  return `qivryn-agent-${digest}`;
+}
 
 export function imagePathsForAgentRun(run: AgentRun): string[] {
   const attachments = run.attachments ?? [];
@@ -45,11 +52,18 @@ export function buildAgentChatArgs(
   const prompt = hookContext
     ? `${run.prompt}\n\n<system-reminder>\n${hookContext}\n</system-reminder>`
     : run.prompt;
-  const args = [prompt, "--print", "--beta-subagent-tool"];
+  const args = [
+    prompt,
+    "--print",
+    "--session-id",
+    agentSessionIdForRun(run.id),
+    "--beta-subagent-tool",
+  ];
   for (const imagePath of imagePaths) {
     args.push("--image", imagePath);
   }
   if (run.permissionMode === "readOnly") args.push("--readonly");
+  if (run.permissionMode === "ask") args.push("--ask", "*");
   if (run.permissionMode === "autonomous") args.push("--autonomous");
   if (run.permissionMode === "fullAccess") args.push("--auto");
   if (run.model) args.push("--model", run.model);

@@ -1,5 +1,12 @@
 import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
+import {
+  applyHostSandbox,
+  type HostSandboxMetadata,
+  type HostSandboxPolicy,
+  type HostSandboxResolver,
+} from "./hostSandbox.js";
+import type { AgentProcessCommand } from "./processExecutor.js";
 
 export type AgentHookEvent =
   | "agent.before"
@@ -30,12 +37,14 @@ export interface AgentHookDefinition {
     | "PreToolUse"
     | "PostToolUse";
   matcher?: string;
+  /** Allows reviewed hooks to run when a requested host sandbox is unavailable. */
+  trusted?: boolean;
 }
 
 export interface AgentHookResult {
   hookId: string;
   event: AgentHookEvent;
-  status: "completed" | "failed" | "timed-out";
+  status: "completed" | "failed" | "timed-out" | "skipped";
   exitCode?: number | null;
   stdout: string;
   stderr: string;
@@ -43,10 +52,124 @@ export interface AgentHookResult {
   additionalContext?: string;
   blocked?: boolean;
   blockReason?: string;
+  sandbox?: HostSandboxMetadata;
+  trustedUnsandboxed?: boolean;
 }
 
 export interface AgentHookExecutor {
   run(event: AgentHookEvent, payload: unknown): Promise<AgentHookResult[]>;
+}
+
+const AGENT_HOOK_EVENTS = new Set<string>([
+  "agent.before",
+  "agent.after",
+  "tool.before",
+  "tool.after",
+  "edit.before",
+  "edit.after",
+  "commit.before",
+  "commit.after",
+  "review.before",
+  "review.after",
+]);
+
+const CODEX_HOOK_EVENTS = new Set<string>([
+  "SessionStart",
+  "UserPromptSubmit",
+  "Stop",
+  "PreToolUse",
+  "PostToolUse",
+]);
+
+function validateHookDefinitions(value: unknown): AgentHookDefinition[] {
+  if (!Array.isArray(value))
+    throw new Error("Hook registry must return an array");
+  return value.map((candidate, index) => {
+    if (
+      !candidate ||
+      typeof candidate !== "object" ||
+      Array.isArray(candidate)
+    ) {
+      throw new Error(`Hook configuration entry ${index} must be an object`);
+    }
+    const hook = candidate as Record<string, unknown>;
+    if (typeof hook.id !== "string" || !hook.id.trim()) {
+      throw new Error(
+        `Hook configuration entry ${index}.id must be a non-empty string`,
+      );
+    }
+    if (typeof hook.event !== "string" || !AGENT_HOOK_EVENTS.has(hook.event)) {
+      throw new Error(`Hook configuration entry ${index}.event is invalid`);
+    }
+    if (typeof hook.command !== "string" || !hook.command.trim()) {
+      throw new Error(
+        `Hook configuration entry ${index}.command must be a non-empty string`,
+      );
+    }
+    if (
+      hook.args !== undefined &&
+      (!Array.isArray(hook.args) ||
+        hook.args.some((argument) => typeof argument !== "string"))
+    ) {
+      throw new Error(
+        `Hook configuration entry ${index}.args must be an array of strings`,
+      );
+    }
+    if (hook.cwd !== undefined && typeof hook.cwd !== "string") {
+      throw new Error(`Hook configuration entry ${index}.cwd must be a string`);
+    }
+    if (
+      hook.timeoutMs !== undefined &&
+      (typeof hook.timeoutMs !== "number" ||
+        !Number.isFinite(hook.timeoutMs) ||
+        hook.timeoutMs < 0)
+    ) {
+      throw new Error(
+        `Hook configuration entry ${index}.timeoutMs must be a non-negative number`,
+      );
+    }
+    if (
+      hook.failurePolicy !== undefined &&
+      hook.failurePolicy !== "warn" &&
+      hook.failurePolicy !== "error"
+    ) {
+      throw new Error(
+        `Hook configuration entry ${index}.failurePolicy is invalid`,
+      );
+    }
+    if (hook.enabled !== undefined && typeof hook.enabled !== "boolean") {
+      throw new Error(
+        `Hook configuration entry ${index}.enabled must be boolean`,
+      );
+    }
+    if (
+      hook.protocol !== undefined &&
+      hook.protocol !== "qivryn" &&
+      hook.protocol !== "codex"
+    ) {
+      throw new Error(`Hook configuration entry ${index}.protocol is invalid`);
+    }
+    if (
+      hook.sourceEvent !== undefined &&
+      (typeof hook.sourceEvent !== "string" ||
+        !CODEX_HOOK_EVENTS.has(hook.sourceEvent))
+    ) {
+      throw new Error(
+        `Hook configuration entry ${index}.sourceEvent is invalid`,
+      );
+    }
+    if (hook.matcher !== undefined && typeof hook.matcher !== "string") {
+      throw new Error(
+        `Hook configuration entry ${index}.matcher must be a string`,
+      );
+    }
+    if (hook.trusted !== undefined && typeof hook.trusted !== "boolean") {
+      throw new Error(
+        `Hook configuration entry ${index}.trusted must be boolean`,
+      );
+    }
+    return candidate as unknown as AgentHookDefinition;
+  });
 }
 
 export class AgentHookError extends Error {
@@ -63,15 +186,26 @@ export class FileAgentHookRegistry {
 
   async list(): Promise<AgentHookDefinition[]> {
     try {
-      const value = JSON.parse(await readFile(this.filepath, "utf8"));
-      if (Array.isArray(value)) return value as AgentHookDefinition[];
-      if (value && typeof value === "object" && "hooks" in value) {
-        return codexHookDefinitions(
-          (value as { hooks?: Record<string, unknown> }).hooks,
+      const value: unknown = JSON.parse(await readFile(this.filepath, "utf8"));
+      if (Array.isArray(value)) return validateHookDefinitions(value);
+      if (value && typeof value === "object") {
+        const eventMap =
+          "hooks" in value
+            ? (value as { hooks?: unknown }).hooks
+            : (value as Record<string, unknown>);
+        if (
+          !eventMap ||
+          typeof eventMap !== "object" ||
+          Array.isArray(eventMap)
+        ) {
+          throw new Error("Codex hooks must be an event-map object");
+        }
+        return validateHookDefinitions(
+          codexHookDefinitions(eventMap as Record<string, unknown>),
         );
       }
       throw new Error(
-        "Hook configuration must be an array or a Codex hooks object",
+        "Hook configuration must be an array, a Codex hooks object, or a Codex event map",
       );
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
@@ -84,15 +218,26 @@ function splitCommand(command: string): string[] {
   const parts: string[] = [];
   let current = "";
   let quote: "'" | '"' | undefined;
-  let escaped = false;
-  for (const character of command.trim()) {
-    if (escaped) {
-      current += character;
-      escaped = false;
-      continue;
-    }
+  const input = command.trim();
+  for (let index = 0; index < input.length; index++) {
+    const character = input[index];
     if (character === "\\" && quote !== "'") {
-      escaped = true;
+      const next = input[index + 1];
+      if (quote === '"') {
+        if (next === '"') {
+          current += next;
+          index++;
+        } else {
+          current += character;
+        }
+        continue;
+      }
+      if (next && (/\s/.test(next) || next === "'" || next === '"')) {
+        current += next;
+        index++;
+      } else {
+        current += character;
+      }
       continue;
     }
     if (quote) {
@@ -111,8 +256,7 @@ function splitCommand(command: string): string[] {
     }
     current += character;
   }
-  if (escaped || quote)
-    throw new Error(`Invalid hook command quoting: ${command}`);
+  if (quote) throw new Error(`Invalid hook command quoting: ${command}`);
   if (current) parts.push(current);
   return parts;
 }
@@ -128,29 +272,101 @@ function mappedEvent(sourceEvent: string): AgentHookEvent | undefined {
 }
 
 function codexHookDefinitions(
-  hooks: Record<string, unknown> | undefined,
+  hooks: Record<string, unknown>,
 ): AgentHookDefinition[] {
   const definitions: AgentHookDefinition[] = [];
-  for (const [sourceEvent, value] of Object.entries(hooks ?? {})) {
+  for (const [sourceEvent, value] of Object.entries(hooks)) {
     const event = mappedEvent(sourceEvent);
-    if (!event || !Array.isArray(value)) continue;
+    if (!event) continue;
+    if (!Array.isArray(value)) {
+      throw new Error(`Codex hook event ${sourceEvent} must be an array`);
+    }
     for (const [groupIndex, groupValue] of value.entries()) {
-      if (!groupValue || typeof groupValue !== "object") continue;
+      if (
+        !groupValue ||
+        typeof groupValue !== "object" ||
+        Array.isArray(groupValue)
+      ) {
+        throw new Error(
+          `Codex hook event ${sourceEvent}[${groupIndex}] must be an object`,
+        );
+      }
       const group = groupValue as {
-        matcher?: string;
-        hooks?: Array<{
-          type?: string;
-          command?: string;
-          timeout?: number;
-          enabled?: boolean;
-        }>;
+        matcher?: unknown;
+        hooks?: unknown;
       };
-      for (const [hookIndex, handler] of (group.hooks ?? []).entries()) {
-        if ((handler.type ?? "command") !== "command" || !handler.command) {
+      if (group.matcher !== undefined && typeof group.matcher !== "string") {
+        throw new Error(
+          `Codex hook event ${sourceEvent}[${groupIndex}].matcher must be a string`,
+        );
+      }
+      if (group.hooks !== undefined && !Array.isArray(group.hooks)) {
+        throw new Error(
+          `Codex hook event ${sourceEvent}[${groupIndex}].hooks must be an array`,
+        );
+      }
+      for (const [hookIndex, handlerValue] of (group.hooks ?? []).entries()) {
+        if (
+          !handlerValue ||
+          typeof handlerValue !== "object" ||
+          Array.isArray(handlerValue)
+        ) {
+          throw new Error(
+            `Codex hook event ${sourceEvent}[${groupIndex}].hooks[${hookIndex}] must be an object`,
+          );
+        }
+        const handler = handlerValue as {
+          type?: unknown;
+          command?: unknown;
+          timeout?: unknown;
+          enabled?: unknown;
+          trusted?: unknown;
+        };
+        if (handler.type !== undefined && typeof handler.type !== "string") {
+          throw new Error(
+            `Codex hook event ${sourceEvent}[${groupIndex}].hooks[${hookIndex}].type must be a string`,
+          );
+        }
+        if ((handler.type ?? "command") !== "command") {
           continue;
         }
+        if (typeof handler.command !== "string" || !handler.command.trim()) {
+          throw new Error(
+            `Codex hook event ${sourceEvent}[${groupIndex}].hooks[${hookIndex}].command must be a non-empty string`,
+          );
+        }
         const command = splitCommand(handler.command);
-        if (!command[0]) continue;
+        if (!command[0]) {
+          throw new Error(
+            `Codex hook event ${sourceEvent}[${groupIndex}].hooks[${hookIndex}].command must not be empty`,
+          );
+        }
+        if (
+          handler.timeout !== undefined &&
+          (typeof handler.timeout !== "number" ||
+            !Number.isFinite(handler.timeout) ||
+            handler.timeout < 0)
+        ) {
+          throw new Error(
+            `Codex hook event ${sourceEvent}[${groupIndex}].hooks[${hookIndex}].timeout must be a non-negative number`,
+          );
+        }
+        if (
+          handler.enabled !== undefined &&
+          typeof handler.enabled !== "boolean"
+        ) {
+          throw new Error(
+            `Codex hook event ${sourceEvent}[${groupIndex}].hooks[${hookIndex}].enabled must be boolean`,
+          );
+        }
+        if (
+          handler.trusted !== undefined &&
+          typeof handler.trusted !== "boolean"
+        ) {
+          throw new Error(
+            `Codex hook event ${sourceEvent}[${groupIndex}].hooks[${hookIndex}].trusted must be boolean`,
+          );
+        }
         definitions.push({
           id: `codex:${sourceEvent}:${groupIndex}:${hookIndex}`,
           event,
@@ -162,6 +378,7 @@ function codexHookDefinitions(
           protocol: "codex",
           sourceEvent: sourceEvent as AgentHookDefinition["sourceEvent"],
           matcher: group.matcher,
+          trusted: handler.trusted === true,
         });
       }
     }
@@ -173,6 +390,42 @@ function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object"
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function hostSandboxPolicyFromPayload(
+  payload: unknown,
+): HostSandboxPolicy | undefined {
+  const value = record(payload);
+  const run = record(value.run);
+  const spec = record(value.spec);
+  const configured = record(spec.hostSandbox);
+  if (
+    configured.filesystem === "read-only" &&
+    (configured.network === "allow" || configured.network === "deny")
+  ) {
+    return {
+      filesystem: configured.filesystem,
+      network: configured.network,
+      ...(typeof configured.required === "boolean"
+        ? { required: configured.required }
+        : {}),
+    };
+  }
+  if (run.permissionMode === "readOnly") {
+    return { filesystem: "read-only", network: "allow" };
+  }
+  return undefined;
+}
+
+function hookWorkingDirectory(payload: unknown): string | undefined {
+  const run = record(record(payload).run);
+  const workspace = record(run.workspace);
+  return (
+    (typeof workspace.worktreePath === "string" && workspace.worktreePath) ||
+    (typeof workspace.repositoryPath === "string" &&
+      workspace.repositoryPath) ||
+    undefined
+  );
 }
 
 function codexPayload(
@@ -219,38 +472,92 @@ function codexPayload(
 }
 
 function parseHookOutput(
+  hook: AgentHookDefinition,
   stdout: string,
+  stderr: string,
+  exitCode: number | null | undefined,
 ): Pick<AgentHookResult, "additionalContext" | "blocked" | "blockReason"> {
-  if (!stdout.trim()) return {};
+  let output:
+    | {
+        decision?: string;
+        reason?: string;
+        hookSpecificOutput?: {
+          additionalContext?: string;
+          hookEventName?: string;
+          permissionDecision?: string;
+          permissionDecisionReason?: string;
+        };
+      }
+    | undefined;
   try {
-    const output = JSON.parse(stdout) as {
-      decision?: string;
-      reason?: string;
-      hookSpecificOutput?: { additionalContext?: string };
-    };
-    return {
-      additionalContext: output.hookSpecificOutput?.additionalContext,
-      blocked: output.decision === "block",
-      blockReason: output.decision === "block" ? output.reason : undefined,
-    };
+    if (stdout.trim()) output = JSON.parse(stdout);
   } catch {
-    return {};
+    // Plain stdout remains available on the result for diagnostics.
   }
+  const specific = output?.hookSpecificOutput;
+  const deniedTool =
+    hook.protocol === "codex" &&
+    hook.sourceEvent === "PreToolUse" &&
+    specific?.hookEventName === "PreToolUse" &&
+    specific.permissionDecision === "deny";
+  const blockedByExit = hook.protocol === "codex" && exitCode === 2;
+  const blockedByDecision = output?.decision === "block";
+  const blocked = blockedByExit || blockedByDecision || deniedTool;
+  const blockReason = blockedByExit
+    ? stderr.trim() || output?.reason || "Blocked by hook"
+    : deniedTool
+      ? specific.permissionDecisionReason ||
+        output?.reason ||
+        stderr.trim() ||
+        "Blocked by hook"
+      : blockedByDecision
+        ? output?.reason || stderr.trim() || "Blocked by hook"
+        : undefined;
+  return {
+    additionalContext: specific?.additionalContext,
+    blocked,
+    blockReason,
+  };
+}
+
+export interface AgentHookRunnerOptions {
+  hostSandboxResolver?: HostSandboxResolver;
 }
 
 export class AgentHookRunner implements AgentHookExecutor {
-  constructor(private readonly hooks: () => Promise<AgentHookDefinition[]>) {}
+  constructor(
+    private readonly hooks: () => Promise<AgentHookDefinition[]>,
+    private readonly options: AgentHookRunnerOptions = {},
+  ) {}
 
   async run(
     event: AgentHookEvent,
     payload: unknown,
   ): Promise<AgentHookResult[]> {
-    const hooks = (await this.hooks()).filter(
-      (hook) => hook.event === event && hook.enabled !== false,
-    );
+    const configurationStartedAt = Date.now();
+    let hooks: AgentHookDefinition[];
+    try {
+      const configuredHooks = validateHookDefinitions(await this.hooks());
+      hooks = configuredHooks.filter(
+        (hook) => hook.event === event && hook.enabled !== false,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return [
+        {
+          hookId: "hook-configuration",
+          event,
+          status: "failed",
+          stdout: "",
+          stderr: `Hook configuration could not be loaded: ${message}`,
+          durationMs: Date.now() - configurationStartedAt,
+        },
+      ];
+    }
     const results: AgentHookResult[] = [];
+    const sandboxPolicy = hostSandboxPolicyFromPayload(payload);
     for (const hook of hooks) {
-      const result = await this.execute(hook, event, payload);
+      const result = await this.execute(hook, event, payload, sandboxPolicy);
       results.push(result);
       if (
         result.status !== "completed" &&
@@ -266,12 +573,49 @@ export class AgentHookRunner implements AgentHookExecutor {
     hook: AgentHookDefinition,
     event: AgentHookEvent,
     payload: unknown,
+    sandboxPolicy: HostSandboxPolicy | undefined,
   ): Promise<AgentHookResult> {
     const startedAt = Date.now();
+    const baseCommand: AgentProcessCommand = {
+      command: hook.command,
+      args: hook.args,
+      cwd: hook.cwd ?? hookWorkingDirectory(payload),
+      env: { ...process.env, QIVRYN_HOOK_EVENT: event },
+    };
+    const sandboxResolution = sandboxPolicy
+      ? (this.options.hostSandboxResolver ?? applyHostSandbox)(
+          baseCommand,
+          sandboxPolicy,
+        )
+      : undefined;
+    if (
+      sandboxResolution &&
+      !sandboxResolution.enforced &&
+      hook.trusted !== true
+    ) {
+      return Promise.resolve({
+        hookId: hook.id,
+        event,
+        status: "skipped",
+        stdout: "",
+        stderr:
+          "Read-only hook was not run because host sandbox enforcement is unavailable; set trusted=true only for a reviewed hook",
+        durationMs: Date.now() - startedAt,
+        sandbox: {
+          applied: sandboxResolution.applied,
+          enforced: sandboxResolution.enforced,
+          mechanism: sandboxResolution.mechanism,
+          ...(sandboxResolution.reason
+            ? { reason: sandboxResolution.reason }
+            : {}),
+        },
+      });
+    }
+    const command = sandboxResolution?.command ?? baseCommand;
     return new Promise((resolve) => {
-      const child = spawn(hook.command, hook.args ?? [], {
-        cwd: hook.cwd,
-        env: { ...process.env, QIVRYN_HOOK_EVENT: event },
+      const child = spawn(command.command, command.args ?? [], {
+        cwd: command.cwd,
+        env: command.env,
         shell: false,
         stdio: ["pipe", "pipe", "pipe"],
       });
@@ -287,7 +631,9 @@ export class AgentHookRunner implements AgentHookExecutor {
         settled = true;
         clearTimeout(timer);
         const parsedOutput =
-          status === "completed" ? parseHookOutput(stdout) : {};
+          exitCode !== undefined
+            ? parseHookOutput(hook, stdout, stderr, exitCode)
+            : {};
         resolve({
           hookId: hook.id,
           event,
@@ -296,6 +642,23 @@ export class AgentHookRunner implements AgentHookExecutor {
           stdout,
           stderr,
           durationMs: Date.now() - startedAt,
+          ...(sandboxResolution
+            ? {
+                sandbox: {
+                  applied: sandboxResolution.applied,
+                  enforced: sandboxResolution.enforced,
+                  mechanism: sandboxResolution.mechanism,
+                  ...(sandboxResolution.reason
+                    ? { reason: sandboxResolution.reason }
+                    : {}),
+                },
+              }
+            : {}),
+          ...(sandboxResolution &&
+          !sandboxResolution.enforced &&
+          hook.trusted === true
+            ? { trustedUnsandboxed: true }
+            : {}),
           ...parsedOutput,
         });
       };
