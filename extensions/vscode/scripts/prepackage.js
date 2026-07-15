@@ -214,6 +214,11 @@ const exe = os === "win32" ? ".exe" : "";
 const isWinTarget = target?.startsWith("win");
 const isLinuxTarget = target?.startsWith("linux");
 const isMacTarget = target?.startsWith("darwin");
+// Sharp 0.32 only retains the Node ABI suffix on its macOS prebuilds; Linux
+// and Windows prebuilds are named without it.
+const sharpBinaryName = isMacTarget
+  ? `sharp-${os}-${arch}v8.node`
+  : `sharp-${os}-${arch}.node`;
 
 void (async () => {
   const startTime = Date.now();
@@ -656,7 +661,7 @@ void (async () => {
     // out/node_modules (to be accessed by extension.js)
     `out/node_modules/@vscode/ripgrep/bin/rg${exe}`,
     "out/node_modules/sharp/package.json",
-    `out/node_modules/sharp/build/Release/sharp-${os}-${arch}v8.node`,
+    `out/node_modules/sharp/build/Release/${sharpBinaryName}`,
     `out/node_modules/@lancedb/vectordb-${target}${isWinTarget ? "-msvc" : ""}${isLinuxTarget ? "-gnu" : ""}/index.node`,
   ]);
 
