@@ -12,7 +12,7 @@ export function toAgentsWindowOpenArguments(
 
 export function toAgentsWebviewRoute(resource: Uri | undefined): string {
   const encodedRunId = resource?.path.replace(/^\/+/, "");
-  if (!encodedRunId) return "/";
+  if (!encodedRunId) return "/agents";
 
   let runId = encodedRunId;
   try {
@@ -20,5 +20,5 @@ export function toAgentsWebviewRoute(resource: Uri | undefined): string {
   } catch {
     // Preserve malformed legacy IDs and let the webview request them verbatim.
   }
-  return `/?agentRunId=${encodeURIComponent(runId)}`;
+  return `/agents?agentRunId=${encodeURIComponent(runId)}`;
 }

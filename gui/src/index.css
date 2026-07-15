@@ -3014,6 +3014,12 @@ body[data-qivryn-fullscreen="true"] .qivryn-chat-route,
 
 .qivryn-standalone-surface .qivryn-layout-content {
   height: calc(100% - 42px);
+  min-height: 0 !important;
+  overflow: hidden;
+}
+
+.qivryn-standalone-surface .qivryn-layout-grid {
+  height: 100% !important;
 }
 
 .qivryn-standalone-surface [aria-label="Start review"] > div,
@@ -3091,6 +3097,43 @@ body[data-qivryn-fullscreen="true"] .qivryn-chat-route,
 .qivryn-standalone-menu-actions svg {
   width: 15px;
   height: 15px;
+}
+
+/* A persistent, on-demand session navigator gives fullscreen chat the same
+ * quick thread switching as the reference workspace without permanently
+ * stealing width from the active transcript. */
+.qivryn-session-navigation {
+  position: absolute;
+  z-index: 30;
+  top: 42px;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  width: min(390px, 88vw);
+  min-width: 0;
+  overflow: hidden;
+  background: var(--vscode-sideBar-background, #181818);
+  border-right: 1px solid var(--vscode-panel-border, #3d3d3d);
+  box-shadow: 10px 0 28px rgba(0, 0, 0, 0.28);
+}
+
+.qivryn-session-navigation .qivryn-history-panel {
+  min-width: 0;
+  padding: 10px 12px 0;
+}
+
+.qivryn-session-navigation .qivryn-history-header,
+.qivryn-session-navigation .qivryn-history-search,
+.qivryn-session-navigation .qivryn-history-table,
+.qivryn-session-navigation .qivryn-history-loading-preview,
+.qivryn-session-navigation .qivryn-history-empty {
+  width: 100% !important;
+  max-width: none;
+  margin-inline: 0;
+}
+
+.qivryn-session-navigation .qivryn-history-group {
+  display: block;
 }
 
 .qivryn-standalone-surface .qivryn-history-header {

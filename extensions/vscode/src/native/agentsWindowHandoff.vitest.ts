@@ -15,14 +15,14 @@ describe("toAgentsWindowOpenArguments", () => {
     expect(toAgentsWindowOpenArguments(undefined)).toBeUndefined();
   });
 
-  it("routes the Qivryn toolbar to the unified composer", () => {
+  it("routes the Qivryn toolbar to the Agents workspace", () => {
     const resource = {
       path: "/run%20with%20spaces",
     } as never;
 
     expect(toAgentsWebviewRoute(resource)).toBe(
-      "/?agentRunId=run%20with%20spaces",
+      "/agents?agentRunId=run%20with%20spaces",
     );
-    expect(toAgentsWebviewRoute(undefined)).toBe("/");
+    expect(toAgentsWebviewRoute(undefined)).toBe("/agents");
   });
 });

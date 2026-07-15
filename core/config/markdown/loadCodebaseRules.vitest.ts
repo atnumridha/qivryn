@@ -29,6 +29,7 @@ describe("loadCodebaseRules", () => {
       path.join(home, ".codex", "rules"),
       path.join(home, ".codex", "AGENTS.md"),
       path.join(home, ".agents", "rules"),
+      path.join(home, ".config", "github-copilot", "intellij"),
     ]);
   });
   it("recognizes portable Cursor, Claude, Codex, Copilot and Qivryn rules", () => {
@@ -50,6 +51,11 @@ describe("loadCodebaseRules", () => {
     ).toBe(true);
     expect(
       isCrossAgentRuleFile("file:///repo/.github/copilot-instructions.md"),
+    ).toBe(true);
+    expect(
+      isCrossAgentRuleFile(
+        "file:///home/user/.config/github-copilot/intellij/global-copilot-instructions.md",
+      ),
     ).toBe(true);
     expect(isCrossAgentRuleFile("file:///repo/AGENTS.md")).toBe(true);
     expect(isCrossAgentRuleFile("file:///repo/CLAUDE.md")).toBe(true);

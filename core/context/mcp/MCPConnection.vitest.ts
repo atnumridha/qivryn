@@ -6,7 +6,7 @@ import {
   InternalWebsocketMcpOptions,
 } from "../..";
 import * as ideUtils from "../../util/ideUtils";
-import MCPConnection from "./MCPConnection";
+import MCPConnection, { resolveMcpEnvironmentTemplates } from "./MCPConnection";
 
 // Mock the shell path utility
 vi.mock("../../util/shellPath", () => ({
@@ -18,6 +18,22 @@ vi.mock("../../util/shellPath", () => ({
 describe("MCPConnection", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+  });
+
+  describe("MCP environment templates", () => {
+    it("resolves imported environment references without persisting secrets in config", () => {
+      expect(
+        resolveMcpEnvironmentTemplates("Bearer ${MCP_ACCESS_TOKEN}", {
+          MCP_ACCESS_TOKEN: "local-secret",
+        }),
+      ).toBe("Bearer local-secret");
+    });
+
+    it("leaves unavailable values visible as unresolved references", () => {
+      expect(resolveMcpEnvironmentTemplates("${NOT_CONFIGURED}", {})).toBe(
+        "${NOT_CONFIGURED}",
+      );
+    });
   });
 
   describe("constructor", () => {

@@ -15,6 +15,8 @@ const PORTABLE_AGENT_RULE_FILES = new Set([
   "claude.md",
   "codex.md",
   "copilot-instructions.md",
+  "global-copilot-instructions.md",
+  "global-agents-instructions.md",
 ]);
 
 const PORTABLE_AGENT_RULE_DIR_SEGMENTS = [
@@ -62,6 +64,7 @@ export function getGlobalCrossAgentRulePaths(homeDir = os.homedir()) {
     path.join(homeDir, ".codex", "rules"),
     path.join(homeDir, ".codex", "AGENTS.md"),
     path.join(homeDir, ".agents", "rules"),
+    path.join(homeDir, ".config", "github-copilot", "intellij"),
   ];
 }
 

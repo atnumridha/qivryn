@@ -88,6 +88,7 @@ const WORKSPACE_CROSS_AGENT_SKILL_DIRS = [
 export function getGlobalCrossAgentSkillPaths(homeDir = os.homedir()) {
   return [
     path.join(homeDir, ".cursor", SKILLS_DIR),
+    path.join(homeDir, ".cursor", "skills-cursor"),
     path.join(homeDir, ".cursor", "plugins"),
     path.join(homeDir, ".claude", SKILLS_DIR),
     path.join(homeDir, ".codex", SKILLS_DIR),

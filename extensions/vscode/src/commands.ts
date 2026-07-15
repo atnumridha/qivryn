@@ -31,10 +31,6 @@ import * as YAML from "yaml";
 import { convertJsonToYamlConfig } from "../../../packages/config-yaml/dist";
 
 import { AgentScmGraphManager } from "./AgentScmGraphManager";
-import {
-  recoverClosedAgentWindow,
-  releaseAgentWindowEditState,
-} from "./agentWindowRecovery";
 import { openAgentAttribution } from "./AiAttributionCodeLensProvider";
 import {
   getAutocompleteStatusBarDescription,
@@ -116,13 +112,11 @@ function focusGUI() {
     fullScreenPanel.reveal();
     return;
   }
-  // Focus the Qivryn chat surface. In Qivryn IDE this view lives in the
-  // secondary/right sidebar; in extension fallback builds it remains the
-  // host-provided webview surface.
+  // Focus the Qivryn activity-bar launcher. It opens the dedicated Agent
+  // workspace as soon as its view becomes visible.
   vscode.commands.executeCommand("workbench.view.extension.qivryn");
-  vscode.commands.executeCommand("workbench.action.focusAuxiliaryBar");
+  vscode.commands.executeCommand("workbench.action.focusSideBar");
   vscode.commands.executeCommand("qivryn.qivrynGUIView.focus");
-  vscode.commands.executeCommand("workbench.action.closeSidebar");
 }
 
 function hideGUI() {
@@ -131,9 +125,7 @@ function hideGUI() {
     // focus fullscreen
     fullScreenPanel?.dispose();
   } else {
-    // focus sidebar
-    vscode.commands.executeCommand("workbench.action.closeAuxiliaryBar");
-    // vscode.commands.executeCommand("workbench.action.toggleAuxiliaryBar");
+    vscode.commands.executeCommand("workbench.action.closeSidebar");
   }
 }
 
@@ -738,28 +730,14 @@ const getCommandsMap: (
         sidebar.reload(reloadPath);
         return;
       }
-
-      await releaseAgentWindowEditState({
-        cancelApply: async () => {
-          await core.invoke("cancelApply", undefined);
-        },
-        getCurrentFile: () => ide.getCurrentFile(),
-        getStreamId: (filepath) =>
-          verticalDiffManager.getStreamIdForFile(filepath),
-        clearDiff: (filepath) =>
-          verticalDiffManager.clearForfileUri(filepath, false),
+      // Do not rebuild the panel here: a retained webview can restore its
+      // previous chat state and ignore the new initial route. Route the live
+      // fullscreen SPA directly, as the other standalone menu actions do.
+      focusFullScreenPanel(sidebar);
+      await sidebar.webviewProtocol.request("navigateTo", {
+        path: reloadPath,
+        toggle: false,
       });
-
-      fullScreenPanel.title =
-        reloadPath === "/browser" ? "Qivryn Browser" : "Qivryn";
-      fullScreenPanel.webview.html = sidebar.getSidebarContent(
-        extensionContext,
-        fullScreenPanel,
-        reloadPath,
-        undefined,
-        true,
-      );
-      fullScreenPanel.reveal();
     },
     "qivryn.closeAgentsWindow": () => {
       fullScreenPanel?.dispose();
@@ -1095,6 +1073,14 @@ const getCommandsMap: (
         return;
       }
 
+      if (fullScreenTab) {
+        // VS Code can restore a serialized Qivryn panel before the extension
+        // host receives its panel reference. Do not create a duplicate panel
+        // during startup; the restored editor is already the fullscreen
+        // workspace the user expects.
+        return;
+      }
+
       // Clear the sidebar before full-screen chat/browser sessions to prevent
       // overwriting changes made in fullscreen.
       if (resetSidebar && sidebar.isReady) {
@@ -1113,6 +1099,11 @@ const getCommandsMap: (
         },
       );
       fullScreenPanel = panel;
+
+      // The fullscreen panel is the sole Qivryn surface while it is open.
+      // Close the normal sidebar immediately instead of waiting for the
+      // webview boot handshake, which previously left both side by side.
+      void vscode.commands.executeCommand("workbench.action.closeSidebar");
 
       const webviewBooted = waitForWebviewBoot(panel.webview, 5_000);
 
@@ -1135,36 +1126,9 @@ const getCommandsMap: (
       // When panel closes, reset the webview and focus
       panel.onDidDispose(
         () => {
-          const recoverySessionId = fullScreenRecoverySessionId;
           fullScreenRecoverySessionId = undefined;
           if (fullScreenPanel === panel) fullScreenPanel = undefined;
           sidebar.resetWebviewProtocolWebview();
-          void recoverClosedAgentWindow({
-            cancelApply: async () => {
-              await core.invoke("cancelApply", undefined);
-            },
-            getCurrentFile: () => ide.getCurrentFile(),
-            getStreamId: (filepath) =>
-              verticalDiffManager.getStreamIdForFile(filepath),
-            clearDiff: (filepath) =>
-              verticalDiffManager.clearForfileUri(filepath, false),
-            restoreSession: async () => {
-              await vscode.commands.executeCommand(
-                "qivryn.qivrynGUIView.focus",
-              );
-              await vscode.commands.executeCommand(
-                "qivryn.navigateTo",
-                "/",
-                false,
-              );
-              if (recoverySessionId) {
-                await vscode.commands.executeCommand(
-                  "qivryn.focusQivrynSessionId",
-                  recoverySessionId,
-                );
-              }
-            },
-          });
         },
         null,
         extensionContext.subscriptions,
@@ -1286,36 +1250,9 @@ export function registerAllCommands(
         );
         panel.onDidDispose(
           () => {
-            const recoverySessionId = fullScreenRecoverySessionId;
             fullScreenRecoverySessionId = undefined;
             if (fullScreenPanel === panel) fullScreenPanel = undefined;
             sidebar.resetWebviewProtocolWebview();
-            void recoverClosedAgentWindow({
-              cancelApply: async () => {
-                await core.invoke("cancelApply", undefined);
-              },
-              getCurrentFile: () => ide.getCurrentFile(),
-              getStreamId: (filepath) =>
-                verticalDiffManager.getStreamIdForFile(filepath),
-              clearDiff: (filepath) =>
-                verticalDiffManager.clearForfileUri(filepath, false),
-              restoreSession: async () => {
-                await vscode.commands.executeCommand(
-                  "qivryn.qivrynGUIView.focus",
-                );
-                await vscode.commands.executeCommand(
-                  "qivryn.navigateTo",
-                  "/",
-                  false,
-                );
-                if (recoverySessionId) {
-                  await vscode.commands.executeCommand(
-                    "qivryn.focusQivrynSessionId",
-                    recoverySessionId,
-                  );
-                }
-              },
-            });
           },
           null,
           context.subscriptions,

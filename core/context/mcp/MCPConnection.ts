@@ -31,6 +31,7 @@ import {
   MCPTool,
 } from "../..";
 import { resolveRelativePathInDir } from "../../util/ideUtils";
+import { getQivrynDotEnv } from "../../util/paths";
 import { getEnvPathFromUserShell } from "../../util/shellPath";
 import { getOauthToken } from "./MCPOauth";
 
@@ -48,6 +49,39 @@ const WINDOWS_BATCH_COMMANDS = [
 ];
 
 const COMMONS_ENV_VARS = ["HOME", "USER", "USERPROFILE", "LOGNAME", "USERNAME"];
+const ENVIRONMENT_TEMPLATE = /\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g;
+
+/**
+ * Codex-compatible MCP JSON stores credentials as `${NAME}` references.
+ * Resolve those only as a transport is created, so secrets do not cross into
+ * the webview or get written back into the MCP configuration.
+ */
+export function resolveMcpEnvironmentTemplates(
+  value: string,
+  environment: Record<string, string | undefined>,
+): string {
+  return value.replace(ENVIRONMENT_TEMPLATE, (template, name: string) =>
+    environment[name] === undefined ? template : environment[name],
+  );
+}
+
+function getMcpRuntimeEnvironment(): Record<string, string | undefined> {
+  // Match LocalPlatformClient's precedence for explicitly referenced values.
+  return { ...process.env, ...getQivrynDotEnv() };
+}
+
+function resolveMcpHeaders(
+  headers: Record<string, string> | undefined,
+  environment: Record<string, string | undefined>,
+): Record<string, string> | undefined {
+  if (!headers) return undefined;
+  return Object.fromEntries(
+    Object.entries(headers).map(([name, value]) => [
+      name,
+      resolveMcpEnvironmentTemplates(value, environment),
+    ]),
+  );
+}
 
 function is401Error(error: unknown) {
   return (
@@ -169,15 +203,18 @@ class MCPConnection {
       }
     }
 
+    const runtimeEnvironment = getMcpRuntimeEnvironment();
     const vars = getTemplateVariables(JSON.stringify(this.options));
-    const unrendered = vars.map((v) => {
-      const stripped = v.replace("secrets.", "");
-      try {
-        return decodeSecretLocation(stripped).secretName;
-      } catch {
-        return stripped;
-      }
-    });
+    const unrendered = vars
+      .map((v) => {
+        const stripped = v.replace("secrets.", "");
+        try {
+          return decodeSecretLocation(stripped).secretName;
+        } catch {
+          return stripped;
+        }
+      })
+      .filter((name) => runtimeEnvironment[name] === undefined);
 
     if (unrendered.length > 0) {
       this.errors.push(
@@ -518,9 +555,12 @@ Org-level secrets can only be used for MCP by Background Agents (https://docs.qi
         : undefined;
 
     // Merge apiKey into headers if provided
+    const environment = getMcpRuntimeEnvironment();
     const headers = {
-      ...options.requestOptions?.headers,
-      ...(options.apiKey && { Authorization: `Bearer ${options.apiKey}` }),
+      ...resolveMcpHeaders(options.requestOptions?.headers, environment),
+      ...(options.apiKey && {
+        Authorization: `Bearer ${resolveMcpEnvironmentTemplates(options.apiKey, environment)}`,
+      }),
     };
 
     return new SSEClientTransport(new URL(options.url), {
@@ -552,9 +592,12 @@ Org-level secrets can only be used for MCP by Background Agents (https://docs.qi
         : undefined;
 
     // Merge apiKey into headers if provided
+    const environment = getMcpRuntimeEnvironment();
     const headers = {
-      ...requestOptions?.headers,
-      ...(options.apiKey && { Authorization: `Bearer ${options.apiKey}` }),
+      ...resolveMcpHeaders(requestOptions?.headers, environment),
+      ...(options.apiKey && {
+        Authorization: `Bearer ${resolveMcpEnvironmentTemplates(options.apiKey, environment)}`,
+      }),
     };
 
     return new StreamableHTTPClientTransport(new URL(url), {
@@ -568,15 +611,27 @@ Org-level secrets can only be used for MCP by Background Agents (https://docs.qi
   private async constructStdioTransport(
     options: InternalStdioMcpOptions,
   ): Promise<StdioClientTransport> {
-    const commonEnvVars: Record<string, string> = Object.fromEntries(
-      COMMONS_ENV_VARS.filter((key) => process.env[key] !== undefined).map(
-        (key) => [key, process.env[key] as string],
+    const runtimeEnvironment = getMcpRuntimeEnvironment();
+    const inheritedEnvironment: Record<string, string> = Object.fromEntries(
+      Object.entries(runtimeEnvironment).filter(
+        (entry): entry is [string, string] => typeof entry[1] === "string",
       ),
+    );
+    const commonEnvVars: Record<string, string> = Object.fromEntries(
+      COMMONS_ENV_VARS.filter(
+        (key) => runtimeEnvironment[key] !== undefined,
+      ).map((key) => [key, runtimeEnvironment[key] as string]),
     );
 
     const env = {
+      ...inheritedEnvironment,
       ...commonEnvVars,
-      ...(options.env ?? {}),
+      ...Object.fromEntries(
+        Object.entries(options.env ?? {}).map(([key, value]) => [
+          key,
+          resolveMcpEnvironmentTemplates(value, runtimeEnvironment),
+        ]),
+      ),
     };
 
     if (process.env.PATH !== undefined) {

@@ -9,6 +9,7 @@ describe("getGlobalCrossAgentSkillPaths", () => {
 
     expect(getGlobalCrossAgentSkillPaths(home)).toEqual([
       path.join(home, ".cursor", "skills"),
+      path.join(home, ".cursor", "skills-cursor"),
       path.join(home, ".cursor", "plugins"),
       path.join(home, ".claude", "skills"),
       path.join(home, ".codex", "skills"),

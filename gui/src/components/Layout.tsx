@@ -24,6 +24,7 @@ import { isQivrynStandalone } from "../util/isQivrynStandalone";
 import { ROUTES } from "../util/navigation";
 import { FatalErrorIndicator } from "./config/FatalErrorNotice";
 import TextDialog from "./dialogs";
+import { History } from "./History";
 import { useMainEditor } from "./mainInput/TipTapEditor";
 import { useOnboardingCard } from "./OnboardingCard";
 import OSRContextMenu from "./OSRContextMenu";
@@ -43,12 +44,17 @@ const GridDiv = styled.div`
   overflow-x: hidden;
 `;
 
-function StandaloneRouteMenu() {
+function StandaloneRouteMenu({
+  sessionsOpen,
+  onToggleSessions,
+}: {
+  sessionsOpen: boolean;
+  onToggleSessions: () => void;
+}) {
   const dispatch = useAppDispatch();
-  const ideMessenger = useContext(IdeMessengerContext);
+  const navigate = useNavigate();
 
-  const openRoute = (path: string) =>
-    ideMessenger.post("reloadAgentWindow", { path });
+  const openRoute = (path: string) => navigate(path);
 
   return (
     <nav className="qivryn-standalone-menu" aria-label="Qivryn menu">
@@ -68,12 +74,14 @@ function StandaloneRouteMenu() {
         </button>
         <button
           type="button"
-          aria-label="View history"
-          title="View history"
-          onClick={() => openRoute("/history")}
+          aria-label={sessionsOpen ? "Hide sessions" : "Show sessions"}
+          aria-controls="qivryn-session-navigation"
+          aria-expanded={sessionsOpen}
+          title={sessionsOpen ? "Hide sessions" : "Show sessions"}
+          onClick={onToggleSessions}
         >
           <ClockIcon aria-hidden="true" />
-          <span>History</span>
+          <span>Sessions</span>
         </button>
         <button
           type="button"
@@ -115,12 +123,22 @@ const Layout = () => {
     location.pathname === ROUTES.HOME_INDEX;
   const [isStandaloneSurface, setIsStandaloneSurface] =
     useState(isQivrynStandalone);
+  const [sessionsOpen, setSessionsOpen] = useState(false);
 
   useEffect(() => {
     const updateSurface = () => setIsStandaloneSurface(isQivrynStandalone());
     window.addEventListener("resize", updateSurface);
     return () => window.removeEventListener("resize", updateSurface);
   }, []);
+
+  useEffect(() => {
+    if (!sessionsOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSessionsOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [sessionsOpen]);
 
   useWebviewListener(
     "newSession",
@@ -266,7 +284,28 @@ const Layout = () => {
           }
         >
           <OSRContextMenu />
-          {isStandaloneSurface && !isHome && <StandaloneRouteMenu />}
+          {isStandaloneSurface && (
+            <StandaloneRouteMenu
+              sessionsOpen={sessionsOpen}
+              onToggleSessions={() => setSessionsOpen((open) => !open)}
+            />
+          )}
+          {isStandaloneSurface && sessionsOpen && (
+            <aside
+              id="qivryn-session-navigation"
+              className="qivryn-session-navigation"
+              aria-label="Saved chat sessions"
+              onClick={(event) => {
+                if (
+                  (event.target as HTMLElement).closest('[role="listitem"]')
+                ) {
+                  setSessionsOpen(false);
+                }
+              }}
+            >
+              <History />
+            </aside>
+          )}
           <div
             className="qivryn-layout-content"
             style={{
@@ -287,7 +326,7 @@ const Layout = () => {
               message={dialogMessage}
             />
 
-            <GridDiv>
+            <GridDiv className="qivryn-layout-grid">
               <Outlet />
               {/* The fatal error for chat is shown below input */}
               {!isHome && <FatalErrorIndicator />}

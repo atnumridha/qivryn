@@ -451,13 +451,14 @@
       {
         "command": "qivryn.openInNewWindow",
         "category": "Qivryn",
-        "title": "Open Maximized Chat",
+        "title": "Open Fullscreen Workspace",
+        "icon": "$(screen-full)",
         "group": "Qivryn"
       },
       {
         "command": "qivryn.openAgentsWindow",
         "category": "Qivryn",
-        "title": "Open Qivryn Composer",
+        "title": "Open Agent Workspace",
         "icon": "$(sparkle)",
         "group": "Qivryn"
       },
@@ -904,6 +905,11 @@
       ],
       "view/title": [
         {
+          "command": "qivryn.openInNewWindow",
+          "group": "navigation@0",
+          "when": "view == qivryn.qivrynGUIView"
+        },
+        {
           "command": "qivryn.newSession",
           "group": "navigation@1",
           "when": "view == qivryn.qivrynGUIView"
@@ -935,6 +941,11 @@
         }
       ],
       "webview/title": [
+        {
+          "command": "qivryn.openInNewWindow",
+          "group": "navigation@0",
+          "when": "webviewId == qivryn.qivrynGUIView"
+        },
         {
           "command": "qivryn.newSession",
           "group": "navigation@1",
@@ -1010,7 +1021,7 @@
       ]
     },
     "viewsContainers": {
-      "secondarySidebar": [
+      "activitybar": [
         {
           "id": "qivryn",
           "title": "Qivryn",

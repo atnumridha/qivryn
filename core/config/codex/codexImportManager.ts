@@ -511,15 +511,25 @@ async function loadCodexMcpServers(
 function mcpJsonEntry(
   server: CodexMcpListEntry,
   referencedEnvironment: Record<string, string> = {},
+  codexHome?: string,
 ): Record<string, unknown> | undefined {
   const transport = server.transport;
   if (!transport) return undefined;
   if (transport.type === "stdio") {
+    // Codex allows a command and cwd relative to CODEX_HOME. Persisting those
+    // strings unchanged makes Qivryn resolve them against the active VS Code
+    // workspace instead, which breaks bundled MCPs such as computer-use.
+    const sourceCwd = transport.cwd
+      ? path.resolve(codexHome ?? process.cwd(), transport.cwd)
+      : undefined;
+    const command = transport.command.startsWith(".")
+      ? path.resolve(sourceCwd ?? codexHome ?? process.cwd(), transport.command)
+      : transport.command;
     return {
       type: "stdio",
-      command: transport.command,
+      command,
       ...(transport.args?.length ? { args: transport.args } : {}),
-      ...(transport.cwd ? { cwd: transport.cwd } : {}),
+      ...(sourceCwd ? { cwd: sourceCwd } : {}),
       ...(Object.keys(referencedEnvironment).length || transport.env
         ? { env: { ...(transport.env ?? {}), ...referencedEnvironment } }
         : {}),
@@ -879,6 +889,7 @@ export async function applyCodexImport(
                   codexHome,
                   codexEnvironment,
                 ),
+                codexHome,
               ),
             ] as const,
         ),

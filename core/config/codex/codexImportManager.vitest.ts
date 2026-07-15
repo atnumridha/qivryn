@@ -165,11 +165,21 @@ describe("Codex import manager", () => {
           url: "https://example.test/mcp",
         },
       },
+      {
+        name: "relative-codex-tool",
+        enabled: true,
+        transport: {
+          type: "stdio" as const,
+          command: "./tools/server.mjs",
+          args: ["mcp"],
+          cwd: ".",
+        },
+      },
     ];
 
     const preview = await manager.scanCodexImport({ codexHome, mcpServers });
     expect(preview.counts).toMatchObject({
-      mcp: 2,
+      mcp: 3,
       plugin: 1,
       skill: 1,
       hook: 1,
@@ -184,7 +194,7 @@ describe("Codex import manager", () => {
       { codexHome, qivrynHome, mcpServers },
     );
     expect(result.imported).toMatchObject({
-      mcp: 1,
+      mcp: 2,
       plugin: 1,
       skill: 1,
       hook: 1,
@@ -211,6 +221,12 @@ describe("Codex import manager", () => {
           TRANSPORT_ONLY_SECRET: "${TRANSPORT_ONLY_SECRET}",
           TOKEN: "${TOKEN}",
         },
+      },
+      "relative-codex-tool": {
+        type: "stdio",
+        command: path.join(codexHome, "tools", "server.mjs"),
+        args: ["mcp"],
+        cwd: codexHome,
       },
     });
     const importedEnvironment = dotenv.parse(
@@ -278,7 +294,14 @@ describe("Codex import manager", () => {
         "utf8",
       ),
     );
-    expect(disabledMcp.mcpServers).toEqual({});
+    expect(disabledMcp.mcpServers).toEqual({
+      "relative-codex-tool": {
+        type: "stdio",
+        command: path.join(codexHome, "tools", "server.mjs"),
+        args: ["mcp"],
+        cwd: codexHome,
+      },
+    });
 
     const automations = JSON.parse(
       await readFile(

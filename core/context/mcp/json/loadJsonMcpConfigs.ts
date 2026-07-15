@@ -9,6 +9,8 @@ import {
 } from "@qivryn/config-yaml";
 import * as JSONC from "comment-json";
 import ignore from "ignore";
+import os from "node:os";
+import path from "node:path";
 import { IDE, InternalMcpOptions } from "../../..";
 import { getEnabledLocalPluginContributionPaths } from "../../../config/plugins/localPluginManager";
 import { convertYamlMcpConfigToInternalMcpOptions } from "../../../config/yaml/yamlToQivrynConfig";
@@ -42,6 +44,21 @@ export async function loadJsonMcpConfigs(
   );
   if (includeGlobal) {
     mcpDirs.push(localPathToUri(getGlobalFolderWithName("mcpServers")));
+    // Cursor and Copilot keep their user-level MCP files outside the project.
+    // Read only these explicit config files rather than recursively scanning
+    // their whole application state directories.
+    mcpDirs.push(
+      localPathToUri(path.join(os.homedir(), ".cursor", "mcp.json")),
+      localPathToUri(
+        path.join(
+          os.homedir(),
+          ".config",
+          "github-copilot",
+          "intellij",
+          "mcp.json",
+        ),
+      ),
+    );
     const { mcp: pluginMcpDirs } =
       await getEnabledLocalPluginContributionPaths();
     mcpDirs.push(...pluginMcpDirs.map((dir) => localPathToUri(dir)));
@@ -104,6 +121,29 @@ export async function loadJsonMcpConfigs(
   for (const { content, uri } of jsonFiles) {
     try {
       const json = JSONC.parse(content);
+      // GitHub Copilot's local config uses `servers` instead of
+      // `mcpServers`. Accept the compatible subset (stdio/SSE/HTTP server
+      // definitions) and continue to validate each server before loading it.
+      if (
+        json &&
+        typeof json === "object" &&
+        "servers" in json &&
+        json.servers &&
+        typeof json.servers === "object"
+      ) {
+        for (const [name, server] of Object.entries(json.servers)) {
+          const parsed = mcpServersJsonSchema.safeParse(server);
+          if (parsed.success) {
+            validJsonConfigs.push({ name, mcpJson: parsed.data, uri });
+          } else {
+            errors.push({
+              fatal: false,
+              message: `Copilot MCP server ${name} at ${uri} doesn't match a supported MCP configuration format`,
+            });
+          }
+        }
+        continue;
+      }
       // Try parsing as a file with mcpServers and multiple servers (claude code/desktop-esque format)
       const claudeCodeFileParsed =
         claudeCodeLikeConfigFileSchema.safeParse(json);

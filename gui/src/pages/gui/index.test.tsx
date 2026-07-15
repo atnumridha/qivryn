@@ -12,15 +12,15 @@ afterEach(() => {
   });
 });
 
-test("keeps Qivryn actions visible inside a standalone chat", async () => {
+test("keeps the standalone chat surface focused on the transcript and composer", async () => {
   await renderWithProviders(<GUI />);
 
   expect(screen.queryByPlaceholderText("Search sessions")).toBeNull();
   expect(screen.queryByRole("button", { name: "Clear history" })).toBeNull();
   expect(screen.queryByTestId("qivryn-chat-header")).toBeNull();
-  expect(screen.getByRole("button", { name: "Open settings" })).toBeVisible();
-  expect(screen.getByRole("button", { name: "New chat" })).toBeVisible();
-  expect(screen.getByRole("button", { name: "View history" })).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Open settings" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "New chat" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "View history" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Reload chat" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Open full screen" })).toBeNull();
   expect(screen.getByTestId("qivryn-chat-composer-layer")).toBeVisible();
@@ -161,7 +161,7 @@ test("uses the full standalone window for chat instead of the history sidebar", 
   expect(
     screen.getByRole("button", { name: "Agents mode dropdown" }),
   ).toBeVisible();
-  expect(screen.getByRole("button", { name: "New chat" })).toBeVisible();
+  expect(screen.queryByRole("button", { name: "New chat" })).toBeNull();
   expect(screen.queryByTestId("qivryn-chat-header")).toBeNull();
   expect(document.querySelector(".qivryn-chat-route")).toHaveClass(
     "qivryn-standalone",
