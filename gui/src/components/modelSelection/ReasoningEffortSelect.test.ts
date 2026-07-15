@@ -8,7 +8,7 @@ describe("formatReasoningEffort", () => {
     ["high", "High"],
     ["xhigh", "Extra High"],
     ["x-high", "Extra High"],
-    ["max", "Ultra"],
+    ["max", "Max"],
     ["ultra", "Ultra"],
   ])("formats %s as %s", (value, label) => {
     expect(formatReasoningEffort(value)).toBe(label);

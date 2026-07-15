@@ -2391,7 +2391,8 @@ body[data-qivryn-fullscreen="true"] .qivryn-history-shell,
   font-size: 10px;
 }
 
-.qivryn-main-editor-input [data-testid="submit-input-button"] {
+.qivryn-main-editor-input [data-testid="submit-input-button"],
+.qivryn-main-editor-input [data-testid="stop-input-button"] {
   box-sizing: border-box;
   display: inline-flex;
   flex: 0 0 auto;
@@ -2996,6 +2997,230 @@ body[data-qivryn-fullscreen="true"] .qivryn-agents-cursor {
   --qivryn-canvas: var(--vscode-editor-background, #121314);
 }
 
+body[data-qivryn-fullscreen="true"] .qivryn-chat-route,
+.qivryn-chat-route.qivryn-standalone {
+  --qivryn-chat-inline: clamp(16px, 3vw, 48px);
+  --qivryn-chat-rail-width: 100%;
+}
+
+/* The maximized WebviewView reports itself as a regular view to VS Code.
+ * Layout marks it as standalone, so every route gets the same full canvas as
+ * chat rather than retaining a sidebar-sized content rail. */
+.qivryn-standalone-surface .qivryn-config-body {
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+}
+
+.qivryn-standalone-surface .qivryn-layout-content {
+  height: calc(100% - 42px);
+}
+
+.qivryn-standalone-surface [aria-label="Start review"] > div,
+.qivryn-standalone-surface .max-w-5xl {
+  width: 100%;
+  max-width: none !important;
+  margin-inline: 0;
+}
+
+.qivryn-standalone-surface
+  .qivryn-agents-cursor:not(.qivryn-chat-route)
+  .cursor-agent-transcript,
+.qivryn-standalone-surface
+  .qivryn-agents-cursor:not(.qivryn-chat-route)
+  .cursor-agent-composer {
+  width: calc(100% - (2 * clamp(16px, 3vw, 48px)));
+  max-width: none;
+}
+
+.qivryn-standalone-menu {
+  display: none;
+}
+
+.qivryn-standalone .qivryn-standalone-menu,
+.qivryn-standalone-surface > .qivryn-standalone-menu {
+  display: flex;
+  min-height: 42px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 var(--qivryn-chat-inline);
+  color: var(--vscode-foreground, #f2f5f7);
+  background: var(--qivryn-canvas);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--vscode-panel-border, #424242) 70%, transparent);
+}
+
+.qivryn-standalone-menu-title {
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+.qivryn-standalone-menu-actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+}
+
+.qivryn-standalone-menu-actions button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 7px;
+  color: var(--vscode-foreground, #f2f5f7);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.qivryn-standalone-menu-actions button:hover,
+.qivryn-standalone-menu-actions button:focus-visible {
+  background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.22));
+  border-color: var(--vscode-focusBorder, #007fd4);
+  outline: none;
+}
+
+.qivryn-standalone-menu-actions svg {
+  width: 15px;
+  height: 15px;
+}
+
+.qivryn-standalone-surface .qivryn-history-header {
+  width: calc(100% - (2 * clamp(16px, 3vw, 48px)));
+  max-width: none;
+  padding-inline: 0;
+}
+
+.qivryn-standalone-surface .qivryn-history-search,
+.qivryn-standalone-surface .qivryn-history-table,
+.qivryn-standalone-surface .qivryn-history-loading-preview,
+.qivryn-standalone-surface .qivryn-history-empty {
+  width: calc(100% - (2 * clamp(16px, 3vw, 48px))) !important;
+  max-width: none;
+  margin-inline: auto !important;
+}
+
+.qivryn-standalone-surface .qivryn-history-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 8px;
+}
+
+.qivryn-standalone-surface .qivryn-history-group-label {
+  grid-column: 1 / -1;
+  margin-inline: 0;
+}
+
+.qivryn-standalone-surface .qivryn-history-footer {
+  padding-inline: var(--qivryn-chat-inline, clamp(16px, 3vw, 48px));
+}
+
+.qivryn-standalone-surface [data-testid="onboarding-card"] .content {
+  width: 100%;
+}
+
+.qivryn-standalone-surface .qivryn-provider-onboarding {
+  align-items: stretch;
+}
+
+.qivryn-standalone-surface .qivryn-provider-onboarding-form {
+  width: 100%;
+  max-width: none;
+}
+
+.qivryn-standalone-surface .qivryn-provider-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.qivryn-standalone-surface .qivryn-provider-grid > * {
+  margin-top: 0 !important;
+}
+
+@media (max-width: 900px) {
+  .qivryn-standalone-surface .qivryn-provider-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .qivryn-standalone-menu-title {
+    display: none;
+  }
+
+  .qivryn-standalone .qivryn-standalone-menu {
+    justify-content: flex-end;
+  }
+
+  .qivryn-standalone-menu-actions button span {
+    display: none;
+  }
+}
+
+.qivryn-workspace-drop-overlay {
+  position: fixed;
+  z-index: 10050;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  pointer-events: none;
+  background: color-mix(
+    in srgb,
+    var(--vscode-editor-background, #111416) 68%,
+    transparent
+  );
+  backdrop-filter: blur(3px);
+}
+
+.qivryn-workspace-drop-overlay::before {
+  position: absolute;
+  inset: 10px;
+  border: 2px dashed
+    color-mix(in srgb, var(--vscode-focusBorder, #63d6cf) 72%, transparent);
+  border-radius: 16px;
+  content: "";
+}
+
+.qivryn-workspace-drop-card {
+  position: relative;
+  display: flex;
+  max-width: min(420px, calc(100vw - 48px));
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 18px 22px;
+  color: var(--vscode-editor-foreground, #f2f5f7);
+  background: var(
+    --vscode-editorWidget-background,
+    var(--vscode-input-background, #202428)
+  );
+  border: 1px solid
+    color-mix(in srgb, var(--vscode-focusBorder, #63d6cf) 48%, transparent);
+  border-radius: 12px;
+  box-shadow: 0 16px 48px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.48));
+  text-align: center;
+}
+
+.qivryn-workspace-drop-card span {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.qivryn-workspace-drop-card small {
+  color: var(--vscode-descriptionForeground, rgba(242, 245, 247, 0.68));
+  font-size: 12px;
+}
+
 .qivryn-thread-rail {
   box-sizing: border-box;
   width: 100%;
@@ -3007,9 +3232,7 @@ body[data-qivryn-fullscreen="true"] .qivryn-agents-cursor {
 }
 
 .qivryn-composer-rail {
-  padding-right: calc(
-    var(--qivryn-chat-inline) + var(--qivryn-chat-scrollbar-inset, 0px)
-  );
+  padding-inline: var(--qivryn-chat-inline);
 }
 
 .qivryn-history-item-wrap,
@@ -3330,6 +3553,8 @@ body[data-qivryn-fullscreen="true"] .qivryn-agents-cursor {
 }
 
 .qivryn-main-editor-input {
+  box-sizing: border-box;
+  min-height: 112px;
   font-family: var(--qivryn-chat-font-family) !important;
   font-size: var(--qivryn-chat-font-size) !important;
   line-height: 20px !important;
@@ -3359,8 +3584,8 @@ body[data-qivryn-fullscreen="true"] .qivryn-agents-cursor {
 }
 
 .qivryn-main-editor-input .scroll-container {
-  min-height: 44px;
-  max-height: min(25vh, 180px) !important;
+  min-height: 52px;
+  max-height: min(32vh, 216px) !important;
   padding-inline: 4px;
 }
 
@@ -3550,7 +3775,8 @@ body[data-qivryn-fullscreen="true"] .qivryn-agents-cursor {
   display: none !important;
 }
 
-.qivryn-main-editor-input [data-testid="submit-input-button"] {
+.qivryn-main-editor-input [data-testid="submit-input-button"],
+.qivryn-main-editor-input [data-testid="stop-input-button"] {
   width: 28px;
   min-width: 28px;
   height: 28px;
@@ -3564,7 +3790,8 @@ body[data-qivryn-fullscreen="true"] .qivryn-agents-cursor {
   box-shadow: none;
 }
 
-.qivryn-main-editor-input [data-testid="submit-input-button"]:disabled {
+.qivryn-main-editor-input [data-testid="submit-input-button"]:disabled,
+.qivryn-main-editor-input [data-testid="stop-input-button"]:disabled {
   color: var(--vscode-descriptionForeground, #8c8c8c) !important;
   background: color-mix(
     in srgb,
@@ -3580,7 +3807,14 @@ body[data-qivryn-fullscreen="true"] .qivryn-agents-cursor {
   background: var(--vscode-editor-foreground, #bfbfbf) !important;
 }
 
-.qivryn-main-editor-input [data-testid="submit-input-button"] svg {
+.qivryn-main-editor-input [data-testid="stop-input-button"] {
+  color: var(--qivryn-codex-text-secondary) !important;
+  background: var(--qivryn-codex-surface-raised) !important;
+  border: 1px solid var(--qivryn-codex-border-heavy) !important;
+}
+
+.qivryn-main-editor-input [data-testid="submit-input-button"] svg,
+.qivryn-main-editor-input [data-testid="stop-input-button"] svg {
   width: 16px;
   height: 16px;
 }

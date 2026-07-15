@@ -128,6 +128,13 @@ export const callToolById = createAsyncThunk<
     streamResponse = true;
   }
 
+  const toolWasCanceled =
+    findToolCallById(getScopedState().session.history, toolCallId)?.status ===
+    "canceled";
+  if (toolWasCanceled) {
+    return;
+  }
+
   if (error) {
     scopedDispatch(
       updateToolCallOutput({

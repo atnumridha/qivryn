@@ -143,6 +143,7 @@ import { processSmallEdit } from "./nextEdit/context/processSmallEdit";
 import { PrefetchQueue } from "./nextEdit/NextEditPrefetchQueue";
 import { NextEditProvider } from "./nextEdit/NextEditProvider";
 import type { FromCoreProtocol, ToCoreProtocol } from "./protocol";
+import { completeSemanticReview } from "./review/completeSemanticReview";
 import { OnboardingModes } from "./protocol/core";
 import type { IMessenger, Message } from "./protocol/messenger";
 import { QivrynError, QivrynErrorReason } from "./util/errors";
@@ -358,10 +359,7 @@ export class Core {
               "A chat model is required for standard and deep semantic review",
             );
           }
-          return model.complete(prompt, signal, {
-            temperature: 0,
-            maxTokens: 4_000,
-          });
+          return completeSemanticReview(model, prompt, signal);
         }),
       ],
       new GitPatchReviewFixer(),

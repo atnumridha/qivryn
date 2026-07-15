@@ -203,6 +203,93 @@ describe("streamResponseThunk - tool calls", () => {
     ).toBe(true);
   });
 
+  it("does not append a tool result after steering cancels the call", async () => {
+    const initialState = getRootStateWithClaude();
+    initialState.session.id = "tool-steering-session";
+    initialState.session.chatModelTitle = mockClaudeModel.title;
+    initialState.session.history = [
+      {
+        contextItems: [],
+        message: {
+          id: "assistant-tool-message",
+          role: "assistant",
+          content: "I will inspect the workspace.",
+          toolCalls: [
+            {
+              id: "steered-tool",
+              type: "function",
+              function: { name: grepName, arguments: "{}" },
+            },
+          ],
+        },
+        toolCallStates: [
+          {
+            toolCallId: "steered-tool",
+            toolCall: {
+              id: "steered-tool",
+              type: "function",
+              function: { name: grepName, arguments: "{}" },
+            },
+            parsedArgs: {},
+            status: "generated",
+            tool: grepTool,
+          },
+        ],
+      },
+    ];
+    initialState.config.config.tools = [grepTool];
+
+    const store = createMockStore(initialState);
+    let releaseTool!: () => void;
+    const toolGate = new Promise<void>((resolve) => {
+      releaseTool = resolve;
+    });
+    store.mockIdeMessenger.responseHandlers["tools/call"] = async () => {
+      await toolGate;
+      return {
+        contextItems: [
+          {
+            name: "Tool Result",
+            description: "Late result",
+            content: "SHOULD_NOT_BE_APPENDED",
+          },
+        ],
+      };
+    };
+
+    const { callToolById } = await import("./callToolById");
+    const runningTool = store.dispatch(
+      callToolById({ toolCallId: "steered-tool" }) as any,
+    );
+    const waitFor = async (predicate: () => boolean) => {
+      const deadline = Date.now() + 2_000;
+      while (!predicate()) {
+        if (Date.now() > deadline)
+          throw new Error("Timed out waiting for tool");
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+    };
+    await waitFor(
+      () =>
+        (store.getState() as RootState).session.history[0].toolCallStates?.[0]
+          ?.status === "calling",
+    );
+
+    store.dispatch({ type: "session/interruptStreamForSteering" });
+    releaseTool();
+    await runningTool;
+
+    const state = store.getState() as RootState;
+    expect(state.session.history[0].toolCallStates?.[0].status).toBe(
+      "canceled",
+    );
+    expect(
+      state.session.history.some((item) =>
+        String(item.message.content).includes("SHOULD_NOT_BE_APPENDED"),
+      ),
+    ).toBe(false);
+  });
+
   it("should execute streaming flow with tool call execution", async () => {
     // Set up auto-approved tool setting for our test tool
     const initialState = getRootStateWithClaude();

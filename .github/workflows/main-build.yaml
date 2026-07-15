@@ -1,107 +1,241 @@
-name: Main Branch Build
+name: All Platform Builds
 
-# Download and republish VS Code extension artifacts when code is merged to main
 on:
   push:
     branches:
       - main
   workflow_dispatch:
-    inputs:
-      test_pr_number:
-        description: "PR number to test with"
-        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: all-platform-builds-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  republish-pr-artifacts:
+  cli:
+    name: Build CLI
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        platform: [Linux, macOS]
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          fetch-depth: 2 # Get the last 2 commits to find the merge commit
-
-      - name: Get merged PR number
-        id: get-pr
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          node-version-file: ".nvmrc"
+          cache: npm
+          cache-dependency-path: |
+            extensions/cli/package-lock.json
+            packages/*/package-lock.json
+            core/package-lock.json
+      - name: Build shared packages
+        run: node ./scripts/build-packages.js
+      - name: Build core
+        working-directory: core
         run: |
-          # Get PR number for the current commit using GitHub API
-          COMMIT_SHA=$(git rev-parse HEAD)
-          echo "Getting PR for commit: $COMMIT_SHA"
-
-          PR_NUMBER=$(curl -s -H "Authorization: token $GH_TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}/commits/$COMMIT_SHA/pulls" \
-            | jq -r '.[0].number // empty')
-
-          if [ -z "$PR_NUMBER" ]; then
-            echo "❌ Could not find PR for commit $COMMIT_SHA"
-            exit 1
-          fi
-
-          echo "Found PR number: $PR_NUMBER"
-          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
-
-      - name: Find PR workflow run
-        id: find-run
-        env:
-          PR_NUMBER: ${{ steps.get-pr.outputs.pr_number }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          npm ci
+          npm run build
+      - name: Install CLI dependencies
+        working-directory: extensions/cli
+        run: npm ci --include=optional --ignore-scripts
+      - name: Type check CLI
+        working-directory: extensions/cli
+        run: npm run typecheck
+      - name: Test CLI
+        working-directory: extensions/cli
+        run: npm test
+      - name: Build CLI
+        working-directory: extensions/cli
+        run: npm run build
+      - name: Package CLI
+        working-directory: extensions/cli
         run: |
-          echo "🔍 Getting branch name for PR #$PR_NUMBER..."
-
-          # Get the branch name for the PR
-          BRANCH_NAME=$(gh pr view "$PR_NUMBER" --repo "${{ github.repository }}" --json headRefName --jq '.headRefName')
-
-          if [ -z "$BRANCH_NAME" ]; then
-            echo "❌ Could not find PR #$PR_NUMBER"
-            exit 1
-          fi
-
-          echo "Branch name: $BRANCH_NAME"
-
-          # Get the latest successful workflow run for the branch
-          RUN_ID=$(gh run list \
-            --repo "${{ github.repository }}" \
-            --workflow="pr_checks.yaml" \
-            --branch="$BRANCH_NAME" \
-            --json databaseId,status,conclusion \
-            --jq ".[] | select(.status == \"completed\" and .conclusion == \"success\") | .databaseId" \
-            | head -1)
-
-          if [ -z "$RUN_ID" ]; then
-            echo "❌ No successful workflow run found for PR #$PR_NUMBER (branch: $BRANCH_NAME)"
-            exit 1
-          fi
-
-          echo "Found successful workflow run: $RUN_ID"
-          echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
-
-      - name: Download PR artifact
-        env:
-          RUN_ID: ${{ steps.find-run.outputs.run_id }}
-          PLATFORM: ${{ matrix.platform }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "📥 Downloading vscode-extension-build-$PLATFORM artifact from run $RUN_ID..."
-
-          # Create temporary directory for download
-          mkdir -p ./temp-download
-
-          # Download the artifact from the PR workflow run
-          if ! gh run download "$RUN_ID" \
-            --repo "${{ github.repository }}" \
-            --name "vscode-extension-build-$PLATFORM" \
-            --dir "./temp-download"; then
-            echo "❌ Failed to download artifact vscode-extension-build-$PLATFORM from run $RUN_ID"
-            exit 1
-          fi
-
-          echo "✅ Successfully downloaded artifact"
-
-      - name: Republish as main branch artifact
-        uses: actions/upload-artifact@v7
+          mkdir -p build
+          npm pack --ignore-scripts --pack-destination build
+      - name: Upload CLI package
+        uses: actions/upload-artifact@v4
         with:
-          name: vscode-extension-build-${{ matrix.platform }}
-          path: ./temp-download/*
+          name: qivryn-cli
+          path: extensions/cli/build/*.tgz
+          if-no-files-found: error
+          retention-days: 14
+
+  gui:
+    name: Build GUI
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: npm
+          cache-dependency-path: |
+            gui/package-lock.json
+            core/package-lock.json
+            packages/*/package-lock.json
+      - name: Build shared packages
+        run: node ./scripts/build-packages.js
+      - name: Build core
+        working-directory: core
+        run: |
+          npm ci
+          npm run build
+      - name: Install GUI dependencies
+        working-directory: gui
+        run: npm ci
+      - name: Type check GUI
+        working-directory: gui
+        run: npm run tsc:check
+      - name: Test GUI
+        working-directory: gui
+        run: npm test
+      - name: Build GUI
+        working-directory: gui
+        run: npm run build
+        env:
+          NODE_OPTIONS: "--max-old-space-size=4096"
+      - name: Upload GUI
+        uses: actions/upload-artifact@v4
+        with:
+          name: qivryn-gui
+          path: gui/dist
+          if-no-files-found: error
+          retention-days: 14
+
+  vscode:
+    name: Build VSIX (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win32
+            arch: x64
+            npm_config_arch: x64
+            target: win32-x64
+          - os: windows-latest
+            platform: win32
+            arch: arm64
+            npm_config_arch: arm
+            target: win32-arm64
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
+            npm_config_arch: x64
+            target: linux-x64
+          - os: ubuntu-latest
+            platform: linux
+            arch: arm64
+            npm_config_arch: arm64
+            target: linux-arm64
+          - os: ubuntu-latest
+            platform: linux
+            arch: armhf
+            npm_config_arch: arm
+            target: linux-armhf
+          - os: ubuntu-latest
+            platform: alpine
+            arch: x64
+            npm_config_arch: x64
+            target: alpine-x64
+          - os: macos-latest
+            platform: darwin
+            arch: x64
+            npm_config_arch: x64
+            target: darwin-x64
+          - os: macos-latest
+            platform: darwin
+            arch: arm64
+            npm_config_arch: arm64
+            target: darwin-arm64
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build VS Code extension
+        uses: ./.github/actions/build-vscode-extension
+        with:
+          platform: ${{ matrix.platform }}
+          arch: ${{ matrix.arch }}
+          npm_config_arch: ${{ matrix.npm_config_arch }}
+          pre-release: false
+          commit-sha: ${{ github.sha }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload VSIX
+        uses: actions/upload-artifact@v4
+        with:
+          name: qivryn-vsix-${{ matrix.target }}
+          path: extensions/vscode/*.vsix
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload extension build
+        uses: actions/upload-artifact@v4
+        with:
+          name: qivryn-extension-${{ matrix.target }}
+          path: extensions/vscode/build
+          if-no-files-found: error
+          retention-days: 14
+
+  jetbrains:
+    name: Build JetBrains plugin
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: npm
+          cache-dependency-path: |
+            binary/package-lock.json
+            core/package-lock.json
+            gui/package-lock.json
+            extensions/vscode/package-lock.json
+            packages/*/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+      - name: Build shared packages
+        run: node ./scripts/build-packages.js
+      - name: Build core
+        working-directory: core
+        run: |
+          npm ci
+          npm run build
+      - name: Build GUI
+        working-directory: gui
+        run: |
+          npm ci
+          npm run build
+        env:
+          NODE_OPTIONS: "--max-old-space-size=4096"
+      - name: Install CLI dependencies
+        working-directory: extensions/cli
+        run: npm ci --include=optional --ignore-scripts
+      - name: Prepare extension assets
+        working-directory: extensions/vscode
+        run: |
+          npm ci
+          npm run prepackage
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build native binaries
+        working-directory: binary
+        run: |
+          npm ci
+          npm run build
+      - name: Build JetBrains plugin
+        working-directory: extensions/intellij
+        run: ./gradlew buildPlugin --no-daemon
+      - name: Upload JetBrains plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: qivryn-jetbrains
+          path: extensions/intellij/build/distributions/*
+          if-no-files-found: error
+          retention-days: 14

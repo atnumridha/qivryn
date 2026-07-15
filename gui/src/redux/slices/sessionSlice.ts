@@ -411,9 +411,10 @@ export const sessionSlice = createSlice({
       }: PayloadAction<{
         index: number;
         editorState: JSONContent;
+        appendWithoutResponsePlaceholder?: boolean;
       }>,
     ) => {
-      const { index, editorState } = payload;
+      const { index, editorState, appendWithoutResponsePlaceholder } = payload;
 
       if (state.history.length && index < state.history.length) {
         // Resubmission - update input message, truncate history after resubmit with new empty response message
@@ -437,26 +438,28 @@ export const sessionSlice = createSlice({
           contextItems: [],
         });
       } else {
-        // New input/response messages
-        state.history = state.history.concat([
-          {
-            message: {
-              id: uuidv4(),
-              role: "user",
-              content: "", // IMPORTANT - this is quickly updated by resolveEditorContent based on editor state prior to streaming
-            },
-            contextItems: [],
-            editorState,
+        const userItem: ChatHistoryItemWithMessageId = {
+          message: {
+            id: uuidv4(),
+            role: "user",
+            content: "", // IMPORTANT - this is quickly updated by resolveEditorContent based on editor state prior to streaming
           },
-          {
-            message: {
-              id: uuidv4(),
-              role: "assistant",
-              content: "", // IMPORTANT - this is subsequently updated by response streaming
-            },
-            contextItems: [],
+          contextItems: [],
+          editorState,
+        };
+        const responseItem: ChatHistoryItemWithMessageId = {
+          message: {
+            id: uuidv4(),
+            role: "assistant",
+            content: "", // IMPORTANT - this is subsequently updated by response streaming
           },
-        ]);
+          contextItems: [],
+        };
+        state.history = state.history.concat(
+          appendWithoutResponsePlaceholder
+            ? [userItem]
+            : [userItem, responseItem],
+        );
       }
 
       state.isStreaming = true;
@@ -588,6 +591,38 @@ export const sessionSlice = createSlice({
     abortStream: (state) => {
       state.streamAborter.abort();
       state.streamAborter = new AbortController();
+    },
+    interruptStreamForSteering: (state) => {
+      state.streamAborter.abort();
+      state.streamAborter = new AbortController();
+
+      for (let index = state.history.length - 1; index >= 0; index--) {
+        const item = state.history[index];
+        if (item.message.role === "user") break;
+        for (const toolCall of item.toolCallStates ?? []) {
+          if (
+            toolCall.status === "generating" ||
+            toolCall.status === "generated" ||
+            toolCall.status === "calling"
+          ) {
+            toolCall.status = "canceled";
+          }
+        }
+      }
+
+      while (state.history.length > 0) {
+        const item = state.history[state.history.length - 1];
+        const isEmptyAssistant =
+          (item.message.role === "assistant" ||
+            item.message.role === "thinking") &&
+          renderChatMessage(item.message).trim().length === 0 &&
+          !item.reasoning?.text?.trim() &&
+          (item.toolCallStates?.length ?? 0) === 0;
+        if (!isEmptyAssistant) break;
+        state.history.pop();
+      }
+
+      state.isStreaming = false;
     },
     setSessionChatModelTitle: (
       state,
@@ -1208,6 +1243,7 @@ export const {
   resetNextCodeBlockToApplyIndex,
   updateApplyState,
   abortStream,
+  interruptStreamForSteering,
   setSessionChatModelTitle,
   setToolCallCalling,
   cancelToolCall,

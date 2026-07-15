@@ -83,6 +83,51 @@ describe("Agent Review pane", () => {
     );
   });
 
+  it("selects a new running report instead of showing an older failure", async () => {
+    const messenger = new MockIdeMessenger();
+    messenger.responses["reviews/list"] = [
+      report({
+        id: "old-failure",
+        status: "failed",
+        findings: [],
+        summary: undefined,
+        error: "Old provider failure",
+      }),
+    ];
+    let finishReview: (() => void) | undefined;
+    messenger.responseHandlers["reviews/run"] = (request) =>
+      new Promise<ReviewReport>((resolve) => {
+        finishReview = () =>
+          resolve(
+            report({
+              id: request.request.id,
+              request: request.request,
+              status: "completed",
+              findings: [],
+              summary: "No findings",
+            }),
+          );
+      });
+    const { user } = await renderWithProviders(<Review />, {
+      mockIdeMessenger: messenger,
+    });
+    await screen.findByText("Old provider failure");
+
+    await user.click(screen.getByRole("button", { name: "Run review" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Review in progress",
+    );
+    expect(screen.queryByText("Old provider failure")).not.toBeInTheDocument();
+
+    finishReview?.();
+    await waitFor(() =>
+      expect(
+        screen.getByText("No findings for this change set."),
+      ).toBeInTheDocument(),
+    );
+  });
+
   it("supports comments, feedback, dismissal, and Add to Chat", async () => {
     const messenger = new MockIdeMessenger();
     messenger.responses["reviews/list"] = [report()];
@@ -168,15 +213,18 @@ describe("Agent Review pane", () => {
         status: "failed",
         findings: [],
         summary: undefined,
-        error: "A chat model is required for semantic review",
+        error:
+          "ChatGPT Codex: 400 Bad Request\nURL: https://chatgpt.com/backend-api/codex/responses\nResponse: Unsupported parameter",
       }),
     ];
     await renderWithProviders(<Review />, { mockIdeMessenger: messenger });
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Review failed");
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "A chat model is required",
+      "ChatGPT Codex: 400 Bad Request",
     );
+    expect(screen.getByText("Technical details")).toBeInTheDocument();
+    expect(screen.getByText(/Historical result from/)).toBeInTheDocument();
     expect(
       screen.queryByText("No findings for this change set."),
     ).not.toBeInTheDocument();

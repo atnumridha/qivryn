@@ -68,6 +68,7 @@ import { setMode } from "../../redux/slices/sessionSlice";
 import { exitEdit } from "../../redux/thunks/edit";
 import { loadSession, saveCurrentSession } from "../../redux/thunks/session";
 import { ROUTES } from "../../util/navigation";
+import { isQivrynStandalone } from "../../util/isQivrynStandalone";
 import ModelSelect from "../../components/modelSelection/ModelSelect";
 import { ReasoningEffortSelect } from "../../components/modelSelection/ReasoningEffortSelect";
 import { ModeSelect } from "../../components/ModeSelect";
@@ -3974,7 +3975,7 @@ export default function Agents() {
           type="button"
           aria-label="Back to chat"
           onClick={() => {
-            if ((window as any).isFullScreen) {
+            if (isQivrynStandalone()) {
               ideMessenger.post("closeAgentWindow", undefined);
               return;
             }
@@ -4157,7 +4158,7 @@ export default function Agents() {
         >
           Import
         </button>
-        {!Boolean((window as any).isFullScreen) && (
+        {!isQivrynStandalone() && (
           <button
             type="button"
             aria-label="Refresh agents"
@@ -4172,7 +4173,7 @@ export default function Agents() {
             />
           </button>
         )}
-        {Boolean((window as any).isFullScreen) && (
+        {isQivrynStandalone() && (
           <button
             type="button"
             aria-label="Reload Agents window"
@@ -4188,7 +4189,7 @@ export default function Agents() {
             <span className="hidden min-[520px]:inline">Reload</span>
           </button>
         )}
-        {!Boolean((window as any).isFullScreen) && (
+        {!isQivrynStandalone() && (
           <button
             type="button"
             aria-label="Open Agents Window"

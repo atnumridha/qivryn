@@ -1,8 +1,11 @@
+import { stripVTControlCharacters } from "node:util";
+
 import { render } from "ink-testing-library";
 import React from "react";
 
 import { createUITestContext } from "../../test-helpers/ui-test-context.js";
 import { AppRoot } from "../AppRoot.js";
+import { waitForCondition } from "./TUIChat.testHelper.js";
 
 describe("TUIChat - Tool Display Tests", () => {
   let context: any;
@@ -65,23 +68,15 @@ describe("TUIChat - Tool Display Tests", () => {
     // Type / to see commands
     stdin.write("/");
 
-    // Wait longer for slash command menu
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    let frame = "";
+    await waitForCondition(() => {
+      frame = lastFrame() ?? "";
+      return frame.includes("↑/↓ to navigate") && frame.includes("/exit");
+    });
 
-    const frame = lastFrame();
-
-    // Should show slash command character
-    expect(frame).toContain("/");
-
-    // The slash command menu might show different UI states
-    // On Windows, the timing might be different
-    const hasSlashCommandIndicator = frame
-      ? frame.includes("↑/↓ to navigate") ||
-        frame.includes("/exit") ||
-        frame.includes("◉ /") ||
-        frame.includes("/ for slash commands")
-      : false;
-
-    expect(hasSlashCommandIndicator).toBe(true);
+    const visibleFrame = stripVTControlCharacters(frame);
+    expect(visibleFrame).toContain("◉ /");
+    expect(visibleFrame).toContain("↑/↓ to navigate");
+    expect(visibleFrame).toContain("/exit");
   });
 });

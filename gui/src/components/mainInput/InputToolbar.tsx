@@ -1,5 +1,4 @@
 import { InputModifiers } from "core";
-import { BuiltInToolNames } from "core/tools/builtIn";
 import {
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -169,20 +168,11 @@ function InputToolbar(props: InputToolbarProps) {
   const runningToolCalls = useAppSelector((state) =>
     selectToolCallsByStatus(state, "calling"),
   );
-  const runningTerminalCalls = useMemo(
-    () =>
-      runningToolCalls.filter(
-        (toolCallState) =>
-          toolCallState?.toolCall?.function?.name ===
-          BuiltInToolNames.RunTerminalCommand,
-      ),
-    [runningToolCalls],
-  );
   const showStop = Boolean(
-    props.isMainInput && (isStreaming || runningTerminalCalls.length > 0),
+    props.isMainInput && (isStreaming || runningToolCalls.length > 0),
   );
   const isEnterDisabled =
-    !showStop && (props.disabled || (isInEdit && codeToEdit.length === 0));
+    props.disabled || (isInEdit && codeToEdit.length === 0);
 
   const smallFont = useFontSize(-2);
   const tinyFont = useFontSize(-3);
@@ -203,29 +193,24 @@ function InputToolbar(props: InputToolbarProps) {
   const selectedRepositoryLabel = formatWorkspaceLabel(effectiveRepositoryPath);
 
   const stopActiveWork = useCallback(async () => {
-    if (runningTerminalCalls.length > 0) {
+    if (runningToolCalls.length > 0) {
       await Promise.all(
-        runningTerminalCalls.map(async (terminalCall) => {
+        runningToolCalls.map(async (toolCall) => {
           try {
             await ideMessenger.request("process/killTerminalProcess", {
-              toolCallId: terminalCall.toolCallId,
+              toolCallId: toolCall.toolCallId,
             });
-            dispatch(cancelToolCall({ toolCallId: terminalCall.toolCallId }));
-            logToolUsage(terminalCall, false, true, ideMessenger);
-          } catch (error) {
-            console.error(
-              `Failed to cancel terminal command ${terminalCall.toolCallId}:`,
-              error,
-            );
+          } catch {
+            // Non-terminal tools do not have an OS process to kill.
           }
+          dispatch(cancelToolCall({ toolCallId: toolCall.toolCallId }));
+          logToolUsage(toolCall, false, true, ideMessenger);
         }),
       );
     }
 
-    if (isStreaming) {
-      dispatch(cancelStream());
-    }
-  }, [dispatch, ideMessenger, isStreaming, runningTerminalCalls]);
+    dispatch(cancelStream());
+  }, [dispatch, ideMessenger, runningToolCalls]);
 
   const chooseAgentWorkspace = useCallback(async () => {
     const response = await ideMessenger.request(
@@ -783,55 +768,55 @@ function InputToolbar(props: InputToolbarProps) {
               </ToolTip>
             </div>
           )}
-          <ToolTip
-            place="top"
-            content={
-              showStop
-                ? "Stop"
-                : props.isMainInput
-                  ? `Send (${sendShortcut})`
-                  : "Send (⏎)"
-            }
-          >
-            <Button
-              variant={props.isMainInput ? "primary" : "secondary"}
-              size="sm"
-              data-testid="submit-input-button"
-              data-streaming={showStop ? "true" : "false"}
-              aria-label={
-                showStop
-                  ? "Stop"
-                  : props.isMainInput
-                    ? `Send message (${sendShortcut})`
-                    : sendLabel
-              }
-              onClick={async () => {
-                if (showStop) {
-                  void stopActiveWork();
-                  return;
-                }
-                if (props.onEnter) {
-                  props.onEnter({
-                    useCodebase: false,
-                    noContext: true,
-                  });
-                }
-              }}
-              disabled={isEnterDisabled}
-            >
-              {showStop ? (
+          {showStop && (
+            <ToolTip place="top" content="Stop">
+              <Button
+                variant="secondary"
+                size="sm"
+                data-testid="stop-input-button"
+                data-streaming="true"
+                aria-label="Stop"
+                onClick={() => void stopActiveWork()}
+              >
                 <StopIcon
                   aria-hidden="true"
                   className="qivryn-stop-icon h-4 w-4"
                 />
-              ) : (
+              </Button>
+            </ToolTip>
+          )}
+          {!showStop && (
+            <ToolTip
+              place="top"
+              content={
+                props.isMainInput ? `Send (${sendShortcut})` : "Send (⏎)"
+              }
+            >
+              <Button
+                variant={props.isMainInput ? "primary" : "secondary"}
+                size="sm"
+                data-testid="submit-input-button"
+                data-streaming="false"
+                aria-label={
+                  props.isMainInput
+                    ? `Send message (${sendShortcut})`
+                    : sendLabel
+                }
+                onClick={() =>
+                  props.onEnter?.({
+                    useCodebase: false,
+                    noContext: true,
+                  })
+                }
+                disabled={isEnterDisabled}
+              >
                 <ArrowUpIcon
                   aria-hidden="true"
                   className="qivryn-send-icon h-4 w-4"
                 />
-              )}
-            </Button>
-          </ToolTip>
+              </Button>
+            </ToolTip>
+          )}
         </div>
       </div>
     </>

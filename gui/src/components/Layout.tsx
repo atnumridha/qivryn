@@ -1,5 +1,11 @@
 import { OnboardingModes } from "core/protocol/core";
-import { useContext, useEffect } from "react";
+import {
+  ClipboardDocumentCheckIcon,
+  ClockIcon,
+  Cog6ToothIcon,
+  PlusIcon,
+} from "@heroicons/react/24/outline";
+import { useContext, useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import { CustomScrollbarDiv } from ".";
@@ -9,10 +15,12 @@ import { LocalStorageProvider } from "../context/LocalStorage";
 import { useWebviewListener } from "../hooks/useWebviewListener";
 import { useAppDispatch, useAppSelector } from "../redux/hooks";
 import { setCodeToEdit } from "../redux/slices/editState";
+import { newSession } from "../redux/slices/sessionSlice";
 import { setShowDialog } from "../redux/slices/uiSlice";
 import { enterEdit, exitEdit } from "../redux/thunks/edit";
 import { saveCurrentSession } from "../redux/thunks/session";
 import { fontSize, isMetaEquivalentKeyPressed } from "../util";
+import { isQivrynStandalone } from "../util/isQivrynStandalone";
 import { ROUTES } from "../util/navigation";
 import { FatalErrorIndicator } from "./config/FatalErrorNotice";
 import TextDialog from "./dialogs";
@@ -35,6 +43,61 @@ const GridDiv = styled.div`
   overflow-x: hidden;
 `;
 
+function StandaloneRouteMenu() {
+  const dispatch = useAppDispatch();
+  const ideMessenger = useContext(IdeMessengerContext);
+
+  const openRoute = (path: string) =>
+    ideMessenger.post("reloadAgentWindow", { path });
+
+  return (
+    <nav className="qivryn-standalone-menu" aria-label="Qivryn menu">
+      <span className="qivryn-standalone-menu-title">Qivryn</span>
+      <div className="qivryn-standalone-menu-actions">
+        <button
+          type="button"
+          aria-label="New chat"
+          title="New chat"
+          onClick={() => {
+            dispatch(newSession());
+            openRoute(ROUTES.HOME);
+          }}
+        >
+          <PlusIcon aria-hidden="true" />
+          <span>New</span>
+        </button>
+        <button
+          type="button"
+          aria-label="View history"
+          title="View history"
+          onClick={() => openRoute("/history")}
+        >
+          <ClockIcon aria-hidden="true" />
+          <span>History</span>
+        </button>
+        <button
+          type="button"
+          aria-label="Open review"
+          title="Open review"
+          onClick={() => openRoute(ROUTES.REVIEW)}
+        >
+          <ClipboardDocumentCheckIcon aria-hidden="true" />
+          <span>Review</span>
+        </button>
+        <button
+          type="button"
+          aria-label="Open settings"
+          title="Open settings"
+          onClick={() => openRoute(ROUTES.CONFIG)}
+        >
+          <Cog6ToothIcon aria-hidden="true" />
+          <span>Settings</span>
+        </button>
+      </div>
+    </nav>
+  );
+}
+
 const Layout = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -50,6 +113,14 @@ const Layout = () => {
   const isHome =
     location.pathname === ROUTES.HOME ||
     location.pathname === ROUTES.HOME_INDEX;
+  const [isStandaloneSurface, setIsStandaloneSurface] =
+    useState(isQivrynStandalone);
+
+  useEffect(() => {
+    const updateSurface = () => setIsStandaloneSurface(isQivrynStandalone());
+    window.addEventListener("resize", updateSurface);
+    return () => window.removeEventListener("resize", updateSurface);
+  }, []);
 
   useWebviewListener(
     "newSession",
@@ -189,9 +260,15 @@ const Layout = () => {
   return (
     <LocalStorageProvider>
       <AuthProvider>
-        <LayoutTopDiv>
+        <LayoutTopDiv
+          className={
+            isStandaloneSurface ? "qivryn-standalone-surface" : undefined
+          }
+        >
           <OSRContextMenu />
+          {isStandaloneSurface && !isHome && <StandaloneRouteMenu />}
           <div
+            className="qivryn-layout-content"
             style={{
               scrollbarGutter: "stable both-edges",
               minHeight: "100%",

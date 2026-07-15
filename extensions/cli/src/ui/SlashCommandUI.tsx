@@ -4,10 +4,21 @@ import React, { useEffect, useState } from "react";
 
 import {
   getAllSlashCommands,
+  REMOTE_MODE_SLASH_COMMANDS,
   type SlashCommand,
 } from "../commands/commands.js";
 
+import {
+  filterAndSortSlashCommands,
+  getSlashCommandWindow,
+} from "./slashCommandFiltering.js";
+
 const MAX_DESCRIPTION_LENGTH = 80;
+const FALLBACK_SLASH_COMMANDS: SlashCommand[] = [
+  { name: "help", description: "Show help message", category: "system" },
+  { name: "clear", description: "Clear the chat history", category: "system" },
+  { name: "exit", description: "Exit the chat", category: "system" },
+];
 
 const truncateDescription = (description: string): string => {
   if (description.length <= MAX_DESCRIPTION_LENGTH) {
@@ -23,36 +34,32 @@ interface SlashCommandUIProps {
   assistant?: AssistantConfig;
   filter: string;
   selectedIndex: number;
+  isRemoteMode?: boolean;
 }
 
 const SlashCommandUI: React.FC<SlashCommandUIProps> = ({
   assistant,
   filter,
   selectedIndex,
+  isRemoteMode = false,
 }) => {
-  const [allCommands, setAllCommands] = useState<SlashCommand[]>(
-    // Fallback - basic commands without assistant
-    [
-      { name: "help", description: "Show help message", category: "system" },
-      {
-        name: "clear",
-        description: "Clear the chat history",
-        category: "system",
-      },
-      { name: "exit", description: "Exit the chat", category: "system" },
-    ],
+  const [allCommands, setAllCommands] = useState<SlashCommand[]>(() =>
+    isRemoteMode ? REMOTE_MODE_SLASH_COMMANDS : FALLBACK_SLASH_COMMANDS,
   );
 
   useEffect(() => {
     let stale = false;
 
     const loadCommands = async () => {
-      if (assistant) {
-        const commands = await getAllSlashCommands(assistant);
-        if (!stale) {
-          setAllCommands(commands);
-        }
+      if (!assistant) {
+        setAllCommands(
+          isRemoteMode ? REMOTE_MODE_SLASH_COMMANDS : FALLBACK_SLASH_COMMANDS,
+        );
+        return;
       }
+
+      const commands = await getAllSlashCommands(assistant, { isRemoteMode });
+      if (!stale) setAllCommands(commands);
     };
 
     void loadCommands();
@@ -60,20 +67,10 @@ const SlashCommandUI: React.FC<SlashCommandUIProps> = ({
     return () => {
       stale = true;
     };
-  }, [assistant?.prompts, assistant?.rules]);
+  }, [assistant, isRemoteMode]);
 
-  // Filter commands based on the current filter
-  const filteredCommands = allCommands
-    .filter((cmd) => cmd.name.toLowerCase().includes(filter.toLowerCase()))
-    .sort((a, b) => {
-      const aStartsWith = a.name.toLowerCase().startsWith(filter.toLowerCase());
-      const bStartsWith = b.name.toLowerCase().startsWith(filter.toLowerCase());
-
-      if (aStartsWith && !bStartsWith) return -1;
-      if (!aStartsWith && bStartsWith) return 1;
-
-      return a.name.localeCompare(b.name);
-    });
+  const filteredCommands = filterAndSortSlashCommands(allCommands, filter);
+  const commandWindow = getSlashCommandWindow(filteredCommands, selectedIndex);
 
   if (filteredCommands.length === 0) {
     return (
@@ -85,12 +82,12 @@ const SlashCommandUI: React.FC<SlashCommandUIProps> = ({
 
   return (
     <Box paddingX={1} marginX={1} marginBottom={1} flexDirection="column">
-      {filteredCommands.map((command, index) => {
-        const isSelected = index === selectedIndex;
+      {commandWindow.commands.map((command, index) => {
+        const absoluteIndex = commandWindow.startIndex + index;
+        const isSelected = absoluteIndex === selectedIndex;
 
-        // Find the longest command name to vertically align command descriptions
         const maxCommandLength = Math.max(
-          ...filteredCommands.map((cmd) => cmd.name.length),
+          ...commandWindow.commands.map((cmd) => cmd.name.length),
         );
         const paddedCommandName = `/${command.name}`.padEnd(
           maxCommandLength + 1,
@@ -112,7 +109,11 @@ const SlashCommandUI: React.FC<SlashCommandUIProps> = ({
 
       <Box marginTop={1}>
         <Text color="gray" dimColor>
+          {commandWindow.total > commandWindow.commands.length
+            ? `${commandWindow.startIndex + 1}-${commandWindow.startIndex + commandWindow.commands.length} of ${commandWindow.total} · `
+            : ""}
           ↑/↓ to navigate, Enter to select, Tab to complete
+          {!filter && !isRemoteMode ? " · Type /skill to search skills" : ""}
         </Text>
       </Box>
     </Box>

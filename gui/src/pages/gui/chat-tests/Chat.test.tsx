@@ -6,6 +6,7 @@ import {
   newSession,
   setActive,
   setMode,
+  setToolCallCalling,
 } from "../../../redux/slices/sessionSlice";
 import { addAndSelectMockLlm } from "../../../util/test/config";
 import { renderWithProviders } from "../../../util/test/render";
@@ -127,7 +128,7 @@ test("main composer shows workspace detected from VS Code when none is injected"
   expect(window.localStorage.getItem(LAST_AGENT_REPOSITORY_KEY)).toBeNull();
 });
 
-test("replaces send with a working stop control while streaming", async () => {
+test("shows only stop while keeping the main composer editable during streaming", async () => {
   const { store, user } = await renderWithProviders(<Chat />);
 
   await act(async () => {
@@ -136,6 +137,7 @@ test("replaces send with a working stop control while streaming", async () => {
 
   const stopButton = await screen.findByRole("button", { name: "Stop" });
   expect(stopButton).toHaveAttribute("data-streaming", "true");
+  expect(screen.queryByTestId("submit-input-button")).toBeNull();
 
   await user.click(stopButton);
 
@@ -530,6 +532,141 @@ test("queues agent-mode follow-ups as steering messages from the same composer",
       /Queued a steering message for the active durable agent/,
     ),
   ).toBeVisible();
+});
+
+test("sends steering context while a model response is already running", async () => {
+  const { ideMessenger, store, user } = await renderWithProviders(<Chat />);
+  let releaseFirstResponse!: () => void;
+  const firstResponseGate = new Promise<void>((resolve) => {
+    releaseFirstResponse = resolve;
+  });
+  let streamCallCount = 0;
+
+  ideMessenger.responseHandlers["llm/compileChat"] = async () => {
+    const history = store.getState().session.history;
+    return {
+      compiledChatMessages: history.map((item) => item.message),
+      didPrune: false,
+      contextPercentage: 0.5,
+    };
+  };
+  ideMessenger.llmStreamChat = async function* (_message, signal) {
+    streamCallCount += 1;
+    if (streamCallCount === 1) {
+      yield [{ role: "assistant", content: "Initial partial answer" }];
+      await firstResponseGate;
+      if (signal.aborted) return undefined;
+      yield [{ role: "assistant", content: " stale tail" }];
+      return undefined;
+    }
+    yield [{ role: "assistant", content: "Updated with your guidance" }];
+    return undefined;
+  };
+
+  await act(async () => {
+    addAndSelectMockLlm(store, ideMessenger);
+  });
+
+  const editor = await getMainEditor();
+  await act(async () => {
+    editor.commands.insertContent("Start the review");
+  });
+  await act(async () => {
+    screen.getByTestId("submit-input-button").click();
+  });
+  await screen.findByText("Initial partial answer");
+
+  await act(async () => {
+    editor.commands.insertContent("Prioritize the failing tests");
+  });
+  await user.click(await getElementByTestId("editor-input-main"));
+  await user.keyboard("{Enter}");
+
+  expect(editor.getText()).toBe("");
+  await screen.findByText("Prioritize the failing tests");
+  releaseFirstResponse();
+
+  await screen.findByText("Updated with your guidance");
+  await waitFor(() => {
+    expect(streamCallCount).toBe(2);
+    expect(store.getState().session.isStreaming).toBe(false);
+  });
+  expect(screen.getByText("Initial partial answer")).toBeVisible();
+  expect(screen.queryByText(/stale tail/)).toBeNull();
+});
+
+test("steers an active tool even when model token streaming is idle", async () => {
+  const { ideMessenger, store, user } = await renderWithProviders(<Chat />);
+  ideMessenger.responseHandlers["llm/compileChat"] = async () => {
+    const history = store.getState().session.history;
+    return {
+      compiledChatMessages: history.map((item) => item.message),
+      didPrune: false,
+      contextPercentage: 0.5,
+    };
+  };
+  ideMessenger.setChatResponseText("Continued after tool guidance");
+
+  await act(async () => {
+    addAndSelectMockLlm(store, ideMessenger);
+    store.dispatch(
+      newSession({
+        sessionId: "active-tool-session",
+        title: "Active tool",
+        workspaceDirectory: "/workspace/app",
+        mode: "agent",
+        history: [
+          {
+            message: {
+              role: "assistant",
+              content: "Working with a tool",
+              toolCalls: [
+                {
+                  id: "active-tool",
+                  type: "function",
+                  function: { name: "read_file", arguments: "{}" },
+                },
+              ],
+            },
+            contextItems: [],
+            toolCallStates: [
+              {
+                toolCallId: "active-tool",
+                toolCall: {
+                  id: "active-tool",
+                  type: "function",
+                  function: { name: "read_file", arguments: "{}" },
+                },
+                parsedArgs: {},
+                status: "generated",
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    store.dispatch(setToolCallCalling({ toolCallId: "active-tool" }));
+    store.dispatch({ type: "session/setInactive" });
+  });
+
+  expect(store.getState().session.isStreaming).toBe(false);
+  expect(
+    store.getState().session.history.at(-1)?.toolCallStates?.[0].status,
+  ).toBe("calling");
+  expect(screen.getByRole("button", { name: "Stop" })).toBeVisible();
+  const editor = await getMainEditor();
+  await act(async () => {
+    editor.commands.insertContent("Use the configuration file instead");
+  });
+  expect(screen.queryByTestId("submit-input-button")).toBeNull();
+  await user.click(await getElementByTestId("editor-input-main"));
+  await user.keyboard("{Enter}");
+
+  await screen.findByText("Use the configuration file instead");
+  await screen.findByText("Continued after tool guidance");
+  expect(store.getState().session.history[0].toolCallStates?.[0].status).toBe(
+    "canceled",
+  );
 });
 
 test("surfaces a recoverable error instead of ignoring submit while chat model is loading", async () => {

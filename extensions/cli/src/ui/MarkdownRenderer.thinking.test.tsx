@@ -1,3 +1,5 @@
+import { stripVTControlCharacters } from "node:util";
+
 import { render } from "ink-testing-library";
 import React from "react";
 
@@ -29,7 +31,7 @@ describe("MarkdownRenderer - thinking tags", () => {
     const { lastFrame } = render(<MarkdownRenderer content={content} />);
 
     // The thinking tag should appear as literal text within the code block
-    expect(lastFrame()).toContain(
+    expect(stripVTControlCharacters(lastFrame() ?? "")).toContain(
       "<think>This should not be processed</think>",
     );
   });

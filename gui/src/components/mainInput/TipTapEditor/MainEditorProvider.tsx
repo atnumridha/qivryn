@@ -2,8 +2,10 @@ import { Editor } from "@tiptap/react";
 import { InputModifiers } from "core";
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -25,6 +27,12 @@ interface MainEditorContextType {
   setInputId: (id: string) => void;
   /** Reference to the execute content function */
   onEnterRef: React.MutableRefObject<(modifiers: InputModifiers) => void>;
+  /** Attach browser or IDE file drops to the main composer. */
+  attachFiles: (dataTransfer: DataTransfer) => Promise<void>;
+  /** Register the active main composer's attachment handler. */
+  setAttachFiles: (
+    handler: ((dataTransfer: DataTransfer) => Promise<void>) | null,
+  ) => void;
 }
 
 const initialState: MainEditorContextType = {
@@ -33,6 +41,8 @@ const initialState: MainEditorContextType = {
   inputId: null,
   setInputId: () => {},
   onEnterRef: { current: () => {} },
+  attachFiles: async () => {},
+  setAttachFiles: () => {},
 };
 
 const MainEditorContext = createContext<MainEditorContextType>(initialState);
@@ -49,6 +59,9 @@ export const MainEditorProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   const [inputId, setInputId] = useState<string | null>(initialState.inputId);
   const onEnterRef = useRef<(modifiers: InputModifiers) => void>(() => {});
+  const attachFilesRef = useRef<
+    ((dataTransfer: DataTransfer) => Promise<void>) | null
+  >(null);
   const editorFocusedRef = useRef<boolean>(false);
   const historyLength = useAppSelector((store) => store.session.history.length);
 
@@ -94,17 +107,33 @@ export const MainEditorProvider: React.FC<{ children: React.ReactNode }> = ({
     editorFocusedRef,
   });
 
-  const setMainEditor = (newEditor: Editor | null) => {
+  const setMainEditor = useCallback((newEditor: Editor | null) => {
     setMainEditorInternal(newEditor);
-  };
+  }, []);
 
-  const value: MainEditorContextType = {
-    mainEditor,
-    setMainEditor,
-    inputId,
-    setInputId,
-    onEnterRef,
-  };
+  const attachFiles = useCallback(async (dataTransfer: DataTransfer) => {
+    await attachFilesRef.current?.(dataTransfer);
+  }, []);
+
+  const setAttachFiles = useCallback(
+    (handler: ((dataTransfer: DataTransfer) => Promise<void>) | null) => {
+      attachFilesRef.current = handler;
+    },
+    [],
+  );
+
+  const value = useMemo<MainEditorContextType>(
+    () => ({
+      mainEditor,
+      setMainEditor,
+      inputId,
+      setInputId,
+      onEnterRef,
+      attachFiles,
+      setAttachFiles,
+    }),
+    [attachFiles, inputId, mainEditor, setAttachFiles, setMainEditor],
+  );
 
   return (
     <MainEditorContext.Provider value={value}>

@@ -76,6 +76,20 @@ let fullScreenRecoverySessionId: string | undefined;
 
 const CHAT_ROUTE = "/";
 
+function focusFullScreenPanel(sidebar: QivrynGUIWebviewViewProvider): boolean {
+  if (!fullScreenPanel) {
+    return false;
+  }
+
+  // The provider's protocol is shared by the sidebar and panel. Restore the
+  // fullscreen panel as its target before routing any command; otherwise a
+  // menu action can be delivered to the hidden sidebar and make the active
+  // chat look as though it collapsed.
+  sidebar.webviewProtocol.webview = fullScreenPanel.webview;
+  fullScreenPanel.reveal();
+  return true;
+}
+
 function getFullScreenTab() {
   const tabs = vscode.window.tabGroups.all.flatMap((tabGroup) => tabGroup.tabs);
   return tabs.find((tab) =>
@@ -98,19 +112,17 @@ function waitForWebviewBoot(webview: vscode.Webview, timeoutMs = 1_000) {
 }
 
 function focusGUI() {
-  const fullScreenTab = getFullScreenTab();
-  if (fullScreenTab) {
-    // focus fullscreen
-    fullScreenPanel?.reveal();
-  } else {
-    // Focus the Qivryn chat surface. In Qivryn IDE this view lives in the
-    // secondary/right sidebar; in extension fallback builds it remains the
-    // host-provided webview surface.
-    vscode.commands.executeCommand("workbench.view.extension.qivryn");
-    vscode.commands.executeCommand("workbench.action.focusAuxiliaryBar");
-    vscode.commands.executeCommand("qivryn.qivrynGUIView.focus");
-    vscode.commands.executeCommand("workbench.action.closeSidebar");
+  if (fullScreenPanel) {
+    fullScreenPanel.reveal();
+    return;
   }
+  // Focus the Qivryn chat surface. In Qivryn IDE this view lives in the
+  // secondary/right sidebar; in extension fallback builds it remains the
+  // host-provided webview surface.
+  vscode.commands.executeCommand("workbench.view.extension.qivryn");
+  vscode.commands.executeCommand("workbench.action.focusAuxiliaryBar");
+  vscode.commands.executeCommand("qivryn.qivrynGUIView.focus");
+  vscode.commands.executeCommand("workbench.action.closeSidebar");
 }
 
 function hideGUI() {
@@ -488,6 +500,7 @@ const getCommandsMap: (
           prompt: "Enter the Session ID",
         });
       }
+      focusFullScreenPanel(sidebar);
       void sidebar.webviewProtocol?.request("focusQivrynSessionId", {
         sessionId,
       });
@@ -694,6 +707,7 @@ const getCommandsMap: (
       quickPick.show();
     },
     "qivryn.navigateTo": (path: string, toggle: boolean) => {
+      focusFullScreenPanel(sidebar);
       sidebar.webviewProtocol?.request("navigateTo", {
         path: normalizeQivrynWebviewRoute(path) ?? CHAT_ROUTE,
         toggle,
@@ -701,9 +715,19 @@ const getCommandsMap: (
       focusGUI();
     },
     "qivryn.openAgentsWindow": async (resource?: vscode.Uri) => {
+      const agentsRoute = toAgentsWebviewRoute(resource);
+      if (fullScreenPanel) {
+        // The standalone panel is already the intended destination. Rebuild it
+        // with the Agents route in place; opening the command again used to
+        // merely reveal the existing chat route.
+        return vscode.commands.executeCommand(
+          "qivryn.reloadAgentsWindow",
+          agentsRoute,
+        );
+      }
       return vscode.commands.executeCommand(
         "qivryn.openInNewWindow",
-        toAgentsWebviewRoute(resource),
+        agentsRoute,
         false,
         false,
       );
@@ -741,7 +765,13 @@ const getCommandsMap: (
       fullScreenPanel?.dispose();
     },
     "qivryn.openAgentReview": (reportId?: string) =>
-      nativeReview.open(reportId),
+      vscode.commands.executeCommand(
+        "qivryn.navigateTo",
+        reportId
+          ? `/review?reviewId=${encodeURIComponent(reportId)}`
+          : "/review",
+        false,
+      ),
     "qivryn.acceptReviewFinding": () => nativeReview.accept(),
     "qivryn.rejectReviewFinding": () => nativeReview.reject(),
     "qivryn.commentReviewFinding": () => nativeReview.comment(),
@@ -1011,11 +1041,21 @@ const getCommandsMap: (
       );
     },
     "qivryn.openSessionFromAgents": async (sessionId: string) => {
-      fullScreenRecoverySessionId = sessionId;
-      if (fullScreenPanel) {
-        fullScreenPanel.dispose();
+      if (focusFullScreenPanel(sidebar)) {
+        // History and session menus are rendered by the fullscreen webview
+        // itself. Disposing it here hands control back to the sidebar and
+        // makes the dedicated chat appear to minimize. Keep the existing
+        // panel alive and load the selected session in place instead.
+        await sidebar.webviewProtocol.request("navigateTo", {
+          path: CHAT_ROUTE,
+          toggle: false,
+        });
+        await sidebar.webviewProtocol.request("focusQivrynSessionId", {
+          sessionId,
+        });
         return;
       }
+      fullScreenRecoverySessionId = sessionId;
       await vscode.commands.executeCommand("qivryn.qivrynGUIView.focus");
       await vscode.commands.executeCommand(
         "qivryn.navigateTo",
@@ -1049,14 +1089,10 @@ const getCommandsMap: (
       const fullScreenTab = getFullScreenTab();
 
       if (fullScreenTab && fullScreenPanel) {
-        if (!moveToNewWindow) {
-          fullScreenPanel.dispose();
-          fullScreenPanel = undefined;
-        } else {
-          // Full screen open, but not focused - focus it
-          fullScreenPanel.reveal();
-          return;
-        }
+        // A full-screen action from any Qivryn menu should never collapse the
+        // active panel. It is already the destination, so just make it active.
+        focusFullScreenPanel(sidebar);
+        return;
       }
 
       // Clear the sidebar before full-screen chat/browser sessions to prevent

@@ -2,7 +2,7 @@
   "name": "qivryn",
   "icon": "media/icon.png",
   "author": "Qivryn AI",
-  "version": "1.3.46",
+  "version": "1.3.48",
   "repository": {
     "type": "git",
     "url": "https://github.com/atnumridha/qivryn"
@@ -932,6 +932,28 @@
           "command": "qivryn.clearConsole",
           "group": "navigation@1",
           "when": "view == qivryn.qivrynConsoleView"
+        }
+      ],
+      "webview/title": [
+        {
+          "command": "qivryn.newSession",
+          "group": "navigation@1",
+          "when": "webviewId == qivryn.qivrynGUIView"
+        },
+        {
+          "command": "qivryn.viewHistory",
+          "group": "navigation@2",
+          "when": "webviewId == qivryn.qivrynGUIView"
+        },
+        {
+          "command": "qivryn.openAgentReview",
+          "group": "navigation@3",
+          "when": "webviewId == qivryn.qivrynGUIView"
+        },
+        {
+          "command": "qivryn.openConfigPage",
+          "group": "navigation@4",
+          "when": "webviewId == qivryn.qivrynGUIView"
         }
       ],
       "editor/title": [

@@ -73,6 +73,7 @@ export const handleApplyStateUpdate = createAsyncThunk<
 
         if (
           applyState.status === "done" &&
+          toolCallState?.status !== "canceled" &&
           toolCallState?.toolCall.function.name &&
           getScopedState().ui.toolSettings[
             toolCallState.toolCall.function.name

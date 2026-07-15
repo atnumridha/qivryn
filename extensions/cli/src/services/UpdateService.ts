@@ -50,13 +50,14 @@ export class UpdateService extends BaseService<UpdateServiceState> {
     });
 
     try {
-      // skip checking for updates in dev
       if (this.currentState.currentVersion === "0.0.0-dev") {
         this.setState({
           status: UpdateStatus.IDLE,
-          message: `Qivryn CLI`,
+          message: "Qivryn CLI dev build",
+          isUpdateAvailable: false,
+          latestVersion: null,
         });
-        return; // Uncomment to test auto-update behavior in dev
+        return;
       }
 
       // Check for updates
@@ -134,6 +135,17 @@ export class UpdateService extends BaseService<UpdateServiceState> {
 
   async performUpdate(isAutoUpdate?: boolean) {
     if (this.currentState.status === "updating") {
+      return;
+    }
+
+    if (this.currentState.currentVersion === "0.0.0-dev") {
+      this.setState({
+        isAutoUpdate,
+        status: UpdateStatus.ERROR,
+        message:
+          "This is a development build. Rebuild and reinstall it from the Qivryn repository.",
+        error: new Error("Development builds cannot self-update"),
+      });
       return;
     }
 

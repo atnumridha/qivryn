@@ -1,3 +1,5 @@
+import { stripVTControlCharacters } from "node:util";
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { services } from "./services/index.js";
@@ -63,13 +65,12 @@ describe("handleSlashCommands - /info", () => {
     const result = await handleSlashCommands("/info", mockAssistant as any);
 
     expect(result).toBeDefined();
-    expect(result?.output).toContain("CLI Information:");
-    expect(result?.output).toContain("Version: 1.2.3");
-    expect(result?.output).toContain(
-      "Working Directory: /test/working/directory",
-    );
-    expect(result?.output).toContain("Configuration:");
-    expect(result?.output).toContain("Model: gpt-4");
+    const output = stripVTControlCharacters(result?.output ?? "");
+    expect(output).toContain("CLI Information:");
+    expect(output).toContain("Version: 1.2.3");
+    expect(output).toContain("Working Directory: /test/working/directory");
+    expect(output).toContain("Configuration:");
+    expect(output).toContain("Model: gpt-4");
     expect(result?.exit).toBe(false);
   });
 
@@ -87,7 +88,9 @@ describe("handleSlashCommands - /info", () => {
 
     const result = await handleSlashCommands("/info", mockAssistant as any);
 
-    expect(result?.output).toContain("Model: claude-3-sonnet");
+    expect(stripVTControlCharacters(result?.output ?? "")).toContain(
+      "Model: claude-3-sonnet",
+    );
   });
 
   it("should handle missing model info gracefully", async () => {
@@ -101,7 +104,9 @@ describe("handleSlashCommands - /info", () => {
 
     const result = await handleSlashCommands("/info", mockAssistant as any);
 
-    expect(result?.output).toContain("Model: Not available");
+    expect(stripVTControlCharacters(result?.output ?? "")).toContain(
+      "Model: Not available",
+    );
   });
 
   it("should handle config service error", async () => {
@@ -112,6 +117,8 @@ describe("handleSlashCommands - /info", () => {
 
     const result = await handleSlashCommands("/info", mockAssistant as any);
 
-    expect(result?.output).toContain("Configuration service not available");
+    expect(stripVTControlCharacters(result?.output ?? "")).toContain(
+      "Configuration service not available",
+    );
   });
 });

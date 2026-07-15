@@ -400,7 +400,10 @@ export function createEditorConfig(options: {
     if (!editor) {
       return;
     }
-    if (isStreamingRef.current || (codeToEdit.length === 0 && isInEdit)) {
+    if (
+      (isStreamingRef.current && !props.isMainInput) ||
+      (codeToEdit.length === 0 && isInEdit)
+    ) {
       return;
     }
 

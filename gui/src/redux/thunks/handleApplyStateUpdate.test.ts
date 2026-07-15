@@ -184,6 +184,49 @@ describe("handleApplyStateUpdate", () => {
     });
   });
 
+  describe("automatic acceptance", () => {
+    it("does not auto-accept a late done event for a canceled edit tool", async () => {
+      const toolCallState: ToolCallState = {
+        toolCallId: "test-tool-call",
+        status: "canceled",
+        toolCall: {
+          id: "test-tool-call",
+          type: "function",
+          function: { name: "edit_file", arguments: "{}" },
+        },
+        parsedArgs: {},
+      };
+      vi.mocked(findToolCallById).mockReturnValue(toolCallState);
+      mockGetState.mockReturnValue({
+        session: {
+          id: "test-session",
+          history: [],
+          codeBlockApplyStates: { states: [] },
+          backgroundSessionStates: {},
+        },
+        ui: { toolSettings: { edit_file: "allowedWithoutPermission" } },
+        config: { config: {} },
+      });
+
+      const applyState: ApplyState = {
+        streamId: "chat-stream",
+        toolCallId: "test-tool-call",
+        status: "done",
+        filepath: "test.txt",
+        numDiffs: 1,
+      };
+
+      const thunk = handleApplyStateUpdate(applyState);
+      await thunk(mockDispatch, mockGetState, mockExtra);
+
+      expect(mockExtra.ideMessenger.post).not.toHaveBeenCalledWith(
+        "acceptDiff",
+        expect.anything(),
+      );
+      expect(streamResponseAfterToolCall).not.toHaveBeenCalled();
+    });
+  });
+
   describe("closed status handling", () => {
     it("should handle accepted tool call closure", async () => {
       const toolCallState: ToolCallState = {

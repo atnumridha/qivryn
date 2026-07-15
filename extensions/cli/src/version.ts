@@ -30,6 +30,57 @@ function getEventUserId(): string {
   return node_machine_id.machineIdSync();
 }
 
+const QIVRYN_INFO_URL = "https://api.qivryn.ai/qivryn/info";
+const QIVRYN_NPM_URL = "https://registry.npmjs.org/@qivryn%2Fcli/latest";
+
+const readStringProperty = (
+  value: unknown,
+  property: string,
+): string | null => {
+  if (typeof value !== "object" || value === null) return null;
+  const propertyValue = Reflect.get(value, property);
+  return typeof propertyValue === "string" ? propertyValue : null;
+};
+
+export const extractLatestNpmVersion = (metadata: unknown): string | null => {
+  const version = readStringProperty(metadata, "version");
+  return version && /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version)
+    ? version
+    : null;
+};
+
+async function fetchLatestVersion(
+  signal?: AbortSignal,
+): Promise<string | null> {
+  try {
+    const id = getEventUserId();
+    const response = await fetch(
+      `${QIVRYN_INFO_URL}?id=${encodeURIComponent(id)}`,
+      { signal },
+    );
+    if (response.ok) {
+      const version = readStringProperty(await response.json(), "version");
+      if (version) return version;
+    }
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") return null;
+    logger?.debug("Could not fetch the latest version from api.qivryn.ai");
+  }
+
+  try {
+    const response = await fetch(QIVRYN_NPM_URL, {
+      signal,
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) return null;
+    return extractLatestNpmVersion(await response.json());
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") return null;
+    logger?.debug("Could not fetch the latest CLI version from npm");
+    return null;
+  }
+}
+
 // Singleton to cache the latest version result
 let latestVersionCache: Promise<string | null> | null = null;
 
@@ -41,30 +92,7 @@ export async function getLatestVersion(
     return latestVersionCache;
   }
 
-  // Create and cache the promise
-  latestVersionCache = (async () => {
-    try {
-      const id = getEventUserId();
-      const response = await fetch(
-        `https://api.qivryn.ai/qivryn/info?id=${encodeURIComponent(id)}`,
-        { signal },
-      );
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      return data.version;
-    } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
-        // Request was aborted, don't log
-        return null;
-      }
-      logger?.debug(
-        "Warning: Could not fetch latest version from api.qivryn.ai",
-      );
-      return null;
-    }
-  })();
+  latestVersionCache = fetchLatestVersion(signal);
 
   return latestVersionCache;
 }

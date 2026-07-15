@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - main
-      - codex/qivryn-ide-shell
     tags:
       - "v*-qivryn-ide"
 
@@ -25,13 +24,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-13
+          - os: macos-15-intel
             platform: darwin
             arch: x64
             npm_config_arch: x64
             gulp_task: vscode-darwin-x64
             experimental: false
-          - os: macos-latest
+          - os: macos-14
             platform: darwin
             arch: arm64
             npm_config_arch: arm64
@@ -43,7 +42,7 @@ jobs:
             npm_config_arch: x64
             gulp_task: vscode-linux-x64
             experimental: false
-          - os: ubuntu-latest
+          - os: ubuntu-24.04-arm
             platform: linux
             arch: arm64
             npm_config_arch: arm64
@@ -67,12 +66,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version-file: ".nvmrc"
 
@@ -90,7 +89,12 @@ jobs:
       - name: Install CLI dependencies
         shell: bash
         working-directory: extensions/cli
-        run: npm ci --ignore-scripts
+        run: npm ci --include=optional --ignore-scripts
+
+      - name: Build CLI
+        shell: bash
+        working-directory: extensions/cli
+        run: npm run build
 
       - name: Install GUI dependencies
         shell: bash
@@ -100,9 +104,7 @@ jobs:
       - name: Install Core dependencies
         shell: bash
         working-directory: core
-        run: |
-          npm ci
-          npm i vectordb
+        run: npm ci
 
       - name: Build GUI
         shell: bash
@@ -170,12 +172,14 @@ jobs:
             --out-dir ide/.build/installers
 
       - name: Upload installer artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: qivryn-ide-${{ matrix.platform }}-${{ matrix.arch }}
           path: |
             ide/.build/installers/*
             ide/.build/acceptance/recovery-${{ matrix.platform }}-${{ matrix.arch }}.json
+          if-no-files-found: error
+          retention-days: 14
 
   release:
     name: Publish installer release assets
@@ -186,7 +190,7 @@ jobs:
       contents: write
     steps:
       - name: Download installer artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         with:
           pattern: qivryn-ide-*
           path: installer-artifacts

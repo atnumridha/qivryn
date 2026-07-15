@@ -1,3 +1,5 @@
+import { stripVTControlCharacters } from "node:util";
+
 import { render } from "ink-testing-library";
 import React from "react";
 
@@ -209,7 +211,7 @@ ${lines}
     const { lastFrame } = render(
       React.createElement(ColoredDiff, { diffContent }),
     );
-    const frame = lastFrame();
+    const frame = stripVTControlCharacters(lastFrame() ?? "");
 
     // Check that all unique content appears
     expect(frame).toContain("function calculate()");

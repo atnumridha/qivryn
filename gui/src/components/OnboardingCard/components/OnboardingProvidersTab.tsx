@@ -59,11 +59,11 @@ export function OnboardingProvidersTab({
   });
 
   return (
-    <div className="flex h-full w-full items-center justify-center">
-      <div className="w-full max-w-md">
+    <div className="qivryn-provider-onboarding flex h-full w-full items-center justify-center">
+      <div className="qivryn-provider-onboarding-form w-full max-w-md">
         <FormProvider {...formMethods}>
           <div className="mt-5 space-y-6">
-            <div className="space-y-4">
+            <div className="qivryn-provider-grid space-y-4">
               {providerConfigs.map((config) => (
                 <div key={config?.provider}>
                   <label className="text-foreground mb-1 flex items-center gap-3 text-sm font-medium">

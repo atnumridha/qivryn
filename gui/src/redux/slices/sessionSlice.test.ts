@@ -14,6 +14,25 @@ const mockUuidv4 = vi.mocked(uuidv4);
 const mockRenderChatMessage = vi.mocked(renderChatMessage);
 const mockAddToolCallDeltaToState = vi.mocked(addToolCallDeltaToState);
 
+function createInitialState() {
+  return {
+    ...sessionSlice.getInitialState(),
+    history: [
+      {
+        message: {
+          role: "user" as const,
+          content: "This is a test.",
+          id: "initial-user-message",
+        },
+        contextItems: [],
+      },
+    ] as ChatHistoryItemWithMessageId[],
+    title: "Test Session",
+    id: "test-session-id",
+    mode: "chat" as const,
+  };
+}
+
 describe("sessionSlice streamUpdate", () => {
   beforeEach(() => {
     // Reset mocks before each test
@@ -47,35 +66,6 @@ describe("sessionSlice streamUpdate", () => {
         parsedArgs: {},
       };
     });
-  });
-
-  const createInitialState = () => ({
-    lastSessionId: undefined,
-    allSessionMetadata: [],
-    history: [
-      {
-        message: {
-          role: "user" as const,
-          content: "This is a test.",
-          id: "initial-user-message",
-        },
-        contextItems: [],
-      },
-    ] as ChatHistoryItemWithMessageId[],
-    isStreaming: false,
-    title: "Test Session",
-    id: "test-session-id",
-    streamAborter: new AbortController(),
-    symbols: {},
-    mode: "chat" as const,
-    isInEdit: false,
-    codeBlockApplyStates: {
-      states: [],
-      curIndex: 0,
-    },
-    newestToolbarPreviewForInput: {},
-    isSessionMetadataLoading: false,
-    compactionLoading: {},
   });
 
   describe("Basic Chat Message", () => {
@@ -503,6 +493,63 @@ describe("sessionSlice apply state lifecycle", () => {
     );
 
     expect(state.codeBlockApplyStates.states[0].status).toBe("closed");
+  });
+});
+
+describe("sessionSlice steering", () => {
+  it("keeps partial output and cancels unfinished tools at the handoff", () => {
+    const controller = new AbortController();
+    const initialState = createInitialState();
+    initialState.streamAborter = controller;
+    initialState.isStreaming = true;
+    initialState.history.push({
+      message: {
+        role: "assistant",
+        content: "Partial answer",
+        id: "assistant-partial",
+      },
+      contextItems: [],
+      toolCallStates: [
+        {
+          toolCallId: "tool-running",
+          toolCall: {
+            id: "tool-running",
+            type: "function",
+            function: { name: "read_file", arguments: "{}" },
+          },
+          parsedArgs: {},
+          status: "calling",
+        },
+      ],
+    });
+
+    const state = sessionSlice.reducer(
+      initialState,
+      sessionSlice.actions.interruptStreamForSteering(),
+    );
+
+    expect(controller.signal.aborted).toBe(true);
+    expect(state.streamAborter).not.toBe(controller);
+    expect(state.isStreaming).toBe(false);
+    expect(state.history.at(-1)?.message.content).toBe("Partial answer");
+    expect(state.history.at(-1)?.toolCallStates?.[0].status).toBe("canceled");
+  });
+
+  it("removes an empty response placeholder before appending guidance", () => {
+    const initialState = createInitialState();
+    initialState.isStreaming = true;
+    initialState.history.push({
+      message: { role: "assistant", content: "", id: "empty-assistant" },
+      contextItems: [],
+    });
+
+    const state = sessionSlice.reducer(
+      initialState,
+      sessionSlice.actions.interruptStreamForSteering(),
+    );
+
+    expect(state.history).toHaveLength(1);
+    expect(state.history[0].message.role).toBe("user");
   });
 });
 

@@ -98,14 +98,19 @@ describe("TUIChat - Slash Commands Tests", () => {
     // Should show the slash
     expect(frame).toContain("/");
 
-    // In remote mode, slash command menu should show
+    // In remote mode, only remote commands should appear.
     if (mode === "remote") {
-      // More lenient check - just verify we're in remote mode and have a slash
+      await waitForCondition(() => {
+        frame = lastFrame() ?? "";
+        return frame.includes("/exit") && frame.includes("/diff");
+      });
+
       expect(frame).toContain("Remote Mode");
-      // The slash command UI may not always show /exit immediately
-      // Just check that we have slash somewhere
-      const hasSlash = frame ? frame.includes("/") : false;
-      expect(hasSlash).toBe(true);
+      expect(frame).toContain("/exit");
+      expect(frame).toContain("/diff");
+      expect(frame).toContain("/apply");
+      expect(frame).not.toContain("/update");
+      expect(frame).not.toContain("/config");
     } else {
       // In local mode, the / is shown in the input
       expect(frame).toContain("Qivryn CLI");

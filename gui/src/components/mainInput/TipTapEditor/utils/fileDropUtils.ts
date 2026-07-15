@@ -5,9 +5,18 @@ import { IIdeMessenger } from "../../../../context/IdeMessenger";
 const URI_LIST_TYPES = [
   "text/uri-list",
   "application/vnd.code.uri-list",
+  "public.file-url",
   "ResourceURLs",
 ] as const;
 const CODE_FILES_TYPE = "CodeFiles";
+const DOWNLOAD_URL_TYPE = "DownloadURL";
+const PLAIN_TEXT_TYPE = "text/plain";
+const normalizeTransferType = (type: string): string => type.toLowerCase();
+const FILE_TRANSFER_TYPES = new Set<string>(
+  ["Files", CODE_FILES_TYPE, DOWNLOAD_URL_TYPE, ...URI_LIST_TYPES].map(
+    normalizeTransferType,
+  ),
+);
 const MAX_EMBEDDED_FILE_BYTES = 5 * 1024 * 1024;
 
 function parseUriList(value: string): string[] {
@@ -39,25 +48,150 @@ function parseJsonStringArray(value: string): string[] {
   }
 }
 
-export function getDroppedFileUris(dataTransfer: DataTransfer): string[] {
-  const uris = URI_LIST_TYPES.flatMap((type) => {
-    const value = dataTransfer.getData(type);
-    if (!value) return [];
-    if (type === "ResourceURLs") {
-      const resources = parseJsonStringArray(value);
-      return resources.length > 0 ? resources : parseUriList(value);
+function safeGetData(dataTransfer: DataTransfer, type: string): string {
+  const normalizedType = normalizeTransferType(type);
+  const advertisedType = Array.from(dataTransfer.types ?? []).find(
+    (candidate) => normalizeTransferType(candidate) === normalizedType,
+  );
+  const candidates = [
+    ...new Set([type, advertisedType, normalizedType]),
+  ].filter((candidate): candidate is string => Boolean(candidate));
+
+  for (const candidate of candidates) {
+    try {
+      const value = dataTransfer.getData(candidate);
+      if (value) return value;
+    } catch {
+      // Drag data can remain protected until the final drop event.
     }
-    return parseUriList(value);
+  }
+  return "";
+}
+
+function hasFileItem(dataTransfer: DataTransfer): boolean {
+  return Array.from(dataTransfer.items ?? []).some(
+    (item) => item.kind === "file",
+  );
+}
+
+function downloadUrlToUri(value: string): string | undefined {
+  const uri = value.split(":").slice(2).join(":").trim();
+  return uri.startsWith("file:") ? uri : undefined;
+}
+
+function plainTextFileUris(value: string): string[] {
+  return parseUriList(value).flatMap((entry) => {
+    if (entry.startsWith("file:")) return [entry];
+    if (entry.startsWith("/") || /^[A-Za-z]:[\\/]/.test(entry)) {
+      return [pathToFileUri(entry)];
+    }
+    return [];
   });
+}
 
-  const codeFiles = parseJsonStringArray(dataTransfer.getData(CODE_FILES_TYPE));
-  uris.push(...codeFiles.map(pathToFileUri));
+function fileUrisFromTransferValue(type: string, value: string): string[] {
+  if (!value) return [];
 
+  const normalizedType = normalizeTransferType(type);
+  if (normalizedType === normalizeTransferType("ResourceURLs")) {
+    const resources = parseJsonStringArray(value);
+    return resources.length > 0 ? resources : parseUriList(value);
+  }
+  if (normalizedType === normalizeTransferType(CODE_FILES_TYPE)) {
+    return parseJsonStringArray(value).map(pathToFileUri);
+  }
+  if (normalizedType === normalizeTransferType(DOWNLOAD_URL_TYPE)) {
+    const uri = downloadUrlToUri(value);
+    return uri ? [uri] : [];
+  }
+  if (normalizedType === PLAIN_TEXT_TYPE) {
+    return plainTextFileUris(value);
+  }
+  if (
+    URI_LIST_TYPES.some(
+      (uriType) => normalizeTransferType(uriType) === normalizedType,
+    )
+  ) {
+    return parseUriList(value);
+  }
+  return [];
+}
+
+function uniqueFileUris(uris: string[]): string[] {
   return [...new Set(uris.filter((uri) => uri.startsWith("file:")))];
 }
 
+function readStringItem(item: DataTransferItem): Promise<string[]> {
+  if (item.kind !== "string") return Promise.resolve([]);
+
+  return new Promise((resolve) => {
+    try {
+      item.getAsString((value) => {
+        resolve(fileUrisFromTransferValue(item.type, value));
+      });
+    } catch {
+      resolve([]);
+    }
+  });
+}
+
+export function containsDroppedFiles(
+  dataTransfer: DataTransfer | null,
+): boolean {
+  if (!dataTransfer) return false;
+  return (
+    hasFileItem(dataTransfer) ||
+    getDroppedFiles(dataTransfer).length > 0 ||
+    Array.from(dataTransfer.types ?? []).some((type) =>
+      FILE_TRANSFER_TYPES.has(normalizeTransferType(type)),
+    ) ||
+    Array.from(dataTransfer.items ?? []).some(
+      (item) =>
+        item.kind === "string" &&
+        FILE_TRANSFER_TYPES.has(normalizeTransferType(item.type)),
+    ) ||
+    getDroppedFileUris(dataTransfer).length > 0
+  );
+}
+
+export function getDroppedFileUris(dataTransfer: DataTransfer): string[] {
+  const transferTypes = [
+    ...URI_LIST_TYPES,
+    CODE_FILES_TYPE,
+    DOWNLOAD_URL_TYPE,
+    PLAIN_TEXT_TYPE,
+  ];
+  return uniqueFileUris(
+    transferTypes.flatMap((type) =>
+      fileUrisFromTransferValue(type, safeGetData(dataTransfer, type)),
+    ),
+  );
+}
+
+export async function getDroppedFileUrisAsync(
+  dataTransfer: DataTransfer,
+): Promise<string[]> {
+  const synchronousUris = getDroppedFileUris(dataTransfer);
+  const itemUris = await Promise.all(
+    Array.from(dataTransfer.items ?? []).map(readStringItem),
+  );
+  return uniqueFileUris([...synchronousUris, ...itemUris.flat()]);
+}
+
 export function getDroppedFiles(dataTransfer: DataTransfer): File[] {
-  return Array.from(dataTransfer.files ?? []);
+  const files = Array.from(dataTransfer.files ?? []);
+  const itemFiles = Array.from(dataTransfer.items ?? []).flatMap((item) => {
+    if (item.kind !== "file") return [];
+    const file = item.getAsFile();
+    return file ? [file] : [];
+  });
+
+  const uniqueFiles = new Map<string, File>();
+  for (const file of [...files, ...itemFiles]) {
+    const key = `${file.name}:${file.size}:${file.lastModified}`;
+    if (!uniqueFiles.has(key)) uniqueFiles.set(key, file);
+  }
+  return [...uniqueFiles.values()];
 }
 
 export function isImageFile(file: File): boolean {

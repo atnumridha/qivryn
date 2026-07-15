@@ -223,6 +223,98 @@ describe("streamResponseThunk", () => {
     expect(getState().session.history.at(-1)?.message.content).toBe("A1A2");
   });
 
+  it("serializes steering behind the interrupted stream for the same session", async () => {
+    const initialState = getRootStateWithClaude();
+    initialState.session.id = "steering-session";
+    initialState.session.history = [];
+    const mockStore = createMockStore(initialState);
+    const mockIdeMessenger = mockStore.mockIdeMessenger;
+    let releaseInitialStream!: () => void;
+    const initialStreamGate = new Promise<void>((resolve) => {
+      releaseInitialStream = resolve;
+    });
+    let streamCallCount = 0;
+
+    async function* initialStream(): AsyncGenerator<
+      AssistantChatMessage[],
+      PromptLog | undefined
+    > {
+      yield [{ role: "assistant", content: "Partial answer" }];
+      await initialStreamGate;
+      yield [{ role: "assistant", content: " stale tail" }];
+      return undefined;
+    }
+
+    async function* steeringStream(): AsyncGenerator<
+      AssistantChatMessage[],
+      PromptLog | undefined
+    > {
+      yield [{ role: "assistant", content: "Steered answer" }];
+      return undefined;
+    }
+
+    mockIdeMessenger.llmStreamChat = vi.fn().mockImplementation(() => {
+      streamCallCount += 1;
+      return streamCallCount === 1 ? initialStream() : steeringStream();
+    });
+
+    const waitFor = async (predicate: () => boolean) => {
+      const deadline = Date.now() + 2_000;
+      while (!predicate()) {
+        if (Date.now() > deadline)
+          throw new Error("Timed out waiting for stream");
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+    };
+
+    const initialRun = mockStore.dispatch(
+      streamResponseThunk({
+        editorState: mockEditorState,
+        modifiers: mockModifiers,
+      }) as any,
+    );
+    await waitFor(() =>
+      String(
+        (mockStore.getState() as RootState).session.history.at(-1)?.message
+          .content,
+      ).includes("Partial answer"),
+    );
+
+    mockResolveEditorContent.mockResolvedValue({
+      selectedContextItems: [],
+      selectedCode: [],
+      content: "Prioritize the failing tests",
+      legacyCommandWithInput: undefined,
+    });
+    const steeringRun = mockStore.dispatch(
+      streamResponseThunk({
+        editorState: mockEditorState,
+        modifiers: mockModifiers,
+        steerActiveRun: true,
+      }) as any,
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    const queuedHistory = (mockStore.getState() as RootState).session.history;
+    expect(streamCallCount).toBe(1);
+    expect(queuedHistory.at(-1)?.message.role).toBe("user");
+    releaseInitialStream();
+    await initialRun;
+    await steeringRun;
+
+    const history = (mockStore.getState() as RootState).session.history;
+    expect(streamCallCount).toBe(2);
+    expect(history.map((item) => item.message.role)).toEqual([
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+    ]);
+    expect(history[1].message.content).toBe("Partial answer");
+    expect(history[2].message.role).toBe("user");
+    expect(history[3].message.content).toBe("Steered answer");
+  });
+
   it("should execute complete streaming flow with all dispatches", async () => {
     const initialState = getRootStateWithClaude();
     initialState.session.history = [

@@ -6,6 +6,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   getAllSlashCommands,
+  REMOTE_MODE_SLASH_COMMANDS,
   type SlashCommand,
 } from "../commands/commands.js";
 import { useServices } from "../hooks/useService.js";
@@ -26,8 +27,15 @@ import {
   handleControlKeys,
   updateTextBufferState,
 } from "./hooks/useUserInput.js";
+import { filterAndSortSlashCommands } from "./slashCommandFiltering.js";
 import { SlashCommandUI } from "./SlashCommandUI.js";
 import { TextBuffer } from "./TextBuffer.js";
+
+const FALLBACK_SLASH_COMMANDS: SlashCommand[] = [
+  { name: "help", description: "Show help message", category: "system" },
+  { name: "clear", description: "Clear the chat history", category: "system" },
+  { name: "exit", description: "Exit the chat", category: "system" },
+];
 
 // Small presentational helpers to reduce cyclomatic complexity in UserInput
 const InterruptedBanner: React.FC<{ wasInterrupted: boolean }> = ({
@@ -53,17 +61,18 @@ const SlashCommandsMaybe: React.FC<{
   show,
   inputMode,
   hideNormalUI,
-  isRemoteMode: _isRemoteMode,
+  isRemoteMode,
   assistant,
   filter,
   selectedIndex,
 }) => {
-  if (!show || !inputMode || hideNormalUI || !assistant) return null;
+  if (!show || !inputMode || hideNormalUI) return null;
   return (
     <SlashCommandUI
       assistant={assistant}
       filter={filter}
       selectedIndex={selectedIndex}
+      isRemoteMode={isRemoteMode}
     />
   );
 };
@@ -181,26 +190,31 @@ const UserInput: React.FC<UserInputProps> = ({
     fileIndex: FileIndexServiceState;
   }>(["fileIndex"]);
 
-  const [slashCommands, setSlashCommands] = useState<SlashCommand[]>([
-    { name: "help", description: "Show help message", category: "system" },
-    {
-      name: "clear",
-      description: "Clear the chat history",
-      category: "system",
-    },
-    { name: "exit", description: "Exit the chat", category: "system" },
-  ]);
+  const [slashCommands, setSlashCommands] = useState<SlashCommand[]>(() =>
+    isRemoteMode ? REMOTE_MODE_SLASH_COMMANDS : FALLBACK_SLASH_COMMANDS,
+  );
 
   useEffect(() => {
+    let stale = false;
+
     const loadCommands = async () => {
-      if (assistant) {
-        const commands = await getAllSlashCommands(assistant);
-        setSlashCommands(commands);
+      if (!assistant) {
+        setSlashCommands(
+          isRemoteMode ? REMOTE_MODE_SLASH_COMMANDS : FALLBACK_SLASH_COMMANDS,
+        );
+        return;
       }
+
+      const commands = await getAllSlashCommands(assistant, { isRemoteMode });
+      if (!stale) setSlashCommands(commands);
     };
 
     void loadCommands();
-  }, [assistant?.prompts, assistant?.rules]);
+
+    return () => {
+      stale = true;
+    };
+  }, [assistant, isRemoteMode]);
 
   // Cycle through permission modes
   const cycleModes = async () => {
@@ -287,8 +301,9 @@ const UserInput: React.FC<UserInputProps> = ({
     }
 
     // Check if there are any matching commands
-    const filteredCommands = slashCommands.filter((cmd) =>
-      cmd.name.toLowerCase().includes(afterSlash.toLowerCase()),
+    const filteredCommands = filterAndSortSlashCommands(
+      slashCommands,
+      afterSlash,
     );
 
     // If no commands match, hide the dropdown to allow normal Enter behavior
@@ -357,25 +372,8 @@ const UserInput: React.FC<UserInputProps> = ({
   };
 
   // Get filtered commands for navigation - using the same sorting logic as SlashCommandUI
-  const getFilteredCommands = () => {
-    return slashCommands
-      .filter((cmd) =>
-        cmd.name.toLowerCase().includes(slashCommandFilter.toLowerCase()),
-      )
-      .sort((a, b) => {
-        const aStartsWith = a.name
-          .toLowerCase()
-          .startsWith(slashCommandFilter.toLowerCase());
-        const bStartsWith = b.name
-          .toLowerCase()
-          .startsWith(slashCommandFilter.toLowerCase());
-
-        if (aStartsWith && !bStartsWith) return -1;
-        if (!aStartsWith && bStartsWith) return 1;
-
-        return a.name.localeCompare(b.name);
-      });
-  };
+  const getFilteredCommands = () =>
+    filterAndSortSlashCommands(slashCommands, slashCommandFilter);
 
   // Handle slash command selection
   const selectSlashCommand = (commandName: string) => {

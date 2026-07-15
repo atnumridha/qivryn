@@ -96,7 +96,7 @@ describe("chatMessagesToCodexBody", () => {
 });
 
 describe("chatCompletionToCodexOptions", () => {
-  it("omits the unsupported max_output_tokens field", () => {
+  it("omits unsupported output and sampling fields", () => {
     const options = chatCompletionToCodexOptions({
       max_tokens: 37_141,
       temperature: 0.2,
@@ -105,10 +105,10 @@ describe("chatCompletionToCodexOptions", () => {
 
     expect(options).toEqual({
       stream: true,
-      temperature: 0.2,
       reasoning: { effort: "high" },
     });
     expect(options).not.toHaveProperty("max_output_tokens");
+    expect(options).not.toHaveProperty("temperature");
   });
 
   it("sanitizes top-level Responses tool names sent to ChatGPT Codex", () => {

@@ -361,7 +361,8 @@ function convertTools(tools: any[] | undefined): any[] | undefined {
 /**
  * Build the subset of Responses options accepted by the private ChatGPT Codex
  * backend. Unlike the public Responses API, this endpoint rejects
- * `max_output_tokens`; output limits are controlled by the service.
+ * `max_output_tokens` and `temperature`; output limits and sampling are
+ * controlled by the service.
  */
 export function chatCompletionToCodexOptions(
   body: Record<string, any>,
@@ -369,9 +370,6 @@ export function chatCompletionToCodexOptions(
   const reasoningEffort = body.reasoning_effort || body.reasoningEffort;
   return {
     stream: true,
-    ...(body.temperature !== undefined
-      ? { temperature: body.temperature }
-      : {}),
     ...(body.tools ? { tools: convertTools(body.tools) } : {}),
     ...(reasoningEffort ? { reasoning: { effort: reasoningEffort } } : {}),
   };

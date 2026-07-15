@@ -19,6 +19,7 @@ import {
 import { logger } from "../util/logger.js";
 
 import { BaseService, ServiceWithDependencies } from "./BaseService.js";
+import { removeLegacyDefaultRules } from "./removeLegacyDefaultRules.js";
 import { serviceContainer } from "./ServiceContainer.js";
 import { ToolPermissionServiceState } from "./ToolPermissionService.js";
 import {
@@ -273,7 +274,7 @@ export class ConfigService
       init.isHeadless,
     );
 
-    const loadedConfig = result.config;
+    const loadedConfig = removeLegacyDefaultRules(result.config);
     const merged = mergeUnrolledAssistants(loadedConfig, additional);
 
     const markdownRules = loadMarkdownRulesWithMetadata();

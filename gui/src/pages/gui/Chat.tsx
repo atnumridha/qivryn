@@ -31,6 +31,7 @@ import { useAppDispatch, useAppSelector } from "../../redux/hooks";
 import {
   selectDoneApplyStates,
   selectPendingToolCalls,
+  selectToolCallsByStatus,
 } from "../../redux/selectors/selectToolCalls";
 import {
   cancelToolCall,
@@ -653,24 +654,29 @@ export function Chat() {
       const stateSnapshot = reduxStore.getState();
       const latestPendingToolCalls = selectPendingToolCalls(stateSnapshot);
       const latestPendingApplyStates = selectDoneApplyStates(stateSnapshot);
+      const activeToolCalls = selectToolCallsByStatus(stateSnapshot, "calling");
       const isCurrentlyInEdit = stateSnapshot.session.isInEdit;
       const codeToEditSnapshot = stateSnapshot.editModeState.codeToEdit;
+      const isSteeringActiveRun =
+        (stateSnapshot.session.isStreaming || activeToolCalls.length > 0) &&
+        !isCurrentlyInEdit &&
+        index === undefined;
 
-      // Cancel all pending tool calls
-      latestPendingToolCalls.forEach((toolCallState) => {
-        dispatch(
-          cancelToolCall({
-            toolCallId: toolCallState.toolCallId,
-          }),
-        );
-      });
+      if (!isSteeringActiveRun) {
+        latestPendingToolCalls.forEach((toolCallState) => {
+          dispatch(
+            cancelToolCall({
+              toolCallId: toolCallState.toolCallId,
+            }),
+          );
+        });
 
-      // Reject all pending apply states
-      latestPendingApplyStates.forEach((applyState) => {
-        if (applyState.status !== "closed") {
-          ideMessenger.post("rejectDiff", applyState);
-        }
-      });
+        latestPendingApplyStates.forEach((applyState) => {
+          if (applyState.status !== "closed") {
+            ideMessenger.post("rejectDiff", applyState);
+          }
+        });
+      }
       if (isCurrentlyInEdit && codeToEditSnapshot.length === 0) {
         return;
       }
@@ -707,6 +713,17 @@ export function Chat() {
           );
           dispatch(setShowDialog(true));
         });
+      } else if (isSteeringActiveRun) {
+        if (editorToClearOnSend) {
+          editorToClearOnSend.commands.clearContent();
+        }
+        void dispatch(
+          streamResponseThunk({
+            editorState,
+            modifiers,
+            steerActiveRun: true,
+          }),
+        );
       } else {
         void dispatch(streamResponseThunk({ editorState, modifiers, index }));
 

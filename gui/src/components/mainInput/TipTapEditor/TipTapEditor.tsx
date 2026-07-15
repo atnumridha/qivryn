@@ -23,7 +23,7 @@ import { createEditorConfig, getPlaceholderText } from "./utils/editorConfig";
 import {
   getDroppedFileContextItem,
   getDroppedFiles,
-  getDroppedFileUris,
+  getDroppedFileUrisAsync,
   isImageFile,
 } from "./utils/fileDropUtils";
 import { handleImageFile } from "./utils/imageUtils";
@@ -283,13 +283,22 @@ function TipTapEditorInner(props: TipTapEditorProps) {
 
   const handleFileDrop = useCallback(
     async (dataTransfer: DataTransfer) => {
-      await insertAttachments({
-        files: getDroppedFiles(dataTransfer),
-        uris: getDroppedFileUris(dataTransfer),
-      });
+      const [files, uris] = await Promise.all([
+        Promise.resolve(getDroppedFiles(dataTransfer)),
+        getDroppedFileUrisAsync(dataTransfer),
+      ]);
+      await insertAttachments({ files, uris });
     },
     [insertAttachments],
   );
+
+  useEffect(() => {
+    if (!props.isMainInput) {
+      return;
+    }
+    mainEditorContext.setAttachFiles(handleFileDrop);
+    return () => mainEditorContext.setAttachFiles(null);
+  }, [handleFileDrop, mainEditorContext, props.isMainInput]);
 
   const inputBoxClassName = [
     props.isMainInput
@@ -370,7 +379,7 @@ function TipTapEditorInner(props: TipTapEditorProps) {
           onFilesSelected={(files) => {
             void insertAttachments({ files });
           }}
-          disabled={isStreaming}
+          disabled={isStreaming && !props.isMainInput}
         />
       </div>
 

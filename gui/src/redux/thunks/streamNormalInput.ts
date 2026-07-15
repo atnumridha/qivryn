@@ -396,16 +396,29 @@ export const streamNormalInput = createAsyncThunk<
         );
       }
 
+      const isCurrentStream = () =>
+        getScopedState().session.streamAborter === streamAborter &&
+        !streamAborter.signal.aborted;
       const streamUpdates = createStreamUpdateBatcher((messages) => {
-        scopedDispatch(streamUpdate(messages));
+        if (isCurrentStream()) {
+          scopedDispatch(streamUpdate(messages));
+        }
       });
 
       let next = await gen.next();
       try {
         while (!next.done) {
           if (!getScopedState().session.isStreaming) {
-            streamUpdates.flush();
-            scopedDispatch(abortStream());
+            if (isCurrentStream()) {
+              streamUpdates.flush();
+              scopedDispatch(abortStream());
+            } else {
+              streamUpdates.cancel();
+            }
+            break;
+          }
+          if (!isCurrentStream()) {
+            streamUpdates.cancel();
             break;
           }
 
@@ -419,7 +432,7 @@ export const streamNormalInput = createAsyncThunk<
       }
 
       // Attach prompt log and end thinking for reasoning models
-      if (next.done && next.value) {
+      if (next.done && next.value && isCurrentStream()) {
         scopedDispatch(addPromptCompletionPair([next.value]));
 
         try {
