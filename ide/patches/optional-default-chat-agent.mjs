@@ -6,10 +6,9 @@ const marker =
 
 export function applyOptionalDefaultChatAgent(source) {
   if (source.includes(marker)) return source;
-  const anchor = `		if (!defaultAgentData) {
-			throw new ErrorNoTelemetry('No default agent contributed');
-		}`;
-  if (!source.includes(anchor)) {
+  const anchor =
+    /\t\tif \(!defaultAgentData\) \{\r?\n\t\t\tthrow new ErrorNoTelemetry\('No default agent contributed'\);\r?\n\t\t\}/;
+  if (!anchor.test(source)) {
     throw new Error(
       "Pinned Code - OSS anchor not found for optional default chat agent",
     );
