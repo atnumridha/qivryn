@@ -241,7 +241,7 @@ const patches = [
 export function applyCodeOssPatches(vscodeDirectory) {
   for (const patch of patches) {
     const filepath = path.join(vscodeDirectory, patch.targetFile);
-    const source = fs.readFileSync(filepath, "utf8");
+    const source = fs.readFileSync(filepath, "utf8").replace(/\r\n/g, "\n");
     const transformed = patch.apply(source);
     if (transformed !== source) fs.writeFileSync(filepath, transformed);
   }
@@ -250,7 +250,7 @@ export function applyCodeOssPatches(vscodeDirectory) {
 export function assertCodeOssPatches(vscodeDirectory) {
   for (const patch of patches) {
     const filepath = path.join(vscodeDirectory, patch.targetFile);
-    const source = fs.readFileSync(filepath, "utf8");
+    const source = fs.readFileSync(filepath, "utf8").replace(/\r\n/g, "\n");
     if (patch.apply(source) !== source) {
       throw new Error(`Code - OSS patch ${patch.id} is not applied`);
     }
