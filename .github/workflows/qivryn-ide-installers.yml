@@ -73,7 +73,8 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version-file: ".nvmrc"
+          # Code - OSS 1.127 runs TypeScript lifecycle scripts directly.
+          node-version: "24"
 
       - name: Build shared Qivryn packages
         shell: bash
@@ -123,6 +124,13 @@ jobs:
       - name: Prepare Qivryn IDE source tree
         shell: bash
         run: npm run ide:prepare
+
+      - name: Install Linux native build dependencies
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libkrb5-dev
 
       - name: Install Code OSS build dependencies
         shell: bash
