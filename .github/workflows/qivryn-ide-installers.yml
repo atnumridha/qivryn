@@ -57,7 +57,7 @@ jobs:
           - os: windows-latest
             platform: win32
             arch: arm64
-            npm_config_arch: arm
+            npm_config_arch: arm64
             gulp_task: vscode-win32-arm64
             experimental: true
 
@@ -91,6 +91,18 @@ jobs:
         working-directory: extensions/cli
         run: npm ci --include=optional --ignore-scripts
 
+      # The CLI bundle imports Core source directly.  Install and compile Core
+      # before bundling the CLI so esbuild can resolve Core's dependencies.
+      - name: Install Core dependencies
+        shell: bash
+        working-directory: core
+        run: npm ci
+
+      - name: Build Core
+        shell: bash
+        working-directory: core
+        run: npm run build
+
       - name: Build CLI
         shell: bash
         working-directory: extensions/cli
@@ -99,11 +111,6 @@ jobs:
       - name: Install GUI dependencies
         shell: bash
         working-directory: gui
-        run: npm ci
-
-      - name: Install Core dependencies
-        shell: bash
-        working-directory: core
         run: npm ci
 
       - name: Build GUI
