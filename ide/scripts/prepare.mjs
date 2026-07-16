@@ -25,7 +25,9 @@ function readJson(filepath) {
 }
 
 function run(command, args, options = {}) {
-  const result = spawnSync(command, args, {
+  const executable =
+    process.platform === "win32" && command === "npm" ? "npm.cmd" : command;
+  const result = spawnSync(executable, args, {
     cwd: options.cwd ?? repositoryRoot,
     env: options.env ?? process.env,
     encoding: "utf8",
@@ -34,7 +36,10 @@ function run(command, args, options = {}) {
 
   if (result.status !== 0) {
     const detail = `\n${result.stdout ?? ""}${result.stderr ?? ""}`;
-    throw new Error(`${command} ${args.join(" ")} failed${detail}`);
+    const spawnError = result.error ? `\n${result.error.message}` : "";
+    throw new Error(
+      `${executable} ${args.join(" ")} failed${detail}${spawnError}`,
+    );
   }
 
   return options.capture ? result.stdout.trim() : undefined;
