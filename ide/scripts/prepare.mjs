@@ -29,13 +29,11 @@ function run(command, args, options = {}) {
     cwd: options.cwd ?? repositoryRoot,
     env: options.env ?? process.env,
     encoding: "utf8",
-    stdio: options.capture ? "pipe" : "inherit",
+    stdio: "pipe",
   });
 
   if (result.status !== 0) {
-    const detail = options.capture
-      ? `\n${result.stdout ?? ""}${result.stderr ?? ""}`
-      : "";
+    const detail = `\n${result.stdout ?? ""}${result.stderr ?? ""}`;
     throw new Error(`${command} ${args.join(" ")} failed${detail}`);
   }
 
@@ -144,7 +142,9 @@ function stageQivrynExtension() {
       cwd: extensionDirectory,
       env: {
         ...process.env,
-        SKIP_INSTALLS: "true",
+        // Windows packages a target-specific sqlite binary. Refresh it here
+        // instead of relying on a host-built dependency from `npm ci`.
+        SKIP_INSTALLS: process.platform === "win32" ? "false" : "true",
         ...(vscodeTarget ? { QIVRYN_VSCODE_TARGET: vscodeTarget } : {}),
       },
     });
