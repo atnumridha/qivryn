@@ -508,6 +508,24 @@ async function loadCodexMcpServers(
   );
 }
 
+/**
+ * Codex Desktop registers private browser-control bridges alongside user MCP
+ * servers. Those bridges launch or control the user's Chrome profile and only
+ * work inside the Codex app, so importing them into Qivryn creates unexpected
+ * browser windows without providing a usable Qivryn integration.
+ */
+function isPortableCodexMcpServer(server: CodexMcpListEntry): boolean {
+  const transport = server.transport;
+  if (!transport || transport.type !== "stdio") return true;
+  const command = transport.command;
+  const environment = transport.env ?? {};
+  return !(
+    command.includes("SkyComputerUseClient") ||
+    command.includes("/ChatGPT.app/Contents/Resources/cua_node/") ||
+    Object.keys(environment).some((key) => key.startsWith("BROWSER_USE_"))
+  );
+}
+
 function mcpJsonEntry(
   server: CodexMcpListEntry,
   referencedEnvironment: Record<string, string> = {},
@@ -693,7 +711,12 @@ export async function scanCodexImport(
   const items: CodexImportItem[] = [];
 
   try {
-    for (const server of await loadCodexMcpServers({ ...options, codexHome })) {
+    for (const server of (
+      await loadCodexMcpServers({
+        ...options,
+        codexHome,
+      })
+    ).filter(isPortableCodexMcpServer)) {
       items.push({
         id: server.name,
         name: server.name,
@@ -866,7 +889,12 @@ export async function applyCodexImport(
 
   if (selected.has("mcp")) {
     try {
-      const servers = await loadCodexMcpServers({ ...options, codexHome });
+      const servers = (
+        await loadCodexMcpServers({
+          ...options,
+          codexHome,
+        })
+      ).filter(isPortableCodexMcpServer);
       const managed = inventoryItemsByKind(inventory, "mcp");
       const enabledServers = servers.filter(
         (server) =>

@@ -136,6 +136,67 @@ async function fixture() {
 }
 
 describe("Codex import manager", () => {
+  it("does not import Codex Desktop's private Chrome-control bridges", async () => {
+    const { codexHome, qivrynHome, mcpScript } = await fixture();
+    vi.resetModules();
+    const manager = await import("./codexImportManager");
+    const mcpServers = [
+      {
+        name: "computer-use",
+        enabled: true,
+        transport: {
+          type: "stdio" as const,
+          command:
+            "/Users/test/.codex/computer-use/Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/MacOS/SkyComputerUseClient",
+          args: ["mcp"],
+        },
+      },
+      {
+        name: "node_repl",
+        enabled: true,
+        transport: {
+          type: "stdio" as const,
+          command:
+            "/Applications/ChatGPT.app/Contents/Resources/cua_node/bin/node_repl",
+          env: { BROWSER_USE_AVAILABLE_BACKENDS: "chrome,iab" },
+        },
+      },
+      {
+        name: "portable-tools",
+        enabled: true,
+        transport: {
+          type: "stdio" as const,
+          command: "node",
+          args: [mcpScript],
+        },
+      },
+    ];
+
+    const preview = await manager.scanCodexImport({ codexHome, mcpServers });
+    expect(preview.items.filter((item) => item.kind === "mcp")).toEqual([
+      expect.objectContaining({ id: "portable-tools" }),
+    ]);
+
+    const result = await manager.applyCodexImport(
+      { kinds: ["mcp"] },
+      { codexHome, qivrynHome, mcpServers },
+    );
+    expect(result.imported.mcp).toBe(1);
+    const mcp = JSON.parse(
+      await readFile(
+        path.join(qivrynHome, "mcpServers", "codex-import.json"),
+        "utf8",
+      ),
+    );
+    expect(mcp.mcpServers).toEqual({
+      "portable-tools": expect.objectContaining({
+        type: "stdio",
+        command: "node",
+        args: [mcpScript],
+      }),
+    });
+  });
+
   it("previews and imports MCP, plugins, skills, hooks, rules, agents, and paused automations", async () => {
     const { codexHome, qivrynHome, defaultQivrynHome, pluginRoot, mcpScript } =
       await fixture();
