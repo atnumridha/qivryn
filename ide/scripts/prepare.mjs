@@ -25,20 +25,20 @@ function readJson(filepath) {
 }
 
 function run(command, args, options = {}) {
-  const executable =
-    process.platform === "win32" && command === "npm" ? "npm.cmd" : command;
-  const result = spawnSync(executable, args, {
+  const useWindowsShell = process.platform === "win32" && command === "npm";
+  const result = spawnSync(command, args, {
     cwd: options.cwd ?? repositoryRoot,
     env: options.env ?? process.env,
     encoding: "utf8",
     stdio: "pipe",
+    shell: useWindowsShell,
   });
 
   if (result.status !== 0) {
     const detail = `\n${result.stdout ?? ""}${result.stderr ?? ""}`;
     const spawnError = result.error ? `\n${result.error.message}` : "";
     throw new Error(
-      `${executable} ${args.join(" ")} failed${detail}${spawnError}`,
+      `${command} ${args.join(" ")} failed${detail}${spawnError}`,
     );
   }
 
