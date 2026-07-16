@@ -104,6 +104,25 @@ function summarize(session: BrowserSession): string {
   return JSON.stringify(sessionSummary(session), null, 2);
 }
 
+function sameOrigin(left: string | undefined, right: string): boolean {
+  if (!left) return false;
+  try {
+    return new URL(left).origin === new URL(right).origin;
+  } catch {
+    return false;
+  }
+}
+
+function reusableSession(sessions: BrowserSession[], url: string) {
+  return sessions
+    .filter(
+      (session) =>
+        sameOrigin(session.url, url) &&
+        (!session.locked || session.lockOwner === "agent"),
+    )
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0];
+}
+
 function preview(args: Record<string, unknown>): string {
   const action = typeof args.action === "string" ? args.action : "unknown";
   const sessionId =
@@ -137,6 +156,11 @@ export const computerUseTool: Tool = {
       sessionId: {
         type: "string",
         description: "Browser session ID. Not needed for list or create.",
+      },
+      reuseExisting: {
+        type: "boolean",
+        description:
+          "Reuse an unlocked session on the same site when creating. Defaults to true; set false only when a separate browser is required.",
       },
       url: {
         type: "string",
@@ -205,6 +229,17 @@ export const computerUseTool: Tool = {
     }
 
     if (action === "create") {
+      const url = typeof args.url === "string" ? args.url.trim() : "";
+      const reuseExisting = args.reuseExisting !== false;
+      const existing =
+        reuseExisting && url
+          ? reusableSession(await service.list(), url)
+          : undefined;
+      if (existing) {
+        return summarize(
+          await service.navigate(existing.id, url, "agent", true),
+        );
+      }
       const session = await service.create({
         visible: args.visible === true,
         recording: args.recording === "full" ? "full" : "events",
@@ -214,7 +249,6 @@ export const computerUseTool: Tool = {
         },
         metadata: { createdBy: "computer_use" },
       });
-      const url = typeof args.url === "string" ? args.url.trim() : "";
       const ready = url
         ? await service.navigate(session.id, url, "agent", true)
         : session;

@@ -29,6 +29,25 @@ function summarize(session: BrowserSession): string {
   );
 }
 
+function sameOrigin(left: string | undefined, right: string): boolean {
+  if (!left) return false;
+  try {
+    return new URL(left).origin === new URL(right).origin;
+  } catch {
+    return false;
+  }
+}
+
+function reusableSession(sessions: BrowserSession[], url: string) {
+  return sessions
+    .filter(
+      (session) =>
+        sameOrigin(session.url, url) &&
+        (!session.locked || session.lockOwner === "agent"),
+    )
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0];
+}
+
 export const computerUseImpl: ToolImpl = async (args) => {
   const service = await getBrowserService();
   const action = typeof args.action === "string" ? args.action : "";
@@ -48,6 +67,16 @@ export const computerUseImpl: ToolImpl = async (args) => {
   }
 
   if (action === "create") {
+    const url = typeof args.url === "string" ? args.url.trim() : "";
+    const reuseExisting = args.reuseExisting !== false;
+    const existing =
+      reuseExisting && url
+        ? reusableSession(await service.list(), url)
+        : undefined;
+    if (existing) {
+      const ready = await service.navigate(existing.id, url, "agent", true);
+      return item("Browser session reused", summarize(ready));
+    }
     const session = await service.create({
       visible: args.visible === true,
       recording: args.recording === "full" ? "full" : "events",
@@ -57,7 +86,6 @@ export const computerUseImpl: ToolImpl = async (args) => {
       },
       metadata: { createdBy: "computer_use" },
     });
-    const url = typeof args.url === "string" ? args.url.trim() : "";
     const ready = url
       ? await service.navigate(session.id, url, "agent", true)
       : session;

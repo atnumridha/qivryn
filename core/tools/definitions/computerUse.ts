@@ -37,6 +37,11 @@ export const computerUseTool: Tool = {
           description: "Browser session ID. Not needed for list or create.",
         },
         url: { type: "string" },
+        reuseExisting: {
+          type: "boolean",
+          description:
+            "Reuse an unlocked session on the same site when creating. Defaults to true; set false only when a separate browser is required.",
+        },
         visible: { type: "boolean" },
         recording: { type: "string", enum: ["events", "full"] },
         width: { type: "number", minimum: 200, maximum: 7680 },
@@ -61,7 +66,7 @@ export const computerUseTool: Tool = {
   },
   defaultToolPolicy: "allowedWithPermission",
   systemMessageDescription: {
-    prefix: `Use ${BuiltInToolNames.ComputerUse} for browser computer use. Create or list a session, inspect the DOM, then use stable selectors for actions. Do not type credentials or approve consequential actions without explicit user direction.`,
+    prefix: `Use ${BuiltInToolNames.ComputerUse} for browser computer use. Reuse an existing same-site session by default; only request a new session when isolation is necessary. Inspect the DOM, then use stable selectors for actions. Do not type credentials or approve consequential actions without explicit user direction.`,
   },
   toolCallIcon: "CursorArrowRaysIcon",
 };
