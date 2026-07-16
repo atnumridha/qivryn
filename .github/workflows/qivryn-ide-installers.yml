@@ -130,7 +130,7 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y libkrb5-dev
+          sudo apt-get install -y libkrb5-dev libx11-dev libxkbfile-dev pkg-config
 
       - name: Set up Node.js for Code OSS
         uses: actions/setup-node@v4
