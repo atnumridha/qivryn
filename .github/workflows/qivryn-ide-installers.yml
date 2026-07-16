@@ -2,11 +2,6 @@ name: Qivryn IDE Installers
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    tags:
-      - "v*-qivryn-ide"
 
 concurrency:
   group: qivryn-ide-installers-${{ github.ref }}
