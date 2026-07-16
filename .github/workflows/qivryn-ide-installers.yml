@@ -135,8 +135,9 @@ jobs:
       - name: Set up Node.js for Code OSS
         uses: actions/setup-node@v4
         with:
-          # Code - OSS 1.127 runs TypeScript lifecycle scripts directly.
-          node-version: "24"
+          # Code - OSS 1.127 runs TypeScript lifecycle scripts directly, while
+          # its native build dependencies still provide Node 22 binaries.
+          node-version: "22"
 
       - name: Install Code OSS build dependencies
         shell: bash
@@ -148,6 +149,8 @@ jobs:
       - name: Build Qivryn IDE app bundle
         shell: bash
         run: node ide/scripts/run-upstream.mjs npx gulp ${{ matrix.gulp_task }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify packaged update and recovery controls
         shell: bash
