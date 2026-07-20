@@ -1,10 +1,19 @@
 (() => {
   const ROOT_ID = "qivryn-extension-overlay-root";
   const FRAME_URL = chrome.runtime.getURL("qivryn/index.html?surface=overlay");
+  const mode = globalThis.__qivrynOverlayMode || "toggle";
+  globalThis.__qivrynOverlayMode = undefined;
 
   const existing = document.getElementById(ROOT_ID);
   if (existing) {
+    if (mode === "show") {
+      return { ok: true, visible: true, reused: true };
+    }
     existing.remove();
+    return { ok: true, visible: false };
+  }
+
+  if (mode === "hide") {
     return { ok: true, visible: false };
   }
 

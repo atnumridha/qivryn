@@ -5,6 +5,7 @@ const QIVRYN_WORKSPACE_STORAGE_KEY = "qivryn.workspaceRoot.v1";
 const QIVRYN_UI_PATH = "qivryn/index.html";
 const QIVRYN_DEFAULT_MODEL = "gpt-5.5";
 const QIVRYN_DEFAULT_REASONING_EFFORT = "medium";
+const QIVRYN_REASONING_LEVELS = ["low", "medium", "high", "xhigh"];
 const LAST_CONTEXT_TAB_KEY = "qivryn.lastContextTab.v1";
 const LAST_CONTEXT_SNAPSHOT_KEY = "qivryn.lastContextSnapshot.v1";
 const NATIVE_MESSAGE_TIMEOUT_MS = 180000;
@@ -20,7 +21,7 @@ const QIVRYN_MODEL = {
   },
   requestOptions: {
     extraBodyProperties: {
-      _reasoningLevels: ["low", "medium", "high"],
+      _reasoningLevels: QIVRYN_REASONING_LEVELS,
       reasoning_effort: QIVRYN_DEFAULT_REASONING_EFFORT,
     },
   },
@@ -160,8 +161,8 @@ const BROWSER_CONTROL_TOOLS = [
   },
 ];
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  handleMessage(message)
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  handleMessage(message, sender)
     .then((response) => sendResponse(response))
     .catch((error) =>
       sendResponse({ ok: false, error: error.message || String(error) }),
@@ -185,7 +186,8 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   }
 });
 
-async function handleMessage(message) {
+async function handleMessage(message, sender) {
+  const contextTabId = messageContextTabId(message, sender);
   switch (message.type) {
     case "status":
       return sendNative({ type: "status" });
@@ -203,21 +205,21 @@ async function handleMessage(message) {
         arguments: message.arguments || {},
         confirm: message.confirm,
         confirmText: message.confirmText,
-        contextTabId: message.contextTabId,
+        contextTabId,
       });
     case "qivryn-protocol":
-      return qivrynProtocol(message);
+      return qivrynProtocol({ ...message, contextTabId });
     case "active-tab":
       return {
         ok: true,
-        tabContext: await activeTabContext(message.contextTabId),
+        tabContext: await activeTabContext(contextTabId),
       };
     case "browser-control":
       return {
         ok: true,
         result: await browserControl({
           ...(message.args || {}),
-          contextTabId: message.contextTabId || message.args?.contextTabId,
+          contextTabId: contextTabId || message.args?.contextTabId,
         }),
       };
     case "browser-observe":
@@ -225,13 +227,15 @@ async function handleMessage(message) {
         ok: true,
         result: await browserObserve({
           ...(message.args || {}),
-          contextTabId: message.contextTabId || message.args?.contextTabId,
+          contextTabId: contextTabId || message.args?.contextTabId,
         }),
       };
     case "open-qivryn-ui":
-      return openQivrynUiFromCurrentWindow(message.contextTabId);
+      return openQivrynUiFromCurrentWindow(contextTabId);
     case "toggle-qivryn-overlay":
-      return toggleQivrynOverlayFromCurrentWindow(message.contextTabId);
+      return toggleQivrynOverlayFromCurrentWindow(contextTabId);
+    case "minimize-qivryn-ui":
+      return minimizeQivrynUi(contextTabId, sender?.tab?.id);
     case "agent-status":
       return sendNative({ type: "agent_status" });
     case "agent-events":
@@ -241,9 +245,9 @@ async function handleMessage(message) {
         afterSequence: message.afterSequence,
       });
     case "agent-message":
-      return sendAgentMessage(message);
+      return sendAgentMessage({ ...message, contextTabId });
     case "fetch-sr":
-      return fetchSrLiveFirst(message);
+      return fetchSrLiveFirst({ ...message, contextTabId });
     case "analyze-sr":
       return sendNativeWithLiveSr({
         type: "analyze_sr",
@@ -251,7 +255,7 @@ async function handleMessage(message) {
         model: message.model,
         reasoningEffort: message.reasoningEffort,
         prompt: message.prompt,
-        contextTabId: message.contextTabId,
+        contextTabId,
       });
     case "ask":
       return sendNativeWithLiveSr({
@@ -261,14 +265,14 @@ async function handleMessage(message) {
         reasoningEffort: message.reasoningEffort,
         prompt: message.prompt,
         includeLiveSr: message.includeLiveSr,
-        contextTabId: message.contextTabId,
+        contextTabId,
       });
     case "dry-run-action-plan":
       return sendNativeWithTab({
         type: "dry_run_action_plan",
         srNumber: message.srNumber,
         actionPlan: message.actionPlan,
-        contextTabId: message.contextTabId,
+        contextTabId,
       });
     case "post-action-plan":
       return sendNativeWithTab({
@@ -277,7 +281,7 @@ async function handleMessage(message) {
         actionPlan: message.actionPlan,
         confirm: message.confirm,
         confirmText: message.confirmText,
-        contextTabId: message.contextTabId,
+        contextTabId,
       });
     case "run-mosfs-tool":
       return sendNativeWithTab({
@@ -286,7 +290,7 @@ async function handleMessage(message) {
         args: message.args || [],
         confirm: message.confirm,
         confirmText: message.confirmText,
-        contextTabId: message.contextTabId,
+        contextTabId,
       });
     default:
       return { ok: false, error: `Unknown message type: ${message.type}` };
@@ -1986,7 +1990,7 @@ function qivrynUiUrl(contextTabId) {
     : url;
 }
 
-async function toggleQivrynOverlayFromAction(sourceTab) {
+async function toggleQivrynOverlayFromAction(sourceTab, options = {}) {
   await rememberContextTab(sourceTab);
   if (!sourceTab?.id || isBrowserInternalUrl(sourceTab.url)) {
     return {
@@ -2000,6 +2004,15 @@ async function toggleQivrynOverlayFromAction(sourceTab) {
     target: { tabId: sourceTab.id },
     files: ["qivryn-overlay.css"],
   });
+  if (options.mode) {
+    await chrome.scripting.executeScript({
+      target: { tabId: sourceTab.id },
+      func: (mode) => {
+        globalThis.__qivrynOverlayMode = mode;
+      },
+      args: [options.mode],
+    });
+  }
   const [result] = await chrome.scripting.executeScript({
     target: { tabId: sourceTab.id },
     files: ["qivryn-overlay.js"],
@@ -2064,6 +2077,36 @@ async function toggleQivrynOverlayFromCurrentWindow(contextTabId) {
   return toggleQivrynOverlayFromAction(tab);
 }
 
+async function minimizeQivrynUi(contextTabId, qivrynTabId) {
+  const source = await getTabById(normalizeTabId(contextTabId));
+  if (!isContextCandidateTab(source)) {
+    return {
+      ok: false,
+      error: "The original tab for this Qivryn session is no longer available.",
+    };
+  }
+
+  const overlay = await toggleQivrynOverlayFromAction(source, { mode: "show" });
+  await chrome.tabs.update(source.id, { active: true });
+  if (source.windowId) {
+    await chrome.windows
+      .update(source.windowId, { focused: true })
+      .catch(() => undefined);
+  }
+
+  const qivrynTab = await getTabById(normalizeTabId(qivrynTabId));
+  if (qivrynTab?.id && isQivrynExtensionUrl(qivrynTab.url)) {
+    await chrome.tabs.remove(qivrynTab.id).catch(() => undefined);
+  }
+
+  return {
+    ok: true,
+    sourceTabId: source.id,
+    closedTabId: qivrynTab?.id || null,
+    overlay,
+  };
+}
+
 function isBrowserInternalUrl(url) {
   const text = String(url || "");
   return (
@@ -2093,6 +2136,18 @@ async function getTabById(tabId) {
 function normalizeTabId(value) {
   const number = Number(value);
   return Number.isInteger(number) && number > 0 ? number : undefined;
+}
+
+function senderContextTabId(sender) {
+  return isContextCandidateTab(sender?.tab) ? sender.tab.id : undefined;
+}
+
+function messageContextTabId(message, sender) {
+  return (
+    normalizeTabId(message?.contextTabId) ||
+    normalizeTabId(message?.args?.contextTabId) ||
+    senderContextTabId(sender)
+  );
 }
 
 async function rememberContextTabById(tabId) {

@@ -58,7 +58,60 @@ html[data-qivryn-surface="popup"] .qivryn-mode-submenu {
 }
 
 html[data-qivryn-surface="popup"] [aria-label="Reasoning choices"] {
-  max-height: min(150px, calc(100vh - 190px));
+  max-height: min(230px, calc(100vh - 170px));
+}
+
+.qivryn-tab-minimize-button {
+  position: fixed;
+  top: 42px;
+  right: 14px;
+  z-index: 2147483000;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  border: 1px solid
+    color-mix(in srgb, var(--vscode-focusBorder, #63d6cf) 48%, transparent);
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--vscode-editor-background, #111416) 82%, #1f6d3f),
+    var(--vscode-editor-background, #111416)
+  );
+  color: var(--vscode-editor-foreground, #f2f5f7);
+  box-shadow:
+    0 12px 32px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.42)),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  cursor: pointer;
+  font: 600 12px
+    var(
+      --vscode-font-family,
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      sans-serif
+    );
+  padding: 6px 11px;
+}
+
+.qivryn-tab-minimize-button:hover {
+  border-color: var(--vscode-focusBorder, #63d6cf);
+  filter: brightness(1.08);
+}
+
+.qivryn-tab-minimize-button:focus-visible {
+  outline: 2px solid var(--vscode-focusBorder, #63d6cf);
+  outline-offset: 2px;
+}
+
+.qivryn-tab-minimize-button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.qivryn-tab-minimize-icon {
+  font-size: 13px;
+  line-height: 1;
 }
 
 @media (min-width: 900px) and (min-height: 760px) {

@@ -2,7 +2,10 @@
   const DEFAULT_WORKSPACE_ROOT = "/Users/amridha/Documents/MOS_Automations";
   const searchParams = new URLSearchParams(window.location.search);
   const requestedSurface = searchParams.get("surface");
-  const requestedContextTabId = Number.parseInt(searchParams.get("contextTabId") || "", 10);
+  const requestedContextTabId = Number.parseInt(
+    searchParams.get("contextTabId") || "",
+    10,
+  );
   const pinnedContextTabId =
     Number.isInteger(requestedContextTabId) && requestedContextTabId > 0
       ? requestedContextTabId
@@ -13,9 +16,11 @@
   } catch {
     isEmbeddedSurface = true;
   }
-  const qivrynSurface = requestedSurface || (isEmbeddedSurface ? "overlay" : "tab");
+  const qivrynSurface =
+    requestedSurface || (isEmbeddedSurface ? "overlay" : "tab");
   const DEFAULT_MODEL = "gpt-5.5";
   const DEFAULT_REASONING_EFFORT = "medium";
+  const REASONING_LEVELS = ["low", "medium", "high", "xhigh"];
   const LOCAL_PROTOCOL_MISS = Symbol("qivryn-local-protocol-miss");
   const SKILLS_CACHE_KEY = "qivryn.skills.catalog.v2";
   const MODELS_CACHE_KEY = "qivryn.models.catalog.v1";
@@ -23,6 +28,9 @@
   const WORKSPACE_STORAGE_KEY = "qivryn.workspaceRoot.v1";
   const LAST_AGENT_REPOSITORY_KEY = "qivryn.agents.lastRepository";
   const BROWSER_SESSION_KEY = "qivryn.browserSessionId.v1";
+  const UI_SESSION_KEY = "qivryn.uiSessionId.v1";
+  const UI_SESSION_SCOPE_FIELD = "qivrynContextScopeId";
+  const REDUX_PERSIST_KEY = "persist:root";
   const VSCODE_STATE_KEY_PREFIX = "qivryn.vscodeState";
   const CHROME_MESSAGE_TIMEOUT_MS = 180000;
   const BACKGROUND_FIRST_MESSAGES = new Set([
@@ -46,7 +54,7 @@
     },
     requestOptions: {
       extraBodyProperties: {
-        _reasoningLevels: ["low", "medium", "high"],
+        _reasoningLevels: REASONING_LEVELS,
         reasoning_effort: DEFAULT_REASONING_EFFORT,
       },
     },
@@ -166,7 +174,9 @@
     workspaceRoot,
     contextTabId: pinnedContextTabId,
   };
+  seedPersistedBrowserSession();
   seedQivrynStorage();
+  installTabMinimizeButton();
   let vscodeState = readVscodeState();
 
   function dispatchToQivryn(messageId, messageType, data) {
@@ -197,13 +207,170 @@
     }
   }
 
+  function contextScopeId() {
+    return pinnedContextTabId ? `tab.${pinnedContextTabId}` : "default";
+  }
+
+  function scopedStorageKey(baseKey) {
+    return `${baseKey}.${contextScopeId()}`;
+  }
+
+  function safeSessionId(value) {
+    return String(value || "")
+      .trim()
+      .replace(/[^A-Za-z0-9_.:-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 120);
+  }
+
+  function decodePersistedSlice(value) {
+    if (!value) return {};
+    if (typeof value === "string") {
+      try {
+        const parsed = JSON.parse(value || "{}");
+        return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+          ? parsed
+          : {};
+      } catch {
+        return {};
+      }
+    }
+    return value && typeof value === "object" && !Array.isArray(value)
+      ? value
+      : {};
+  }
+
+  function readPersistedReduxRoot() {
+    try {
+      const parsed = JSON.parse(
+        window.localStorage.getItem(REDUX_PERSIST_KEY) || "{}",
+      );
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+        ? parsed
+        : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function readPersistedReduxSession() {
+    return decodePersistedSlice(readPersistedReduxRoot().session);
+  }
+
+  function writePersistedReduxSession(patch = {}) {
+    try {
+      const root = readPersistedReduxRoot();
+      const previous = decodePersistedSlice(root.session);
+      root.session = JSON.stringify({
+        ...previous,
+        ...patch,
+      });
+      if (!root._persist) {
+        root._persist = JSON.stringify({ version: 1, rehydrated: true });
+      }
+      window.localStorage.setItem(REDUX_PERSIST_KEY, JSON.stringify(root));
+    } catch {
+      // Redux persistence is best effort. The extension history store remains authoritative.
+    }
+  }
+
+  function rememberUiSessionId(value) {
+    const sessionId = safeSessionId(value);
+    if (!sessionId) return "";
+    try {
+      window.localStorage.setItem(scopedStorageKey(UI_SESSION_KEY), sessionId);
+      window.localStorage.setItem(
+        scopedStorageKey(BROWSER_SESSION_KEY),
+        sessionId,
+      );
+    } catch {
+      // Best effort only.
+    }
+    return sessionId;
+  }
+
+  function currentUiSessionId() {
+    try {
+      const stored = safeSessionId(
+        window.localStorage.getItem(scopedStorageKey(UI_SESSION_KEY)),
+      );
+      if (stored) return stored;
+    } catch {
+      // Fall through to persisted Redux state or a stable fallback.
+    }
+
+    const persistedSession = readPersistedReduxSession();
+    const persisted = safeSessionId(persistedSession.id);
+    const persistedScope = String(
+      persistedSession[UI_SESSION_SCOPE_FIELD] || "",
+    );
+    if (persisted && (!persistedScope || persistedScope === contextScopeId())) {
+      return rememberUiSessionId(persisted);
+    }
+
+    return rememberUiSessionId(`browser-${contextScopeId()}`);
+  }
+
+  function seedPersistedBrowserSession() {
+    const sessionId = currentUiSessionId();
+    if (!sessionId) return;
+    const previous = readPersistedReduxSession();
+    writePersistedReduxSession({
+      id: sessionId,
+      lastSessionId: sessionId,
+      title: previous.title || "MOSFS browser session",
+      mode: previous.mode || "agent",
+      chatModelTitle: previous.chatModelTitle || DEFAULT_MODEL,
+      [UI_SESSION_SCOPE_FIELD]: contextScopeId(),
+    });
+  }
+
+  function installTabMinimizeButton() {
+    if (qivrynSurface !== "tab" || !pinnedContextTabId) return;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "qivryn-tab-minimize-button";
+    button.title = "Minimize Qivryn back onto the source tab";
+    button.setAttribute("aria-label", "Minimize Qivryn to source tab overlay");
+
+    const icon = document.createElement("span");
+    icon.className = "qivryn-tab-minimize-icon";
+    icon.textContent = "▣";
+    const label = document.createElement("span");
+    label.textContent = "Minimize";
+    button.append(icon, label);
+
+    button.addEventListener("click", () => {
+      button.disabled = true;
+      label.textContent = "Minimizing…";
+      void sendChromeMessage({
+        type: "minimize-qivryn-ui",
+        contextTabId: pinnedContextTabId,
+      })
+        .then((response) => {
+          if (!response?.ok) {
+            throw new Error(response?.error || "Unable to minimize Qivryn.");
+          }
+        })
+        .catch((error) => {
+          button.disabled = false;
+          label.textContent = "Minimize";
+          button.title = error.message || String(error);
+        });
+    });
+
+    document.documentElement.append(button);
+  }
+
   function vscodeStateKey() {
-    return `${VSCODE_STATE_KEY_PREFIX}.${qivrynSurface}.v1`;
+    return `${VSCODE_STATE_KEY_PREFIX}.${contextScopeId()}.v2`;
   }
 
   function readVscodeState() {
     try {
-      const parsed = JSON.parse(window.localStorage.getItem(vscodeStateKey()) || "{}");
+      const parsed = JSON.parse(
+        window.localStorage.getItem(vscodeStateKey()) || "{}",
+      );
       return parsed && typeof parsed === "object" && !Array.isArray(parsed)
         ? parsed
         : {};
@@ -214,14 +381,19 @@
 
   function writeVscodeState(state) {
     try {
-      window.localStorage.setItem(vscodeStateKey(), JSON.stringify(state || {}));
+      window.localStorage.setItem(
+        vscodeStateKey(),
+        JSON.stringify(state || {}),
+      );
     } catch {
       // Webview state is recoverable from history/local Redux when available.
     }
   }
 
   function seedQivrynStorage() {
-    writeJsonStorage(SKILLS_CACHE_KEY, [{ ...MOSFS_SKILL, content: "", files: [] }]);
+    writeJsonStorage(SKILLS_CACHE_KEY, [
+      { ...MOSFS_SKILL, content: "", files: [] },
+    ]);
     writeJsonStorage(MODELS_CACHE_KEY, {
       options: [
         {
@@ -301,7 +473,7 @@
 
   function qivrynEmptySession(id) {
     return {
-      sessionId: id || crypto.randomUUID(),
+      sessionId: id || currentUiSessionId(),
       title: "MOSFS browser session",
       workspaceDirectory: workspaceUri(),
       history: [],
@@ -328,8 +500,12 @@
   function readWorkspaceRoot() {
     try {
       return (
-        cleanWorkspaceRoot(window.localStorage.getItem(WORKSPACE_STORAGE_KEY)) ||
-        cleanWorkspaceRoot(window.localStorage.getItem(LAST_AGENT_REPOSITORY_KEY)) ||
+        cleanWorkspaceRoot(
+          window.localStorage.getItem(WORKSPACE_STORAGE_KEY),
+        ) ||
+        cleanWorkspaceRoot(
+          window.localStorage.getItem(LAST_AGENT_REPOSITORY_KEY),
+        ) ||
         DEFAULT_WORKSPACE_ROOT
       );
     } catch {
@@ -358,43 +534,15 @@
     return workspaceUri();
   }
 
-  function persistedQivrynSessionId() {
-    try {
-      const root = JSON.parse(window.localStorage.getItem("persist:root") || "{}");
-      const session =
-        typeof root.session === "string" ? JSON.parse(root.session || "{}") : root.session;
-      return String(session?.id || session?.lastSessionId || "").trim();
-    } catch {
-      return "";
-    }
-  }
-
-  function safeSessionId(value) {
-    return String(value || "")
-      .trim()
-      .replace(/[^A-Za-z0-9_.:-]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 120);
-  }
-
   function browserSessionId() {
-    const persisted = safeSessionId(persistedQivrynSessionId());
-    if (persisted) return `browser-${persisted}`;
-    try {
-      const stored = safeSessionId(window.localStorage.getItem(BROWSER_SESSION_KEY));
-      if (stored) return stored;
-      const created = `browser-${crypto.randomUUID()}`;
-      window.localStorage.setItem(BROWSER_SESSION_KEY, created);
-      return created;
-    } catch {
-      return `browser-${Date.now().toString(36)}`;
-    }
+    return currentUiSessionId();
   }
 
   function qivrynAgentRun(overrides = {}) {
     const now = new Date().toISOString();
+    const runId = currentUiSessionId();
     return {
-      id: "qivryn-browser-session",
+      id: runId,
       revision: 0,
       title: "Qivryn browser session",
       prompt: "Use the current browser tab context.",
@@ -424,7 +572,7 @@
         const runId =
           typeof item.runId === "string" && item.runId.trim()
             ? item.runId
-            : fallbackRunId || "qivryn-browser-session";
+            : fallbackRunId || currentUiSessionId();
         let sequence = Number(item.sequence);
         if (!Number.isFinite(sequence) || sequence <= 0) {
           sequence = index + 1;
@@ -452,7 +600,7 @@
   }
 
   function qivrynAgentEvents(data) {
-    const runId = data?.runId || "qivryn-browser-session";
+    const runId = data?.runId || currentUiSessionId();
     return normalizeAgentEvents(
       [
         {
@@ -473,7 +621,9 @@
 
   function readHistoryStore() {
     try {
-      const parsed = JSON.parse(window.localStorage.getItem(HISTORY_CACHE_KEY) || "{}");
+      const parsed = JSON.parse(
+        window.localStorage.getItem(HISTORY_CACHE_KEY) || "{}",
+      );
       return parsed && typeof parsed === "object" ? parsed : {};
     } catch {
       return {};
@@ -501,8 +651,10 @@
     return {
       sessionId: session.sessionId,
       title: session.title || "MOSFS browser session",
-      dateCreated: session.dateCreated || session.dateUpdated || new Date().toISOString(),
-      dateUpdated: session.dateUpdated || session.dateCreated || new Date().toISOString(),
+      dateCreated:
+        session.dateCreated || session.dateUpdated || new Date().toISOString(),
+      dateUpdated:
+        session.dateUpdated || session.dateCreated || new Date().toISOString(),
       workspaceDirectory: session.workspaceDirectory || workspaceUri(),
       messageCount: Array.isArray(session.history) ? session.history.length : 0,
     };
@@ -525,10 +677,13 @@
       .map(historyMetadata);
     const offset = Math.max(0, Number(options?.offset || 0));
     const limit = Number(options?.limit || 0);
-    return limit > 0 ? sessions.slice(offset, offset + limit) : sessions.slice(offset);
+    return limit > 0
+      ? sessions.slice(offset, offset + limit)
+      : sessions.slice(offset);
   }
 
   function historyLoad(id) {
+    if (id) rememberUiSessionId(id);
     const store = readHistoryStore();
     return store[id] || qivrynEmptySession(id);
   }
@@ -536,18 +691,29 @@
   function historySave(session) {
     if (!session || typeof session !== "object") return undefined;
     const now = new Date().toISOString();
-    const id = session.sessionId || crypto.randomUUID();
+    const id = rememberUiSessionId(session.sessionId || currentUiSessionId());
     const store = readHistoryStore();
     const previous = store[id] || {};
     store[id] = {
       ...session,
       sessionId: id,
       title: session.title || previous.title || "MOSFS browser session",
-      workspaceDirectory: session.workspaceDirectory || previous.workspaceDirectory || workspaceUri(),
+      workspaceDirectory:
+        session.workspaceDirectory ||
+        previous.workspaceDirectory ||
+        workspaceUri(),
       dateCreated: previous.dateCreated || session.dateCreated || now,
       dateUpdated: now,
     };
     writeHistoryStore(store);
+    writePersistedReduxSession({
+      id,
+      lastSessionId: id,
+      title: store[id].title,
+      mode: store[id].mode || "agent",
+      chatModelTitle: store[id].chatModelTitle || DEFAULT_MODEL,
+      [UI_SESSION_SCOPE_FIELD]: contextScopeId(),
+    });
     return undefined;
   }
 
@@ -669,7 +835,7 @@
         return [
           {
             id: "qivryn-browser-session-current-tab",
-            runId: data?.runId || "qivryn-browser-session",
+            runId: data?.runId || currentUiSessionId(),
             createdAt: new Date().toISOString(),
             label: "Current browser tab context",
             description: "Pinned to the web tab that opened the Qivryn popup.",
@@ -779,7 +945,7 @@
       if (messageType === "agents/events") {
         const normalizedEvents = normalizeAgentEvents(
           response.content,
-          data?.runId || "qivryn-browser-session",
+          data?.runId || currentUiSessionId(),
         );
         if (Array.isArray(response.content)) {
           return success(normalizedEvents);
@@ -813,7 +979,8 @@
     if (!content || typeof content !== "object") return "";
     if (typeof content.text === "string") return content.text;
     if (typeof content.content === "string") return content.content;
-    if (Array.isArray(content.content)) return content.content.map(stringifyContent).join("");
+    if (Array.isArray(content.content))
+      return content.content.map(stringifyContent).join("");
     return "";
   }
 
@@ -854,7 +1021,11 @@
       const timer = setTimeout(() => {
         if (settled) return;
         settled = true;
-        reject(new Error("Qivryn bridge request timed out before the native agent returned a response."));
+        reject(
+          new Error(
+            "Qivryn bridge request timed out before the native agent returned a response.",
+          ),
+        );
       }, CHROME_MESSAGE_TIMEOUT_MS);
       const contextualMessage = {
         ...message,
