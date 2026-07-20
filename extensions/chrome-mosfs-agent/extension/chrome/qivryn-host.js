@@ -26,6 +26,7 @@
   const MODELS_CACHE_KEY = "qivryn.models.catalog.v1";
   const HISTORY_CACHE_KEY = "qivryn.history.sessions.v1";
   const WORKSPACE_STORAGE_KEY = "qivryn.workspaceRoot.v1";
+  const WORKSPACE_SELECTED_KEY = "qivryn.workspaceRoot.userSelected.v1";
   const LAST_AGENT_REPOSITORY_KEY = "qivryn.agents.lastRepository";
   const BROWSER_SESSION_KEY = "qivryn.browserSessionId.v1";
   const UI_SESSION_KEY = "qivryn.uiSessionId.v1";
@@ -499,6 +500,11 @@
 
   function readWorkspaceRoot() {
     try {
+      const hasUserSelectedWorkspace =
+        window.localStorage.getItem(WORKSPACE_SELECTED_KEY) === "true";
+      if (!hasUserSelectedWorkspace) {
+        return DEFAULT_WORKSPACE_ROOT;
+      }
       return (
         cleanWorkspaceRoot(
           window.localStorage.getItem(WORKSPACE_STORAGE_KEY),
@@ -523,6 +529,7 @@
     try {
       window.localStorage.setItem(WORKSPACE_STORAGE_KEY, next);
       window.localStorage.setItem(LAST_AGENT_REPOSITORY_KEY, next);
+      window.localStorage.setItem(WORKSPACE_SELECTED_KEY, "true");
     } catch {
       // Best effort only.
     }

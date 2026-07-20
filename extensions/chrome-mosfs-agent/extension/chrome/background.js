@@ -1834,9 +1834,7 @@ async function sendNativeWithLiveSr(message) {
   const tabContext = await activeTabContext(message.contextTabId).catch(
     (error) => ({ error: error.message || String(error) }),
   );
-  const srNumber = extractSrNumber(
-    message.srNumber || tabContext?.url || message.prompt || "",
-  );
+  const srNumber = srNumberFromMessageAndContext(message, tabContext);
   let liveSrMarkdown = "";
   let liveSrError = "";
   if (srNumber && message.includeLiveSr !== false) {
@@ -1863,13 +1861,7 @@ async function sendAgentMessage(message) {
   const tabContext = await activeTabContext(message.contextTabId).catch(
     (error) => ({ error: error.message || String(error) }),
   );
-  const srNumber = extractSrNumber(
-    message.srNumber ||
-      tabContext?.srNumber ||
-      tabContext?.url ||
-      message.prompt ||
-      "",
-  );
+  const srNumber = srNumberFromMessageAndContext(message, tabContext);
   let liveSrMarkdown = "";
   let liveSrError = "";
   if (srNumber) {
@@ -1901,7 +1893,7 @@ async function fetchSrLiveFirst(message) {
   const tabContext = await activeTabContext(message.contextTabId).catch(
     (error) => ({ error: error.message || String(error) }),
   );
-  const srNumber = extractSrNumber(message.srNumber || tabContext?.url || "");
+  const srNumber = srNumberFromMessageAndContext(message, tabContext);
   if (!srNumber) {
     return {
       ok: false,
@@ -2181,6 +2173,15 @@ function contextSnapshot(context) {
     srMatches: Array.isArray(context.srMatches)
       ? context.srMatches.slice(0, 20)
       : [],
+    visibleSrMatches: Array.isArray(context.visibleSrMatches)
+      ? context.visibleSrMatches.slice(0, 20)
+      : [],
+    urlSrMatches: Array.isArray(context.urlSrMatches)
+      ? context.urlSrMatches.slice(0, 20)
+      : [],
+    srNumberSource: context.srNumberSource || "",
+    srNumberConflict: Boolean(context.srNumberConflict),
+    urlSrNumber: context.urlSrNumber || "",
     srId: context.srId || "",
     statusCd: context.statusCd || "",
     crmRestBasePath: context.crmRestBasePath || "",
@@ -2415,13 +2416,23 @@ function collectPageContext() {
     document.body ? document.body.innerText : "",
     24000,
   );
-  const srMatches = [
-    ...new Set(
-      `${location.href} ${document.title} ${visibleText}`.match(
-        /\b[34]-\d{10}\b/g,
-      ) || [],
-    ),
+  const srPattern = /\b[34]-\d{10}\b/g;
+  const uniqueSrMatches = (value) => [
+    ...new Set(String(value || "").match(srPattern) || []),
   ];
+  const urlSrNumber = String(urlParams.srNumber || urlParams.SrNumber || "");
+  const urlSrMatches = [
+    ...new Set([
+      ...uniqueSrMatches(urlSrNumber),
+      ...uniqueSrMatches(location.href),
+    ]),
+  ];
+  const visibleSrMatches = uniqueSrMatches(
+    `${visibleText} ${selectedText} ${headings.join(" ")} ${document.title}`,
+  );
+  const srMatches = [...new Set([...visibleSrMatches, ...urlSrMatches])];
+  const srNumber = visibleSrMatches[0] || urlSrMatches[0] || "";
+  const urlSr = urlSrMatches[0] || "";
   return {
     url: location.href,
     title: document.title,
@@ -2429,8 +2440,13 @@ function collectPageContext() {
     headings,
     visibleText,
     srMatches,
+    visibleSrMatches,
+    urlSrMatches,
     urlParams,
-    srNumber: urlParams.srNumber || urlParams.SrNumber || srMatches[0] || "",
+    srNumber,
+    srNumberSource: visibleSrMatches[0] ? "visible-page" : urlSr ? "url" : "",
+    srNumberConflict: Boolean(srNumber && urlSr && srNumber !== urlSr),
+    urlSrNumber: urlSr,
     srId: urlParams.srId || urlParams.SrId || "",
     statusCd: urlParams.StatusCd || urlParams.statusCd || "",
     ...restInfo(),
@@ -2740,6 +2756,22 @@ function jsonBlock(value) {
 function extractSrNumber(value) {
   const match = String(value || "").match(/\b[34]-\d{10}\b/);
   return match ? match[0] : "";
+}
+
+function firstSrMatch(value) {
+  return Array.isArray(value) ? extractSrNumber(value[0] || "") : "";
+}
+
+function srNumberFromMessageAndContext(message = {}, tabContext = {}) {
+  return extractSrNumber(
+    message.srNumber ||
+      tabContext?.srNumber ||
+      firstSrMatch(tabContext?.visibleSrMatches) ||
+      firstSrMatch(tabContext?.srMatches) ||
+      message.prompt ||
+      tabContext?.url ||
+      "",
+  );
 }
 
 function titleCase(value) {
