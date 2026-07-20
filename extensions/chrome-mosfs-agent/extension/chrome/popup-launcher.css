@@ -1,0 +1,103 @@
+:root {
+  color-scheme: dark;
+  --bg: #101114;
+  --surface: #17191e;
+  --line: #333943;
+  --text: #eef1f5;
+  --muted: #a9b2bf;
+  --accent: #9be2ae;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  width: 430px;
+  height: 600px;
+  margin: 0;
+  color: var(--text);
+  background: var(--bg);
+  font: 13px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.qivryn-popup-shell {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.qivryn-popup-header {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  padding: 6px 8px;
+}
+
+.qivryn-popup-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-weight: 750;
+  min-width: 0;
+}
+
+.brand-mark {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid #4c6d58;
+  border-radius: 7px;
+  background: #142019;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.status {
+  margin: 0;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.button {
+  display: inline-flex;
+  min-height: 26px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #4c6d58;
+  border-radius: 7px;
+  background: #142019;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  text-decoration: none;
+}
+
+.button:focus-visible {
+  outline: 2px solid #7aa7ff;
+  outline-offset: 2px;
+}
+
+.qivryn-popup-frame {
+  width: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
+  border: 0;
+  background: #111318;
+}

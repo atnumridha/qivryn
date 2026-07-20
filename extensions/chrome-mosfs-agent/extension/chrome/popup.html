@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Qivryn</title>
+    <link rel="stylesheet" href="popup-launcher.css" />
+    <script src="popup-launcher.js" defer></script>
+  </head>
+  <body>
+    <main class="qivryn-popup-shell" aria-label="Qivryn popup">
+      <header class="qivryn-popup-header">
+        <div class="qivryn-popup-brand">
+          <span class="brand-mark">Q</span>
+          <span>Qivryn</span>
+        </div>
+        <a id="openQivrynLink" class="button" href="#">
+          Open full screen tab
+        </a>
+      </header>
+      <p id="statusText" class="status" aria-live="polite">Compact Qivryn popup loaded with current tab context.</p>
+      <iframe
+        id="qivrynPopupFrame"
+        class="qivryn-popup-frame"
+        title="Qivryn"
+        src="about:blank"
+        allow="clipboard-read; clipboard-write"
+      ></iframe>
+    </main>
+  </body>
+</html>

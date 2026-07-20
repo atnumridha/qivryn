@@ -1,0 +1,17 @@
+{
+  "name": "mosfs-chrome-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "mosfs-chrome-agent-native-host": "./src/native-host/index.mjs"
+  },
+  "scripts": {
+    "check": "node --check src/native-host/index.mjs && node --check extension/chrome/background.js && node --check extension/chrome/popup.js && node --check extension/chrome/popup-launcher.js && node --check extension/chrome/qivryn-host.js && node --check extension/chrome/qivryn-overlay.js && node --check scripts/install-native-hosts.mjs && node --check scripts/smoke-native-status.mjs && node --check scripts/build-qivryn-extension.mjs",
+    "build:chrome-extension": "node scripts/build-qivryn-extension.mjs",
+    "build:qivryn-extension": "node scripts/build-qivryn-extension.mjs",
+    "refresh:chrome-qivryn-ui": "node scripts/build-qivryn-extension.mjs --refresh-from-qivryn",
+    "smoke:native-status": "node scripts/smoke-native-status.mjs",
+    "install:native-hosts": "node scripts/install-native-hosts.mjs"
+  }
+}

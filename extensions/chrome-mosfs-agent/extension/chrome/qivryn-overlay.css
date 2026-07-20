@@ -1,0 +1,88 @@
+#qivryn-extension-overlay-root {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 2147483647;
+  display: flex;
+  width: min(820px, calc(100vw - 32px));
+  height: min(760px, calc(100vh - 32px));
+  min-width: 420px;
+  min-height: 520px;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(120, 130, 150, 0.45);
+  border-radius: 14px;
+  background: #101114;
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.46);
+  color: #eef1f5;
+  font: 13px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  resize: both;
+}
+
+#qivryn-extension-overlay-root,
+#qivryn-extension-overlay-root * {
+  box-sizing: border-box;
+}
+
+.qivryn-extension-overlay-header {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid rgba(120, 130, 150, 0.28);
+  background: #17191e;
+  padding: 7px 8px 7px 12px;
+}
+
+.qivryn-extension-overlay-title {
+  min-width: 0;
+  overflow: hidden;
+  color: #eef1f5;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qivryn-extension-overlay-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.qivryn-extension-overlay-button {
+  min-height: 28px;
+  border: 1px solid rgba(120, 130, 150, 0.42);
+  border-radius: 7px;
+  background: #22262d;
+  color: #eef1f5;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 650;
+  padding: 4px 9px;
+}
+
+.qivryn-extension-overlay-button:hover {
+  border-color: #7aa7ff;
+  background: #2a3039;
+}
+
+.qivryn-extension-overlay-frame {
+  width: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
+  border: 0;
+  background: #111318;
+}
+
+@media (max-width: 520px) {
+  #qivryn-extension-overlay-root {
+    top: 8px;
+    right: 8px;
+    left: 8px;
+    width: auto;
+    min-width: 0;
+    height: min(720px, calc(100vh - 16px));
+  }
+}

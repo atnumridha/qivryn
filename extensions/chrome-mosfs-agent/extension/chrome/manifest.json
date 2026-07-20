@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "Qivryn",
+  "description": "Qivryn browser assistant for MOSFS analysis, guarded updates, active-tab context, and browser control.",
+  "version": "0.1.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvrg+YtV0cN383Yxsw64rvqC/qly8W95OGCGrCE/cYkhzEpk9E09TS7/2lt8tCRYy0iXBhyEj3unQtkEGRcu/aUWn5ZFsBhw9PjVWiaIoBy/MlyiksdAEoXQLPCJNYwlA8anU4GnSXbRQ711cMnmJmQ2n5/xxmGfrh+qvF8o91SAiJCK+cp/i5BdGx4T/3IC733D2/OlbR81gx+i5dpQTXN5UNpJUVdeb7M2AeWVcJtzVTmKB94ydyjeBIQOVcZPCqRQoR/7uLS9qFS5dlpIaV5q9TzJWkonTcTO/FE8oWWcLMa4Op9Rk3WIadZRa5f695sp7UFkHDw8i1neOD5qULwIDAQAB",
+  "minimum_chrome_version": "116",
+  "permissions": [
+    "activeTab",
+    "debugger",
+    "nativeMessaging",
+    "scripting",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_title": "Qivryn",
+    "default_popup": "popup.html"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "qivryn/*",
+        "qivryn/assets/*",
+        "qivryn-host.css",
+        "qivryn-host.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  }
+}
