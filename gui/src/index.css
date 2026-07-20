@@ -3006,6 +3006,12 @@ body[data-qivryn-fullscreen="true"] .qivryn-chat-route,
 /* The maximized WebviewView reports itself as a regular view to VS Code.
  * Layout marks it as standalone, so every route gets the same full canvas as
  * chat rather than retaining a sidebar-sized content rail. */
+.qivryn-standalone-surface {
+  --qivryn-chat-inline: clamp(16px, 3vw, 48px);
+  --qivryn-chat-rail-width: 100%;
+  --qivryn-standalone-menu-height: 42px;
+}
+
 .qivryn-standalone-surface .qivryn-config-body {
   width: 100%;
   max-width: none;
@@ -3013,7 +3019,7 @@ body[data-qivryn-fullscreen="true"] .qivryn-chat-route,
 }
 
 .qivryn-standalone-surface .qivryn-layout-content {
-  height: calc(100% - 42px);
+  height: calc(100% - var(--qivryn-standalone-menu-height, 42px));
   min-height: 0 !important;
   overflow: hidden;
 }
@@ -3045,13 +3051,15 @@ body[data-qivryn-fullscreen="true"] .qivryn-chat-route,
 
 .qivryn-standalone .qivryn-standalone-menu,
 .qivryn-standalone-surface > .qivryn-standalone-menu {
+  box-sizing: border-box;
   display: flex;
-  min-height: 42px;
+  width: 100%;
+  min-height: var(--qivryn-standalone-menu-height, 42px);
   flex: 0 0 auto;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 0 var(--qivryn-chat-inline);
+  padding: 0 var(--qivryn-chat-inline, clamp(16px, 3vw, 48px));
   color: var(--vscode-foreground, #f2f5f7);
   background: var(--qivryn-canvas);
   border-bottom: 1px solid
@@ -3059,9 +3067,13 @@ body[data-qivryn-fullscreen="true"] .qivryn-chat-route,
 }
 
 .qivryn-standalone-menu-title {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
   font-size: 12px;
   font-weight: 650;
   letter-spacing: 0.02em;
+  line-height: 1;
 }
 
 .qivryn-standalone-menu-actions {
@@ -3105,7 +3117,7 @@ body[data-qivryn-fullscreen="true"] .qivryn-chat-route,
 .qivryn-session-navigation {
   position: absolute;
   z-index: 30;
-  top: 42px;
+  top: var(--qivryn-standalone-menu-height, 42px);
   bottom: 0;
   left: 0;
   display: flex;
@@ -3200,7 +3212,8 @@ body[data-qivryn-fullscreen="true"] .qivryn-chat-route,
     display: none;
   }
 
-  .qivryn-standalone .qivryn-standalone-menu {
+  .qivryn-standalone .qivryn-standalone-menu,
+  .qivryn-standalone-surface > .qivryn-standalone-menu {
     justify-content: flex-end;
   }
 
