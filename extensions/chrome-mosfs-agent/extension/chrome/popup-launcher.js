@@ -4,6 +4,47 @@ let activeContextTabId;
 let activeTabContextSnapshot;
 let lastFrameNonce = 0;
 
+function isQivrynExtensionUrl(url) {
+  const text = String(url || "");
+  return (
+    text.startsWith(chrome.runtime.getURL("qivryn/")) ||
+    text === chrome.runtime.getURL("popup.html")
+  );
+}
+
+function isBrowserInternalUrl(url) {
+  const text = String(url || "");
+  return (
+    !text ||
+    text.startsWith("chrome://") ||
+    text.startsWith("edge://") ||
+    text.startsWith("about:") ||
+    text.startsWith("chrome-extension://")
+  );
+}
+
+function isContextCandidateTab(tab) {
+  return Boolean(
+    tab?.id && !isBrowserInternalUrl(tab.url) && !isQivrynExtensionUrl(tab.url),
+  );
+}
+
+async function focusedBrowserTabId() {
+  const queries = [
+    { active: true, lastFocusedWindow: true },
+    { active: true, currentWindow: true },
+  ];
+  for (const query of queries) {
+    try {
+      const [tab] = await chrome.tabs.query(query);
+      if (isContextCandidateTab(tab)) return tab.id;
+    } catch {
+      // The background resolver still has a saved-context fallback.
+    }
+  }
+  return undefined;
+}
+
 function setStatus(message) {
   const status = document.querySelector("#statusText");
   if (status) status.textContent = message;
@@ -69,12 +110,20 @@ async function persistPopupState(tabContext = activeTabContextSnapshot) {
   });
 }
 
-async function restorePopupState() {
+async function restorePopupState(expectedContextTabId) {
   const stored = await chromeStorageGet(POPUP_STATE_KEY);
   const saved = stored?.[POPUP_STATE_KEY];
   if (!saved || typeof saved !== "object") return false;
-  activeContextTabId =
+  const savedContextTabId =
     Number(saved.contextTabId) || saved.tabContext?.tabId || undefined;
+  if (
+    expectedContextTabId &&
+    savedContextTabId &&
+    Number(expectedContextTabId) !== Number(savedContextTabId)
+  ) {
+    return false;
+  }
+  activeContextTabId = savedContextTabId || undefined;
   activeTabContextSnapshot = saved.tabContext || null;
   const frame = document.querySelector("#qivrynPopupFrame");
   if (frame && activeTabContextSnapshot) {
@@ -91,6 +140,8 @@ async function restorePopupState() {
 
 async function openQivrynUi() {
   setStatus("Opening Qivryn in a full tab…");
+  const focusedTabId = await focusedBrowserTabId();
+  if (focusedTabId) activeContextTabId = focusedTabId;
   const response = await chrome.runtime.sendMessage({
     type: "open-qivryn-ui",
     contextTabId: activeContextTabId,
@@ -110,6 +161,8 @@ async function openQivrynUi() {
 
 async function toggleOverlay() {
   setStatus("Opening Qivryn overlay on the current tab…");
+  const focusedTabId = await focusedBrowserTabId();
+  if (focusedTabId) activeContextTabId = focusedTabId;
   const response = await chrome.runtime.sendMessage({
     type: "toggle-qivryn-overlay",
     contextTabId: activeContextTabId,
@@ -141,12 +194,18 @@ function qivrynPopupUrl(tabContext, options = {}) {
 
 async function loadEmbeddedQivryn(options = {}) {
   const frame = document.querySelector("#qivrynPopupFrame");
-  const restored = options.skipRestore ? false : await restorePopupState();
+  const focusedTabId = await focusedBrowserTabId();
+  const restored = options.skipRestore
+    ? false
+    : await restorePopupState(focusedTabId);
   if (!restored || options.force) {
     setStatus("Reading active tab context…");
   }
   try {
-    const response = await chrome.runtime.sendMessage({ type: "active-tab" });
+    const response = await chrome.runtime.sendMessage({
+      type: "active-tab",
+      ...(focusedTabId ? { contextTabId: focusedTabId } : {}),
+    });
     const tabContext = response?.tabContext || activeTabContextSnapshot;
     activeTabContextSnapshot = tabContext || null;
     setContextBadge(tabContext);

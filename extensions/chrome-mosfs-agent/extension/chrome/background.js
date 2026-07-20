@@ -2056,7 +2056,7 @@ async function openQivrynUiFromCurrentWindow(contextTabId) {
   if (isContextCandidateTab(pinned)) {
     return openQivrynUiFromAction(pinned);
   }
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const { tab } = await activeContextCandidateTab();
   return openQivrynUiFromAction(tab);
 }
 
@@ -2065,7 +2065,7 @@ async function toggleQivrynOverlayFromCurrentWindow(contextTabId) {
   if (isContextCandidateTab(pinned)) {
     return toggleQivrynOverlayFromAction(pinned);
   }
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const { tab } = await activeContextCandidateTab();
   return toggleQivrynOverlayFromAction(tab);
 }
 
@@ -2114,6 +2114,31 @@ function isContextCandidateTab(tab) {
   return Boolean(
     tab?.id && !isBrowserInternalUrl(tab.url) && !isQivrynExtensionUrl(tab.url),
   );
+}
+
+async function activeContextCandidateTab() {
+  const queries = [
+    { active: true, lastFocusedWindow: true },
+    { active: true, currentWindow: true },
+  ];
+  for (const query of queries) {
+    try {
+      const tabs = await chrome.tabs.query(query);
+      const tab = Array.isArray(tabs) ? tabs.find(isContextCandidateTab) : null;
+      if (tab) {
+        await rememberContextTab(tab);
+        return {
+          tab,
+          source: query.lastFocusedWindow
+            ? "focused-window-active-tab"
+            : "active-tab",
+        };
+      }
+    } catch {
+      // Fall through to the remembered non-Qivryn tab.
+    }
+  }
+  return { tab: null, source: "" };
 }
 
 async function getTabById(tabId) {
@@ -2222,6 +2247,8 @@ async function resolveContextTab(preferredTabId) {
     await rememberContextTab(preferred);
     return { tab: preferred, source: "provided-context-tab" };
   }
+  const active = await activeContextCandidateTab();
+  if (active.tab) return active;
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (isContextCandidateTab(tab)) {
     await rememberContextTab(tab);
@@ -2268,11 +2295,15 @@ async function activeTabContext(contextTabId) {
     return base;
   }
   try {
-    const [result] = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id, allFrames: true },
       func: collectPageContext,
     });
-    const context = { ...base, ...(result?.result || {}) };
+    const context = mergePageContexts(
+      base,
+      results.map((result) => result?.result).filter(Boolean),
+      tab.url || "",
+    );
     await rememberContextSnapshot(context);
     return context;
   } catch (error) {
@@ -2283,6 +2314,109 @@ async function activeTabContext(contextTabId) {
     await rememberContextSnapshot(context);
     return context;
   }
+}
+
+function uniqueStringsFrom(...values) {
+  const out = [];
+  for (const value of values.flat(Infinity)) {
+    const text = String(value || "").trim();
+    if (text && !out.includes(text)) out.push(text);
+  }
+  return out;
+}
+
+function firstTextValue(contexts, key) {
+  for (const context of contexts) {
+    const value = String(context?.[key] || "").trim();
+    if (value) return value;
+  }
+  return "";
+}
+
+function mergePageContexts(base, pageContexts, tabUrl = "") {
+  const contexts = Array.isArray(pageContexts)
+    ? pageContexts.filter((context) => context && typeof context === "object")
+    : [];
+  if (!contexts.length) return base;
+
+  const main =
+    contexts.find((context) => context.url === tabUrl) ||
+    contexts.find((context) => context.url === base.url) ||
+    contexts[0];
+  const urlParams = {};
+  for (const context of contexts) {
+    if (context?.urlParams && typeof context.urlParams === "object") {
+      Object.assign(urlParams, context.urlParams);
+    }
+  }
+
+  const headings = uniqueStringsFrom(contexts.map((item) => item.headings));
+  const selectedText = limitText(
+    contexts
+      .map((item) => item.selectedText || "")
+      .filter(Boolean)
+      .join("\n"),
+    12000,
+  );
+  const visibleText = limitText(
+    contexts
+      .map((item) => item.visibleText || "")
+      .filter(Boolean)
+      .join("\n"),
+    60000,
+  );
+  const visibleSrMatches = uniqueStringsFrom(
+    contexts.map((item) => item.visibleSrMatches),
+  );
+  const urlSrMatches = uniqueStringsFrom(
+    contexts.map((item) => item.urlSrMatches),
+  );
+  const srMatches = uniqueStringsFrom(
+    visibleSrMatches,
+    urlSrMatches,
+    contexts.map((item) => item.srMatches),
+  );
+  const srNumber = visibleSrMatches[0] || urlSrMatches[0] || "";
+  const urlSr = urlSrMatches[0] || "";
+  const restSamples = uniqueStringsFrom(
+    contexts.map((item) => item.restSamples),
+  );
+
+  return {
+    ...base,
+    ...main,
+    tabId: base.tabId,
+    windowId: base.windowId,
+    url: main.url || base.url || "",
+    title: main.title || base.title || "",
+    contextSource: base.contextSource,
+    selectedText,
+    headings: headings.slice(0, 30),
+    visibleText,
+    srMatches: srMatches.slice(0, 30),
+    visibleSrMatches: visibleSrMatches.slice(0, 30),
+    urlSrMatches: urlSrMatches.slice(0, 30),
+    urlParams,
+    srNumber,
+    srNumberSource: visibleSrMatches[0] ? "visible-page" : urlSr ? "url" : "",
+    srNumberConflict: Boolean(srNumber && urlSr && srNumber !== urlSr),
+    urlSrNumber: urlSr,
+    srId:
+      firstTextValue(contexts, "srId") ||
+      urlParams.srId ||
+      urlParams.SrId ||
+      "",
+    statusCd:
+      firstTextValue(contexts, "statusCd") ||
+      urlParams.StatusCd ||
+      urlParams.statusCd ||
+      "",
+    crmRestOrigin: firstTextValue(contexts, "crmRestOrigin"),
+    crmRestBasePath: firstTextValue(contexts, "crmRestBasePath"),
+    crmRestBaseUrl: firstTextValue(contexts, "crmRestBaseUrl"),
+    resourcesVersion: firstTextValue(contexts, "resourcesVersion"),
+    restSamples: restSamples.slice(0, 30),
+  };
 }
 
 async function fetchSrFromActiveTab(srNumber, tabContext) {
@@ -2408,12 +2542,79 @@ function collectPageContext() {
     .slice(0, 12)
     .map((node) => cleanText(node.textContent, 300))
     .filter(Boolean);
+  const collectVisibleDomText = () => {
+    const out = [];
+    let nodeCount = 0;
+    let charCount = 0;
+    const push = (value, limit = 300) => {
+      if (charCount >= 24000) return;
+      const text = cleanText(value, limit);
+      if (!text) return;
+      out.push(text);
+      charCount += text.length + 1;
+    };
+    const isVisibleElement = (element) => {
+      if (!element || element.nodeType !== 1) return false;
+      if (element === document.body || element === document.documentElement)
+        return true;
+      try {
+        const style = window.getComputedStyle(element);
+        if (style.display === "none" || style.visibility === "hidden")
+          return false;
+        const rect = element.getBoundingClientRect();
+        return rect.width > 0 || rect.height > 0;
+      } catch {
+        return true;
+      }
+    };
+    const walkRoot = (root, depth = 0) => {
+      if (!root || depth > 8 || nodeCount > 2500 || charCount >= 24000) return;
+      let walker;
+      try {
+        walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+      } catch {
+        return;
+      }
+      let element = walker.currentNode;
+      while (element && nodeCount <= 2500 && charCount < 24000) {
+        nodeCount += 1;
+        if (isVisibleElement(element)) {
+          for (const attr of [
+            "aria-label",
+            "title",
+            "alt",
+            "placeholder",
+            "data-testid",
+          ]) {
+            push(element.getAttribute?.(attr), 220);
+          }
+          if (
+            "value" in element &&
+            /^(input|textarea|select)$/i.test(element.tagName || "")
+          ) {
+            push(element.value, 220);
+          }
+          if (element.shadowRoot) {
+            push(element.shadowRoot.textContent, 1800);
+            walkRoot(element.shadowRoot, depth + 1);
+          }
+        }
+        element = walker.nextNode();
+      }
+    };
+    try {
+      walkRoot(document.body || document.documentElement);
+    } catch {
+      return "";
+    }
+    return cleanText(out.join(" "), 24000);
+  };
   const selectedText = cleanText(
     window.getSelection ? window.getSelection().toString() : "",
     12000,
   );
   const visibleText = cleanText(
-    document.body ? document.body.innerText : "",
+    `${document.body ? document.body.innerText : ""} ${collectVisibleDomText()}`,
     24000,
   );
   const srPattern = /\b[34]-\d{10}\b/g;
