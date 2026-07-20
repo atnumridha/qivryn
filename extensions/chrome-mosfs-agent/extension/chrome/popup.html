@@ -11,14 +11,103 @@
     <main class="qivryn-popup-shell" aria-label="Qivryn popup">
       <header class="qivryn-popup-header">
         <div class="qivryn-popup-brand">
-          <span class="brand-mark">Q</span>
-          <span>Qivryn</span>
+          <img
+            class="brand-mark"
+            src="assets/qivryn-32.png"
+            alt=""
+            width="32"
+            height="32"
+          />
+          <div class="brand-copy">
+            <strong>Qivryn</strong>
+            <span id="contextBadge">Current tab context</span>
+          </div>
         </div>
-        <a id="openQivrynLink" class="button" href="#">
-          Open full screen tab
-        </a>
+        <nav class="qivryn-popup-actions" aria-label="Qivryn popup actions">
+          <button
+            id="refreshContextButton"
+            class="icon-button"
+            type="button"
+            title="Refresh current tab context"
+          >
+            <svg
+              class="icon icon-action-refresh"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path d="M20 6v5h-5" />
+              <path d="M19 11a7 7 0 1 0-2.05 4.95" />
+            </svg>
+            <span>Refresh</span>
+          </button>
+          <button
+            id="toggleOverlayButton"
+            class="icon-button"
+            type="button"
+            title="Open Qivryn over the current tab"
+          >
+            <svg
+              class="icon icon-navigation-overlay"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <rect x="4" y="5" width="16" height="13" rx="2" />
+              <path d="M8 9h8" />
+              <path d="M8 13h5" />
+            </svg>
+            <span>Overlay</span>
+          </button>
+          <button
+            id="reloadFrameButton"
+            class="icon-button"
+            type="button"
+            title="Reload embedded Qivryn"
+          >
+            <svg
+              class="icon icon-action-reload"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path d="M4 4v6h6" />
+              <path d="M20 20v-6h-6" />
+              <path d="M20 9a8 8 0 0 0-13.66-3.66L4 7.68" />
+              <path d="M4 15a8 8 0 0 0 13.66 3.66L20 16.32" />
+            </svg>
+            <span>Reload</span>
+          </button>
+          <a
+            id="openQivrynLink"
+            class="icon-button primary-action"
+            href="#"
+            title="Open full Qivryn tab"
+          >
+            <svg
+              class="icon icon-navigation-fullscreen"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path d="M8 3H4a1 1 0 0 0-1 1v4" />
+              <path d="M16 3h4a1 1 0 0 1 1 1v4" />
+              <path d="M8 21H4a1 1 0 0 1-1-1v-4" />
+              <path d="M16 21h4a1 1 0 0 0 1-1v-4" />
+            </svg>
+            <span>Full tab</span>
+          </a>
+        </nav>
       </header>
-      <p id="statusText" class="status" aria-live="polite">Compact Qivryn popup loaded with current tab context.</p>
+      <section class="qivryn-popup-status" aria-label="Qivryn context status">
+        <p id="statusText" class="status" aria-live="polite">
+          Compact Qivryn popup loaded with current tab context.
+        </p>
+        <div class="feature-pills" aria-label="Available features">
+          <span class="feature-pill">Chat</span>
+          <span class="feature-pill">Sessions</span>
+          <span class="feature-pill">Review</span>
+          <span class="feature-pill">Settings</span>
+          <span class="feature-pill">Models</span>
+          <span class="feature-pill">Browser control</span>
+        </div>
+      </section>
       <iframe
         id="qivrynPopupFrame"
         class="qivryn-popup-frame"

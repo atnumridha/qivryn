@@ -13,12 +13,22 @@
     "storage",
     "tabs"
   ],
-  "host_permissions": [
-    "<all_urls>"
-  ],
+  "host_permissions": ["<all_urls>"],
   "action": {
     "default_title": "Qivryn",
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "assets/qivryn-16.png",
+      "32": "assets/qivryn-32.png",
+      "48": "assets/qivryn-48.png",
+      "128": "assets/qivryn-128.png"
+    }
+  },
+  "icons": {
+    "16": "assets/qivryn-16.png",
+    "32": "assets/qivryn-32.png",
+    "48": "assets/qivryn-48.png",
+    "128": "assets/qivryn-128.png"
   },
   "web_accessible_resources": [
     {
@@ -28,9 +38,7 @@
         "qivryn-host.css",
         "qivryn-host.js"
       ],
-      "matches": [
-        "<all_urls>"
-      ]
+      "matches": ["<all_urls>"]
     }
   ],
   "background": {

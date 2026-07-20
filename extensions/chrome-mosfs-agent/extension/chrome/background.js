@@ -82,16 +82,37 @@ const BROWSER_CONTROL_TOOLS = [
           },
           x: { type: "number", description: "Viewport X coordinate fallback." },
           y: { type: "number", description: "Viewport Y coordinate fallback." },
-          replace: { type: "boolean", description: "Replace existing field text when typing." },
-          key: { type: "string", description: "Keyboard key such as Enter, Tab, Escape." },
+          replace: {
+            type: "boolean",
+            description: "Replace existing field text when typing.",
+          },
+          key: {
+            type: "string",
+            description: "Keyboard key such as Enter, Tab, Escape.",
+          },
           deltaX: { type: "number", description: "Horizontal scroll delta." },
           deltaY: { type: "number", description: "Vertical scroll delta." },
           milliseconds: { type: "number", minimum: 0, maximum: 30000 },
-          bypassCache: { type: "boolean", description: "Bypass cache when refreshing." },
-          includeScreenshot: { type: "boolean", description: "Capture screenshot after the action." },
-          value: { type: "string", description: "Value for set_value or set_attribute." },
-          attribute: { type: "string", description: "Attribute name for set_attribute." },
-          event: { type: "string", description: "DOM event name for dispatch." },
+          bypassCache: {
+            type: "boolean",
+            description: "Bypass cache when refreshing.",
+          },
+          includeScreenshot: {
+            type: "boolean",
+            description: "Capture screenshot after the action.",
+          },
+          value: {
+            type: "string",
+            description: "Value for set_value or set_attribute.",
+          },
+          attribute: {
+            type: "string",
+            description: "Attribute name for set_attribute.",
+          },
+          event: {
+            type: "string",
+            description: "DOM event name for dispatch.",
+          },
           code: {
             type: "string",
             description:
@@ -142,7 +163,9 @@ const BROWSER_CONTROL_TOOLS = [
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   handleMessage(message)
     .then((response) => sendResponse(response))
-    .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
+    .catch((error) =>
+      sendResponse({ ok: false, error: error.message || String(error) }),
+    );
   return true;
 });
 
@@ -185,7 +208,10 @@ async function handleMessage(message) {
     case "qivryn-protocol":
       return qivrynProtocol(message);
     case "active-tab":
-      return { ok: true, tabContext: await activeTabContext(message.contextTabId) };
+      return {
+        ok: true,
+        tabContext: await activeTabContext(message.contextTabId),
+      };
     case "browser-control":
       return {
         ok: true,
@@ -205,11 +231,15 @@ async function handleMessage(message) {
     case "open-qivryn-ui":
       return openQivrynUiFromCurrentWindow(message.contextTabId);
     case "toggle-qivryn-overlay":
-      return toggleQivrynOverlayFromCurrentWindow();
+      return toggleQivrynOverlayFromCurrentWindow(message.contextTabId);
     case "agent-status":
       return sendNative({ type: "agent_status" });
     case "agent-events":
-      return sendNative({ type: "agent_events", runId: message.runId, afterSequence: message.afterSequence });
+      return sendNative({
+        type: "agent_events",
+        runId: message.runId,
+        afterSequence: message.afterSequence,
+      });
     case "agent-message":
       return sendAgentMessage(message);
     case "fetch-sr":
@@ -265,11 +295,15 @@ async function handleMessage(message) {
 
 async function qivrynProtocol(message) {
   try {
-    const content = await qivrynProtocolContent(message.messageType, message.data, {
-      contextTabId: normalizeTabId(message.contextTabId),
-      surface: String(message.surface || ""),
-      workspaceRoot: message.workspaceRoot,
-    });
+    const content = await qivrynProtocolContent(
+      message.messageType,
+      message.data,
+      {
+        contextTabId: normalizeTabId(message.contextTabId),
+        surface: String(message.surface || ""),
+        workspaceRoot: message.workspaceRoot,
+      },
+    );
     return { status: "success", content };
   } catch (error) {
     return { status: "error", error: error.message || String(error) };
@@ -278,7 +312,11 @@ async function qivrynProtocol(message) {
 
 async function qivrynProtocolContent(messageType, data, context = {}) {
   if (String(messageType || "").startsWith("reviews/")) {
-    const response = await sendNative({ type: "qivryn_review", messageType, data });
+    const response = await sendNative({
+      type: "qivryn_review",
+      messageType,
+      data,
+    });
     if (!response?.ok) {
       throw new Error(response?.error || "Qivryn review request failed.");
     }
@@ -337,7 +375,8 @@ async function qivrynProtocolContent(messageType, data, context = {}) {
     case "getCurrentFile":
       return {
         isUntitled: false,
-        contents: "MOSFS Chrome extension active tab context is available through the extension bridge.",
+        contents:
+          "MOSFS Chrome extension active tab context is available through the extension bridge.",
         path: `${workspaceUri(await selectedWorkspaceRoot(context.workspaceRoot))}/README.md`,
       };
     case "fileExists":
@@ -371,7 +410,8 @@ async function qivrynProtocolContent(messageType, data, context = {}) {
         skills: [
           {
             name: "mosfs",
-            description: "Fetch and analyze Oracle MOSFS Service Requests with guarded update workflows.",
+            description:
+              "Fetch and analyze Oracle MOSFS Service Requests with guarded update workflows.",
             path: "/Users/amridha/.codex/skills/mosfs/SKILL.md",
             readOnly: true,
             provenance: "Codex",
@@ -461,15 +501,25 @@ async function qivrynProtocolContent(messageType, data, context = {}) {
     case "voice/captureStop":
       return { audioBase64: "", mimeType: "audio/webm" };
     case "voice/transcribe":
-      throw new Error("Voice transcription is not wired in the MOSFS Chrome extension bridge.");
+      throw new Error(
+        "Voice transcription is not wired in the MOSFS Chrome extension bridge.",
+      );
     default:
       return undefined;
   }
 }
 
 function qivrynModelFromCodex(item) {
-  const slug = String(item?.slug || item?.model || item?.id || item?.title || "").trim();
-  const title = String(item?.displayName || item?.display_name || item?.name || item?.title || slug).trim();
+  const slug = String(
+    item?.slug || item?.model || item?.id || item?.title || "",
+  ).trim();
+  const title = String(
+    item?.displayName ||
+      item?.display_name ||
+      item?.name ||
+      item?.title ||
+      slug,
+  ).trim();
   if (!slug && !title) return null;
   const modelId = slug || title;
   const contextLength = Number(
@@ -682,13 +732,19 @@ async function browserControl(args) {
       result = await domAction(tab, "evaluate", args);
       break;
     default:
-      throw new Error(`Unsupported browser_control action: ${action || "missing"}`);
+      throw new Error(
+        `Unsupported browser_control action: ${action || "missing"}`,
+      );
   }
 
   if (args?.includeScreenshot && action !== "screenshot") {
     result.screenshot = await captureTabScreenshot(tab);
   }
-  return toolContextResult("Browser control", `browser_control:${action}`, result);
+  return toolContextResult(
+    "Browser control",
+    `browser_control:${action}`,
+    result,
+  );
 }
 
 async function browserObserve(args) {
@@ -707,7 +763,10 @@ async function browserObserve(args) {
       throw new Error("No controllable non-Qivryn browser tab is available.");
     }
     if (index > 0 && refresh) {
-      await refreshBrowserTab(tab, { bypassCache: !!args?.bypassCache, waitMs: 30000 });
+      await refreshBrowserTab(tab, {
+        bypassCache: !!args?.bypassCache,
+        waitMs: 30000,
+      });
     }
     const context = await activeTabContext(tab.id);
     const snapshot = pageSnapshot(context, watchText);
@@ -777,8 +836,13 @@ async function navigateBrowserTab(tab, args) {
 }
 
 async function refreshBrowserTab(tab, args = {}) {
-  await chromeCall(chrome.tabs.reload, tab.id, { bypassCache: !!args.bypassCache });
-  await waitForTabLoad(tab.id, clampInteger(args.waitMs ?? 30000, 1000, 60000)).catch(() => undefined);
+  await chromeCall(chrome.tabs.reload, tab.id, {
+    bypassCache: !!args.bypassCache,
+  });
+  await waitForTabLoad(
+    tab.id,
+    clampInteger(args.waitMs ?? 30000, 1000, 60000),
+  ).catch(() => undefined);
   const updated = await getTabById(tab.id);
   return {
     ok: true,
@@ -836,7 +900,7 @@ async function clickBrowserTab(tab, args) {
     ok: true,
     action: "click",
     target: point,
-    tab: tabSummary(await getTabById(tab.id) || tab),
+    tab: tabSummary((await getTabById(tab.id)) || tab),
   };
 }
 
@@ -844,8 +908,14 @@ async function typeInBrowserTab(tab, args) {
   await domAction(tab, "focus", args);
   await cdpAction(tab.id, async (send) => {
     if (args?.replace) {
-      await send("Input.dispatchKeyEvent", keyboardEvent("keyDown", "a", { modifiers: 2 }));
-      await send("Input.dispatchKeyEvent", keyboardEvent("keyUp", "a", { modifiers: 2 }));
+      await send(
+        "Input.dispatchKeyEvent",
+        keyboardEvent("keyDown", "a", { modifiers: 2 }),
+      );
+      await send(
+        "Input.dispatchKeyEvent",
+        keyboardEvent("keyUp", "a", { modifiers: 2 }),
+      );
     }
     await send("Input.insertText", { text: String(args?.text || "") });
   });
@@ -876,8 +946,12 @@ async function pressInBrowserTab(tab, args) {
 
 async function scrollBrowserTab(tab, args) {
   const viewport = await domAction(tab, "viewport", {});
-  const x = Number.isFinite(Number(args?.x)) ? Number(args.x) : Math.round((viewport.width || 1200) / 2);
-  const y = Number.isFinite(Number(args?.y)) ? Number(args.y) : Math.round((viewport.height || 800) / 2);
+  const x = Number.isFinite(Number(args?.x))
+    ? Number(args.x)
+    : Math.round((viewport.width || 1200) / 2);
+  const y = Number.isFinite(Number(args?.y))
+    ? Number(args.y)
+    : Math.round((viewport.height || 800) / 2);
   const deltaX = Number(args?.deltaX || 0);
   const deltaY = Number(args?.deltaY ?? 600);
   await cdpAction(tab.id, async (send) => {
@@ -909,8 +983,13 @@ async function resolveBrowserPoint(tab, args) {
     };
   }
   const result = await domAction(tab, "point", args);
-  if (!Number.isFinite(Number(result?.x)) || !Number.isFinite(Number(result?.y))) {
-    throw new Error("Could not resolve a browser target point. Provide selector or x/y.");
+  if (
+    !Number.isFinite(Number(result?.x)) ||
+    !Number.isFinite(Number(result?.y))
+  ) {
+    throw new Error(
+      "Could not resolve a browser target point. Provide selector or x/y.",
+    );
   }
   return result;
 }
@@ -922,14 +1001,19 @@ async function domAction(tab, action, args) {
     args: [action, args || {}],
   });
   if (result?.result?.ok === false) {
-    throw new Error(result.result.error || `Browser DOM action failed: ${action}`);
+    throw new Error(
+      result.result.error || `Browser DOM action failed: ${action}`,
+    );
   }
   return result?.result;
 }
 
 function browserDomAction(action, args) {
   const clean = (value, limit = 4000) =>
-    String(value || "").replace(/\s+/g, " ").trim().slice(0, limit);
+    String(value || "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, limit);
   const cssPath = (element) => {
     if (!element || element.nodeType !== 1) return "";
     if (element.id) return `#${CSS.escape(element.id)}`;
@@ -938,12 +1022,18 @@ function browserDomAction(action, args) {
     while (node && node.nodeType === 1 && parts.length < 5) {
       let part = node.localName;
       if (node.classList?.length) {
-        part += `.${Array.from(node.classList).slice(0, 2).map((value) => CSS.escape(value)).join(".")}`;
+        part += `.${Array.from(node.classList)
+          .slice(0, 2)
+          .map((value) => CSS.escape(value))
+          .join(".")}`;
       }
       const parent = node.parentElement;
       if (parent) {
-        const siblings = Array.from(parent.children).filter((child) => child.localName === node.localName);
-        if (siblings.length > 1) part += `:nth-of-type(${siblings.indexOf(node) + 1})`;
+        const siblings = Array.from(parent.children).filter(
+          (child) => child.localName === node.localName,
+        );
+        if (siblings.length > 1)
+          part += `:nth-of-type(${siblings.indexOf(node) + 1})`;
       }
       parts.unshift(part);
       node = parent;
@@ -954,7 +1044,12 @@ function browserDomAction(action, args) {
     if (!element) return false;
     const rect = element.getBoundingClientRect();
     const style = window.getComputedStyle(element);
-    return rect.width > 0 && rect.height > 0 && style.visibility !== "hidden" && style.display !== "none";
+    return (
+      rect.width > 0 &&
+      rect.height > 0 &&
+      style.visibility !== "hidden" &&
+      style.display !== "none"
+    );
   };
   const describe = (element) => {
     if (!element) return null;
@@ -964,7 +1059,14 @@ function browserDomAction(action, args) {
       tag: element.tagName.toLowerCase(),
       role: element.getAttribute("role") || "",
       type: element.getAttribute("type") || "",
-      text: clean(element.innerText || element.value || element.getAttribute("aria-label") || element.title || "", 300),
+      text: clean(
+        element.innerText ||
+          element.value ||
+          element.getAttribute("aria-label") ||
+          element.title ||
+          "",
+        300,
+      ),
       x: Math.round(rect.left + rect.width / 2),
       y: Math.round(rect.top + rect.height / 2),
       rect: {
@@ -984,7 +1086,9 @@ function browserDomAction(action, args) {
     }
     if (depth >= 3) return clean(String(value), 1000);
     if (Array.isArray(value)) {
-      return value.slice(0, 50).map((item) => serializeDomResult(item, depth + 1));
+      return value
+        .slice(0, 50)
+        .map((item) => serializeDomResult(item, depth + 1));
     }
     if (typeof value === "object") {
       return Object.fromEntries(
@@ -1004,7 +1108,9 @@ function browserDomAction(action, args) {
     if (args.text) {
       const needle = clean(args.text, 1000).toLowerCase();
       const candidates = Array.from(
-        document.querySelectorAll("button,a,input,textarea,select,[role='button'],[onclick],[contenteditable='true']"),
+        document.querySelectorAll(
+          "button,a,input,textarea,select,[role='button'],[onclick],[contenteditable='true']",
+        ),
       );
       const found = candidates.find((element) => {
         const haystack = clean(
@@ -1024,32 +1130,58 @@ function browserDomAction(action, args) {
       const found = document.elementFromPoint(Number(args.x), Number(args.y));
       if (found) return found;
     }
-    if (["focus", "type", "press"].includes(action) && document.activeElement) return document.activeElement;
-    throw new Error("No target element matched. Provide selector, text, or x/y.");
+    if (["focus", "type", "press"].includes(action) && document.activeElement)
+      return document.activeElement;
+    throw new Error(
+      "No target element matched. Provide selector, text, or x/y.",
+    );
   };
   const waitFor = async () => {
-    const deadline = Date.now() + Math.min(30000, Math.max(0, Number(args.milliseconds || 10000)));
+    const deadline =
+      Date.now() +
+      Math.min(30000, Math.max(0, Number(args.milliseconds || 10000)));
     let lastError = "";
     while (Date.now() <= deadline) {
       try {
-        if (args.text && clean(document.body?.innerText || "", 50000).includes(String(args.text))) {
-          return { ok: true, action: "wait", matched: "text", text: String(args.text) };
+        if (
+          args.text &&
+          clean(document.body?.innerText || "", 50000).includes(
+            String(args.text),
+          )
+        ) {
+          return {
+            ok: true,
+            action: "wait",
+            matched: "text",
+            text: String(args.text),
+          };
         }
         const element = findElement();
-        if (element && isVisible(element)) return { ok: true, action: "wait", matched: "element", target: describe(element) };
+        if (element && isVisible(element))
+          return {
+            ok: true,
+            action: "wait",
+            matched: "element",
+            target: describe(element),
+          };
       } catch (error) {
         lastError = error?.message || String(error);
       }
       await new Promise((resolve) => setTimeout(resolve, 250));
     }
-    return { ok: false, error: lastError || "Timed out waiting for browser condition." };
+    return {
+      ok: false,
+      error: lastError || "Timed out waiting for browser condition.",
+    };
   };
 
   try {
     switch (action) {
       case "inspect": {
         const interactive = Array.from(
-          document.querySelectorAll("button,a,input,textarea,select,[role='button'],[onclick],[contenteditable='true']"),
+          document.querySelectorAll(
+            "button,a,input,textarea,select,[role='button'],[onclick],[contenteditable='true']",
+          ),
         )
           .filter(isVisible)
           .slice(0, 100)
@@ -1060,22 +1192,38 @@ function browserDomAction(action, args) {
           url: location.href,
           title: document.title,
           viewport: { width: window.innerWidth, height: window.innerHeight },
-          selectedText: clean(window.getSelection ? window.getSelection().toString() : "", 12000),
+          selectedText: clean(
+            window.getSelection ? window.getSelection().toString() : "",
+            12000,
+          ),
           visibleText: clean(document.body?.innerText || "", 24000),
           interactive,
         };
       }
       case "viewport":
-        return { ok: true, width: window.innerWidth, height: window.innerHeight };
+        return {
+          ok: true,
+          width: window.innerWidth,
+          height: window.innerHeight,
+        };
       case "point": {
         const element = findElement();
         const target = describe(element);
-        return { ok: true, ...target, source: args.selector ? "selector" : args.text ? "text" : "coordinates" };
+        return {
+          ok: true,
+          ...target,
+          source: args.selector
+            ? "selector"
+            : args.text
+              ? "text"
+              : "coordinates",
+        };
       }
       case "focus": {
         const element = findElement();
         element.focus();
-        if (args.replace && typeof element.select === "function") element.select();
+        if (args.replace && typeof element.select === "function")
+          element.select();
         return { ok: true, action, target: describe(element) };
       }
       case "wait":
@@ -1086,7 +1234,12 @@ function browserDomAction(action, args) {
         element.value = String(args.text || "");
         element.dispatchEvent(new Event("input", { bubbles: true }));
         element.dispatchEvent(new Event("change", { bubbles: true }));
-        return { ok: true, action, target: describe(element), value: String(args.text || "") };
+        return {
+          ok: true,
+          action,
+          target: describe(element),
+          value: String(args.text || ""),
+        };
       }
       case "submit": {
         const element = findElement();
@@ -1094,7 +1247,12 @@ function browserDomAction(action, args) {
         if (form?.requestSubmit) form.requestSubmit();
         else if (form) form.submit();
         else element.click();
-        return { ok: true, action, target: describe(element), submittedForm: !!form };
+        return {
+          ok: true,
+          action,
+          target: describe(element),
+          submittedForm: !!form,
+        };
       }
       case "set_value": {
         const element = findElement();
@@ -1104,7 +1262,12 @@ function browserDomAction(action, args) {
         else element.textContent = value;
         element.dispatchEvent(new Event("input", { bubbles: true }));
         element.dispatchEvent(new Event("change", { bubbles: true }));
-        return { ok: true, action, target: describe(element), valueLength: value.length };
+        return {
+          ok: true,
+          action,
+          target: describe(element),
+          valueLength: value.length,
+        };
       }
       case "set_text": {
         const element = findElement();
@@ -1112,18 +1275,31 @@ function browserDomAction(action, args) {
         element.textContent = value;
         element.dispatchEvent(new Event("input", { bubbles: true }));
         element.dispatchEvent(new Event("change", { bubbles: true }));
-        return { ok: true, action, target: describe(element), valueLength: value.length };
+        return {
+          ok: true,
+          action,
+          target: describe(element),
+          valueLength: value.length,
+        };
       }
       case "set_attribute": {
         const element = findElement();
         const attribute = String(args.attribute || "").trim();
         if (!/^[A-Za-z_][\w:.-]*$/.test(attribute)) {
-          throw new Error("A valid attribute name is required for set_attribute.");
+          throw new Error(
+            "A valid attribute name is required for set_attribute.",
+          );
         }
         const value = String(args.value ?? args.text ?? "");
         element.setAttribute(attribute, value);
         element.dispatchEvent(new Event("change", { bubbles: true }));
-        return { ok: true, action, target: describe(element), attribute, valueLength: value.length };
+        return {
+          ok: true,
+          action,
+          target: describe(element),
+          attribute,
+          valueLength: value.length,
+        };
       }
       case "dispatch": {
         const element = findElement();
@@ -1133,7 +1309,13 @@ function browserDomAction(action, args) {
         }
         const event = new Event(eventName, { bubbles: true, cancelable: true });
         const accepted = element.dispatchEvent(event);
-        return { ok: true, action, target: describe(element), event: eventName, accepted };
+        return {
+          ok: true,
+          action,
+          target: describe(element),
+          event: eventName,
+          accepted,
+        };
       }
       case "evaluate": {
         const code = String(args.code || args.text || "").trim();
@@ -1143,19 +1325,21 @@ function browserDomAction(action, args) {
         const element = args.selector || hasPoint ? findElement() : null;
         let value;
         try {
-          value = Function("args", "element", "document", "window", `"use strict";\n${code}`)(
-            args,
-            element,
-            document,
-            window,
-          );
+          value = Function(
+            "args",
+            "element",
+            "document",
+            "window",
+            `"use strict";\n${code}`,
+          )(args, element, document, window);
         } catch (error) {
-          value = Function("args", "element", "document", "window", `"use strict";\nreturn (${code});`)(
-            args,
-            element,
-            document,
-            window,
-          );
+          value = Function(
+            "args",
+            "element",
+            "document",
+            "window",
+            `"use strict";\nreturn (${code});`,
+          )(args, element, document, window);
         }
         return {
           ok: true,
@@ -1206,24 +1390,58 @@ async function cdpAction(tabId, callback) {
 
 function keyboardEvent(type, key, options = {}) {
   const map = {
-    Enter: { code: "Enter", windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 },
+    Enter: {
+      code: "Enter",
+      windowsVirtualKeyCode: 13,
+      nativeVirtualKeyCode: 13,
+    },
     Tab: { code: "Tab", windowsVirtualKeyCode: 9, nativeVirtualKeyCode: 9 },
-    Escape: { code: "Escape", windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 },
-    Backspace: { code: "Backspace", windowsVirtualKeyCode: 8, nativeVirtualKeyCode: 8 },
-    Delete: { code: "Delete", windowsVirtualKeyCode: 46, nativeVirtualKeyCode: 46 },
-    ArrowDown: { code: "ArrowDown", windowsVirtualKeyCode: 40, nativeVirtualKeyCode: 40 },
-    ArrowUp: { code: "ArrowUp", windowsVirtualKeyCode: 38, nativeVirtualKeyCode: 38 },
-    ArrowLeft: { code: "ArrowLeft", windowsVirtualKeyCode: 37, nativeVirtualKeyCode: 37 },
-    ArrowRight: { code: "ArrowRight", windowsVirtualKeyCode: 39, nativeVirtualKeyCode: 39 },
+    Escape: {
+      code: "Escape",
+      windowsVirtualKeyCode: 27,
+      nativeVirtualKeyCode: 27,
+    },
+    Backspace: {
+      code: "Backspace",
+      windowsVirtualKeyCode: 8,
+      nativeVirtualKeyCode: 8,
+    },
+    Delete: {
+      code: "Delete",
+      windowsVirtualKeyCode: 46,
+      nativeVirtualKeyCode: 46,
+    },
+    ArrowDown: {
+      code: "ArrowDown",
+      windowsVirtualKeyCode: 40,
+      nativeVirtualKeyCode: 40,
+    },
+    ArrowUp: {
+      code: "ArrowUp",
+      windowsVirtualKeyCode: 38,
+      nativeVirtualKeyCode: 38,
+    },
+    ArrowLeft: {
+      code: "ArrowLeft",
+      windowsVirtualKeyCode: 37,
+      nativeVirtualKeyCode: 37,
+    },
+    ArrowRight: {
+      code: "ArrowRight",
+      windowsVirtualKeyCode: 39,
+      nativeVirtualKeyCode: 39,
+    },
   };
-  const normalized = map[key] || (key.length === 1
-    ? {
-        code: `Key${key.toUpperCase()}`,
-        windowsVirtualKeyCode: key.toUpperCase().charCodeAt(0),
-        nativeVirtualKeyCode: key.toUpperCase().charCodeAt(0),
-        text: key,
-      }
-    : { code: key, windowsVirtualKeyCode: 0, nativeVirtualKeyCode: 0 });
+  const normalized =
+    map[key] ||
+    (key.length === 1
+      ? {
+          code: `Key${key.toUpperCase()}`,
+          windowsVirtualKeyCode: key.toUpperCase().charCodeAt(0),
+          nativeVirtualKeyCode: key.toUpperCase().charCodeAt(0),
+          text: key,
+        }
+      : { code: key, windowsVirtualKeyCode: 0, nativeVirtualKeyCode: 0 });
   return {
     type,
     key,
@@ -1231,7 +1449,9 @@ function keyboardEvent(type, key, options = {}) {
     windowsVirtualKeyCode: normalized.windowsVirtualKeyCode,
     nativeVirtualKeyCode: normalized.nativeVirtualKeyCode,
     modifiers: options.modifiers || 0,
-    ...(normalized.text && type === "keyDown" ? { text: normalized.text, unmodifiedText: normalized.text } : {}),
+    ...(normalized.text && type === "keyDown"
+      ? { text: normalized.text, unmodifiedText: normalized.text }
+      : {}),
   };
 }
 
@@ -1260,12 +1480,18 @@ function toolContextResult(name, description, result) {
 
 function redactLargeDataUrls(value) {
   if (typeof value === "string") {
-    if (value.startsWith("data:image/")) return `[image data URL, ${value.length} chars]`;
+    if (value.startsWith("data:image/"))
+      return `[image data URL, ${value.length} chars]`;
     return value;
   }
   if (!value || typeof value !== "object") return value;
   if (Array.isArray(value)) return value.map(redactLargeDataUrls);
-  return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, redactLargeDataUrls(item)]));
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [
+      key,
+      redactLargeDataUrls(item),
+    ]),
+  );
 }
 
 function tabSummary(tab) {
@@ -1294,9 +1520,20 @@ function pageSnapshot(context, watchText) {
 
 function compareSnapshots(previous, current) {
   const changes = [];
-  for (const key of ["url", "title", "srNumber", "statusCd", "watchTextPresent", "visibleTextHash"]) {
+  for (const key of [
+    "url",
+    "title",
+    "srNumber",
+    "statusCd",
+    "watchTextPresent",
+    "visibleTextHash",
+  ]) {
     if (previous.public[key] !== current.public[key]) {
-      changes.push({ field: key, before: previous.public[key], after: current.public[key] });
+      changes.push({
+        field: key,
+        before: previous.public[key],
+        after: current.public[key],
+      });
     }
   }
   return changes;
@@ -1361,19 +1598,30 @@ function workspaceUri(root = QIVRYN_WORKSPACE_ROOT) {
 }
 
 function cleanWorkspaceRoot(value) {
-  const text = String(value || "").replace(/^file:\/\//, "").trim();
+  const text = String(value || "")
+    .replace(/^file:\/\//, "")
+    .trim();
   if (!text) return "";
-  return text === "~" || text.startsWith("~/") || text.startsWith("/") ? text : "";
+  return text === "~" || text.startsWith("~/") || text.startsWith("/")
+    ? text
+    : "";
 }
 
 async function selectedWorkspaceRoot(preferredRoot) {
   const preferred = cleanWorkspaceRoot(preferredRoot);
   if (preferred) {
-    await chrome.storage.local.set({ [QIVRYN_WORKSPACE_STORAGE_KEY]: preferred }).catch(() => undefined);
+    await chrome.storage.local
+      .set({ [QIVRYN_WORKSPACE_STORAGE_KEY]: preferred })
+      .catch(() => undefined);
     return preferred;
   }
-  const stored = await chrome.storage.local.get(QIVRYN_WORKSPACE_STORAGE_KEY).catch(() => ({}));
-  return cleanWorkspaceRoot(stored?.[QIVRYN_WORKSPACE_STORAGE_KEY]) || QIVRYN_WORKSPACE_ROOT;
+  const stored = await chrome.storage.local
+    .get(QIVRYN_WORKSPACE_STORAGE_KEY)
+    .catch(() => ({}));
+  return (
+    cleanWorkspaceRoot(stored?.[QIVRYN_WORKSPACE_STORAGE_KEY]) ||
+    QIVRYN_WORKSPACE_ROOT
+  );
 }
 
 async function chooseRepositoryRoot(preferredRoot) {
@@ -1393,7 +1641,9 @@ async function chooseRepositoryRoot(preferredRoot) {
   if (!selected) {
     throw new Error("Folder picker returned an invalid path.");
   }
-  await chrome.storage.local.set({ [QIVRYN_WORKSPACE_STORAGE_KEY]: selected }).catch(() => undefined);
+  await chrome.storage.local
+    .set({ [QIVRYN_WORKSPACE_STORAGE_KEY]: selected })
+    .catch(() => undefined);
   return workspaceUri(selected);
 }
 
@@ -1514,9 +1764,11 @@ function qivrynAgentPlans() {
 }
 
 async function qivrynBrowserList(context = {}) {
-  const tabContext = await activeTabContext(context.contextTabId).catch((error) => ({
-    error: error.message || String(error),
-  }));
+  const tabContext = await activeTabContext(context.contextTabId).catch(
+    (error) => ({
+      error: error.message || String(error),
+    }),
+  );
   if (tabContext?.error) return [];
   return [
     {
@@ -1557,38 +1809,69 @@ async function qivrynAgentsControl(data) {
   if (!response.ok) {
     throw new Error(response.error || "Qivryn agent run failed.");
   }
-  return response.run || qivrynAgentRun({ id: request.id || `qivryn-run-${Date.now()}`, title: request.title || "Qivryn browser task", prompt: request.prompt || "" });
+  return (
+    response.run ||
+    qivrynAgentRun({
+      id: request.id || `qivryn-run-${Date.now()}`,
+      title: request.title || "Qivryn browser task",
+      prompt: request.prompt || "",
+    })
+  );
 }
 
 async function sendNativeWithTab(message) {
-  const tabContext = await activeTabContext(message.contextTabId).catch((error) => ({ error: error.message || String(error) }));
+  const tabContext = await activeTabContext(message.contextTabId).catch(
+    (error) => ({ error: error.message || String(error) }),
+  );
   return sendNative({ ...message, tabContext });
 }
 
 async function sendNativeWithLiveSr(message) {
-  const tabContext = await activeTabContext(message.contextTabId).catch((error) => ({ error: error.message || String(error) }));
-  const srNumber = extractSrNumber(message.srNumber || tabContext?.url || message.prompt || "");
+  const tabContext = await activeTabContext(message.contextTabId).catch(
+    (error) => ({ error: error.message || String(error) }),
+  );
+  const srNumber = extractSrNumber(
+    message.srNumber || tabContext?.url || message.prompt || "",
+  );
   let liveSrMarkdown = "";
   let liveSrError = "";
   if (srNumber && message.includeLiveSr !== false) {
-    const live = await fetchSrFromActiveTab(srNumber, tabContext).catch((error) => ({ ok: false, error: error.message || String(error) }));
+    const live = await fetchSrFromActiveTab(srNumber, tabContext).catch(
+      (error) => ({ ok: false, error: error.message || String(error) }),
+    );
     if (live.ok) {
       liveSrMarkdown = renderLiveSrMarkdown(live);
     } else {
       liveSrError = live.error || "Active-tab live SR fetch failed.";
     }
   }
-  return sendNative({ ...message, srNumber: srNumber || message.srNumber, tabContext, liveSrMarkdown, liveSrError });
+  return sendNative({
+    ...message,
+    srNumber: srNumber || message.srNumber,
+    tabContext,
+    liveSrMarkdown,
+    liveSrError,
+  });
 }
 
 async function sendAgentMessage(message) {
   const workspaceRoot = await selectedWorkspaceRoot(message.workspaceRoot);
-  const tabContext = await activeTabContext(message.contextTabId).catch((error) => ({ error: error.message || String(error) }));
-  const srNumber = extractSrNumber(message.srNumber || tabContext?.srNumber || tabContext?.url || message.prompt || "");
+  const tabContext = await activeTabContext(message.contextTabId).catch(
+    (error) => ({ error: error.message || String(error) }),
+  );
+  const srNumber = extractSrNumber(
+    message.srNumber ||
+      tabContext?.srNumber ||
+      tabContext?.url ||
+      message.prompt ||
+      "",
+  );
   let liveSrMarkdown = "";
   let liveSrError = "";
   if (srNumber) {
-    const live = await fetchSrFromActiveTab(srNumber, tabContext).catch((error) => ({ ok: false, error: error.message || String(error) }));
+    const live = await fetchSrFromActiveTab(srNumber, tabContext).catch(
+      (error) => ({ ok: false, error: error.message || String(error) }),
+    );
     if (live.ok) {
       liveSrMarkdown = renderLiveSrMarkdown(live);
     } else {
@@ -1611,13 +1894,21 @@ async function sendAgentMessage(message) {
 }
 
 async function fetchSrLiveFirst(message) {
-  const tabContext = await activeTabContext(message.contextTabId).catch((error) => ({ error: error.message || String(error) }));
+  const tabContext = await activeTabContext(message.contextTabId).catch(
+    (error) => ({ error: error.message || String(error) }),
+  );
   const srNumber = extractSrNumber(message.srNumber || tabContext?.url || "");
   if (!srNumber) {
-    return { ok: false, error: "No SR number was provided or detected from the active tab.", tabContext };
+    return {
+      ok: false,
+      error: "No SR number was provided or detected from the active tab.",
+      tabContext,
+    };
   }
 
-  const live = await fetchSrFromActiveTab(srNumber, tabContext).catch((error) => ({ ok: false, error: error.message || String(error) }));
+  const live = await fetchSrFromActiveTab(srNumber, tabContext).catch(
+    (error) => ({ ok: false, error: error.message || String(error) }),
+  );
   if (live.ok) {
     const liveSrMarkdown = renderLiveSrMarkdown(live);
     return {
@@ -1631,10 +1922,17 @@ async function fetchSrLiveFirst(message) {
     };
   }
 
-  const fallback = await sendNative({ type: "fetch_sr", srNumber, tabContext, liveSrError: live.error || "Active-tab live SR fetch failed." });
+  const fallback = await sendNative({
+    type: "fetch_sr",
+    srNumber,
+    tabContext,
+    liveSrError: live.error || "Active-tab live SR fetch failed.",
+  });
   return {
     ...fallback,
-    source: fallback?.ok ? "native-mosfs-helper-fallback" : "active-tab-live-session-failed",
+    source: fallback?.ok
+      ? "native-mosfs-helper-fallback"
+      : "active-tab-live-session-failed",
     liveSrError: live.error || "Active-tab live SR fetch failed.",
   };
 }
@@ -1660,24 +1958,32 @@ async function sendNative(message) {
         resolve({
           ok: false,
           error: runtimeError.message,
-          installHint: "Install the native host with npm run install:native-hosts -- --chrome-extension-id <extension-id>.",
+          installHint:
+            "Install the native host with npm run install:native-hosts -- --chrome-extension-id <extension-id>.",
         });
         return;
       }
-      resolve(response || { ok: false, error: "Native host returned no response." });
+      resolve(
+        response || { ok: false, error: "Native host returned no response." },
+      );
     });
   });
 }
 
 function isQivrynExtensionUrl(url) {
   const text = String(url || "");
-  return text.startsWith(chrome.runtime.getURL("qivryn/")) || text === chrome.runtime.getURL("popup.html");
+  return (
+    text.startsWith(chrome.runtime.getURL("qivryn/")) ||
+    text === chrome.runtime.getURL("popup.html")
+  );
 }
 
 function qivrynUiUrl(contextTabId) {
   const url = chrome.runtime.getURL(QIVRYN_UI_PATH);
   const tabId = normalizeTabId(contextTabId);
-  return tabId ? `${url}?contextTabId=${encodeURIComponent(String(tabId))}` : url;
+  return tabId
+    ? `${url}?contextTabId=${encodeURIComponent(String(tabId))}`
+    : url;
 }
 
 async function toggleQivrynOverlayFromAction(sourceTab) {
@@ -1704,14 +2010,19 @@ async function toggleQivrynOverlayFromAction(sourceTab) {
 async function openQivrynUiFromAction(sourceTab) {
   await rememberContextTab(sourceTab);
 
-  const qivrynTabs = await chrome.tabs.query({ url: chrome.runtime.getURL("qivryn/*") });
+  const qivrynTabs = await chrome.tabs.query({
+    url: chrome.runtime.getURL("qivryn/*"),
+  });
   const existing =
-    qivrynTabs.find((tab) => tab.windowId === sourceTab?.windowId) || qivrynTabs[0];
+    qivrynTabs.find((tab) => tab.windowId === sourceTab?.windowId) ||
+    qivrynTabs[0];
   const targetUrl = qivrynUiUrl(sourceTab?.id);
   if (existing?.id) {
     await chrome.tabs.update(existing.id, { active: true, url: targetUrl });
     if (existing.windowId) {
-      await chrome.windows.update(existing.windowId, { focused: true }).catch(() => undefined);
+      await chrome.windows
+        .update(existing.windowId, { focused: true })
+        .catch(() => undefined);
     }
     return { ok: true, tabId: existing.id, reused: true, url: targetUrl };
   }
@@ -1727,7 +2038,12 @@ async function openQivrynUiFromAction(sourceTab) {
     createProperties.index = sourceTab.index + 1;
   }
   const created = await chrome.tabs.create(createProperties);
-  return { ok: true, tabId: created.id, reused: false, url: created.url || targetUrl };
+  return {
+    ok: true,
+    tabId: created.id,
+    reused: false,
+    url: created.url || targetUrl,
+  };
 }
 
 async function openQivrynUiFromCurrentWindow(contextTabId) {
@@ -1739,7 +2055,11 @@ async function openQivrynUiFromCurrentWindow(contextTabId) {
   return openQivrynUiFromAction(tab);
 }
 
-async function toggleQivrynOverlayFromCurrentWindow() {
+async function toggleQivrynOverlayFromCurrentWindow(contextTabId) {
+  const pinned = await getTabById(normalizeTabId(contextTabId));
+  if (isContextCandidateTab(pinned)) {
+    return toggleQivrynOverlayFromAction(pinned);
+  }
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   return toggleQivrynOverlayFromAction(tab);
 }
@@ -1756,7 +2076,9 @@ function isBrowserInternalUrl(url) {
 }
 
 function isContextCandidateTab(tab) {
-  return Boolean(tab?.id && !isBrowserInternalUrl(tab.url) && !isQivrynExtensionUrl(tab.url));
+  return Boolean(
+    tab?.id && !isBrowserInternalUrl(tab.url) && !isQivrynExtensionUrl(tab.url),
+  );
 }
 
 async function getTabById(tabId) {
@@ -1920,7 +2242,10 @@ async function fetchSrFromActiveTab(srNumber, tabContext) {
   }
   if (!tab?.id) throw new Error("No active tab is available.");
   if (isBrowserInternalUrl(tab.url)) {
-    return { ok: false, error: "No MOSFS browser tab is available for live SR fetch." };
+    return {
+      ok: false,
+      error: "No MOSFS browser tab is available for live SR fetch.",
+    };
   }
   const liveTabContext = {
     ...(tabContext || {}),
@@ -1946,11 +2271,20 @@ async function fetchSrFromActiveTab(srNumber, tabContext) {
       args: [srNumber, liveTabContext],
     });
   }
-  return result?.result || { ok: false, error: "Active-tab live SR fetch returned no result." };
+  return (
+    result?.result || {
+      ok: false,
+      error: "Active-tab live SR fetch returned no result.",
+    }
+  );
 }
 
 function collectPageContext() {
-  const cleanText = (value, limit = 16000) => String(value || "").replace(/\s+/g, " ").trim().slice(0, limit);
+  const cleanText = (value, limit = 16000) =>
+    String(value || "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, limit);
   const parseParams = () => {
     const out = {};
     try {
@@ -1960,7 +2294,8 @@ function collectPageContext() {
           try {
             const nested = JSON.parse(value);
             if (nested && typeof nested === "object") {
-              for (const [nestedKey, nestedValue] of Object.entries(nested)) out[nestedKey] = String(nestedValue || "");
+              for (const [nestedKey, nestedValue] of Object.entries(nested))
+                out[nestedKey] = String(nestedValue || "");
             }
           } catch {
             out[key] = value;
@@ -1978,7 +2313,9 @@ function collectPageContext() {
     const candidates = [];
     try {
       candidates.push(location.href);
-      for (const entry of performance.getEntriesByType("resource").slice(-300)) {
+      for (const entry of performance
+        .getEntriesByType("resource")
+        .slice(-300)) {
         if (entry?.name) candidates.push(entry.name);
       }
     } catch {
@@ -1987,7 +2324,9 @@ function collectPageContext() {
     const restSamples = [];
     for (const value of candidates) {
       const text = String(value || "");
-      const match = text.match(/^(https:\/\/[^/]+)\/(?:crmRestApi|fscmRestApi)\/rest\/([^/]+)\/([^/]+)\/([^/?#]+)/);
+      const match = text.match(
+        /^(https:\/\/[^/]+)\/(?:crmRestApi|fscmRestApi)\/rest\/([^/]+)\/([^/]+)\/([^/?#]+)/,
+      );
       if (!match) continue;
       const [, origin, revision, language, version] = match;
       let sample = "";
@@ -2013,9 +2352,21 @@ function collectPageContext() {
     .slice(0, 12)
     .map((node) => cleanText(node.textContent, 300))
     .filter(Boolean);
-  const selectedText = cleanText(window.getSelection ? window.getSelection().toString() : "", 12000);
-  const visibleText = cleanText(document.body ? document.body.innerText : "", 24000);
-  const srMatches = [...new Set(`${location.href} ${document.title} ${visibleText}`.match(/\b[34]-\d{10}\b/g) || [])];
+  const selectedText = cleanText(
+    window.getSelection ? window.getSelection().toString() : "",
+    12000,
+  );
+  const visibleText = cleanText(
+    document.body ? document.body.innerText : "",
+    24000,
+  );
+  const srMatches = [
+    ...new Set(
+      `${location.href} ${document.title} ${visibleText}`.match(
+        /\b[34]-\d{10}\b/g,
+      ) || [],
+    ),
+  ];
   return {
     url: location.href,
     title: document.title,
@@ -2036,25 +2387,45 @@ async function fetchSrFromPage(srNumber, tabContext) {
   const sr = String(srNumber || "").match(/\b[34]-\d{10}\b/)?.[0] || "";
   if (!sr) return { ok: false, error: "No valid SR number was provided." };
 
-  const cleanText = (value, limit = 4000) => String(value || "").replace(/\s+/g, " ").trim().slice(0, limit);
-  const sanitize = (value) => String(value || "")
-    .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer [REDACTED]")
-    .replace(/("?(?:access|refresh|id)_token"?\s*[:=]\s*")([^"]+)(")/gi, "$1[REDACTED]$3")
-    .replace(/((?:Cookie|Set-Cookie|X-XSRF-TOKEN|ECID|Authorization)\s*:\s*)([^\n\r]+)/gi, "$1[REDACTED]")
-    .replace(/([?&](?:access_token|id_token|refresh_token|xsrf|ecid)=)[^&\s]+/gi, "$1[REDACTED]");
+  const cleanText = (value, limit = 4000) =>
+    String(value || "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, limit);
+  const sanitize = (value) =>
+    String(value || "")
+      .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer [REDACTED]")
+      .replace(
+        /("?(?:access|refresh|id)_token"?\s*[:=]\s*")([^"]+)(")/gi,
+        "$1[REDACTED]$3",
+      )
+      .replace(
+        /((?:Cookie|Set-Cookie|X-XSRF-TOKEN|ECID|Authorization)\s*:\s*)([^\n\r]+)/gi,
+        "$1[REDACTED]",
+      )
+      .replace(
+        /([?&](?:access_token|id_token|refresh_token|xsrf|ecid)=)[^&\s]+/gi,
+        "$1[REDACTED]",
+      );
   const sanitizeObject = (value) => {
     if (typeof value === "string") return sanitize(value);
     if (!value || typeof value !== "object") return value;
     if (Array.isArray(value)) return value.map((item) => sanitizeObject(item));
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => {
-      if (/token|cookie|authorization|xsrf|ecid|credential|secret/i.test(key)) return [key, "[REDACTED]"];
-      return [key, sanitizeObject(item)];
-    }));
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => {
+        if (/token|cookie|authorization|xsrf|ecid|credential|secret/i.test(key))
+          return [key, "[REDACTED]"];
+        return [key, sanitizeObject(item)];
+      }),
+    );
   };
   const publicUrl = (url) => {
     try {
       const parsed = new URL(url, location.origin);
-      return `${parsed.pathname}${parsed.search}`.replace(/rv:[^/]+/g, "rv:<redacted>");
+      return `${parsed.pathname}${parsed.search}`.replace(
+        /rv:[^/]+/g,
+        "rv:<redacted>",
+      );
     } catch {
       return sanitize(String(url || "")).replace(/rv:[^/]+/g, "rv:<redacted>");
     }
@@ -2062,14 +2433,18 @@ async function fetchSrFromPage(srNumber, tabContext) {
   const discoverRest = () => {
     const candidates = [location.href];
     try {
-      for (const entry of performance.getEntriesByType("resource").slice(-500)) {
+      for (const entry of performance
+        .getEntriesByType("resource")
+        .slice(-500)) {
         if (entry?.name) candidates.push(entry.name);
       }
     } catch {
       // Ignore performance access issues and fall through to tabContext.
     }
     for (const value of candidates) {
-      const match = String(value || "").match(/^(https:\/\/[^/]+)\/(?:crmRestApi|fscmRestApi)\/rest\/([^/]+)\/([^/]+)\/([^/?#]+)/);
+      const match = String(value || "").match(
+        /^(https:\/\/[^/]+)\/(?:crmRestApi|fscmRestApi)\/rest\/([^/]+)\/([^/]+)\/([^/?#]+)/,
+      );
       if (!match) continue;
       const [, origin, revision, language, version] = match;
       return {
@@ -2106,11 +2481,16 @@ async function fetchSrFromPage(srNumber, tabContext) {
   };
   const rest = discoverRest();
   if (!rest.crmRestBasePath) {
-    return { ok: false, error: "No CRM REST base path is visible in the active MOSFS tab yet." };
+    return {
+      ok: false,
+      error: "No CRM REST base path is visible in the active MOSFS tab yet.",
+    };
   }
   const urlParams = { ...(tabContext?.urlParams || {}), ...readUrlParams() };
   const requestJson = async (label, path) => {
-    const url = path.startsWith("/api/") ? `${rest.origin}${path}` : `${rest.origin}${rest.crmRestBasePath}${path}`;
+    const url = path.startsWith("/api/")
+      ? `${rest.origin}${path}`
+      : `${rest.origin}${rest.crmRestBasePath}${path}`;
     try {
       const response = await fetch(url, {
         method: "GET",
@@ -2159,39 +2539,84 @@ async function fetchSrFromPage(srNumber, tabContext) {
   };
 
   const encodedSr = encodeURIComponent(sr);
-  const root = await requestJson("serviceRequest", `/serviceRequests/${encodedSr}?onlyData=true`);
+  const root = await requestJson(
+    "serviceRequest",
+    `/serviceRequests/${encodedSr}?onlyData=true`,
+  );
   if (!root.ok) {
     return {
       ok: false,
       error: `Active-tab live SR fetch was rejected: ${root.status ? `HTTP ${root.status}` : root.error || "request failed"}.`,
       srNumber: sr,
       source: "active-tab-live-session",
-      crmRestBasePath: rest.crmRestBasePath.replace(/rv:[^/]+/g, "rv:<redacted>"),
+      crmRestBasePath: rest.crmRestBasePath.replace(
+        /rv:[^/]+/g,
+        "rv:<redacted>",
+      ),
       resourcesVersion: rest.resourcesVersion,
       root,
     };
   }
 
   const rootBody = root.body || {};
-  const srId = String(rootBody.SrId || rootBody.srId || rootBody.ServiceRequestId || urlParams.srId || urlParams.SrId || tabContext?.srId || "");
+  const srId = String(
+    rootBody.SrId ||
+      rootBody.srId ||
+      rootBody.ServiceRequestId ||
+      urlParams.srId ||
+      urlParams.SrId ||
+      tabContext?.srId ||
+      "",
+  );
   const children = {};
   const childRequests = [
-    ["messages", `/serviceRequests/${encodedSr}/child/messages?onlyData=true&orderBy=LastUpdateDate:desc&limit=50&offset=0`],
-    ["activities", `/serviceRequests/${encodedSr}/child/activities?onlyData=true&orderBy=LastUpdateDate:desc&limit=30&offset=0`],
-    ["contacts", `/serviceRequests/${encodedSr}/child/contacts?onlyData=true&limit=30&offset=0`],
-    ["resourceMembers", `/serviceRequests/${encodedSr}/child/resourceMembers?onlyData=true&limit=30&offset=0`],
-    ["attachments", `/serviceRequests/${encodedSr}/child/Attachment?onlyData=true&limit=30&offset=0`],
-    ["references", `/serviceRequests/${encodedSr}/child/srReferences?onlyData=true&limit=30&offset=0`],
-    ["milestones", `/serviceRequests/${encodedSr}/child/srMilestone?onlyData=true&limit=30&offset=0`],
-    ["relatedUrls", `/serviceRequests/${encodedSr}/child/RelatedURLsCollection_c?onlyData=true&limit=30&offset=0`],
-    ["defects", `/serviceRequests/${encodedSr}/child/DefectsToSRs_Tgt_ServiceRequestToDefectsToSRs_c_Tgt?onlyData=true&limit=30&offset=0`],
+    [
+      "messages",
+      `/serviceRequests/${encodedSr}/child/messages?onlyData=true&orderBy=LastUpdateDate:desc&limit=50&offset=0`,
+    ],
+    [
+      "activities",
+      `/serviceRequests/${encodedSr}/child/activities?onlyData=true&orderBy=LastUpdateDate:desc&limit=30&offset=0`,
+    ],
+    [
+      "contacts",
+      `/serviceRequests/${encodedSr}/child/contacts?onlyData=true&limit=30&offset=0`,
+    ],
+    [
+      "resourceMembers",
+      `/serviceRequests/${encodedSr}/child/resourceMembers?onlyData=true&limit=30&offset=0`,
+    ],
+    [
+      "attachments",
+      `/serviceRequests/${encodedSr}/child/Attachment?onlyData=true&limit=30&offset=0`,
+    ],
+    [
+      "references",
+      `/serviceRequests/${encodedSr}/child/srReferences?onlyData=true&limit=30&offset=0`,
+    ],
+    [
+      "milestones",
+      `/serviceRequests/${encodedSr}/child/srMilestone?onlyData=true&limit=30&offset=0`,
+    ],
+    [
+      "relatedUrls",
+      `/serviceRequests/${encodedSr}/child/RelatedURLsCollection_c?onlyData=true&limit=30&offset=0`,
+    ],
+    [
+      "defects",
+      `/serviceRequests/${encodedSr}/child/DefectsToSRs_Tgt_ServiceRequestToDefectsToSRs_c_Tgt?onlyData=true&limit=30&offset=0`,
+    ],
   ];
   for (const [label, path] of childRequests) {
     children[label] = await requestJson(label, path);
   }
-  const history = srId && rest.resourcesVersion
-    ? await requestJson("history", `/api/sales-common/crmRestApi/resources/${encodeURIComponent(rest.resourcesVersion)}/feeds/ServiceRequest/${encodeURIComponent(srId)}/history?limit=20&offset=0&showPurge=true&sort=published%3Adesc`)
-    : null;
+  const history =
+    srId && rest.resourcesVersion
+      ? await requestJson(
+          "history",
+          `/api/sales-common/crmRestApi/resources/${encodeURIComponent(rest.resourcesVersion)}/feeds/ServiceRequest/${encodeURIComponent(srId)}/history?limit=20&offset=0&showPurge=true&sort=published%3Adesc`,
+        )
+      : null;
 
   return {
     ok: true,
@@ -2230,14 +2655,24 @@ function renderLiveSrMarkdown(live) {
   const children = live.children || {};
   for (const [name, result] of Object.entries(children)) {
     lines.push(`## ${titleCase(name)}`);
-    lines.push(`Status: ${result.status || 0}${result.ok ? "" : " (not available)"}`);
-    lines.push(jsonBlock(result.body || { error: result.error || "not available" }));
+    lines.push(
+      `Status: ${result.status || 0}${result.ok ? "" : " (not available)"}`,
+    );
+    lines.push(
+      jsonBlock(result.body || { error: result.error || "not available" }),
+    );
     lines.push("");
   }
   if (live.history) {
     lines.push("## History");
-    lines.push(`Status: ${live.history.status || 0}${live.history.ok ? "" : " (not available)"}`);
-    lines.push(jsonBlock(live.history.body || { error: live.history.error || "not available" }));
+    lines.push(
+      `Status: ${live.history.status || 0}${live.history.ok ? "" : " (not available)"}`,
+    );
+    lines.push(
+      jsonBlock(
+        live.history.body || { error: live.history.error || "not available" },
+      ),
+    );
     lines.push("");
   }
   return limitText(lines.join("\n"), MAX_LIVE_JSON_CHARS);

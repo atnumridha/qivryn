@@ -1,11 +1,17 @@
 :root {
   color-scheme: dark;
-  --bg: #101114;
-  --surface: #17191e;
-  --line: #333943;
-  --text: #eef1f5;
-  --muted: #a9b2bf;
+  --bg: #0e1013;
+  --surface: #15181d;
+  --surface-2: #1c2128;
+  --surface-3: #242a33;
+  --line: #313945;
+  --line-strong: #425061;
+  --text: #f2f5f8;
+  --muted: #aeb8c5;
+  --subtle: #7f8a99;
   --accent: #9be2ae;
+  --accent-strong: #48a868;
+  --focus: #7aa7ff;
 }
 
 * {
@@ -13,12 +19,25 @@
 }
 
 body {
-  width: 430px;
+  width: min(780px, 100vw);
   height: 600px;
+  min-width: 560px;
   margin: 0;
   color: var(--text);
-  background: var(--bg);
-  font: 13px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background:
+    radial-gradient(
+      circle at top left,
+      rgba(72, 168, 104, 0.18),
+      transparent 32%
+    ),
+    linear-gradient(135deg, #0b0d10 0%, var(--bg) 48%, #11161c 100%);
+  font:
+    13px ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
 }
 
 .qivryn-popup-shell {
@@ -28,70 +47,170 @@ body {
   min-height: 0;
   flex-direction: column;
   overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .qivryn-popup-header {
-  display: flex;
-  min-height: 38px;
+  display: grid;
+  min-height: 58px;
+  grid-template-columns: minmax(180px, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 14px;
   border-bottom: 1px solid var(--line);
-  background: var(--surface);
-  padding: 6px 8px;
+  background: rgba(21, 24, 29, 0.94);
+  padding: 10px 12px;
+  backdrop-filter: blur(14px);
 }
 
 .qivryn-popup-brand {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   color: var(--text);
-  font-weight: 750;
   min-width: 0;
 }
 
 .brand-mark {
-  display: grid;
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   flex: 0 0 auto;
-  place-items: center;
-  border: 1px solid #4c6d58;
-  border-radius: 7px;
-  background: #142019;
-  color: var(--accent);
-  font-size: 12px;
-  font-weight: 850;
+  border-radius: 9px;
+  box-shadow:
+    0 0 0 1px rgba(155, 226, 174, 0.28),
+    0 10px 24px rgba(0, 0, 0, 0.26);
+}
+
+.brand-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.brand-copy strong {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.brand-copy span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qivryn-popup-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.icon-button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: rgba(28, 33, 40, 0.88);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 740;
+  padding: 8px 10px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.icon-button:hover {
+  border-color: var(--line-strong);
+  background: var(--surface-3);
+}
+
+.primary-action {
+  border-color: rgba(72, 168, 104, 0.78);
+  background: linear-gradient(180deg, #1f6d3f, #185730);
+  color: #f3fff6;
+}
+
+.primary-action:hover {
+  border-color: rgba(155, 226, 174, 0.86);
+  background: linear-gradient(180deg, #248248, #1b6639);
+}
+
+.icon-button:focus-visible,
+.qivryn-popup-frame:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.icon {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.qivryn-popup-status {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(14, 16, 19, 0.92);
+  padding: 7px 12px;
 }
 
 .status {
+  min-width: 0;
   margin: 0;
-  padding: 5px 8px;
-  border-bottom: 1px solid var(--line);
+  overflow: hidden;
   color: var(--muted);
   font-size: 11px;
-  line-height: 1.25;
+  font-weight: 620;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.button {
-  display: inline-flex;
-  min-height: 26px;
-  flex: 0 0 auto;
+.feature-pills {
+  display: flex;
+  min-width: 0;
+  max-width: 342px;
   align-items: center;
-  justify-content: center;
-  border: 1px solid #4c6d58;
-  border-radius: 7px;
-  background: #142019;
-  color: var(--accent);
-  font-size: 11px;
-  font-weight: 700;
-  padding: 4px 8px;
-  text-decoration: none;
+  justify-content: flex-end;
+  gap: 5px;
+  overflow: hidden;
 }
 
-.button:focus-visible {
-  outline: 2px solid #7aa7ff;
-  outline-offset: 2px;
+.feature-pill {
+  display: inline-flex;
+  min-height: 22px;
+  align-items: center;
+  border: 1px solid rgba(66, 80, 97, 0.72);
+  border-radius: 999px;
+  background: rgba(28, 33, 40, 0.72);
+  color: var(--subtle);
+  font-size: 10px;
+  font-weight: 720;
+  padding: 3px 7px;
+  white-space: nowrap;
 }
 
 .qivryn-popup-frame {
@@ -100,4 +219,35 @@ body {
   flex: 1 1 auto;
   border: 0;
   background: #111318;
+}
+
+@media (max-width: 680px) {
+  body {
+    width: min(620px, 100vw);
+    min-width: 420px;
+  }
+
+  .qivryn-popup-header {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .qivryn-popup-actions {
+    justify-content: stretch;
+  }
+
+  .icon-button {
+    flex: 1 1 0;
+    padding-inline: 8px;
+  }
+
+  .qivryn-popup-status {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .feature-pills {
+    max-width: none;
+    justify-content: flex-start;
+  }
 }
