@@ -54,6 +54,7 @@ export type ToIdeFromWebviewProtocol = ToIdeFromWebviewOrCoreProtocol & {
   "session/share": [{ sessionId: string }, void];
   "session/openInMain": [{ sessionId: string }, boolean];
   "agents/selectRepository": [undefined, string | undefined];
+  "agents/setSelectedRepository": [{ path?: string } | undefined, void];
 };
 
 export type ToWebviewFromIdeProtocol = ToWebviewFromIdeOrCoreProtocol & {

@@ -25,7 +25,10 @@ import ThinkingBlockPeek from "../../components/mainInput/belowMainInput/Thinkin
 import QivrynInputBox from "../../components/mainInput/QivrynInputBox";
 import StepContainer from "../../components/StepContainer";
 import { TabBar } from "../../components/TabBar/TabBar";
-import { IdeMessengerContext } from "../../context/IdeMessenger";
+import {
+  IdeMessengerContext,
+  type IIdeMessenger,
+} from "../../context/IdeMessenger";
 import { useWebviewListener } from "../../hooks/useWebviewListener";
 import { useAppDispatch, useAppSelector } from "../../redux/hooks";
 import {
@@ -148,6 +151,15 @@ function selectedMainComposerRepositoryPath(
     selected || workspaceDirs?.[0] || window.workspacePaths?.[0];
   if (!candidate) return undefined;
   return normalizeMainComposerPath(candidate);
+}
+
+function syncMainComposerRepositoryWithIde(
+  ideMessenger: IIdeMessenger,
+  repositoryPath: string,
+): void {
+  void ideMessenger.request("agents/setSelectedRepository", {
+    path: repositoryPath || undefined,
+  });
 }
 
 function repositoryRelativePath(
@@ -434,6 +446,7 @@ export function Chat() {
         );
       }
       window.localStorage.setItem(LAST_AGENT_REPOSITORY_KEY, repositoryPath);
+      syncMainComposerRepositoryWithIde(ideMessenger, repositoryPath);
       window.dispatchEvent(
         new CustomEvent(AGENT_REPOSITORY_CHANGED_EVENT, {
           detail: repositoryPath,

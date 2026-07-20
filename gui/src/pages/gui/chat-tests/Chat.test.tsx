@@ -71,6 +71,13 @@ test("main composer exposes workspace selection and scheduled tasks", async () =
   );
   ideMessenger.responses["agents/selectRepository"] =
     "/Users/amridha/Documents/qivryn";
+  const selectedRepositoryUpdates: string[] = [];
+  ideMessenger.responseHandlers["agents/setSelectedRepository"] = async (
+    payload,
+  ) => {
+    selectedRepositoryUpdates.push(payload?.path ?? "");
+    return undefined;
+  };
 
   expect(
     await screen.findByRole("button", {
@@ -87,6 +94,11 @@ test("main composer exposes workspace selection and scheduled tasks", async () =
   expect(
     await screen.findByRole("button", { name: /Current workspace: qivryn/ }),
   ).toBeInTheDocument();
+  await waitFor(() => {
+    expect(selectedRepositoryUpdates).toContain(
+      "/Users/amridha/Documents/qivryn",
+    );
+  });
 
   await user.click(
     screen.getByRole("button", { name: "Clear selected workspace" }),
@@ -98,6 +110,11 @@ test("main composer exposes workspace selection and scheduled tasks", async () =
     }),
   ).toBeInTheDocument();
   expect(window.localStorage.getItem(LAST_AGENT_REPOSITORY_KEY)).toBe("");
+  await waitFor(() => {
+    expect(selectedRepositoryUpdates).toContain(
+      "/Users/amridha/Documents/current-workspace",
+    );
+  });
 
   await user.click(
     screen.getByRole("button", { name: "Show agents and chats" }),
@@ -404,8 +421,15 @@ test("starts durable agent work from the main composer transcript", async () => 
 test("starts durable agent work in the selected composer workspace", async () => {
   const { ideMessenger, store, user } = await renderWithProviders(<Chat />);
   const requests: AgentControlRequest[] = [];
+  const selectedRepositoryUpdates: string[] = [];
   ideMessenger.responses.getWorkspaceDirs = ["file:///workspace/default"];
   ideMessenger.responses["agents/selectRepository"] = "/workspace/chosen";
+  ideMessenger.responseHandlers["agents/setSelectedRepository"] = async (
+    payload,
+  ) => {
+    selectedRepositoryUpdates.push(payload?.path ?? "");
+    return undefined;
+  };
   ideMessenger.responseHandlers["agents/control"] = async (request) => {
     requests.push(request);
     return {
@@ -458,6 +482,7 @@ test("starts durable agent work in the selected composer workspace", async () =>
       },
     },
   });
+  expect(selectedRepositoryUpdates).toContain("/workspace/chosen");
 });
 
 test("queues agent-mode follow-ups as steering messages from the same composer", async () => {

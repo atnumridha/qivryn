@@ -65,17 +65,45 @@ export class VsCodeIdeUtils {
   }
 
   private _workspaceDirectories: vscode.Uri[] | undefined = undefined;
+  private _selectedWorkspaceDirectory: vscode.Uri | undefined = undefined;
+
+  private workspaceDirectoriesWithSelected(dirs: vscode.Uri[]): vscode.Uri[] {
+    if (!this._selectedWorkspaceDirectory) {
+      return dirs;
+    }
+    const selectedKey = this._selectedWorkspaceDirectory.toString();
+    return [
+      this._selectedWorkspaceDirectory,
+      ...dirs.filter((dir) => dir.toString() !== selectedKey),
+    ];
+  }
+
   getWorkspaceDirectories(): vscode.Uri[] {
-    if (this._workspaceDirectories === undefined) {
-      this._workspaceDirectories =
-        vscode.workspace.workspaceFolders?.map((folder) => folder.uri) || [];
+    const liveWorkspaceDirectories =
+      vscode.workspace.workspaceFolders?.map((folder) => folder.uri) || [];
+    if (
+      this._workspaceDirectories === undefined ||
+      (this._workspaceDirectories.length === 0 &&
+        liveWorkspaceDirectories.length > 0)
+    ) {
+      this._workspaceDirectories = liveWorkspaceDirectories;
     }
 
-    return this._workspaceDirectories;
+    return this.workspaceDirectoriesWithSelected(
+      this._workspaceDirectories ?? liveWorkspaceDirectories,
+    );
+  }
+
+  setWorkspaceDirectories(dirs: vscode.Uri[] | undefined): void {
+    this._workspaceDirectories = dirs;
   }
 
   setWokspaceDirectories(dirs: vscode.Uri[] | undefined): void {
-    this._workspaceDirectories = dirs;
+    this.setWorkspaceDirectories(dirs);
+  }
+
+  setSelectedWorkspaceDirectory(dir: vscode.Uri | undefined): void {
+    this._selectedWorkspaceDirectory = dir;
   }
 
   getUniqueId() {

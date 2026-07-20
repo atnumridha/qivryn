@@ -140,7 +140,12 @@ export class VsCodeMessenger {
         openLabel: "Use repository",
         title: "Choose a repository for the agent",
       });
-      return selected?.[0]?.fsPath;
+      const selectedPath = selected?.[0]?.fsPath;
+      this.ide.setSelectedWorkspaceDirectory(selectedPath);
+      return selectedPath;
+    });
+    this.onWebview("agents/setSelectedRepository", async (msg) => {
+      this.ide.setSelectedWorkspaceDirectory(msg.data?.path);
     });
 
     this.onWebview("acceptDiff", async ({ data: { filepath, streamId } }) => {

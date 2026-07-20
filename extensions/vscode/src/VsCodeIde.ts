@@ -295,6 +295,25 @@ class VsCodeIde implements IDE {
     return this.ideUtils.getWorkspaceDirectories().map((uri) => uri.toString());
   }
 
+  setSelectedWorkspaceDirectory(path: string | undefined): void {
+    const selectedPath = String(path || "").trim();
+    if (!selectedPath) {
+      this.ideUtils.setSelectedWorkspaceDirectory(undefined);
+      return;
+    }
+    try {
+      if (/^[a-zA-Z][a-zA-Z\d+.-]*:/.test(selectedPath)) {
+        this.ideUtils.setSelectedWorkspaceDirectory(
+          vscode.Uri.parse(selectedPath),
+        );
+        return;
+      }
+    } catch {
+      // Fall through to local path handling.
+    }
+    this.ideUtils.setSelectedWorkspaceDirectory(vscode.Uri.file(selectedPath));
+  }
+
   async writeFile(fileUri: string, contents: string): Promise<void> {
     await vscode.workspace.fs.writeFile(
       vscode.Uri.parse(fileUri),

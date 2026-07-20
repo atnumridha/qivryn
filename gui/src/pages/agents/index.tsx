@@ -61,7 +61,10 @@ import {
   useState,
 } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { IdeMessengerContext } from "../../context/IdeMessenger";
+import {
+  IdeMessengerContext,
+  type IIdeMessenger,
+} from "../../context/IdeMessenger";
 import { useAppDispatch, useAppSelector } from "../../redux/hooks";
 import { selectSelectedChatModel } from "../../redux/slices/configSlice";
 import { setMode } from "../../redux/slices/sessionSlice";
@@ -152,6 +155,15 @@ function initialAgentRepositoryPath(): string {
     return normalizeFilePath(stored);
   }
   return normalizeFilePath(window.workspacePaths?.[0] ?? "");
+}
+
+function syncSelectedRepositoryWithIde(
+  ideMessenger: IIdeMessenger,
+  repositoryPath: string,
+): void {
+  void ideMessenger.request("agents/setSelectedRepository", {
+    path: repositoryPath || undefined,
+  });
 }
 
 export function normalizeFilePath(value: string): string {
@@ -3637,6 +3649,7 @@ export default function Agents() {
       const repositoryPath = normalizeFilePath(response.content);
       setNewRepository(repositoryPath);
       window.localStorage.setItem(LAST_AGENT_REPOSITORY_KEY, repositoryPath);
+      syncSelectedRepositoryWithIde(ideMessenger, repositoryPath);
       window.dispatchEvent(
         new CustomEvent(AGENT_REPOSITORY_CHANGED_EVENT, {
           detail: repositoryPath,
@@ -3648,12 +3661,13 @@ export default function Agents() {
   const clearRepository = useCallback(() => {
     setNewRepository("");
     window.localStorage.setItem(LAST_AGENT_REPOSITORY_KEY, "");
+    syncSelectedRepositoryWithIde(ideMessenger, activeWorkspacePath);
     window.dispatchEvent(
       new CustomEvent(AGENT_REPOSITORY_CHANGED_EVENT, {
         detail: "",
       }),
     );
-  }, []);
+  }, [activeWorkspacePath, ideMessenger]);
 
   const createRun = useCallback(async () => {
     const tasks = newParentRunId
@@ -3687,6 +3701,7 @@ export default function Agents() {
       return;
     }
     setNewRepository(repositoryPath);
+    syncSelectedRepositoryWithIde(ideMessenger, repositoryPath);
     const responses = await Promise.all(
       tasks.map((task) =>
         ideMessenger.request("agents/control", {
@@ -3751,6 +3766,7 @@ export default function Agents() {
     }
     const run = firstSuccess.content as AgentRun;
     window.localStorage.setItem(LAST_AGENT_REPOSITORY_KEY, repositoryPath);
+    syncSelectedRepositoryWithIde(ideMessenger, repositoryPath);
     window.dispatchEvent(
       new CustomEvent(AGENT_REPOSITORY_CHANGED_EVENT, {
         detail: repositoryPath,

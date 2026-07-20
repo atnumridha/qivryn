@@ -23,7 +23,10 @@ import {
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { StopIcon } from "@heroicons/react/20/solid";
-import { IdeMessengerContext } from "../../context/IdeMessenger";
+import {
+  IdeMessengerContext,
+  type IIdeMessenger,
+} from "../../context/IdeMessenger";
 import { useAppDispatch, useAppSelector } from "../../redux/hooks";
 import { selectToolCallsByStatus } from "../../redux/selectors/selectToolCalls";
 import { cancelToolCall } from "../../redux/slices/sessionSlice";
@@ -137,6 +140,15 @@ function emitAgentRepositoryChanged(repositoryPath: string): void {
   );
 }
 
+function syncSelectedRepositoryWithIde(
+  ideMessenger: IIdeMessenger,
+  repositoryPath: string,
+): void {
+  void ideMessenger.request("agents/setSelectedRepository", {
+    path: repositoryPath || undefined,
+  });
+}
+
 function InputToolbar(props: InputToolbarProps) {
   const dispatch = useAppDispatch();
   const ideMessenger = useContext(IdeMessengerContext);
@@ -221,6 +233,7 @@ function InputToolbar(props: InputToolbarProps) {
       const repositoryPath = stripFileUri(response.content);
       setSelectedRepositoryPath(repositoryPath);
       window.localStorage.setItem(LAST_AGENT_REPOSITORY_KEY, repositoryPath);
+      syncSelectedRepositoryWithIde(ideMessenger, repositoryPath);
       emitAgentRepositoryChanged(repositoryPath);
     }
   }, [ideMessenger]);
@@ -228,8 +241,9 @@ function InputToolbar(props: InputToolbarProps) {
   const clearAgentWorkspace = useCallback(() => {
     setSelectedRepositoryPath("");
     window.localStorage.setItem(LAST_AGENT_REPOSITORY_KEY, "");
+    syncSelectedRepositoryWithIde(ideMessenger, activeWorkspacePath);
     emitAgentRepositoryChanged("");
-  }, []);
+  }, [activeWorkspacePath, ideMessenger]);
 
   useEffect(() => {
     const onRepositoryChanged = (event: Event) => {
@@ -276,6 +290,13 @@ function InputToolbar(props: InputToolbarProps) {
       disposed = true;
     };
   }, [ideMessenger, isInEdit, props.isMainInput]);
+
+  useEffect(() => {
+    if (!props.isMainInput || isInEdit) {
+      return;
+    }
+    syncSelectedRepositoryWithIde(ideMessenger, effectiveRepositoryPath);
+  }, [effectiveRepositoryPath, ideMessenger, isInEdit, props.isMainInput]);
 
   const updateAttachMenuPosition = useCallback(() => {
     const button = attachButtonRef.current;

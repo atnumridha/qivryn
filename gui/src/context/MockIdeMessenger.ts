@@ -39,6 +39,7 @@ const DEFAULT_MOCK_CORE_RESPONSES: MockResponses = {
   "history/list": [],
   "session/openInMain": false,
   "agents/selectRepository": undefined,
+  "agents/setSelectedRepository": undefined,
   "agents/list": [],
   "agents/automations": [],
   "agents/queue": [],
