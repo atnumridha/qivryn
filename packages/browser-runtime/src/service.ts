@@ -31,29 +31,15 @@ export class BrowserSessionService {
 
   async initialize(): Promise<void> {
     await this.store.initialize();
-    for (const session of await this.store.listSessions()) {
-      try {
-        const adapterState = await this.adapter.create(session);
-        await this.save({
-          ...session,
-          ...adapterState,
-          metadata: {
-            ...session.metadata,
-            ...adapterState?.metadata,
-            recoveryError: undefined,
-          },
-        });
-      } catch (error) {
-        await this.save({
-          ...session,
-          metadata: {
-            ...session.metadata,
-            recoveryError:
-              error instanceof Error ? error.message : String(error),
-          },
-        });
-      }
-    }
+    // Browser processes cannot be safely reattached after Qivryn restarts.
+    // Treat any saved sessions as expired rather than recreating their browser
+    // windows during extension activation. A new browser is launched only by an
+    // explicit create request from the user or an approved computer-use action.
+    await Promise.all(
+      (await this.store.listSessions()).map((session) =>
+        this.store.deleteSession(session.id),
+      ),
+    );
   }
 
   async create(

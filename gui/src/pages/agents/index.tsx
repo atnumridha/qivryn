@@ -951,6 +951,57 @@ function eventSummary(event: AgentEvent): string {
   return "";
 }
 
+function agentEventSequence(event: AgentEvent): number {
+  const sequence = Number(event.sequence);
+  return Number.isFinite(sequence) ? sequence : 0;
+}
+
+function normalizeAgentEvents(
+  value: unknown,
+  fallbackRunId?: string,
+): AgentEvent[] {
+  if (!Array.isArray(value)) return [];
+
+  const usedSequences = new Set<number>();
+  return value
+    .flatMap((item, index): AgentEvent[] => {
+      if (!item || typeof item !== "object") return [];
+
+      const event = item as Partial<AgentEvent>;
+      if (typeof event.kind !== "string" || !event.kind.trim()) return [];
+
+      let sequence = Number(event.sequence);
+      if (!Number.isFinite(sequence) || sequence <= 0) {
+        sequence = index + 1;
+      }
+      while (usedSequences.has(sequence)) sequence += 1;
+      usedSequences.add(sequence);
+
+      const runId =
+        typeof event.runId === "string" && event.runId.trim()
+          ? event.runId
+          : fallbackRunId || "agent-run";
+
+      return [
+        {
+          id:
+            typeof event.id === "string" && event.id.trim()
+              ? event.id
+              : `${runId}-event-${sequence}`,
+          runId,
+          sequence,
+          kind: event.kind as AgentEvent["kind"],
+          createdAt:
+            typeof event.createdAt === "string" && event.createdAt.trim()
+              ? event.createdAt
+              : new Date().toISOString(),
+          payload: event.payload ?? {},
+        },
+      ];
+    })
+    .sort((a, b) => agentEventSequence(a) - agentEventSequence(b));
+}
+
 function isInternalRuntimeEvent(event: AgentEvent): boolean {
   if (event.kind === "run.progress" || event.kind === "run.status") {
     return true;
@@ -965,7 +1016,9 @@ function isInternalRuntimeEvent(event: AgentEvent): boolean {
 
 function pendingAgentApprovals(events: AgentEvent[]): AgentApprovalRequest[] {
   const pending = new Map<string, AgentApprovalRequest>();
-  for (const event of [...events].sort((a, b) => a.sequence - b.sequence)) {
+  for (const event of [...events].sort(
+    (a, b) => agentEventSequence(a) - agentEventSequence(b),
+  )) {
     const payload = eventPayload(event);
     if (event.kind === "approval.requested") {
       const id = String(payload.id ?? payload.approvalId ?? event.id);
@@ -1011,7 +1064,9 @@ interface AgentSubagentActivity {
 
 function agentSubagentActivity(events: AgentEvent[]): AgentSubagentActivity[] {
   const subagents = new Map<string, AgentSubagentActivity>();
-  for (const event of [...events].sort((a, b) => a.sequence - b.sequence)) {
+  for (const event of [...events].sort(
+    (a, b) => agentEventSequence(a) - agentEventSequence(b),
+  )) {
     if (
       event.kind !== "subagent.created" &&
       event.kind !== "subagent.updated"
@@ -1335,7 +1390,7 @@ function ConversationEventCard({
   event: AgentEvent;
   onEditAndResend?: (prompt: string) => void;
 }) {
-  const summary = eventSummary(event) || `Event ${event.sequence}`;
+  const summary = eventSummary(event) || `Event ${agentEventSequence(event)}`;
   if (event.kind === "message.assistant") {
     return (
       <div
@@ -3150,20 +3205,28 @@ export default function Agents() {
     };
   }, [ideMessenger]);
 
-  const appendEvents = useCallback((incoming: AgentEvent[]) => {
-    if (incoming.length === 0) return;
-    lastEventSequenceRef.current = Math.max(
-      lastEventSequenceRef.current,
-      incoming.at(-1)?.sequence ?? 0,
-    );
-    setEvents((current) => {
-      const known = new Set(current.map((event) => event.sequence));
-      return [
-        ...current,
-        ...incoming.filter((event) => !known.has(event.sequence)),
-      ].sort((a, b) => a.sequence - b.sequence);
-    });
-  }, []);
+  const appendEvents = useCallback(
+    (incoming: unknown) => {
+      const normalizedIncoming = normalizeAgentEvents(incoming, selectedId);
+      if (normalizedIncoming.length === 0) return;
+      lastEventSequenceRef.current = Math.max(
+        lastEventSequenceRef.current,
+        normalizedIncoming.at(-1)?.sequence ?? 0,
+      );
+      setEvents((current) => {
+        const known = new Set(
+          current.map((event) => agentEventSequence(event)),
+        );
+        return [
+          ...current,
+          ...normalizedIncoming.filter(
+            (event) => !known.has(agentEventSequence(event)),
+          ),
+        ].sort((a, b) => agentEventSequence(a) - agentEventSequence(b));
+      });
+    },
+    [selectedId],
+  );
 
   const loadRuns = useCallback(
     async (showLoading = true) => {
@@ -3255,9 +3318,12 @@ export default function Agents() {
       ([eventResponse, queueResponse, checkpointResponse, planResponse]) => {
         if (canceled) return;
         if (eventResponse.status === "success") {
-          setEvents(eventResponse.content);
-          lastEventSequenceRef.current =
-            eventResponse.content.at(-1)?.sequence ?? 0;
+          const normalizedEvents = normalizeAgentEvents(
+            eventResponse.content,
+            selectedId,
+          );
+          setEvents(normalizedEvents);
+          lastEventSequenceRef.current = normalizedEvents.at(-1)?.sequence ?? 0;
         }
         if (queueResponse.status === "success") setQueue(queueResponse.content);
         if (checkpointResponse.status === "success")
@@ -3343,10 +3409,14 @@ export default function Agents() {
         })
         .then((response) => {
           if (canceled) return;
-          if (response.status !== "success" || response.content.length === 0) {
+          const normalizedEvents =
+            response.status === "success"
+              ? normalizeAgentEvents(response.content, selectedId)
+              : [];
+          if (normalizedEvents.length === 0) {
             return;
           }
-          appendEvents(response.content);
+          appendEvents(normalizedEvents);
         })
         .finally(() => {
           eventPollInFlightRef.current = false;

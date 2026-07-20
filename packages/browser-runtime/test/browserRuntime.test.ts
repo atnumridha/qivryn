@@ -138,6 +138,26 @@ describe("BrowserSessionService", () => {
     ).toEqual([1, 2, 3, 4, 5]);
   });
 
+  it("does not restore browser windows when Qivryn starts", async () => {
+    const { browser, root } = await service();
+    const created = await browser.create({ visible: true });
+    await browser.navigate(created.id, "http://localhost:3000", "user");
+
+    const restoredAdapter = adapter();
+    const restored = new BrowserSessionService(
+      new FileBrowserStore(root),
+      restoredAdapter,
+      { authorize: async () => true },
+    );
+    await restored.initialize();
+
+    expect(restoredAdapter.create).not.toHaveBeenCalled();
+    expect(await restored.list()).toEqual([]);
+    expect(
+      await new FileBrowserStore(root).readEvents(created.id),
+    ).toHaveLength(2);
+  });
+
   it("gates cross-origin and sensitive actions with auditable decisions", async () => {
     const { browser, requests } = await service(false);
     const session = await browser.create();

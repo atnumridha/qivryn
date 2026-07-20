@@ -84,12 +84,18 @@ export const configSlice = createSlice({
   selectors: {
     selectSelectedChatModelContextLength: (state): number => {
       return (
-        state.config.selectedModelByRole.chat?.contextLength ||
-        DEFAULT_CONTEXT_LENGTH
+        (
+          state.config.selectedModelByRole.chat ??
+          state.config.modelsByRole.chat[0]
+        )?.contextLength || DEFAULT_CONTEXT_LENGTH
       );
     },
     selectSelectedChatModel: (state) => {
-      return state.config.selectedModelByRole.chat;
+      return (
+        state.config.selectedModelByRole.chat ??
+        state.config.modelsByRole.chat[0] ??
+        null
+      );
     },
     selectUIConfig: (state) => {
       return state.config?.ui ?? null;

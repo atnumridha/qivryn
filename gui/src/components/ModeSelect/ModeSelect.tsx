@@ -274,10 +274,13 @@ export function ModeSelect({
     config.modelsByRole[role]?.length > 0
       ? config.modelsByRole[role]
       : config.modelsByRole.chat;
+  const hasLiveModels = allModels?.length > 0;
   const roleSelectedModel =
     config.selectedModelByRole[role] ?? config.selectedModelByRole.chat;
+  const displayedModelOptions =
+    isConfigLoading || hasLiveModels ? modelOptions : [];
   const sortedModels = useMemo(() => {
-    const options = modelOptions.map((option) => ({
+    const options = displayedModelOptions.map((option) => ({
       title: option.title,
       value: option.value,
       missingApiKey: option.apiKey === "",
@@ -289,7 +292,7 @@ export function ModeSelect({
       }
       return a.title.localeCompare(b.title);
     });
-  }, [modelOptions]);
+  }, [displayedModelOptions]);
   const liveSelectedModelTitle =
     roleSelectedModel?.title ?? selectedModel?.title ?? "";
   const selectedModelTitle = sortedModels.some(
@@ -316,7 +319,9 @@ export function ModeSelect({
     const nextSelected =
       roleSelectedModel?.title ??
       selectedModel?.title ??
-      cachedModels.current.selected;
+      (hasLiveModels || isConfigLoading
+        ? cachedModels.current.selected
+        : undefined);
     setModelOptions(nextOptions);
     cachedModels.current = {
       options: nextOptions,
@@ -335,6 +340,7 @@ export function ModeSelect({
     }
   }, [
     allModels,
+    hasLiveModels,
     isConfigLoading,
     roleSelectedModel?.title,
     selectedModel?.title,

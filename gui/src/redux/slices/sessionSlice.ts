@@ -520,6 +520,17 @@ export const sessionSlice = createSlice({
     ) => {
       const { index, updates } = payload;
       if (index !== 0 && !state.history[index]) {
+        if (index === state.history.length && updates.message) {
+          state.history.push({
+            ...updates,
+            message: {
+              ...updates.message,
+              id: updates.message.id ?? uuidv4(),
+            },
+            contextItems: updates.contextItems ?? [],
+          });
+          return;
+        }
         console.error(
           `attempting to update history item at nonexistent index ${index}`,
           updates,

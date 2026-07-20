@@ -1,4 +1,8 @@
-import type { AgentControlRequest, AgentRun } from "@qivryn/agent-runtime";
+import type {
+  AgentControlRequest,
+  AgentEvent,
+  AgentRun,
+} from "@qivryn/agent-runtime";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Route, Routes } from "react-router-dom";
@@ -380,6 +384,35 @@ describe("Agents workspace", () => {
       screen.queryByText("Inspect authentication"),
     ).not.toBeInTheDocument();
     expect(screen.getByText("Update documentation")).toBeInTheDocument();
+  });
+
+  it("normalizes malformed agent events before rendering", async () => {
+    const messenger = new MockIdeMessenger();
+    messenger.responses["agents/list"] = [
+      run({ id: "active", title: "Inspect authentication" }),
+    ];
+    messenger.responses["agents/events"] = [
+      undefined,
+      {
+        id: "event-1",
+        runId: "active",
+        kind: "message.assistant",
+        createdAt: "2026-06-29T00:00:00.000Z",
+        payload: { text: "Recovered assistant message" },
+      },
+    ] as unknown as AgentEvent[];
+
+    const { user } = await renderWithProviders(<Agents />, {
+      mockIdeMessenger: messenger,
+    });
+
+    await user.click(
+      await screen.findByRole("button", { name: /Inspect authentication/ }),
+    );
+
+    expect(
+      await screen.findByText("Recovered assistant message"),
+    ).toBeVisible();
   });
 
   it("changes a durable run permission from the shared access menu", async () => {
