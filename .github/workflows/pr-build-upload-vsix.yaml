@@ -27,7 +27,6 @@ jobs:
   build-and-upload-vsix:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
-    continue-on-error: ${{ matrix.experimental }}
     strategy:
       fail-fast: false
       matrix:
@@ -51,6 +50,19 @@ jobs:
           fetch-depth: 0
 
       - name: Build VS Code extension
+        if: ${{ !matrix.experimental }}
+        uses: ./.github/actions/build-vscode-extension
+        with:
+          platform: ${{ matrix.platform }}
+          arch: ${{ matrix.arch }}
+          npm_config_arch: ${{ matrix.arch }}
+          pre-release: false
+          commit-sha: ${{ github.sha }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build experimental VS Code extension
+        if: ${{ matrix.experimental }}
+        continue-on-error: true
         uses: ./.github/actions/build-vscode-extension
         with:
           platform: ${{ matrix.platform }}
