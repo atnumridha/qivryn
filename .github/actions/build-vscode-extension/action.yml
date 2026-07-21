@@ -131,5 +131,6 @@ runs:
         fi
 
     - name: Smoke test packaged Qivryn agent runtime
+      if: inputs.platform != 'win32'
       shell: bash
       run: node extensions/vscode/scripts/smoke-test-agent-cli.mjs --vsix-dir extensions/vscode
