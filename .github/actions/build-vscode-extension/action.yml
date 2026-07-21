@@ -118,6 +118,7 @@ runs:
         npm run package -- --target ${{ steps.set-target.outputs.target }}
 
     - name: Package extension (.vsix files)
+      if: inputs.platform != 'win32'
       shell: bash
       env:
         QIVRYN_VSCODE_TARGET: ${{ steps.set-target.outputs.target }}

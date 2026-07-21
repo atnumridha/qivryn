@@ -74,7 +74,9 @@ jobs:
         if: ${{ always() && !matrix.experimental }}
         with:
           name: ${{ matrix.platform }}-${{ matrix.arch }}-vsix
-          path: "extensions/vscode/*.vsix"
+          path: |
+            extensions/vscode/*.vsix
+            extensions/vscode/build/*.vsix
           if-no-files-found: error
           retention-days: 14
 
@@ -92,6 +94,8 @@ jobs:
         if: ${{ always() && matrix.experimental }}
         with:
           name: ${{ matrix.platform }}-${{ matrix.arch }}-vsix
-          path: "extensions/vscode/*.vsix"
+          path: |
+            extensions/vscode/*.vsix
+            extensions/vscode/build/*.vsix
           if-no-files-found: warn
           retention-days: 14
