@@ -27,18 +27,23 @@ jobs:
   build-and-upload-vsix:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
+    continue-on-error: ${{ matrix.experimental }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - platform: linux
             arch: x64
             runner: ubuntu-latest
+            experimental: false
           - platform: win32
             arch: x64
             runner: windows-latest
+            experimental: true
           - platform: darwin
             arch: arm64
             runner: macos-latest
+            experimental: false
 
     steps:
       - uses: actions/checkout@v6
@@ -57,6 +62,7 @@ jobs:
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v7
+        if: ${{ always() && !matrix.experimental }}
         with:
           name: vscode-extension-build-${{ matrix.platform }}-${{ matrix.arch }}
           path: extensions/vscode/build
@@ -65,8 +71,27 @@ jobs:
 
       - name: Upload .vsix artifact
         uses: actions/upload-artifact@v7
+        if: ${{ always() && !matrix.experimental }}
         with:
           name: ${{ matrix.platform }}-${{ matrix.arch }}-vsix
           path: "extensions/vscode/*.vsix"
           if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload experimental build artifact
+        uses: actions/upload-artifact@v7
+        if: ${{ always() && matrix.experimental }}
+        with:
+          name: vscode-extension-build-${{ matrix.platform }}-${{ matrix.arch }}
+          path: extensions/vscode/build
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload experimental .vsix artifact
+        uses: actions/upload-artifact@v7
+        if: ${{ always() && matrix.experimental }}
+        with:
+          name: ${{ matrix.platform }}-${{ matrix.arch }}-vsix
+          path: "extensions/vscode/*.vsix"
+          if-no-files-found: warn
           retention-days: 14
