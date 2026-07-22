@@ -15,7 +15,6 @@ import { LocalStorageProvider } from "../context/LocalStorage";
 import { useWebviewListener } from "../hooks/useWebviewListener";
 import { useAppDispatch, useAppSelector } from "../redux/hooks";
 import { setCodeToEdit } from "../redux/slices/editState";
-import { newSession } from "../redux/slices/sessionSlice";
 import { setShowDialog } from "../redux/slices/uiSlice";
 import { enterEdit, exitEdit } from "../redux/thunks/edit";
 import { saveCurrentSession } from "../redux/thunks/session";
@@ -52,9 +51,23 @@ function StandaloneRouteMenu({
   onToggleSessions: () => void;
 }) {
   const dispatch = useAppDispatch();
+  const isInEdit = useAppSelector((store) => store.session.isInEdit);
   const navigate = useNavigate();
 
   const openRoute = (path: string) => navigate(path);
+  const startNewChat = async () => {
+    openRoute(ROUTES.HOME);
+    if (isInEdit) {
+      await dispatch(exitEdit({ openNewSession: true }));
+    } else {
+      await dispatch(
+        saveCurrentSession({
+          openNewSession: true,
+          generateTitle: true,
+        }),
+      );
+    }
+  };
 
   return (
     <nav className="qivryn-standalone-menu" aria-label="Qivryn menu">
@@ -65,8 +78,7 @@ function StandaloneRouteMenu({
           aria-label="New chat"
           title="New chat"
           onClick={() => {
-            dispatch(newSession());
-            openRoute(ROUTES.HOME);
+            void startNewChat();
           }}
         >
           <PlusIcon aria-hidden="true" />

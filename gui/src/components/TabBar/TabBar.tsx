@@ -7,14 +7,13 @@ import { SessionRunningIndicator } from "../SessionRunningIndicator";
 import { selectRunningSessionIdsValue } from "../../redux/selectors/selectRunningSessions";
 import { newSession } from "../../redux/slices/sessionSlice";
 import {
-  addTab,
   handleSessionChange,
   removeTab,
   setActiveTab,
   setTabs,
 } from "../../redux/slices/tabsSlice";
 import { AppDispatch, RootState } from "../../redux/store";
-import { loadSession, saveCurrentSession } from "../../redux/thunks/session";
+import { loadSession } from "../../redux/thunks/session";
 import { varWithFallback } from "../../styles/theme";
 
 // Haven't set up theme colors for tabs yet
@@ -185,33 +184,28 @@ export const TabBar = React.forwardRef<HTMLDivElement>((_, ref) => {
         newTabId: generateId(), // Pass the ID generator result
       }),
     );
-  }, [currentSessionId, currentSessionTitle]);
-
-  const handleNewTab = async () => {
-    // Save current session before creating new one
-    if (hasHistory) {
-      await dispatch(
-        saveCurrentSession({ openNewSession: false, generateTitle: true }),
-      );
-    }
-
-    dispatch(newSession());
-
-    dispatch(
-      addTab({
-        id: generateId(),
-        title: `Chat ${tabs.length + 1}`,
-        isActive: true,
-        sessionId: undefined,
-      }),
-    );
-  };
+  }, [currentSessionId, currentSessionTitle, dispatch, generateId]);
 
   useEffect(() => {
-    if (!tabs.length) {
-      handleNewTab();
-    }
-  }, [tabs.map((t) => t.id).join(",")]);
+    if (tabs.length || !currentSessionId) return;
+
+    dispatch(
+      setTabs([
+        {
+          id: generateId(),
+          title: currentSessionTitle || "Chat 1",
+          isActive: true,
+          sessionId: currentSessionId,
+        },
+      ]),
+    );
+  }, [
+    tabs.length,
+    currentSessionId,
+    currentSessionTitle,
+    dispatch,
+    generateId,
+  ]);
 
   const handleTabClick = async (id: string) => {
     const targetTab = tabs.find((tab) => tab.id === id);

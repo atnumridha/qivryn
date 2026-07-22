@@ -21,6 +21,29 @@ export const INITIAL_TABS_STATE: TabsState = {
   ],
 };
 
+const activateSessionTab = (
+  tabs: Tab[],
+  tabId: string,
+  currentSessionId: string,
+  currentSessionTitle: string,
+) =>
+  tabs
+    .filter(
+      (tab) =>
+        tab.id === tabId ||
+        (tab.sessionId && tab.sessionId !== currentSessionId),
+    )
+    .map((tab) =>
+      tab.id === tabId
+        ? {
+            ...tab,
+            sessionId: currentSessionId,
+            title: currentSessionTitle,
+            isActive: true,
+          }
+        : { ...tab, isActive: false },
+    );
+
 export const tabsSlice = createSlice({
   name: "tabs",
   initialState: INITIAL_TABS_STATE,
@@ -70,10 +93,11 @@ export const tabsSlice = createSlice({
 
       // Current session matches active tab's session
       if (activeTab.sessionId === currentSessionId) {
-        state.tabs = state.tabs.map((tab) =>
-          tab.id === activeTab.id
-            ? { ...tab, title: currentSessionTitle }
-            : tab,
+        state.tabs = activateSessionTab(
+          state.tabs,
+          activeTab.id,
+          currentSessionId,
+          currentSessionTitle,
         );
         return;
       }
@@ -83,37 +107,27 @@ export const tabsSlice = createSlice({
         (tab) => tab.sessionId === currentSessionId,
       );
       if (existingTabWithSession) {
-        // Activate the existing tab and update its title
-        // Remove any unassigned tabs
-        state.tabs = state.tabs
-          .filter(
-            (tab) => tab.sessionId || tab.id === existingTabWithSession.id,
-          )
-          .map((tab) => ({
-            ...tab,
-            isActive: tab.id === existingTabWithSession.id,
-            title:
-              tab.sessionId === currentSessionId
-                ? currentSessionTitle
-                : tab.title,
-          }));
+        state.tabs = activateSessionTab(
+          state.tabs,
+          existingTabWithSession.id,
+          currentSessionId,
+          currentSessionTitle,
+        );
         return;
       }
 
       // Active tab has no session ID
       if (!activeTab.sessionId) {
-        state.tabs = state.tabs.map((tab) =>
-          tab.id === activeTab.id
-            ? {
-                ...tab,
-                sessionId: currentSessionId,
-                title: currentSessionTitle,
-              }
-            : tab,
+        state.tabs = activateSessionTab(
+          state.tabs,
+          activeTab.id,
+          currentSessionId,
+          currentSessionTitle,
         );
       } else {
         // Active tab has a session ID, create new tab
         state.tabs = state.tabs
+          .filter((tab) => tab.sessionId && tab.sessionId !== currentSessionId)
           .map((tab) => ({ ...tab, isActive: false }))
           .concat({
             id:
