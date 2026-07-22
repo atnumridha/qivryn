@@ -419,11 +419,7 @@ export class NativeAgentSessionsProvider implements vscode.Disposable {
           this.resourceForRun(targetRun.id),
         );
       } else {
-        const availableCommands = await vscode.commands.getCommands(true);
-        if (!availableCommands.includes("workbench.action.chat.open")) {
-          return false;
-        }
-        await vscode.commands.executeCommand("workbench.action.chat.open");
+        return false;
       }
       await vscode.commands.executeCommand(
         "workbench.action.closeAuxiliaryBar",

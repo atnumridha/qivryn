@@ -70,4 +70,17 @@ describe("EmptyChatBody", () => {
       "/agents?scheduled=1",
     );
   });
+
+  it("opens saved sessions from the empty chat state", async () => {
+    const { user } = await renderWithProviders(
+      <>
+        <EmptyChatBody />
+        <LocationProbe />
+      </>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Sessions" }));
+
+    expect(screen.getByTestId("current-route")).toHaveTextContent("/history");
+  });
 });

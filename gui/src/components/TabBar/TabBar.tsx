@@ -160,8 +160,12 @@ export const TabBar = React.forwardRef<HTMLDivElement>((_, ref) => {
   const currentSessionTitle = useSelector(
     (state: RootState) => state.session.title,
   );
-  const hasHistory = useSelector(
-    (state: RootState) => state.session.history.length > 0,
+  const currentHistoryLength = useSelector(
+    (state: RootState) => state.session.history.length,
+  );
+  const hasHistory = currentHistoryLength > 0;
+  const allSessionMetadata = useSelector(
+    (state: RootState) => state.session.allSessionMetadata,
   );
   const tabs = useSelector((state: RootState) => state.tabs.tabs);
   const runningSessionIdsValue = useSelector(selectRunningSessionIdsValue);
@@ -210,19 +214,34 @@ export const TabBar = React.forwardRef<HTMLDivElement>((_, ref) => {
   const handleTabClick = async (id: string) => {
     const targetTab = tabs.find((tab) => tab.id === id);
     if (!targetTab) return;
-    if (targetTab.isActive) return;
+    const shouldRehydratePersistedSession =
+      targetTab.isActive &&
+      targetTab.sessionId === currentSessionId &&
+      currentHistoryLength === 0 &&
+      allSessionMetadata.some(
+        (session) =>
+          session.sessionId === targetTab.sessionId &&
+          (session.messageCount ?? 0) > 0,
+      );
+
+    if (targetTab.isActive && !shouldRehydratePersistedSession) return;
 
     if (targetTab.sessionId) {
       // Switch to existing session
       await dispatch(
         loadSession({
           sessionId: targetTab.sessionId,
-          saveCurrentSession: hasHistory,
+          // Persisted tabs can restore before their transcript is hydrated.
+          // Do not save that empty shell over the stored chat.
+          saveCurrentSession: !shouldRehydratePersistedSession && hasHistory,
+          forceReload: shouldRehydratePersistedSession,
         }),
       );
     }
 
-    dispatch(setActiveTab(id));
+    if (!targetTab.isActive) {
+      dispatch(setActiveTab(id));
+    }
   };
 
   const handleTabClose = async (id: string) => {

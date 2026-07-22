@@ -5,6 +5,7 @@ import {
   CodeBracketIcon,
   CommandLineIcon,
   DocumentMagnifyingGlassIcon,
+  FolderOpenIcon,
   SquaresPlusIcon,
 } from "@heroicons/react/24/outline";
 import type { JSONContent } from "@tiptap/react";
@@ -87,6 +88,12 @@ export function EmptyChatBody() {
   }
 
   const actions = [
+    {
+      label: "Sessions",
+      description: "Open saved chats.",
+      Icon: FolderOpenIcon,
+      onClick: () => navigate("/history"),
+    },
     ...starterPrompts.map(({ label, description, prompt, Icon }) => ({
       label,
       description,
