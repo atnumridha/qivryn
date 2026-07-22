@@ -88,6 +88,10 @@ command -v npm >/dev/null || {
 }
 
 if [[ "$skip_gui_build" -eq 0 ]]; then
+  if [[ ! -x "$repo_root/gui/node_modules/.bin/tsc" ]]; then
+    echo "[info] Installing GUI build dependencies (TypeScript CLI was not found)"
+    npm --prefix "$repo_root/gui" ci
+  fi
   npm --prefix "$repo_root/gui" run build
 fi
 

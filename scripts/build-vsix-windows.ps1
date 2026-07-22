@@ -33,6 +33,19 @@ function Resolve-Target {
     }
 }
 
+function Ensure-GuiBuildDependencies {
+    param([Parameter(Mandatory = $true)][string]$RepoRoot)
+
+    $guiRoot = Join-Path $RepoRoot "gui"
+    $typescriptCli = Join-Path $guiRoot "node_modules/.bin/tsc.cmd"
+    if (Test-Path -LiteralPath $typescriptCli) {
+        return
+    }
+
+    Write-Host "[info] Installing GUI build dependencies (TypeScript CLI was not found)"
+    Invoke-External -FilePath "npm" -Arguments @("--prefix", $guiRoot, "ci")
+}
+
 if ([Environment]::OSVersion.Platform -ne "Win32NT") {
     throw "This script is for Windows. Use scripts/build-vsix-macos.sh on macOS."
 }
@@ -53,6 +66,7 @@ if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 
 if (-not $SkipGuiBuild) {
+    Ensure-GuiBuildDependencies -RepoRoot $repoRoot
     Invoke-External -FilePath "npm" -Arguments @("--prefix", (Join-Path $repoRoot "gui"), "run", "build")
 }
 
