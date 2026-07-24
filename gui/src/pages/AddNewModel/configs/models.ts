@@ -37,6 +37,36 @@ export interface ModelPackage {
 }
 
 export const models: { [key: string]: ModelPackage } = {
+  ocaGrok420Reasoning: {
+    title: "Grok 4.20 Reasoning",
+    description: "Oracle Code Assist model: oca/grok4-20-reasoning",
+    params: {
+      title: "Grok 4.20 Reasoning",
+      model: "oca/grok4-20-reasoning",
+    },
+    providerOptions: ["oca"],
+    isOpenSource: false,
+  },
+  ocaGrok43: {
+    title: "Grok 4.3",
+    description: "Oracle Code Assist model: oca/grok4-3",
+    params: {
+      title: "Grok 4.3",
+      model: "oca/grok4-3",
+    },
+    providerOptions: ["oca"],
+    isOpenSource: false,
+  },
+  ocaLlama4: {
+    title: "Llama 4",
+    description: "Oracle Code Assist model: oca/llama4",
+    params: {
+      title: "Llama 4",
+      model: "oca/llama4",
+    },
+    providerOptions: ["oca"],
+    isOpenSource: false,
+  },
   hermes3Llama31_405b: {
     title: "Hermes 3 Llama 3.1 405B",
     description:

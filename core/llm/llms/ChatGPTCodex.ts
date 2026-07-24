@@ -1,8 +1,10 @@
 /**
  * ChatGPTCodex LLM provider for Qivryn.
  *
- * Uses the ChatGPT Codex backend (chatgpt.com/backend-api/codex) — the same
- * backend used by Codex Desktop and the Codex CLI.
+ * Uses ChatGPT backend auth and routes through the Codex responses endpoint by
+ * default so Qivryn's agent/tool runtime behaves like the normal Codex path.
+ * Set chatgptBackendMode: "chatgpt" to use the ChatGPT conversation endpoint
+ * for plain chat requests that do not need local tools.
  *
  * Auth: reads ~/.codex/auth.json, uses .tokens.access_token as the bearer.
  *       Auto-refreshes via .tokens.refresh_token when the token is near expiry.
@@ -89,6 +91,7 @@ class ChatGPTCodex extends OpenAI {
   static defaultOptions: Partial<LLMOptions> = {
     apiBase: "https://chatgpt.com/backend-api/codex/",
     model: "gpt-5.6-sol",
+    chatgptBackendMode: "codex",
     useLegacyCompletionsEndpoint: false,
     promptTemplates: {
       edit: osModelsEditPrompt,

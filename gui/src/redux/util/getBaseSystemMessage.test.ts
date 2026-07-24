@@ -84,3 +84,21 @@ test("getBaseSystemMessage should append no-tools warning for agent/plan modes w
     "Custom Plan System Message" + NO_TOOL_WARNING,
   );
 });
+
+test("default agent message includes workspace-agent rules used by Codex backend", () => {
+  expect(DEFAULT_AGENT_SYSTEM_MESSAGE).toContain(
+    "Behave as a coding agent inside the current workspace",
+  );
+  expect(DEFAULT_AGENT_SYSTEM_MESSAGE).toContain(
+    "do not ask the user to upload, paste, or share the repository",
+  );
+  expect(DEFAULT_AGENT_SYSTEM_MESSAGE).toContain(
+    "Avoid repeated read-only tool calls with the same arguments",
+  );
+  expect(DEFAULT_AGENT_SYSTEM_MESSAGE).toContain(
+    "use grep/search tools for symbols, errors, configs, and customer symptoms",
+  );
+  expect(DEFAULT_AGENT_SYSTEM_MESSAGE).toContain(
+    "the first assistant action should be a local search/read/tool action",
+  );
+});

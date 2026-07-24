@@ -6,6 +6,7 @@ models:
     provider: "chatgpt-codex"
     model: "gpt-5.6-sol"
     apiBase: "https://chatgpt.com/backend-api/codex/"
+    chatgptBackendMode: "codex"
     roles:
       - "chat"
       - "edit"
@@ -28,6 +29,7 @@ models:
     provider: "chatgpt-codex"
     model: "gpt-5.6-terra"
     apiBase: "https://chatgpt.com/backend-api/codex/"
+    chatgptBackendMode: "codex"
     roles:
       - "chat"
       - "edit"
@@ -50,6 +52,7 @@ models:
     provider: "chatgpt-codex"
     model: "gpt-5.6-luna"
     apiBase: "https://chatgpt.com/backend-api/codex/"
+    chatgptBackendMode: "codex"
     roles:
       - "chat"
       - "edit"
@@ -71,6 +74,7 @@ models:
     provider: "chatgpt-codex"
     model: "gpt-5.5"
     apiBase: "https://chatgpt.com/backend-api/codex/"
+    chatgptBackendMode: "codex"
     roles:
       - "chat"
       - "edit"
@@ -91,6 +95,7 @@ models:
     provider: "chatgpt-codex"
     model: "gpt-5.4"
     apiBase: "https://chatgpt.com/backend-api/codex/"
+    chatgptBackendMode: "codex"
     roles:
       - "chat"
       - "edit"
@@ -111,6 +116,7 @@ models:
     provider: "chatgpt-codex"
     model: "gpt-5.4-mini"
     apiBase: "https://chatgpt.com/backend-api/codex/"
+    chatgptBackendMode: "codex"
     roles:
       - "chat"
       - "edit"
@@ -131,6 +137,7 @@ models:
     provider: "chatgpt-codex"
     model: "gpt-5.4-mini"
     apiBase: "https://chatgpt.com/backend-api/codex/"
+    chatgptBackendMode: "codex"
     roles:
       - "autocomplete"
     requestOptions:

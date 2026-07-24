@@ -14,8 +14,14 @@ import {
 } from "../constants";
 import { SystemMessageToolsFramework } from "./types";
 
-function toolCallStateToSystemToolOutput(state: ToolCallState): string {
-  let output = `Tool output for ${state.toolCall.function.name} tool call:\n\n`;
+function toolCallStateToSystemToolOutput(
+  state: ToolCallState,
+  framework: SystemMessageToolsFramework,
+): string {
+  let output = framework.toolOutputIntro
+    ? `${framework.toolOutputIntro}\n\n`
+    : "";
+  output += `Tool output for ${state.toolCall.function.name} tool call:\n\n`;
   // TODO - include tool call id for parallel. Confuses dumb models
   // let output = `Tool output for tool call ${state.toolCallId} (${state.toolCall.function.name}):\n\n`;
   if (state.status === "canceled") {
@@ -58,7 +64,7 @@ export function convertToolCallStatesToSystemCallsAndOutput(
     for (const state of toolCallStates) {
       userParts.push({
         type: "text",
-        text: toolCallStateToSystemToolOutput(state),
+        text: toolCallStateToSystemToolOutput(state, framework),
       });
     }
   }

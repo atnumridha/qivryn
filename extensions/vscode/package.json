@@ -51,19 +51,11 @@
   ],
   "activationEvents": [
     "onUri",
-    "onStartupFinished",
     "onWebviewPanel:qivryn.qivrynGUIView",
     "onView:qivrynGUIView",
     "onCommand:qivryn.openInNewWindow"
   ],
   "main": "./out/extension.js",
-  "enabledApiProposals": [
-    "agentSessionsWorkspace",
-    "agentsWindowConfiguration",
-    "chatParticipantAdditions",
-    "chatParticipantPrivate",
-    "chatSessionsProvider"
-  ],
   "contributes": {
     "themes": [
       {

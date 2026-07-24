@@ -54,6 +54,13 @@ export const apiBaseInput: InputDescriptor = {
 };
 
 export const providers: Partial<Record<string, ProviderInfo>> = {
+  oca: {
+    title: "Oracle Code Assist",
+    provider: "oca",
+    description:
+      "Use models available through your Oracle Code Assist sign-in.",
+    packages: [models.ocaGrok420Reasoning, models.ocaGrok43, models.ocaLlama4],
+  },
   cometapi: {
     title: "CometAPI",
     provider: "cometapi",

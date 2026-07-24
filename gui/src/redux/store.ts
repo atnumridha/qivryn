@@ -57,6 +57,8 @@ const saveSubsetFilters = [
     "toolGroupSettings",
     "ruleSettings",
     "reasoningSettings",
+    "reasoningEffortSettings",
+    "chatGPTBackendModeSettings",
     "agentAccessMode",
   ]),
   createFilter("indexing", []),

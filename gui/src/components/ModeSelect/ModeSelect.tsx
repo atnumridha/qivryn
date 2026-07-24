@@ -30,7 +30,9 @@ import { selectSelectedChatModel } from "../../redux/slices/configSlice";
 import { setMode } from "../../redux/slices/sessionSlice";
 import {
   setReasoningEffort,
+  setChatGPTBackendMode,
   type AgentAccessMode,
+  type ChatGPTBackendMode,
 } from "../../redux/slices/uiSlice";
 import { setAgentAccessModeAndReleasePending } from "../../redux/thunks/setAgentAccessMode";
 import { updateSelectedModelByRole } from "../../redux/thunks/updateSelectedModelByRole";
@@ -90,6 +92,23 @@ const AGENT_RUNTIME_MODES: Array<{
     value: "ssh",
     label: "Remote SSH",
     description: "Run on a configured remote host",
+  },
+];
+
+const CHATGPT_BACKEND_MODES: Array<{
+  value: ChatGPTBackendMode;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "codex",
+    label: "Codex",
+    description: "Use the Codex responses backend",
+  },
+  {
+    value: "chatgpt",
+    label: "ChatGPT",
+    description: "Use ChatGPT conversation with Qivryn agent rules",
   },
 ];
 
@@ -220,6 +239,7 @@ export function ModeSelect({
   const runtimeGroupId = useId();
   const accessGroupId = useId();
   const modelGroupId = useId();
+  const endpointGroupId = useId();
   const reasoningGroupId = useId();
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -230,6 +250,7 @@ export function ModeSelect({
   const [runtimeOpen, setRuntimeOpen] = useState(false);
   const [accessOpen, setAccessOpen] = useState(false);
   const [modelOpen, setModelOpen] = useState(false);
+  const [endpointOpen, setEndpointOpen] = useState(false);
   const [reasoningOpen, setReasoningOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState<CSSProperties>({
     visibility: "hidden",
@@ -248,6 +269,9 @@ export function ModeSelect({
   );
   const reasoningEffortSettings = useAppSelector(
     (store) => store.ui.reasoningEffortSettings,
+  );
+  const chatGPTBackendModeSettings = useAppSelector(
+    (store) => store.ui.chatGPTBackendModeSettings,
   );
   const globalAccessMode = useAppSelector(
     (store) => store.ui.agentAccessMode ?? "autonomous",
@@ -358,6 +382,22 @@ export function ModeSelect({
   const selectedReasoningLabel = reasoningLevels.length
     ? formatReasoningEffort(selectedReasoningEffort)
     : undefined;
+  const isChatGPTCodexModel =
+    selectedModel?.provider === "chatgpt-codex" ||
+    selectedModel?.underlyingProviderName === "chatgpt-codex";
+  const defaultChatGPTBackendMode =
+    ((roleSelectedModel ?? selectedModel) as any)?.chatgptBackendMode ??
+    "codex";
+  const selectedChatGPTBackendMode: ChatGPTBackendMode | undefined =
+    isChatGPTCodexModel
+      ? (chatGPTBackendModeSettings[selectedModelTitle] ??
+        defaultChatGPTBackendMode)
+      : undefined;
+  const selectedChatGPTBackendLabel = selectedChatGPTBackendMode
+    ? CHATGPT_BACKEND_MODES.find(
+        (candidate) => candidate.value === selectedChatGPTBackendMode,
+      )?.label
+    : undefined;
 
   const isGoodAtAgentMode = useMemo(() => {
     if (!selectedModel) {
@@ -441,6 +481,7 @@ export function ModeSelect({
     setRuntimeOpen(false);
     setAccessOpen(false);
     setModelOpen(false);
+    setEndpointOpen(false);
     setReasoningOpen(false);
   }, []);
 
@@ -577,6 +618,21 @@ export function ModeSelect({
     [closeModeDropdown, dispatch, selectedModelTitle],
   );
 
+  const selectChatGPTBackendMode = useCallback(
+    (backendMode: ChatGPTBackendMode) => {
+      dispatch(
+        setChatGPTBackendMode({
+          modelTitle: selectedModelTitle,
+          mode: backendMode,
+        }),
+      );
+      setEndpointOpen(false);
+      setModelOpen(false);
+      closeModeDropdown();
+    },
+    [closeModeDropdown, dispatch, selectedModelTitle],
+  );
+
   const handleMenuKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
       const buttons = Array.from(
@@ -615,13 +671,26 @@ export function ModeSelect({
   );
 
   const openOnly = useCallback(
-    (menu: "skills" | "runtime" | "access" | "model" | "reasoning") => {
+    (
+      menu:
+        | "skills"
+        | "runtime"
+        | "access"
+        | "model"
+        | "endpoint"
+        | "reasoning",
+    ) => {
       setSkillsOpen((open) => (menu === "skills" ? !open : false));
       setRuntimeOpen((open) => (menu === "runtime" ? !open : false));
       setAccessOpen((open) => (menu === "access" ? !open : false));
       setModelOpen((open) =>
-        menu === "model" ? !open : menu === "reasoning" ? true : false,
+        menu === "model"
+          ? !open
+          : menu === "reasoning" || menu === "endpoint"
+            ? true
+            : false,
       );
+      setEndpointOpen((open) => (menu === "endpoint" ? !open : false));
       setReasoningOpen((open) => (menu === "reasoning" ? !open : false));
     },
     [],
@@ -690,6 +759,7 @@ export function ModeSelect({
     }
   }, [
     accessOpen,
+    endpointOpen,
     isOpen,
     modelOpen,
     reasoningOpen,
@@ -1361,6 +1431,87 @@ export function ModeSelect({
                           );
                         })}
                       </div>
+
+                      {selectedChatGPTBackendMode && (
+                        <div className="border-input mt-1 border-t pt-1">
+                          <button
+                            type="button"
+                            aria-label="Backend endpoint dropdown"
+                            aria-expanded={endpointOpen}
+                            aria-controls={endpointGroupId}
+                            className={controlButtonClass(endpointOpen)}
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              openOnly("endpoint");
+                            }}
+                          >
+                            <CubeIcon
+                              aria-hidden="true"
+                              className="h-3.5 w-3.5 flex-shrink-0 opacity-70"
+                            />
+                            <span className="min-w-0 flex-1">
+                              <span className="text-description-muted block text-[10px] font-medium uppercase tracking-wide">
+                                Endpoint
+                              </span>
+                              <span className="block truncate text-[11px] font-medium">
+                                {selectedChatGPTBackendLabel}
+                              </span>
+                            </span>
+                            <ChevronDownIcon
+                              className={`h-3 w-3 flex-shrink-0 transition-transform ${
+                                endpointOpen ? "rotate-180" : ""
+                              }`}
+                            />
+                          </button>
+                          {endpointOpen && (
+                            <div
+                              id={endpointGroupId}
+                              role="group"
+                              aria-label="Backend endpoint choices"
+                              className={`${NESTED_PANEL_CLASS} ml-3 grid grid-cols-1 gap-1`}
+                            >
+                              {CHATGPT_BACKEND_MODES.map((candidate) => {
+                                const isSelected =
+                                  candidate.value ===
+                                  selectedChatGPTBackendMode;
+                                return (
+                                  <button
+                                    key={candidate.value}
+                                    type="button"
+                                    aria-label={candidate.label}
+                                    className={nestedOptionClass(isSelected)}
+                                    onClick={(event) => {
+                                      event.preventDefault();
+                                      event.stopPropagation();
+                                      selectChatGPTBackendMode(candidate.value);
+                                      setEndpointOpen(false);
+                                    }}
+                                  >
+                                    <CubeIcon
+                                      aria-hidden="true"
+                                      className="mt-0.5 h-3 w-3 flex-shrink-0 opacity-70"
+                                    />
+                                    <span className="min-w-0 flex-1">
+                                      <span className="block truncate text-[11px] font-medium">
+                                        {candidate.label}
+                                      </span>
+                                      <span className="text-description-muted block truncate text-[10px]">
+                                        {candidate.description}
+                                      </span>
+                                    </span>
+                                    <CheckIcon
+                                      className={`mt-0.5 h-3 w-3 flex-shrink-0 ${
+                                        isSelected ? "" : "opacity-0"
+                                      }`}
+                                    />
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       {reasoningLevels.length > 0 && (
                         <div className="border-input mt-1 border-t pt-1">

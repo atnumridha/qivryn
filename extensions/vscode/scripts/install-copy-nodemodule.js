@@ -46,7 +46,10 @@ async function installNodeModuleInTempDirAndCopyToCurrent(packageName, toCopy) {
 
     // Remove existing destination directory to ensure fresh copy
     // ncp's clobber option doesn't reliably overwrite cached files
-    const packageSubdir = packageName.replace("@lancedb/", "");
+    const packageSubdir = packageNameFromSpec(packageName).replace(
+      "@lancedb/",
+      "",
+    );
     const destDir = path.join(
       currentDir,
       "node_modules",
@@ -89,6 +92,17 @@ async function installNodeModuleInTempDirAndCopyToCurrent(packageName, toCopy) {
   }
 }
 
+function packageNameFromSpec(packageSpec) {
+  if (packageSpec.startsWith("@")) {
+    const slashIndex = packageSpec.indexOf("/");
+    const versionIndex = packageSpec.indexOf("@", slashIndex + 1);
+    return versionIndex >= 0 ? packageSpec.slice(0, versionIndex) : packageSpec;
+  }
+
+  const versionIndex = packageSpec.indexOf("@");
+  return versionIndex >= 0 ? packageSpec.slice(0, versionIndex) : packageSpec;
+}
+
 process.on("message", (msg) => {
   installNodeModuleInTempDirAndCopyToCurrent(
     msg.payload.packageName,
@@ -108,20 +122,51 @@ process.on("message", (msg) => {
  */
 async function installAndCopyNodeModules(packageName, toCopy) {
   const child = fork(__filename, { stdio: "inherit", cwd: process.cwd() });
-  child.send({
-    payload: {
-      packageName,
-      toCopy,
-    },
-  });
 
   return new Promise((resolve, reject) => {
-    child.on("message", (msg) => {
-      if (msg.error) {
-        reject();
+    let settled = false;
+    const finish = (error) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      if (error) {
+        reject(error);
       } else {
         resolve();
       }
+    };
+
+    child.on("message", (msg) => {
+      if (msg.error) {
+        finish(new Error(`Failed to install ${packageName}`));
+      } else {
+        finish();
+      }
+    });
+
+    child.on("error", (error) => {
+      finish(error);
+    });
+
+    child.on("exit", (code, signal) => {
+      if (settled) {
+        return;
+      }
+      finish(
+        new Error(
+          `Failed to install ${packageName}: child exited with ${
+            signal ? `signal ${signal}` : `code ${code ?? "unknown"}`
+          }`,
+        ),
+      );
+    });
+
+    child.send({
+      payload: {
+        packageName,
+        toCopy,
+      },
     });
   });
 }

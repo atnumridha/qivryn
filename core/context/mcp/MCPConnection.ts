@@ -35,7 +35,8 @@ import { getQivrynDotEnv } from "../../util/paths";
 import { getEnvPathFromUserShell } from "../../util/shellPath";
 import { getOauthToken } from "./MCPOauth";
 
-const DEFAULT_MCP_TIMEOUT = 20_000; // 20 seconds
+const DEFAULT_MCP_TIMEOUT = 20_000; // 20 seconds for explicit refreshes
+const DEFAULT_MCP_STARTUP_TIMEOUT = 5_000; // Keep startup refreshes from blocking chat
 
 // Commands that are batch scripts on Windows and need cmd.exe to execute
 const WINDOWS_BATCH_COMMANDS = [
@@ -238,9 +239,12 @@ Org-level secrets can only be used for MCP by Background Agents (https://docs.qi
       }),
       (async () => {
         const timeoutController = new AbortController();
+        const connectionTimeoutMs =
+          this.options.timeout ??
+          (forceRefresh ? DEFAULT_MCP_TIMEOUT : DEFAULT_MCP_STARTUP_TIMEOUT);
         const connectionTimeout = setTimeout(
           () => timeoutController.abort(),
-          this.options.timeout ?? DEFAULT_MCP_TIMEOUT,
+          connectionTimeoutMs,
         );
 
         try {

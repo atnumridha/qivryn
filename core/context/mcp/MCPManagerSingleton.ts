@@ -3,6 +3,13 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InternalMcpOptions, MCPServerStatus } from "../..";
 import MCPConnection, { MCPExtras } from "./MCPConnection";
 
+const MAX_MCP_CONNECTION_REFRESH_CONCURRENCY = 3;
+const MAX_MCP_STARTUP_CONNECTION_REFRESH_CONCURRENCY = 1;
+const MCP_CONNECTION_ERROR_COOLDOWN_MS = 5 * 60 * 1000;
+const AUTO_REFRESH_MCP_ON_STARTUP =
+  typeof process !== "undefined" &&
+  process.env?.QIVRYN_AUTO_REFRESH_MCP_ON_STARTUP === "true";
+
 export class MCPManagerSingleton {
   private static instance: MCPManagerSingleton;
 
@@ -10,6 +17,7 @@ export class MCPManagerSingleton {
   public connections: Map<string, MCPConnection> = new Map();
 
   private abortController: AbortController = new AbortController();
+  private failedConnectionCooldowns: Map<string, number> = new Map();
 
   private constructor() {}
 
@@ -85,6 +93,7 @@ export class MCPManagerSingleton {
         connection.abortController.abort();
         void connection.client.close();
         this.connections.delete(id);
+        this.failedConnectionCooldowns.delete(id);
       }
     });
 
@@ -102,8 +111,9 @@ export class MCPManagerSingleton {
       }
     });
 
-    // NOTE the id is made by stringifying the options
-    if (refresh) {
+    // Register optional MCP servers without blocking the first coding-agent turn.
+    // Built-in file, search, edit, and terminal tools are available separately.
+    if (refresh && (forceRefresh || AUTO_REFRESH_MCP_ON_STARTUP)) {
       void this.refreshConnections(forceRefresh);
     }
   }
@@ -146,9 +156,33 @@ export class MCPManagerSingleton {
     if (!connection) {
       throw new Error(`MCP Connection ${serverId} not found`);
     }
+    this.failedConnectionCooldowns.delete(serverId);
     await connection.connectClient(true, this.abortController.signal);
     if (this.onConnectionsRefreshed) {
       this.onConnectionsRefreshed();
+    }
+  }
+
+  private async refreshConnectionWithCooldown(
+    connection: MCPConnection,
+    force: boolean,
+    signal: AbortSignal,
+  ) {
+    const serverId = connection.options.id;
+    const cooldownUntil = this.failedConnectionCooldowns.get(serverId);
+    if (!force && cooldownUntil !== undefined && cooldownUntil > Date.now()) {
+      return;
+    }
+
+    await connection.connectClient(force, signal);
+
+    if (connection.status === "error") {
+      this.failedConnectionCooldowns.set(
+        serverId,
+        Date.now() + MCP_CONNECTION_ERROR_COOLDOWN_MS,
+      );
+    } else {
+      this.failedConnectionCooldowns.delete(serverId);
     }
   }
 
@@ -162,11 +196,26 @@ export class MCPManagerSingleton {
         });
       }),
       (async () => {
-        await Promise.all(
-          Array.from(this.connections.values()).map(async (connection) => {
-            await connection.connectClient(force, this.abortController.signal);
-          }),
-        );
+        const connections = Array.from(this.connections.values());
+        const concurrency = force
+          ? MAX_MCP_CONNECTION_REFRESH_CONCURRENCY
+          : MAX_MCP_STARTUP_CONNECTION_REFRESH_CONCURRENCY;
+        for (let index = 0; index < connections.length; index += concurrency) {
+          if (this.abortController.signal.aborted) {
+            return;
+          }
+          await Promise.allSettled(
+            connections
+              .slice(index, index + concurrency)
+              .map(async (connection) => {
+                await this.refreshConnectionWithCooldown(
+                  connection,
+                  force,
+                  this.abortController.signal,
+                );
+              }),
+          );
+        }
         if (this.onConnectionsRefreshed) {
           this.onConnectionsRefreshed();
         }

@@ -103,6 +103,26 @@ describe("MCPManagerSingleton", () => {
       );
     });
 
+    it("should not auto-refresh new connections during startup config load", () => {
+      const refreshSpy = vi
+        .spyOn(manager, "refreshConnections")
+        .mockResolvedValue(undefined);
+
+      manager.setConnections([testOptions], false);
+
+      expect(refreshSpy).not.toHaveBeenCalled();
+    });
+
+    it("should refresh new connections when force refresh is requested", () => {
+      const refreshSpy = vi
+        .spyOn(manager, "refreshConnections")
+        .mockResolvedValue(undefined);
+
+      manager.setConnections([testOptions], true);
+
+      expect(refreshSpy).toHaveBeenCalledWith(true);
+    });
+
     it("should remove old connections", () => {
       // Create initial connection
       const connection = manager.createConnection(
@@ -175,6 +195,25 @@ describe("MCPManagerSingleton", () => {
       await manager.refreshConnections(true);
 
       expect(mockCallback).toHaveBeenCalled();
+    });
+
+    it("should not retry recently failed connections during startup refresh", async () => {
+      const connection = manager.createConnection(
+        "test-id",
+        testOptions,
+      ) as TestMCPConnection;
+      connection.connectClient = vi.fn().mockImplementation(async () => {
+        connection.status = "error";
+      });
+
+      await manager.refreshConnections(false);
+      await manager.refreshConnections(false);
+
+      expect(connection.connectClient).toHaveBeenCalledTimes(1);
+
+      await manager.refreshConnections(true);
+
+      expect(connection.connectClient).toHaveBeenCalledTimes(2);
     });
   });
 

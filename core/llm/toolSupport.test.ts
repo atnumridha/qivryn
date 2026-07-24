@@ -1,5 +1,9 @@
 // core/llm/toolSupport.test.ts
-import { PROVIDER_TOOL_SUPPORT, isRecommendedAgentModel } from "./toolSupport";
+import {
+  PROVIDER_TOOL_SUPPORT,
+  isRecommendedAgentModel,
+  modelSupportsNativeTools,
+} from "./toolSupport";
 
 describe("PROVIDER_TOOL_SUPPORT", () => {
   describe("anthropic", () => {
@@ -56,6 +60,15 @@ describe("PROVIDER_TOOL_SUPPORT", () => {
       expect(supportsFn("O3-preview")).toBe(true);
       expect(supportsFn("Gemma3")).toBe(true);
       expect(supportsFn("Gemma4")).toBe(true);
+    });
+  });
+
+  describe("chatgpt-codex", () => {
+    const supportsFn = PROVIDER_TOOL_SUPPORT["chatgpt-codex"];
+
+    it("should return true for ChatGPT Codex backend models", () => {
+      expect(supportsFn("gpt-5.5")).toBe(true);
+      expect(supportsFn("gpt-5.6-sol")).toBe(true);
     });
   });
 
@@ -395,6 +408,19 @@ describe("PROVIDER_TOOL_SUPPORT", () => {
       // @ts-ignore - Testing runtime behavior with invalid provider
       expect(PROVIDER_TOOL_SUPPORT["non-existent"]).toBe(undefined);
     });
+  });
+});
+
+describe("modelSupportsNativeTools", () => {
+  it("should treat ChatGPT Codex provider models as native-tool capable", () => {
+    expect(
+      modelSupportsNativeTools({
+        provider: "chatgpt-codex",
+        underlyingProviderName: "chatgpt-codex",
+        model: "gpt-5.5",
+        title: "Codex: GPT-5.5",
+      }),
+    ).toBe(true);
   });
 });
 

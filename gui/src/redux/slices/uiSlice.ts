@@ -18,6 +18,10 @@ export type ToolGroupPolicies = { [toolGroupName: string]: ToolGroupPolicy };
 export type ReasoningSettings = { [modelTitle: string]: boolean };
 /** Maps model title → selected reasoning effort level (e.g. "low" | "medium" | "high" | "xhigh" | "max" | "ultra") */
 export type ReasoningEffortSettings = { [modelTitle: string]: string };
+export type ChatGPTBackendMode = "codex" | "chatgpt";
+export type ChatGPTBackendModeSettings = {
+  [modelTitle: string]: ChatGPTBackendMode;
+};
 export type AgentAccessMode = "ask" | "autonomous" | "fullAccess" | "readOnly";
 
 type UIState = {
@@ -32,6 +36,7 @@ type UIState = {
   ruleSettings: RulePolicies;
   reasoningSettings: ReasoningSettings;
   reasoningEffortSettings: ReasoningEffortSettings;
+  chatGPTBackendModeSettings: ChatGPTBackendModeSettings;
   agentAccessMode: AgentAccessMode;
   ttsActive: boolean;
 };
@@ -55,6 +60,7 @@ export const DEFAULT_UI_SLICE: UIState = {
   ruleSettings: {},
   reasoningSettings: {},
   reasoningEffortSettings: {},
+  chatGPTBackendModeSettings: {},
   // Agent edits are applied in the background and safe terminal commands can
   // run immediately. Dynamic terminal policy still escalates risky commands.
   agentAccessMode: "autonomous",
@@ -168,6 +174,16 @@ export const uiSlice = createSlice({
       state.reasoningEffortSettings[action.payload.modelTitle] =
         action.payload.effort;
     },
+    setChatGPTBackendMode: (
+      state,
+      action: PayloadAction<{
+        modelTitle: string;
+        mode: ChatGPTBackendMode;
+      }>,
+    ) => {
+      state.chatGPTBackendModeSettings[action.payload.modelTitle] =
+        action.payload.mode;
+    },
   },
 });
 
@@ -187,6 +203,7 @@ export const {
   setTTSActive,
   setReasoningSetting,
   setReasoningEffort,
+  setChatGPTBackendMode,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;

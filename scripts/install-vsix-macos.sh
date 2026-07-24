@@ -9,7 +9,7 @@ Usage:
   scripts/install-vsix-macos.sh [path/to/qivryn.vsix] [--code-cli /path/to/code] [--no-force]
 
 Options:
-  --code-cli PATH  VS Code CLI path. Defaults to code on PATH, then the standard macOS app path.
+  --code-cli PATH  VS Code CLI path. Defaults to the standard macOS VS Code app path, then code on PATH.
   --no-force      Do not pass --force to code --install-extension.
   -h, --help      Show this help.
 EOF
@@ -72,13 +72,20 @@ if [[ ! -f "$vsix_path" ]]; then
 fi
 
 if [[ -z "$code_cli" ]]; then
-  if command -v code >/dev/null; then
+  code_candidates=(
+    "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"
+    "/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code"
+  )
+  for candidate in "${code_candidates[@]}"; do
+    if [[ -x "$candidate" ]]; then
+      code_cli="$candidate"
+      break
+    fi
+  done
+  if [[ -z "$code_cli" ]] && command -v code >/dev/null; then
     code_cli="$(command -v code)"
-  elif [[ -x "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" ]]; then
-    code_cli="/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"
-  elif [[ -x "/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code" ]]; then
-    code_cli="/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code"
-  else
+  fi
+  if [[ -z "$code_cli" ]]; then
     echo "VS Code CLI was not found. Pass --code-cli /path/to/code." >&2
     exit 1
   fi

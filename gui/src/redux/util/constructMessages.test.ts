@@ -14,6 +14,7 @@ import {
   CANCELLED_TOOL_CALL_MESSAGE,
   NO_TOOL_CALL_OUTPUT_MESSAGE,
 } from "core/tools/constants";
+import { SystemMessageToolCodeblocksFramework } from "core/tools/systemMessageTools/toolCodeblocks";
 import { renderChatMessage } from "core/util/messageContent";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { constructMessages } from "./constructMessages";
@@ -427,6 +428,74 @@ describe("constructMessages", () => {
     const toolMessage = messages[3] as ToolResultChatMessage;
     expect(toolMessage.toolCallId).toBe("tool-call-1");
     expect(toolMessage.content).toContain("Search result content");
+  });
+
+  test("should bound system-message tool output before adding it to chat history", () => {
+    const largeOutput = "large-output-line\n".repeat(2_000);
+    const assistantWithToolCall: AssistantChatMessage = {
+      role: "assistant",
+      content: "I will list files",
+      toolCalls: [
+        {
+          id: "tool-call-1",
+          type: "function",
+          function: {
+            name: "ls",
+            arguments: '{"dirPath":"."}',
+          },
+        },
+      ],
+    };
+
+    mockHistory = [
+      {
+        message: {
+          role: "user",
+          content: "review the codebase",
+        } as UserChatMessage,
+        contextItems: [],
+      },
+      {
+        message: assistantWithToolCall,
+        contextItems: [],
+        toolCallStates: [
+          {
+            toolCallId: "tool-call-1",
+            toolCall: {
+              id: "tool-call-1",
+              type: "function",
+              function: {
+                name: "ls",
+                arguments: '{"dirPath":"."}',
+              },
+            },
+            status: "done",
+            parsedArgs: { dirPath: "." },
+            output: [createContextItem("ls-output", largeOutput)],
+          },
+        ],
+      },
+    ];
+
+    const { messages } = constructMessages(
+      mockHistory,
+      "Base System Message",
+      mockRules,
+      {},
+      new SystemMessageToolCodeblocksFramework(),
+    );
+
+    const syntheticToolOutput = messages.findLast(
+      (message) =>
+        message.role === "user" &&
+        renderChatMessage(message).includes("Tool output for ls tool call"),
+    );
+
+    expect(syntheticToolOutput).toBeDefined();
+    const outputText = renderChatMessage(syntheticToolOutput!);
+    expect(outputText).toContain("tool output truncated");
+    expect(outputText.length).toBeLessThan(30_000);
+    expect(outputText.length).toBeLessThan(largeOutput.length);
   });
 
   test("should show cancelled message for cancelled tool calls", () => {

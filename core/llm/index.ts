@@ -73,6 +73,7 @@ import {
   toFimBody,
 } from "./openaiTypeConverters.js";
 import { applyToolOverrides } from "../tools/applyToolOverrides.js";
+import { compactToolsForPrompt } from "../tools/compactToolsForPrompt.js";
 
 export class LLMError extends Error {
   constructor(
@@ -179,6 +180,7 @@ export abstract class BaseLLM implements ILLM {
   deployment?: string;
   apiVersion?: string;
   apiType?: string;
+  chatgptBackendMode?: "codex" | "chatgpt";
   region?: string;
   projectId?: string;
   accountId?: string;
@@ -288,6 +290,7 @@ export abstract class BaseLLM implements ILLM {
     this.deployment = options.deployment;
     this.apiVersion = options.apiVersion;
     this.apiType = options.apiType;
+    this.chatgptBackendMode = options.chatgptBackendMode;
     this.region = options.region;
     this.projectId = options.projectId;
     this.profile = options.profile;
@@ -324,6 +327,7 @@ export abstract class BaseLLM implements ILLM {
       requestOptions: this.requestOptions,
       env: this._llmOptions.env,
       useResponsesApi: this._llmOptions.useResponsesApi,
+      chatgptBackendMode: this.chatgptBackendMode,
     });
   }
 
@@ -965,7 +969,7 @@ export abstract class BaseLLM implements ILLM {
       knownContextLength: this._contextLength,
       maxTokens: completionOptions.maxTokens ?? DEFAULT_MAX_TOKENS,
       supportsImages: this.supportsImages(),
-      tools: options.tools,
+      tools: compactToolsForPrompt(options.tools),
     });
   }
 
@@ -1176,8 +1180,12 @@ export abstract class BaseLLM implements ILLM {
       }
     }
 
-    // Use effectiveTools for the rest of this method
-    const optionsWithOverrides = { ...options, tools: effectiveTools };
+    // Use compact tool descriptions for provider prompts while preserving names,
+    // arguments, and schemas.
+    const optionsWithOverrides = {
+      ...options,
+      tools: compactToolsForPrompt(effectiveTools),
+    };
 
     let { completionOptions, logEnabled } =
       this._parseCompletionOptions(optionsWithOverrides);
@@ -1259,7 +1267,11 @@ export abstract class BaseLLM implements ILLM {
               completionOptions as any
             ).reasoningEffort;
           }
-
+          if ((completionOptions as any).chatgptBackendMode) {
+            (body as any).chatgptBackendMode = (
+              completionOptions as any
+            ).chatgptBackendMode;
+          }
           if (logEnabled) {
             interaction?.logItem({
               kind: "startChat",

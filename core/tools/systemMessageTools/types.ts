@@ -4,6 +4,16 @@ import { generateOpenAIToolCallId } from "./systemToolUtils";
 export interface SystemMessageToolsFramework {
   acceptedToolCallStarts: [string, string][];
 
+  enableImplicitShellCommandToolCalls?: boolean;
+
+  enableImplicitWorkspaceUnavailableToolCalls?: boolean;
+
+  enableImplicitUngroundedSourceToolCalls?: boolean;
+
+  implicitWorkspaceSearchQuery?: string;
+
+  toolOutputIntro?: string;
+
   toolCallStateToSystemToolCall(state: ToolCallState): string;
 
   handleToolCallBuffer(

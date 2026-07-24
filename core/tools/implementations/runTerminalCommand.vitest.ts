@@ -301,6 +301,47 @@ describe("runTerminalCommandImpl", () => {
     expect(result[0].status).toContain("Command failed with:");
   });
 
+  it("should reject terminal commands that include assistant prose", async () => {
+    const args = {
+      command:
+        "ls\nI can investigate the root cause, but I need the codebase first.\nrms_trunk",
+      waitForCompletion: true,
+    };
+    const extras = createMockExtras({ remoteName: "ssh" });
+
+    await expect(runTerminalCommandImpl(args, extras)).rejects.toThrow(
+      "assistant prose after a shell command",
+    );
+    expect(mockRunCommand).not.toHaveBeenCalled();
+  });
+
+  it("should reject shell commands glued directly to assistant prose", async () => {
+    const args = {
+      command: "lsI can investigate the root cause",
+      waitForCompletion: true,
+    };
+    const extras = createMockExtras({ remoteName: "ssh" });
+
+    await expect(runTerminalCommandImpl(args, extras)).rejects.toThrow(
+      "assistant prose attached to the command name",
+    );
+    expect(mockRunCommand).not.toHaveBeenCalled();
+  });
+
+  it("should reject prose-only terminal command arguments", async () => {
+    const args = {
+      command:
+        "I can investigate the root cause, but I need the codebase first.",
+      waitForCompletion: true,
+    };
+    const extras = createMockExtras({ remoteName: "ssh" });
+
+    await expect(runTerminalCommandImpl(args, extras)).rejects.toThrow(
+      "assistant prose instead of shell syntax",
+    );
+    expect(mockRunCommand).not.toHaveBeenCalled();
+  });
+
   it("should handle error situations gracefully", async () => {
     // Use Node.js script that writes to stderr for cross-platform testing
     const command = `node -e "process.stderr.write('This is an error message'); process.exit(1)"`;

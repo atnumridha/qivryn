@@ -533,8 +533,9 @@ declare global {
     aiGatewaySlug?: string;
     apiBase?: string;
     cacheBehavior?: CacheBehavior;
-  
+
     useLegacyCompletionsEndpoint?: boolean;
+    chatgptBackendMode?: "codex" | "chatgpt";
 
     /**
      * When set to false, forces the OpenAI provider to use the /chat/completions
@@ -943,8 +944,9 @@ declare global {
     stream?: boolean;
     prediction?: Prediction;
     tools?: Tool[];
+    chatgptBackendMode?: "codex" | "chatgpt";
   }
-  
+
   export interface ModelCapability {
     uploadImage?: boolean;
   }

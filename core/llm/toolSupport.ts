@@ -58,6 +58,11 @@ export const PROVIDER_TOOL_SUPPORT: Record<string, (model: string) => boolean> =
 
       return false;
     },
+    "chatgpt-codex": () => {
+      // The private ChatGPT/Codex adapter can proxy tool-bearing requests
+      // through the Codex-compatible Responses route.
+      return true;
+    },
     cohere: (model) => {
       const lower = model.toLowerCase();
       if (lower.startsWith("command-a-vision")) {

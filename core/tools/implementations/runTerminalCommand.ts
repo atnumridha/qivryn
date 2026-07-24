@@ -1,10 +1,52 @@
 import iconv from "iconv-lite";
 import childProcess from "node:child_process";
 import os from "node:os";
+import { MALFORMED_TERMINAL_COMMAND_MESSAGE } from "../constants";
 import { QivrynError, QivrynErrorReason } from "../../util/errors";
 
 // Default timeout for terminal commands (2 minutes)
 const DEFAULT_TOOL_TIMEOUT_MS = 120_000;
+
+function isNaturalLanguageLine(line: string): boolean {
+  const trimmed = line.trim();
+  if (!trimmed) {
+    return false;
+  }
+
+  return /^(?:i|i'm|i’ll|i'll|i can|i need|need|the next|next|please|once|qivryn|command failed|zsh:|bash:|there|this)\b/i.test(
+    trimmed,
+  );
+}
+
+function getMalformedTerminalCommandReason(
+  command: string,
+): string | undefined {
+  const normalizedCommand = command.trim();
+  if (!normalizedCommand) {
+    return "The terminal command was empty.";
+  }
+
+  const firstLine = normalizedCommand.split(/\r?\n|\r/, 1)[0].trim();
+  if (isNaturalLanguageLine(firstLine)) {
+    return "The terminal command appears to be assistant prose instead of shell syntax.";
+  }
+
+  if (
+    /^\$?\s*(?:ls|pwd|git|rg|find|cat|sed|bash|zsh|sh)[A-Z]/.test(firstLine)
+  ) {
+    return "The terminal command appears to have assistant prose attached to the command name.";
+  }
+
+  const lines = normalizedCommand
+    .split(/\r?\n|\r/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length > 1 && lines.slice(1).some(isNaturalLanguageLine)) {
+    return "The terminal command appears to include assistant prose after a shell command.";
+  }
+
+  return undefined;
+}
 
 // Automatically decode the buffer according to the platform to avoid garbled Chinese
 function getDecodedOutput(data: Buffer): string {
@@ -108,6 +150,14 @@ const LOCAL_ONLY = ["", "local"];
 
 export const runTerminalCommandImpl: ToolImpl = async (args, extras) => {
   const command = getStringArg(args, "command");
+  const malformedCommandReason = getMalformedTerminalCommandReason(command);
+  if (malformedCommandReason) {
+    throw new QivrynError(
+      QivrynErrorReason.CommandExecutionFailed,
+      `${MALFORMED_TERMINAL_COMMAND_MESSAGE} ${malformedCommandReason} Retry with a listed workspace/file/search tool, or call run_terminal_command with shell syntax only.`,
+    );
+  }
+
   // Default to waiting for completion if not specified
   const waitForCompletion =
     getBooleanArg(args, "waitForCompletion", false) ?? true;

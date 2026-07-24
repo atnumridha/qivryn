@@ -29,26 +29,31 @@ function Resolve-CodeCli {
         return (Resolve-Path -LiteralPath $RequestedPath).Path
     }
 
-    foreach ($commandName in @("code.cmd", "code")) {
-        $command = Get-Command $commandName -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($command) {
-            return $command.Source
-        }
+    $candidates = @()
+    if ($env:LOCALAPPDATA) {
+        $candidates += Join-Path $env:LOCALAPPDATA "Programs/Microsoft VS Code/bin/code.cmd"
     }
-
-    $candidates = @(
-        (Join-Path $env:LOCALAPPDATA "Programs/Microsoft VS Code/bin/code.cmd"),
-        (Join-Path $env:ProgramFiles "Microsoft VS Code/bin/code.cmd")
-    )
+    if ($env:ProgramFiles) {
+        $candidates += Join-Path $env:ProgramFiles "Microsoft VS Code/bin/code.cmd"
+    }
     $programFilesX86 = [Environment]::GetEnvironmentVariable("ProgramFiles(x86)")
     if ($programFilesX86) {
         $candidates += Join-Path $programFilesX86 "Microsoft VS Code/bin/code.cmd"
     }
-    $candidates += Join-Path $env:LOCALAPPDATA "Programs/Microsoft VS Code Insiders/bin/code-insiders.cmd"
+    if ($env:LOCALAPPDATA) {
+        $candidates += Join-Path $env:LOCALAPPDATA "Programs/Microsoft VS Code Insiders/bin/code-insiders.cmd"
+    }
 
     foreach ($candidate in $candidates) {
         if ($candidate -and (Test-Path -LiteralPath $candidate)) {
             return $candidate
+        }
+    }
+
+    foreach ($commandName in @("code.cmd", "code")) {
+        $command = Get-Command $commandName -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($command) {
+            return $command.Source
         }
     }
 

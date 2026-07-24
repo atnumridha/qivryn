@@ -679,6 +679,7 @@ export interface LLMOptions {
 
   useLegacyCompletionsEndpoint?: boolean;
   useResponsesApi?: boolean;
+  chatgptBackendMode?: "codex" | "chatgpt";
 
   // Embedding options
   embeddingId?: string;
@@ -1238,6 +1239,7 @@ export interface BaseCompletionOptions {
   reasoningBudgetTokens?: number;
   /** Reasoning effort level: 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'ultra' */
   reasoningEffort?: string;
+  chatgptBackendMode?: "codex" | "chatgpt";
   promptCaching?: boolean;
 }
 

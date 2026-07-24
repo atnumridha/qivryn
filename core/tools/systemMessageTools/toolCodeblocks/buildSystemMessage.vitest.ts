@@ -6,7 +6,10 @@ import {
   generateToolsSystemMessage,
 } from "../buildToolsSystemMessage";
 
-import { SystemMessageToolCodeblocksFramework } from ".";
+import {
+  CompactSystemMessageToolCodeblocksFramework,
+  SystemMessageToolCodeblocksFramework,
+} from ".";
 import { closeTag } from "../systemToolUtils";
 
 const SHARED_TOOL_FIELDS = {
@@ -17,6 +20,7 @@ const SHARED_TOOL_FIELDS = {
 };
 
 const framework = new SystemMessageToolCodeblocksFramework();
+const compactFramework = new CompactSystemMessageToolCodeblocksFramework();
 
 describe("createSystemMessageExampleCall", () => {
   it("creates a system message example call with no args", () => {
@@ -227,6 +231,54 @@ describe("generateToolsSystemMessage", () => {
 
     expect(hasExampleDefinition).toBe(true);
     expect(hasExampleCall).toBe(true);
+  });
+
+  it("generates compact ChatGPT tool instructions with the same call format", () => {
+    const longDescription = Array.from({ length: 80 }, (_, index) => {
+      return `description-${index}`;
+    }).join(" ");
+    const tools: Tool[] = [
+      {
+        function: {
+          name: "compact_tool",
+          description: longDescription,
+          parameters: {
+            type: "object",
+            properties: {
+              path: {
+                type: "string",
+                description: longDescription,
+              },
+            },
+            required: ["path"],
+          },
+        },
+        ...SHARED_TOOL_FIELDS,
+      },
+    ];
+
+    const compactResult = generateToolsSystemMessage(tools, compactFramework);
+    const verboseResult = generateToolsSystemMessage(tools, framework);
+
+    expect(compactResult).includes("Qivryn runtime tool bridge");
+    expect(compactResult).includes("Behave as Qivryn's coding agent");
+    expect(compactResult).includes("TOOL_NAME: compact_tool");
+    expect(compactResult).includes("BEGIN_ARG: arg_1");
+    expect(compactResult).includes("Raw JSON is not a tool call");
+    expect(compactResult).includes(
+      "Do not ask the user to upload, paste, or share the repository",
+    );
+    expect(compactResult).includes(
+      "prefer grep_search first, then read_file or read_file_range",
+    );
+    expect(compactResult).includes("make a tool call before analysis");
+    expect(compactResult).includes(
+      "grep_search finds symbols, errors, configs, and customer symptoms",
+    );
+    expect(compactResult).includes(
+      "Never call run_terminal_command with explanatory text",
+    );
+    expect(compactResult.length).toBeLessThan(verboseResult.length);
   });
 });
 

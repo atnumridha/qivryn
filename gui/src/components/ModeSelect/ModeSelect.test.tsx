@@ -6,6 +6,7 @@ import {
   ModeSelect,
   scrollTopToReveal,
 } from "./ModeSelect";
+import { updateConfig, EMPTY_CONFIG } from "../../redux/slices/configSlice";
 import { setMode } from "../../redux/slices/sessionSlice";
 
 describe("ModeSelect", () => {
@@ -36,6 +37,45 @@ describe("ModeSelect", () => {
 
     expect(store.getState().session.mode).toBe("agent");
     expect(screen.queryByText("Background workspace")).not.toBeInTheDocument();
+  });
+
+  it("persists the selected ChatGPT Codex backend endpoint", async () => {
+    const { store, user } = await renderWithProviders(<ModeSelect modelOnly />);
+    const model = {
+      title: "Codex: GPT-5.5",
+      provider: "chatgpt-codex",
+      underlyingProviderName: "chatgpt-codex",
+      model: "gpt-5.5",
+      chatgptBackendMode: "codex",
+    } as any;
+
+    await act(async () => {
+      store.dispatch(
+        updateConfig({
+          ...EMPTY_CONFIG,
+          modelsByRole: {
+            ...EMPTY_CONFIG.modelsByRole,
+            chat: [model],
+          },
+          selectedModelByRole: {
+            ...EMPTY_CONFIG.selectedModelByRole,
+            chat: model,
+          },
+        }),
+      );
+    });
+
+    await user.click(screen.getByRole("button", { name: "Model dropdown" }));
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Backend endpoint dropdown",
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: "ChatGPT" }));
+
+    expect(
+      store.getState().ui.chatGPTBackendModeSettings["Codex: GPT-5.5"],
+    ).toBe("chatgpt");
   });
 
   it.each([

@@ -163,6 +163,22 @@ function bundleVoiceTranscriptionDependencies(target) {
   console.log("[info] Bundled sharp for local voice transcription");
 }
 
+function resolveLanceDbPackageSpec(packageName) {
+  let manifestPath;
+  try {
+    manifestPath = require.resolve("vectordb/package.json", {
+      paths: [path.join(qivrynDir, "extensions", "vscode", "node_modules")],
+    });
+  } catch {
+    return packageName;
+  }
+
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  const version =
+    manifest.optionalDependencies?.[packageName] ?? manifest.version;
+  return version ? `${packageName}@${version}` : packageName;
+}
+
 // Clear folders that will be packaged to ensure clean slate
 rimrafSync(path.join(__dirname, "..", "bin"));
 rimrafSync(path.join(__dirname, "..", "out"));
@@ -471,6 +487,7 @@ void (async () => {
   let expectedPackagePath;
   if (packageToInstall) {
     packageDirName = packageToInstall.split("/").pop();
+    const packageSpecToInstall = resolveLanceDbPackageSpec(packageToInstall);
     expectedPackagePath = path.join(
       __dirname,
       "..",
@@ -478,20 +495,24 @@ void (async () => {
       "@lancedb",
       packageDirName,
     );
+    const expectedPackageIndexPath = path.join(
+      expectedPackagePath,
+      "index.node",
+    );
 
-    if (!fs.existsSync(expectedPackagePath)) {
+    if (!fs.existsSync(expectedPackageIndexPath)) {
       console.log(
-        `[info] Installing LanceDB binary for ${target}: ${packageToInstall}`,
+        `[info] Installing LanceDB binary for ${target}: ${packageSpecToInstall}`,
       );
-      await installAndCopyNodeModules(packageToInstall, "@lancedb");
-      if (!fs.existsSync(expectedPackagePath)) {
+      await installAndCopyNodeModules(packageSpecToInstall, "@lancedb");
+      if (!fs.existsSync(expectedPackageIndexPath)) {
         throw new Error(
-          `Failed to install LanceDB binary at ${expectedPackagePath}`,
+          `Failed to install LanceDB binary at ${expectedPackageIndexPath}`,
         );
       }
     } else {
       console.log(
-        `[info] LanceDB binary already present for ${target} at ${expectedPackagePath}`,
+        `[info] LanceDB binary already present for ${target} at ${expectedPackageIndexPath}`,
       );
     }
   } else {

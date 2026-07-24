@@ -67,6 +67,11 @@ export class ReleaseUpdateManager implements vscode.Disposable {
         this.timer.unref?.();
         return;
       }
+      if (!explicit) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(`Qivryn could not check for updates: ${message}`);
+        return;
+      }
       const message = error instanceof Error ? error.message : String(error);
       const selection = await vscode.window.showErrorMessage(
         `Qivryn could not check for updates: ${message}`,

@@ -6,6 +6,7 @@ import {
   RuleWithSource,
   TextMessagePart,
   ToolResultChatMessage,
+  ToolCallState,
   UserChatMessage,
 } from "core";
 import { chatMessageIsEmpty } from "core/llm/messages";
@@ -35,6 +36,18 @@ interface MessageWithContextItems {
   ctxItems: ContextItemWithId[];
   message: ChatMessage;
 }
+
+function limitToolCallStatesForHistory(
+  toolCallStates: ToolCallState[],
+): ToolCallState[] {
+  return toolCallStates.map((state) => ({
+    ...state,
+    output: state.output
+      ? limitToolContextItemsForHistory(state.output)
+      : state.output,
+  }));
+}
+
 export function constructMessages(
   history: ChatHistoryItem[],
   baseSystemMessage: string | undefined,
@@ -128,10 +141,13 @@ export function constructMessages(
     } else if (item.message.role === "assistant") {
       // When using system message tools, convert tool calls/states to text content
       if (item.toolCallStates?.length && useSystemToolsFramework) {
+        const boundedToolCallStates = limitToolCallStatesForHistory(
+          item.toolCallStates,
+        );
         const { userMessage, assistantMessage } =
           convertToolCallStatesToSystemCallsAndOutput(
             item.message,
-            item.toolCallStates ?? [],
+            boundedToolCallStates,
             useSystemToolsFramework,
           );
         msgs.push({

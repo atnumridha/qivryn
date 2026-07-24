@@ -232,11 +232,13 @@ function makeEntry({
   provider,
   model,
   apiBase,
+  chatgptBackendMode,
   roles,
   capabilities,
   reasoningEffort,
 }) {
   const entry = { name, provider, model, apiBase, roles };
+  if (chatgptBackendMode) entry.chatgptBackendMode = chatgptBackendMode;
   if (capabilities?.length) entry.capabilities = capabilities;
   if (reasoningEffort) {
     entry.requestOptions = {
@@ -312,6 +314,7 @@ function codexEntries(m) {
     provider: "chatgpt-codex",
     model: slug,
     apiBase: "https://chatgpt.com/backend-api/codex/",
+    chatgptBackendMode: "codex",
     roles,
     capabilities: ["tool_use", "image_input"],
     reasoningEffort: defaultEffort,
@@ -353,6 +356,7 @@ async function buildModelList(copilotModels, codexModels) {
         provider: "chatgpt-codex",
         model: codexAutoBase.slug,
         apiBase: "https://chatgpt.com/backend-api/codex/",
+        chatgptBackendMode: "codex",
         roles: ["autocomplete"],
         reasoningEffort: CODEX_DEFAULT_EFFORT,
       }),

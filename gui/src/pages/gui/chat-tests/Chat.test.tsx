@@ -219,6 +219,36 @@ test("renders historical user prompts read-only until edit is clicked", async ()
   expect(mainComposer.querySelector(".qivryn-main-input-frame")).not.toBeNull();
 });
 
+test("renders user message content when the saved editor state is empty", async () => {
+  const { store } = await renderWithProviders(<Chat />);
+
+  await act(async () => {
+    store.dispatch(
+      newSession({
+        sessionId: "empty-editor-state-session",
+        title: "Empty editor state",
+        workspaceDirectory: "/workspace/app",
+        history: [
+          {
+            contextItems: [],
+            editorState: {
+              type: "doc",
+              content: [{ type: "paragraph" }],
+            },
+            message: {
+              id: "user-empty-editor-state",
+              role: "user",
+              content: "Visible sent message",
+            },
+          },
+        ] as any,
+      }),
+    );
+  });
+
+  expect(await screen.findByText("Visible sent message")).toBeVisible();
+});
+
 test("continues an explicitly incomplete assistant response", async () => {
   const { ideMessenger, store, user } = await renderWithProviders(<Chat />);
   const seededHistory = [

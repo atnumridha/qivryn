@@ -461,7 +461,15 @@ class VsCodeIde implements IDE {
       .map((t) => (t.input as vscode.TabInputText).uri.toString());
   }
 
-  runRipgrepQuery(dirUri: string, args: string[]) {
+  runRipgrepQuery(
+    dirUri: string,
+    args: string[],
+    options: {
+      maxOutputBytes?: number;
+      maxOutputLines?: number;
+      timeoutMs?: number;
+    } = {},
+  ) {
     const relativeDir = vscode.Uri.parse(dirUri).fsPath;
     const ripGrepUri = vscode.Uri.joinPath(
       getExtensionUri(),
@@ -470,15 +478,63 @@ class VsCodeIde implements IDE {
     const p = child_process.spawn(ripGrepUri.fsPath, args, {
       cwd: relativeDir,
     });
+    const maxOutputBytes = options.maxOutputBytes ?? 512_000;
+    const maxOutputLines = options.maxOutputLines;
+    const timeoutMs = options.timeoutMs ?? 15_000;
     let output = "";
+    let truncated = false;
+    let timedOut = false;
+    const truncateMessage =
+      "\n[Search output truncated. Refine the query, path, or glob for more results.]";
+
+    const trimToLimits = () => {
+      if (maxOutputLines !== undefined) {
+        const lines = output.split(/\r?\n/);
+        if (lines.length > maxOutputLines) {
+          output = lines.slice(0, maxOutputLines).join("\n") + truncateMessage;
+          return true;
+        }
+      }
+
+      if (Buffer.byteLength(output, "utf8") > maxOutputBytes) {
+        output =
+          output.slice(0, maxOutputBytes) +
+          "\n[Search output truncated by byte limit. Refine the query, path, or glob for more results.]";
+        return true;
+      }
+
+      return false;
+    };
+
+    const timer = setTimeout(() => {
+      timedOut = true;
+      p.kill();
+    }, timeoutMs);
 
     p.stdout.on("data", (data) => {
       output += data.toString();
+      if (trimToLimits()) {
+        truncated = true;
+        p.kill();
+      }
     });
 
     return new Promise<string>((resolve, reject) => {
       p.on("error", reject);
       p.on("close", (code) => {
+        clearTimeout(timer);
+        if (timedOut) {
+          resolve(
+            output.trim()
+              ? `${output.trim()}\n[Search timed out after ${timeoutMs}ms. Refine the query, path, or glob.]`
+              : `Search timed out after ${timeoutMs}ms. Refine the query, path, or glob.`,
+          );
+          return;
+        }
+        if (truncated) {
+          resolve(output);
+          return;
+        }
         if (code === 0) {
           resolve(output);
         } else if (code === 1) {
@@ -577,18 +633,25 @@ class VsCodeIde implements IDE {
       const results: string[] = [];
       // Create a single combined ignore pattern using glob brace expansion
       for (const dir of await this.getWorkspaceDirs()) {
-        const dirResults = await this.runRipgrepQuery(dir, [
-          "--files",
-          "--iglob",
-          pattern,
-          "--ignore-file",
-          ".qivrynignore",
-          "--ignore-file",
-          ".gitignore",
-          "--glob",
-          defaultIgnoresGlob,
-          ...(maxResults ? ["--max-count", String(maxResults)] : []),
-        ]);
+        const dirResults = await this.runRipgrepQuery(
+          dir,
+          [
+            "--files",
+            "--iglob",
+            pattern,
+            "--ignore-file",
+            ".qivrynignore",
+            "--ignore-file",
+            ".gitignore",
+            "--no-messages",
+            "--glob",
+            defaultIgnoresGlob,
+          ],
+          {
+            maxOutputLines: maxResults,
+            timeoutMs: 10_000,
+          },
+        );
 
         results.push(dirResults);
       }
@@ -641,35 +704,56 @@ class VsCodeIde implements IDE {
     const sortArgs = sort
       ? [options.sortAscending === false ? "--sortr" : "--sort", sort]
       : [];
+    const resultLimit = maxResults ?? 100;
 
     for (const dir of await this.getWorkspaceDirs()) {
-      const dirResults = await this.runRipgrepQuery(dir, [
-        ...(options.caseInsensitive === false ? [] : ["-i"]),
-        ...(options.fixedStrings ? ["-F"] : []),
-        ...(options.multiline ? ["-U", "--multiline-dotall"] : []),
-        "--ignore-file",
-        ".qivrynignore",
-        "--ignore-file",
-        ".gitignore",
-        ...(outputMode === "content" ? [...contextArgs, "--heading"] : []),
-        ...(outputMode === "files_with_matches"
-          ? ["--files-with-matches"]
-          : outputMode === "count"
-            ? ["--count"]
+      const dirResults = await this.runRipgrepQuery(
+        dir,
+        [
+          ...(options.caseInsensitive === false ? [] : ["-i"]),
+          ...(options.fixedStrings ? ["-F"] : []),
+          ...(options.multiline ? ["-U", "--multiline-dotall"] : []),
+          "--ignore-file",
+          ".qivrynignore",
+          "--ignore-file",
+          ".gitignore",
+          "--no-messages",
+          "--max-filesize",
+          "1M",
+          ...(outputMode === "content" ? [...contextArgs, "--heading"] : []),
+          ...(outputMode === "files_with_matches"
+            ? ["--files-with-matches"]
+            : outputMode === "count"
+              ? ["--count"]
+              : []),
+          // Use a single glob with all default ignores
+          "--glob",
+          defaultIgnoresGlob,
+          ...(options.glob ? ["--glob", options.glob] : []),
+          ...(options.fileType ? ["--type", options.fileType] : []),
+          ...sortArgs,
+          ...(maxResults && outputMode === "content"
+            ? ["-m", maxResults.toString()]
             : []),
-        // Use a single glob with all default ignores
-        "--glob",
-        defaultIgnoresGlob,
-        ...(options.glob ? ["--glob", options.glob] : []),
-        ...(options.fileType ? ["--type", options.fileType] : []),
-        ...sortArgs,
-        ...(maxResults && outputMode === "content"
-          ? ["-m", maxResults.toString()]
-          : []),
-        "-e",
-        query, // Pattern to search for
-        target,
-      ]);
+          "-e",
+          query, // Pattern to search for
+          target,
+        ],
+        {
+          maxOutputBytes: outputMode === "content" ? 512_000 : 128_000,
+          maxOutputLines:
+            outputMode === "content"
+              ? Math.min(Math.max(resultLimit * 20, 200), 2_000)
+              : Math.min(
+                  Math.max(
+                    resultLimit + Math.max(0, options.offset ?? 0) + 25,
+                    50,
+                  ),
+                  250,
+                ),
+          timeoutMs: outputMode === "content" ? 15_000 : 10_000,
+        },
+      );
 
       results.push(dirResults);
     }

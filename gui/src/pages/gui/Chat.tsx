@@ -118,6 +118,28 @@ function editorStateToPlainText(value: JSONContent | undefined): string {
   return value.type === "doc" ? childText.join("\n") : childText.join("");
 }
 
+function hasVisibleEditorStateContent(value: JSONContent | undefined): boolean {
+  if (!value) return false;
+  if (typeof value.text === "string" && value.text.trim().length > 0) {
+    return true;
+  }
+  if (value.type === "image") {
+    return true;
+  }
+  return value.content?.some(hasVisibleEditorStateContent) ?? false;
+}
+
+function editorStateForUserTranscript(
+  message: ChatHistoryItemWithMessageId["message"],
+  editorState: JSONContent | undefined,
+): JSONContent | undefined {
+  const renderedMessage = renderChatMessage(message);
+  if (hasVisibleEditorStateContent(editorState) || !renderedMessage.trim()) {
+    return editorState ?? createPlainTextEditorState(renderedMessage);
+  }
+  return createPlainTextEditorState(renderedMessage);
+}
+
 function shouldUseDurableAgentComposer(
   editorState: JSONContent,
   history: ChatHistoryItem[],
@@ -810,7 +832,7 @@ export function Chat() {
             }
             isLastUserInput={isLastUserInput(index)}
             isMainInput={false}
-            editorState={editorState ?? item.message.content}
+            editorState={editorStateForUserTranscript(message, editorState)}
             contextItems={contextItems}
             appliedRules={appliedRules}
             inputId={message.id}
